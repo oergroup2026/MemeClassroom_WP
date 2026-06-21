@@ -102,6 +102,8 @@ const Admin = () => {
   const [newTaxGrade, setNewTaxGrade] = useState("");
 
   const [loadingAction, setLoadingAction] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [isWiping, setIsWiping] = useState(false);
 
   // Force Tab check for Manager restrictions
   useEffect(() => {
@@ -617,7 +619,7 @@ const Admin = () => {
   // SEED TEST DATA ACTION
   const handleSeedTestData = async () => {
     if (profile.role !== "admin") return;
-    setLoadingAction(true);
+    setIsSeeding(true);
     try {
       const mockTemplates = [
         {
@@ -722,14 +724,14 @@ const Admin = () => {
     } catch (e) {
       triggerAlert(e.message || "Failed to seed test data.", "error");
     } finally {
-      setLoadingAction(false);
+      setIsSeeding(false);
     }
   };
 
   // WIPE PLACEHOLDER DATA ACTION
   const handleWipePlaceholderData = async () => {
     if (profile.role !== "admin") return;
-    setLoadingAction(true);
+    setIsWiping(true);
     try {
       let count = 0;
       
@@ -758,7 +760,7 @@ const Admin = () => {
     } catch (e) {
       triggerAlert(e.message || "Failed to wipe placeholder data.", "error");
     } finally {
-      setLoadingAction(false);
+      setIsWiping(false);
     }
   };
 
@@ -1862,17 +1864,17 @@ const Admin = () => {
             <div className="flex flex-wrap gap-4 pt-2">
               <button
                 onClick={handleSeedTestData}
-                disabled={loadingAction}
+                disabled={isSeeding}
                 className={btnClass("purple")}
               >
-                🌱 Seed Sandbox Test Data
+                {isSeeding ? "Seeding..." : "🌱 Seed Sandbox Test Data"}
               </button>
               <button
                 onClick={handleWipePlaceholderData}
-                disabled={loadingAction}
+                disabled={isWiping}
                 className={btnClass("red") + " border border-red-650 bg-red-900/10 hover:bg-red-900/20 text-red-500"}
               >
-                🗑️ Wipe Placeholder Data
+                {isWiping ? "Wiping..." : "🗑️ Wipe Placeholder Data"}
               </button>
             </div>
           </div>
