@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  doc, 
-  getDoc, 
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  getDoc,
   setDoc,
-  addDoc, 
-  updateDoc, 
+  addDoc,
+  updateDoc,
   deleteDoc,
-  serverTimestamp, 
+  serverTimestamp,
   increment,
   runTransaction
 } from "firebase/firestore";
@@ -69,25 +69,25 @@ const Library = () => {
     img.onload = () => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
-      
+
       canvas.width = img.naturalWidth || img.width || 500;
       canvas.height = (img.naturalHeight || img.height || 500) + 40;
-      
+
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height - 40);
-      
+
       ctx.fillStyle = "#1e1b4b"; // Dark indigo background
       ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
-      
+
       ctx.fillStyle = "#fbbf24"; // High contrast yellow text
       ctx.font = "bold 14px sans-serif";
       ctx.textBaseline = "middle";
-      
+
       ctx.textAlign = "left";
       ctx.fillText("Created on MemeClassroom", 20, canvas.height - 20);
-      
+
       ctx.textAlign = "right";
       ctx.fillText("Licensed under CC BY-NC-SA 4.0", canvas.width - 20, canvas.height - 20);
-      
+
       const link = document.createElement("a");
       link.download = `${title || 'meme'}_watermarked.png`;
       link.href = canvas.toDataURL("image/png");
@@ -130,7 +130,7 @@ const Library = () => {
       snapshot.forEach((doc) => {
         memeList.push({ id: doc.id, ...doc.data() });
       });
-      
+
       // Sort newest first
       memeList.sort((a, b) => {
         const timeA = a.created_at?.seconds || 0;
@@ -207,8 +207,8 @@ const Library = () => {
     // Listen to expert comments
     const commentsCol = collection(db, "comments");
     const commentsQuery = query(
-      commentsCol, 
-      where("meme_id", "==", activeMeme.id), 
+      commentsCol,
+      where("meme_id", "==", activeMeme.id),
       where("is_expert_comment", "==", true)
     );
 
@@ -359,7 +359,7 @@ const Library = () => {
     try {
       await runTransaction(db, async (transaction) => {
         const ratingDoc = await transaction.get(ratingRef);
-        
+
         let newRating = {
           meme_id: activeMeme.id,
           user_id: user.uid,
@@ -419,8 +419,8 @@ const Library = () => {
   };
 
   // Dynamic styling configurations for UDL contrast adjustments
-  const containerClass = highContrastMode 
-    ? "bg-black border-2 border-yellow-400 text-yellow-400" 
+  const containerClass = highContrastMode
+    ? "bg-black border-2 border-yellow-400 text-yellow-400"
     : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-xl";
 
   const inputClass = highContrastMode
@@ -433,7 +433,7 @@ const Library = () => {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4">
-      
+
       {/* Page Title Header and Action buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-gray-850 pb-5 mb-8">
         <div>
@@ -448,14 +448,14 @@ const Library = () => {
               onClick={() => setShowDirectUploadModal(true)}
               className={btnClass}
             >
-              📤 Direct Meme Upload
+              Direct Meme Upload
             </button>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        
+
         {/* Left 1 Column: Filters Sidebar */}
         <div className={`p-6 h-fit ${containerClass}`}>
           <h2 className="text-sm font-bold uppercase tracking-wider mb-4 border-b pb-2">Filter Options</h2>
@@ -548,9 +548,9 @@ const Library = () => {
 
                 return (
                   <div key={meme.id} className={`flex flex-col h-full overflow-hidden transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md ${containerClass}`}>
-                    
+
                     {/* Visual Media Preview Box */}
-                    <div 
+                    <div
                       onClick={() => setActiveMeme(meme)}
                       className="bg-gray-100 dark:bg-gray-900 aspect-video relative flex items-center justify-center cursor-pointer overflow-hidden group"
                     >
@@ -566,7 +566,7 @@ const Library = () => {
                       {meme.format === "audio" && (
                         <div className="text-3xl">🔊</div>
                       )}
-                      
+
                       <div className="absolute top-2 left-2 flex gap-1 z-10">
                         {meme.creator_id === "admin" ? (
                           <span className="bg-purple-650 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
@@ -592,7 +592,7 @@ const Library = () => {
                     <div className="p-4 flex-grow flex flex-col justify-between">
                       <div>
                         <div className="flex items-start justify-between gap-2 mb-2">
-                          <h3 
+                          <h3
                             onClick={() => setActiveMeme(meme)}
                             className="font-extrabold text-sm hover:text-purple-600 cursor-pointer line-clamp-1"
                           >
@@ -683,12 +683,12 @@ const Library = () => {
       {activeMeme && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className={`w-full max-w-4xl p-6 rounded-xl overflow-y-auto max-h-[90vh] grid grid-cols-1 md:grid-cols-2 gap-6 ${containerClass}`}>
-            
+
             {/* Left Column: Visual Asset & Title */}
             <div>
               <div className="flex justify-between items-start mb-4">
                 <h2 className="text-lg font-extrabold leading-tight">{activeMeme.title}</h2>
-                <button 
+                <button
                   onClick={() => setActiveMeme(null)}
                   className="text-gray-400 hover:text-gray-500 font-bold md:hidden"
                 >
@@ -732,7 +732,7 @@ const Library = () => {
               {/* Criteria Progress evaluation bars */}
               <div className="space-y-3 bg-gray-50 dark:bg-gray-900 p-4 rounded-xl text-xs font-semibold">
                 <span className="block uppercase tracking-wider text-gray-400 text-[10px] mb-2">Pedagogical Evaluation Grades</span>
-                
+
                 {[
                   { label: "Age Appropriateness", key: "age_appropriateness" },
                   { label: "Language Appropriateness", key: "language_appropriateness" },
@@ -748,10 +748,10 @@ const Library = () => {
                         <span>{crit.label}</span>
                         <span className="text-purple-650">{avg > 0 ? `${avg.toFixed(1)} / 5` : "Unrated"}</span>
                       </div>
-                      
+
                       {/* Progress Bar representing average */}
                       <div className="w-full bg-gray-200 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="bg-purple-600 h-full transition-all duration-300"
                           style={{ width: `${(avg / 5) * 100}%` }}
                         ></div>
@@ -790,7 +790,7 @@ const Library = () => {
                     </span>
                   )}
                 </div>
-                <button 
+                <button
                   onClick={() => setActiveMeme(null)}
                   className="hidden md:block text-gray-400 hover:text-gray-500 font-bold text-lg"
                 >

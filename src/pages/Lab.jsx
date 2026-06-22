@@ -99,10 +99,12 @@ const Lab = () => {
 
   // --- Image Tab State ---
   const [images, setImages] = useState([]); // Array of base64/object URLs
+  const [imageFiles, setImageFiles] = useState([]); // Array of raw File objects
   const [collageLayout, setCollageLayout] = useState("grid"); // "grid" | "vertical" | "horizontal"
 
   // --- Video Tab State ---
   const [videoUrl, setVideoUrl] = useState(MEDIA_SAMPLES.video[0].url);
+  const [videoFile, setVideoFile] = useState(null); // Raw File object
   const [videoDuration, setVideoDuration] = useState(15);
   const [videoTrimStart, setVideoTrimStart] = useState(0);
   const [videoTrimEnd, setVideoTrimEnd] = useState(15);
@@ -112,6 +114,7 @@ const Lab = () => {
 
   // --- Audio Tab State ---
   const [audioUrl, setAudioUrl] = useState(MEDIA_SAMPLES.audio[0].url);
+  const [audioFile, setAudioFile] = useState(null); // Raw File object
   const [audioTrimStart, setAudioTrimStart] = useState(0);
   const [audioTrimEnd, setAudioTrimEnd] = useState(15);
 
@@ -174,8 +177,10 @@ const Lab = () => {
       if (videoElement.duration >= 15) {
         setAlertMessage("Video memes must be under 15 seconds");
         setVideoUrl("");
+        setVideoFile(null);
       } else {
         setVideoUrl(URL.createObjectURL(file));
+        setVideoFile(file);
         setVideoDuration(videoElement.duration);
         setVideoTrimStart(0);
         setVideoTrimEnd(videoElement.duration);
@@ -194,17 +199,20 @@ const Lab = () => {
 
     const newUrls = files.map(file => URL.createObjectURL(file));
     setImages(prev => [...prev, ...newUrls]);
+    setImageFiles(prev => [...prev, ...files]);
   };
 
   // Handle media templates selections from constants mapping
   const selectMediaPreset = (url, type, duration = 15) => {
     if (type === "video") {
       setVideoUrl(url);
+      setVideoFile(null);
       setVideoDuration(duration);
       setVideoTrimStart(0);
       setVideoTrimEnd(duration);
     } else if (type === "audio") {
       setAudioUrl(url);
+      setAudioFile(null);
       setAudioTrimStart(0);
       setAudioTrimEnd(duration);
     } else if (type === "gif") {
@@ -375,6 +383,86 @@ const Lab = () => {
     return () => clearInterval(autoSaveInterval);
   }, [user, title, subject, ageGroup, activeTab, language, images, videoUrl, gifUrl, audioUrl, textLayers]);
 
+  const loadImage = (src) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = src;
+      img.onload = () => resolve(img);
+      img.onerror = (e) => reject(e);
+    });
+  };
+
+  const generateMemeBlob = async () => {
+    const container = canvasContainerRef.current;
+    if (!container) return null;
+    const width = container.offsetWidth || 500;
+    const height = container.offsetHeight || 500;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+
+    // Draw background color first
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+
+    // Draw images collage if activeTab is "image"
+    if (activeTab === "image" && images.length > 0) {
+      const numImages = images.length;
+      const loadedImages = [];
+      for (let i = 0; i < numImages; i++) {
+        try {
+          const img = await loadImage(images[i]);
+          loadedImages.push(img);
+        } catch (err) {
+          console.error("Failed to load image", images[i], err);
+        }
+      }
+
+      if (numImages === 1 && loadedImages[0]) {
+        ctx.drawImage(loadedImages[0], 0, 0, width, height);
+      } else if (numImages === 2) {
+        const colWidth = width / 2;
+        if (loadedImages[0]) ctx.drawImage(loadedImages[0], 0, 0, colWidth, height);
+        if (loadedImages[1]) ctx.drawImage(loadedImages[1], colWidth, 0, colWidth, height);
+      } else if (numImages === 3) {
+        const colWidth = width / 3;
+        if (loadedImages[0]) ctx.drawImage(loadedImages[0], 0, 0, colWidth, height);
+        if (loadedImages[1]) ctx.drawImage(loadedImages[1], colWidth, 0, colWidth, height);
+        if (loadedImages[2]) ctx.drawImage(loadedImages[2], colWidth * 2, 0, colWidth, height);
+      } else if (numImages === 4) {
+        const colWidth = width / 2;
+        const rowHeight = height / 2;
+        if (loadedImages[0]) ctx.drawImage(loadedImages[0], 0, 0, colWidth, rowHeight);
+        if (loadedImages[1]) ctx.drawImage(loadedImages[1], colWidth, 0, colWidth, rowHeight);
+        if (loadedImages[2]) ctx.drawImage(loadedImages[2], 0, rowHeight, colWidth, rowHeight);
+        if (loadedImages[3]) ctx.drawImage(loadedImages[3], colWidth, rowHeight, colWidth, rowHeight);
+      }
+    }
+
+    // Draw text overlays
+    textLayers.forEach(layer => {
+      ctx.font = `${layer.fontSize}px ${layer.fontFamily || 'Impact'}`;
+      ctx.fillStyle = layer.color || '#FFFFFF';
+      ctx.strokeStyle = layer.strokeColor || '#000000';
+      ctx.lineWidth = (layer.strokeWidth || 0) * 2; // scale stroke to make it look prominent
+      ctx.textBaseline = 'top';
+      
+      if (layer.strokeWidth > 0) {
+        ctx.strokeText(layer.text, layer.x, layer.y);
+      }
+      ctx.fillText(layer.text, layer.x, layer.y);
+    });
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        resolve(blob);
+      }, "image/png");
+    });
+  };
+
   // --- Final Publish & Save Workflow ---
   const handlePublishSubmit = async () => {
     if (!user) return;
@@ -382,13 +470,71 @@ const Lab = () => {
     setAlertMessage("");
 
     try {
-      const activeAssetUrl = activeTab === "image" 
+      let fileUrl = activeTab === "image" 
         ? (images[0] || "/samples/confused_student_sample.gif") 
         : activeTab === "video" 
           ? videoUrl 
           : activeTab === "gif" 
             ? gifUrl 
             : audioUrl;
+
+      // 1. Compile image and upload if activeTab is image
+      if (activeTab === "image") {
+        const blob = await generateMemeBlob();
+        if (blob) {
+          // Upload compiled PNG image to Firebase Storage
+          const storageRef = ref(storage, `memes/${user.uid}_meme_${Date.now()}.png`);
+          const snapshot = await uploadBytes(storageRef, blob);
+          fileUrl = await getDownloadURL(snapshot.ref);
+
+          // Local file download trigger
+          const downloadUrl = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.download = `${title || 'meme'}.png`;
+          link.href = downloadUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(downloadUrl);
+        }
+      } 
+      // 2. Upload video file to Storage if uploaded manually
+      else if (activeTab === "video" && videoFile) {
+        const storageRef = ref(storage, `memes/${user.uid}_meme_${Date.now()}`);
+        const snapshot = await uploadBytes(storageRef, videoFile);
+        fileUrl = await getDownloadURL(snapshot.ref);
+
+        // Local download of the video file
+        const link = document.createElement("a");
+        link.download = `${title || 'meme'}.mp4`;
+        link.href = videoUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } 
+      // 3. Upload audio file to Storage if uploaded manually
+      else if (activeTab === "audio" && audioFile) {
+        const storageRef = ref(storage, `memes/${user.uid}_meme_${Date.now()}`);
+        const snapshot = await uploadBytes(storageRef, audioFile);
+        fileUrl = await getDownloadURL(snapshot.ref);
+
+        // Local download of the audio file
+        const link = document.createElement("a");
+        link.download = `${title || 'meme'}.mp3`;
+        link.href = audioUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      // 4. Download local GIF file if it is loaded
+      else if (activeTab === "gif" && gifUrl) {
+        const link = document.createElement("a");
+        link.download = `${title || 'meme'}.gif`;
+        link.href = gifUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
 
       const memeData = {
         creator_id: user.uid,
@@ -398,7 +544,7 @@ const Lab = () => {
         format: activeTab,
         language,
         visibility: publishToLibrary ? "public" : "draft",
-        media_url: activeAssetUrl,
+        media_url: fileUrl,
         text_layers_json: JSON.stringify(textLayers),
         template_id: templateId || "",
         created_at: serverTimestamp()
@@ -414,13 +560,13 @@ const Lab = () => {
       // If user checked publish, update user stats for contributor points
       if (publishToLibrary) {
         const statsRef = doc(db, "user_stats", user.uid);
-        await updateDoc(statsRef, {
+        await setDoc(statsRef, {
           memes_created_count: increment(1)
-        });
+        }, { merge: true });
       }
 
-      // Mock Local Download Trigger
-      if (!publishToLibrary) {
+      // Mock Local Download Trigger (only if NOT image/video/audio which already download their visual assets)
+      if (!publishToLibrary && activeTab !== "image" && activeTab !== "video" && activeTab !== "audio") {
         const link = document.createElement("a");
         link.download = `${title || 'meme'}_draft.txt`;
         link.href = `data:text/plain;charset=utf-8,${encodeURIComponent(JSON.stringify(memeData))}`;

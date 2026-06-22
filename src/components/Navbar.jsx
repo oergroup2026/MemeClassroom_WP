@@ -26,8 +26,8 @@ const Navbar = () => {
   };
 
   const renderNavLinks = (mobile = false) => {
-    const linkClass = mobile 
-      ? "block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-250 hover:bg-gray-100 dark:hover:bg-gray-800" 
+    const linkClass = mobile
+      ? "block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-250 hover:bg-gray-100 dark:hover:bg-gray-800"
       : "text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium transition duration-150";
 
     const links = [
@@ -49,9 +49,9 @@ const Navbar = () => {
     }
 
     return links.map((link) => (
-      <Link 
-        key={link.to} 
-        to={link.to} 
+      <Link
+        key={link.to}
+        to={link.to}
         onClick={() => setMobileMenuOpen(false)}
         className={linkClass}
       >
@@ -78,20 +78,20 @@ const Navbar = () => {
 
           <div className="flex items-center space-x-4">
             {/* High Contrast Toggle */}
-            <button 
+            <button
               onClick={toggleHighContrast}
               className={`p-1.5 rounded-full border ${highContrastMode ? 'border-yellow-400 bg-yellow-400 text-black' : 'border-gray-300 dark:border-gray-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
               title="Toggle High Contrast Mode"
             >
-              🌓
+              <img src="dark-mode.png" alt="not" className="w-6 h-6" />
             </button>
 
             {/* Notification Bell */}
             {user && (
               <button className="p-1.5 rounded-full text-gray-400 hover:text-gray-500 relative">
                 <span className="sr-only">View notifications</span>
-                <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
-                🔔
+                {/* <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span> */}
+                <img src="notification.png" alt="not" className="w-6 h-6" />
               </button>
             )}
 
@@ -116,13 +116,13 @@ const Navbar = () => {
                     <Link
                       to="/profile"
                       onClick={() => setUserDropdownOpen(false)}
-                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-350 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
                     >
                       Your Profile
                     </Link>
                     <button
                       onClick={handleSignOut}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-650 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className="block w-full text-left px-4 py-2 text-sm text-red-650 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-red-600"
                     >
                       Sign Out
                     </button>

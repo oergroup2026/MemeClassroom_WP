@@ -21,7 +21,7 @@ import {
 } from "firebase/storage";
 import { auth, db, storage } from "../firebase";
 
-const DEV_MODE = true;
+const DEV_MODE = false;
 
 const AuthContext = createContext();
 
@@ -89,6 +89,7 @@ export const AuthProvider = ({ children }) => {
       const userProfile = await createUserProfile(uid, email, profileData, idCardFile);
       setProfile(userProfile);
       setUser(userCredential.user);
+      setLoading(false);
       return userCredential.user;
     } catch (error) {
       setLoading(false);
@@ -101,6 +102,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      setLoading(false);
       return userCredential.user;
     } catch (error) {
       setLoading(false);
@@ -193,9 +195,12 @@ export const AuthProvider = ({ children }) => {
             }
           } else {
             // Google user who hasn't finished onboarding yet
-            setOnboardingUser(currentUser);
-            setUser(null);
-            setProfile(null);
+            const isGoogle = currentUser.providerData.some(p => p.providerId === "google.com");
+            if (isGoogle) {
+              setOnboardingUser(currentUser);
+              setUser(null);
+              setProfile(null);
+            }
           }
         } catch (e) {
           console.error("Failed to load user profile", e);
