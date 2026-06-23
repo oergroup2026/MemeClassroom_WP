@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  doc, 
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
   getDoc,
   getDocs,
   deleteDoc,
@@ -52,7 +52,7 @@ const Profile = () => {
   const [myMemes, setMyMemes] = useState([]);
   const [myDrafts, setMyDrafts] = useState([]);
   const [bookmarkedMemes, setBookmarkedMemes] = useState([]);
-  
+
   // Cache to resolve creator usernames on bookmark cards
   const [creatorCache, setCreatorCache] = useState({});
 
@@ -111,12 +111,12 @@ const Profile = () => {
             const memeDoc = await getDoc(doc(db, "memes", bookmark.memeId));
             if (memeDoc.exists() && memeDoc.data().visibility !== "flagged_hidden") {
               const data = memeDoc.data();
-              
+
               // Query ratings for this meme to compute averages
               const rList = [];
               const rSnap = await getDocs(query(collection(db, "ratings"), where("meme_id", "==", bookmark.memeId)));
               rSnap.forEach(rd => rList.push(rd.data()));
-              
+
               // Calculate averages
               const averages = {
                 age_appropriateness: 0,
@@ -130,14 +130,14 @@ const Profile = () => {
                   averages[k] = sum / rList.length;
                 });
               }
-              
-              list.push({ 
-                id: memeDoc.id, 
-                saveId: bookmark.saveId, 
+
+              list.push({
+                id: memeDoc.id,
+                saveId: bookmark.saveId,
                 averages,
-                ...data 
+                ...data
               });
-              
+
               // Resolve creator username
               const cId = data.creator_id;
               if (cId === "admin") {
@@ -225,7 +225,7 @@ const Profile = () => {
   const getProgressDetails = (count) => {
     const currentLevel = calculateLevel(count);
     const currentBadgeName = currentLevel > 0 ? `${LEVEL_NAMES[currentLevel]} Medal` : "Locked";
-    
+
     if (currentLevel === 5) {
       return {
         currentLevel,
@@ -234,14 +234,14 @@ const Profile = () => {
         text: "Diamond Mastery reached!"
       };
     }
-    
+
     const currentMin = MILESTONES[currentLevel];
     const nextTarget = MILESTONES[currentLevel + 1];
     const nextLevelName = LEVEL_NAMES[currentLevel + 1];
     const needed = nextTarget - count;
     const progressRatio = (count - currentMin) / (nextTarget - currentMin);
     const progressPercent = Math.max(0, Math.min(100, Math.round(progressRatio * 100)));
-    
+
     return {
       currentLevel,
       currentBadgeName,
@@ -258,25 +258,25 @@ const Profile = () => {
     img.onload = () => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
-      
+
       canvas.width = img.naturalWidth || img.width || 500;
       canvas.height = (img.naturalHeight || img.height || 500) + 40;
-      
+
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height - 40);
-      
-      ctx.fillStyle = "#1e1b4b"; 
+
+      ctx.fillStyle = "#1e1b4b";
       ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
-      
-      ctx.fillStyle = "#fbbf24"; 
+
+      ctx.fillStyle = "#fbbf24";
       ctx.font = "bold 14px sans-serif";
       ctx.textBaseline = "middle";
-      
+
       ctx.textAlign = "left";
       ctx.fillText("Created on MemeClassroom", 20, canvas.height - 20);
-      
+
       ctx.textAlign = "right";
       ctx.fillText("Licensed under CC BY-NC-SA 4.0", canvas.width - 20, canvas.height - 20);
-      
+
       const link = document.createElement("a");
       link.download = `${title || 'meme'}_watermarked.png`;
       link.href = canvas.toDataURL("image/png");
@@ -314,8 +314,8 @@ const Profile = () => {
     }
   };
 
-  const containerClass = highContrastMode 
-    ? "bg-black border-2 border-yellow-400 text-yellow-400" 
+  const containerClass = highContrastMode
+    ? "bg-black border-2 border-yellow-400 text-yellow-400"
     : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-xl";
 
   const renderCardGrid = (items, isBookmarkTab = false) => {
@@ -333,7 +333,7 @@ const Profile = () => {
           const creatorName = meme.creator_id === "admin" ? "Admin" : (creatorCache[meme.creator_id] || "Creator");
           return (
             <div key={meme.id} className={`flex flex-col h-full overflow-hidden ${containerClass}`}>
-              
+
               {/* Media Preview */}
               <div className="bg-gray-100 dark:bg-gray-900 aspect-video relative flex items-center justify-center overflow-hidden">
                 {meme.format === "image" && (
@@ -359,7 +359,7 @@ const Profile = () => {
               <div className="p-4 flex-grow flex flex-col justify-between">
                 <div>
                   <h4 className="font-extrabold text-sm mb-2 line-clamp-1">{meme.title}</h4>
-                  
+
                   {/* Tag list */}
                   <div className="flex flex-wrap gap-1 mb-3">
                     <span className="bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 text-[9px] px-1.5 py-0.5 rounded font-bold">
@@ -403,7 +403,7 @@ const Profile = () => {
                       className="text-gray-500 hover:text-indigo-650"
                       title="Download Meme File"
                     >
-                      📥 Download
+                      Download
                     </button>
 
                     {isBookmarkTab && (
@@ -422,7 +422,7 @@ const Profile = () => {
                       onClick={() => navigate(`/lab?draftId=${meme.id}`)}
                       className="text-indigo-650 hover:underline"
                     >
-                      📝 Resume
+                      Resume
                     </button>
                   ) : (
                     meme.template_id && (
@@ -445,7 +445,7 @@ const Profile = () => {
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8">
-      
+
       {/* 1. Profile Demographics Card Header */}
       {profile && (
         <div className={`p-6 ${containerClass}`}>
@@ -468,7 +468,7 @@ const Profile = () => {
                 {profile.place}, {profile.state}, {profile.country}
               </p>
             </div>
-            
+
             {profile.id_card_url && (
               <a
                 href={profile.id_card_url}
@@ -486,11 +486,11 @@ const Profile = () => {
       {/* 2. Scoreboard Activity Statistics Panel */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {[
-          { label: "Memes Shared", val: stats.memes_created_count, icon: "🧪" },
-          { label: "Resources Shared", val: stats.resources_contributed_count, icon: "📄" },
-          { label: "Staffroom Posts", val: stats.staffroom_posts_count, icon: "🏫" },
-          { label: "Ratings Provided", val: stats.ratings_provided_count, icon: "⭐️" },
-          { label: "Likes Received", val: stats.total_likes_received, icon: "❤️" }
+          { label: "Memes Shared", val: stats.memes_created_count, icon: <img src="research.png" alt="not" className="w-8 h-8" /> },
+          { label: "Resources Shared", val: stats.resources_contributed_count, icon: <img src="process.png" alt="not" className="w-8 h-8" /> },
+          { label: "Staffroom Posts", val: stats.staffroom_posts_count, icon: <img src="school.png" alt="not" className="w-8 h-8" /> },
+          { label: "Ratings Provided", val: stats.ratings_provided_count, icon: <img src="star.png" alt="not" className="w-8 h-8" /> },
+          { label: "Likes Received", val: stats.total_likes_received, icon: <img src="shape.png" alt="not" className="w-8 h-8" /> }
         ].map((stat, idx) => (
           <div key={idx} className={`p-4 text-center ${containerClass}`}>
             <span className="text-xl block mb-2">{stat.icon}</span>
@@ -512,13 +512,13 @@ const Profile = () => {
               <div key={category} className="space-y-2 border border-gray-100 dark:border-gray-800 p-3 rounded-lg bg-gray-50 dark:bg-gray-900">
                 <span className="block text-gray-400 uppercase text-[9px] truncate">{config.label}</span>
                 <div className="flex items-center space-x-1.5">
-                  <span className="text-base">🏅</span>
+                  <span className="text-base"><img src="gold-medal.png" alt="not" className="w-6 h-6" /></span>
                   <span className="font-bold text-gray-850 dark:text-gray-100">{progress.currentBadgeName}</span>
                 </div>
-                
+
                 {/* Horizontal Progress Bar */}
                 <div className="w-full bg-gray-250 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="bg-purple-650 h-full transition-all duration-300"
                     style={{ width: `${progress.progressPercent}%` }}
                   ></div>
@@ -534,31 +534,28 @@ const Profile = () => {
       <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-800 pb-2">
         <button
           onClick={() => setActiveTab("my-memes")}
-          className={`px-4 py-2 text-sm font-bold border-b-2 transition ${
-            activeTab === "my-memes"
-              ? "border-purple-600 text-purple-600 dark:text-purple-400"
-              : "border-transparent text-gray-400 hover:text-gray-500"
-          }`}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition ${activeTab === "my-memes"
+            ? "border-purple-600 text-purple-600 dark:text-purple-400"
+            : "border-transparent text-gray-400 hover:text-gray-500"
+            }`}
         >
           My Public Creations ({myMemes.length})
         </button>
         <button
           onClick={() => setActiveTab("my-drafts")}
-          className={`px-4 py-2 text-sm font-bold border-b-2 transition ${
-            activeTab === "my-drafts"
-              ? "border-purple-600 text-purple-600 dark:text-purple-400"
-              : "border-transparent text-gray-400 hover:text-gray-500"
-          }`}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition ${activeTab === "my-drafts"
+            ? "border-purple-600 text-purple-600 dark:text-purple-400"
+            : "border-transparent text-gray-400 hover:text-gray-500"
+            }`}
         >
           My Saved Drafts ({myDrafts.length})
         </button>
         <button
           onClick={() => setActiveTab("bookmarks")}
-          className={`px-4 py-2 text-sm font-bold border-b-2 transition ${
-            activeTab === "bookmarks"
-              ? "border-purple-600 text-purple-600 dark:text-purple-400"
-              : "border-transparent text-gray-400 hover:text-gray-500"
-          }`}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition ${activeTab === "bookmarks"
+            ? "border-purple-600 text-purple-600 dark:text-purple-400"
+            : "border-transparent text-gray-400 hover:text-gray-500"
+            }`}
         >
           My Bookmarked Memes ({bookmarkedMemes.length})
         </button>
