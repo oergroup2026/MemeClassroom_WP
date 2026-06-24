@@ -13,7 +13,9 @@ import {
   deleteDoc,
   serverTimestamp, 
   increment,
-  runTransaction
+  runTransaction,
+  arrayUnion,
+  arrayRemove
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
@@ -168,6 +170,7 @@ const Staffroom = () => {
           meme_id: linkedMemeId,
           attachment_name: attachmentName || "",
           likes: 0,
+          liked_by: [],
           is_solved: false,
           solved_reply_id: "",
           created_at: serverTimestamp()
@@ -211,12 +214,29 @@ const Staffroom = () => {
   };
 
   // Upvote/Like toggle trigger
-  const handleThreadLike = async (threadId) => {
+  const handleThreadLike = async (thread) => {
+    if (!user) {
+      alert("Please log in to upvote threads.");
+      return;
+    }
     try {
-      const threadRef = doc(db, "staffroom_posts", threadId);
-      await updateDoc(threadRef, {
-        likes: increment(1)
-      });
+      const threadRef = doc(db, "staffroom_posts", thread.id);
+      const likedBy = thread.liked_by || [];
+      const hasLiked = likedBy.includes(user.uid);
+
+      if (hasLiked) {
+        // Unlike: remove user from liked_by and decrement likes count
+        await updateDoc(threadRef, {
+          liked_by: arrayRemove(user.uid),
+          likes: increment(-1)
+        });
+      } else {
+        // Like: add user to liked_by and increment likes count
+        await updateDoc(threadRef, {
+          liked_by: arrayUnion(user.uid),
+          likes: increment(1)
+        });
+      }
     } catch (e) {
       console.error("Like update failed", e);
     }
@@ -384,8 +404,12 @@ const Staffroom = () => {
                     {/* Likes & replies count panel */}
                     <div className="flex items-center space-x-4 border-t border-gray-100 dark:border-gray-700/50 pt-3 text-[11px]">
                       <button
-                        onClick={() => handleThreadLike(thread.id)}
-                        className="text-gray-400 hover:text-purple-650 flex items-center space-x-1"
+                        onClick={() => handleThreadLike(thread)}
+                        className={`flex items-center space-x-1 transition ${
+                          user && thread.liked_by?.includes(user.uid)
+                            ? "text-purple-600 font-bold"
+                            : "text-gray-400 hover:text-purple-650"
+                        }`}
                       >
                         <span>👍</span>
                         <span>{thread.likes || 0} Upvotes</span>
