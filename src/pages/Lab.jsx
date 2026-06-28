@@ -103,17 +103,17 @@ const Lab = () => {
   const [collageLayout, setCollageLayout] = useState("grid"); // "grid" | "vertical" | "horizontal"
 
   // --- Video Tab State ---
-  const [videoUrl, setVideoUrl] = useState(MEDIA_SAMPLES.video[0].url);
+  const [videoUrl, setVideoUrl] = useState(MEDIA_SAMPLES?.video?.[0]?.url || "");
   const [videoFile, setVideoFile] = useState(null); // Raw File object
   const [videoDuration, setVideoDuration] = useState(15);
   const [videoTrimStart, setVideoTrimStart] = useState(0);
   const [videoTrimEnd, setVideoTrimEnd] = useState(15);
 
   // --- GIF Tab State ---
-  const [gifUrl, setGifUrl] = useState(MEDIA_SAMPLES.gif[0].url);
+  const [gifUrl, setGifUrl] = useState(MEDIA_SAMPLES?.gif?.[0]?.url || "");
 
   // --- Audio Tab State ---
-  const [audioUrl, setAudioUrl] = useState(MEDIA_SAMPLES.audio[0].url);
+  const [audioUrl, setAudioUrl] = useState(MEDIA_SAMPLES?.audio?.[0]?.url || "");
   const [audioFile, setAudioFile] = useState(null); // Raw File object
   const [audioTrimStart, setAudioTrimStart] = useState(0);
   const [audioTrimEnd, setAudioTrimEnd] = useState(15);
@@ -162,6 +162,27 @@ const Lab = () => {
   // Auto-Save Drafts reference ID in Firestore
   const draftIdRef = useRef(null);
 
+  // Track dynamically created Object URLs to prevent memory leaks
+  const createdObjectUrlsRef = useRef([]);
+  const createObjectURLSafe = (file) => {
+    const url = URL.createObjectURL(file);
+    createdObjectUrlsRef.current.push(url);
+    return url;
+  };
+
+  // Revoke all tracked Object URLs on component unmount
+  useEffect(() => {
+    return () => {
+      createdObjectUrlsRef.current.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.error("Failed to revoke URL", url, e);
+        }
+      });
+    };
+  }, []);
+
   // Check Video duration & restrict files >= 15 seconds
   const handleVideoUpload = (e) => {
     setAlertMessage("");
@@ -179,7 +200,7 @@ const Lab = () => {
         setVideoUrl("");
         setVideoFile(null);
       } else {
-        setVideoUrl(URL.createObjectURL(file));
+        setVideoUrl(createObjectURLSafe(file));
         setVideoFile(file);
         setVideoDuration(videoElement.duration);
         setVideoTrimStart(0);
@@ -197,7 +218,7 @@ const Lab = () => {
       return;
     }
 
-    const newUrls = files.map(file => URL.createObjectURL(file));
+    const newUrls = files.map(file => createObjectURLSafe(file));
     setImages(prev => [...prev, ...newUrls]);
     setImageFiles(prev => [...prev, ...files]);
   };
@@ -949,7 +970,7 @@ const Lab = () => {
                       accept="audio/*" 
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) setAudioUrl(URL.createObjectURL(file));
+                        if (file) setAudioUrl(createObjectURLSafe(file));
                       }} 
                       className="block text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
                     />

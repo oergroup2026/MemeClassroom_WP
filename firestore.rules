@@ -6,11 +6,30 @@ service cloud.firestore {
       return request.auth != null && 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
+
+    // Helper function to check if user is an expert or admin
+    function isExpertOrAdmin() {
+      return request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'expert' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
     
     // User collection rules
     match /users/{userId} {
       allow read: if request.auth != null;
       allow write: if request.auth.uid == userId || isAdmin();
+    }
+
+    // Comments collection rules
+    match /comments/{commentId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && (
+        !request.resource.data.keys().hasAll(['is_expert_comment']) ||
+        request.resource.data.is_expert_comment != true ||
+        isExpertOrAdmin()
+      );
+      allow delete: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
     }
     
     // Fallback placeholder for development

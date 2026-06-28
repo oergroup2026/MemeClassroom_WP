@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   collection,
   query,
   where,
+  orderBy,
   onSnapshot,
   doc,
   getDoc,
@@ -119,55 +120,67 @@ const Library = () => {
     alert("License Notice: This media file is licensed under Creative Commons CC BY-NC-SA 4.0 parameters.");
   };
 
-  // 1. Real-time Curation Feed Listener
+  const resolvedCreatorsRef = useRef({});
+
+  // 1. Real-time Curation Feed Listener (Database-Side Sorting)
   useEffect(() => {
     const memesCol = collection(db, "memes");
-    // Show only public, unflagged memes
-    const q = query(memesCol, where("visibility", "==", "public"));
+    // Show only public, unflagged memes, sorted newest first
+    const q = query(memesCol, where("visibility", "==", "public"), orderBy("created_at", "desc"));
 
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const memeList = [];
       snapshot.forEach((doc) => {
         memeList.push({ id: doc.id, ...doc.data() });
       });
 
-      // Sort newest first
-      memeList.sort((a, b) => {
-        const timeA = a.created_at?.seconds || 0;
-        const timeB = b.created_at?.seconds || 0;
-        return timeB - timeA;
-      });
-
       setMemes(memeList);
       setFilteredMemes(memeList);
-
-      // Dynamically resolve usernames to cache
-      const uniqueCreatorIds = [...new Set(memeList.map(m => m.creator_id))];
-      uniqueCreatorIds.forEach(async (creatorId) => {
-        if (!userCache[creatorId] && creatorId !== "admin") {
-          try {
-            const userDoc = await getDoc(doc(db, "users", creatorId));
-            if (userDoc.exists()) {
-              setUserCache(prev => ({ ...prev, [creatorId]: userDoc.data().name }));
-            } else {
-              setUserCache(prev => ({ ...prev, [creatorId]: "Unknown User" }));
-            }
-          } catch (e) {
-            console.error("Error resolving username", e);
-          }
-        }
-      });
     }, (error) => {
       console.error("Firestore listening failed", error);
     });
 
     return () => unsubscribe();
-  }, [userCache]);
+  }, []);
 
-  // Real-time Likes list for the user
+  // Dedicated User profile (name and role) resolution listener
+  useEffect(() => {
+    const creatorIds = memes.map(m => m.creator_id);
+    const commenterIds = expertComments.map(c => c.user_id);
+    const uniqueIds = [...new Set([...creatorIds, ...commenterIds])];
+
+    uniqueIds.forEach(async (userId) => {
+      if (userId === "admin") return;
+      if (resolvedCreatorsRef.current[userId]) return;
+
+      resolvedCreatorsRef.current[userId] = "fetching";
+      try {
+        const userDoc = await getDoc(doc(db, "users", userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          resolvedCreatorsRef.current[userId] = "fetched";
+          setUserCache(prev => ({ 
+            ...prev, 
+            [userId]: { name: userData.name || "Unknown User", role: userData.role || "student" } 
+          }));
+        } else {
+          resolvedCreatorsRef.current[userId] = "fetched";
+          setUserCache(prev => ({ 
+            ...prev, 
+            [userId]: { name: "Unknown User", role: "student" } 
+          }));
+        }
+      } catch (e) {
+        console.error("Error resolving user profile", e);
+        delete resolvedCreatorsRef.current[userId];
+      }
+    });
+  }, [memes, expertComments]);
+
+  // Real-time Likes list for the user (mapped to dedicated 'likes' collection)
   useEffect(() => {
     if (!user) return;
-    const likesCol = collection(db, "saves"); // We map likes to the saves collection for simplicity
+    const likesCol = collection(db, "likes");
     const q = query(likesCol, where("user_id", "==", user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const map = {};
@@ -202,39 +215,47 @@ const Library = () => {
 
   // Load Expert Comments & Ratings for the Active Expanded Meme
   useEffect(() => {
-    if (!activeMeme) return;
+    let unsubscribeComments = () => {};
+    let unsubscribeRatings = () => {};
 
-    // Listen to expert comments
-    const commentsCol = collection(db, "comments");
-    const commentsQuery = query(
-      commentsCol,
-      where("meme_id", "==", activeMeme.id),
-      where("is_expert_comment", "==", true)
-    );
+    // Clear stale ratings and comments immediately on activeMeme changes to prevent UI flickering
+    setCurrentMemeRatings([]);
+    setUserSubmittedRating(null);
+    setExpertComments([]);
 
-    const unsubscribeComments = onSnapshot(commentsQuery, (snapshot) => {
-      const commentList = [];
-      snapshot.forEach((doc) => {
-        commentList.push({ id: doc.id, ...doc.data() });
+    if (activeMeme) {
+      // Listen to expert comments
+      const commentsCol = collection(db, "comments");
+      const commentsQuery = query(
+        commentsCol,
+        where("meme_id", "==", activeMeme.id),
+        where("is_expert_comment", "==", true)
+      );
+
+      unsubscribeComments = onSnapshot(commentsQuery, (snapshot) => {
+        const commentList = [];
+        snapshot.forEach((doc) => {
+          commentList.push({ id: doc.id, ...doc.data() });
+        });
+        setExpertComments(commentList);
       });
-      setExpertComments(commentList);
-    });
 
-    // Listen to ratings
-    const ratingsCol = collection(db, "ratings");
-    const ratingsQuery = query(ratingsCol, where("meme_id", "==", activeMeme.id));
-    const unsubscribeRatings = onSnapshot(ratingsQuery, (snapshot) => {
-      const ratingList = [];
-      snapshot.forEach((doc) => {
-        ratingList.push({ id: doc.id, ...doc.data() });
+      // Listen to ratings
+      const ratingsCol = collection(db, "ratings");
+      const ratingsQuery = query(ratingsCol, where("meme_id", "==", activeMeme.id));
+      unsubscribeRatings = onSnapshot(ratingsQuery, (snapshot) => {
+        const ratingList = [];
+        snapshot.forEach((doc) => {
+          ratingList.push({ id: doc.id, ...doc.data() });
+        });
+        setCurrentMemeRatings(ratingList);
+
+        if (user) {
+          const myRating = ratingList.find(r => r.user_id === user.uid);
+          setUserSubmittedRating(myRating || null);
+        }
       });
-      setCurrentMemeRatings(ratingList);
-
-      if (user) {
-        const myRating = ratingList.find(r => r.user_id === user.uid);
-        setUserSubmittedRating(myRating || null);
-      }
-    });
+    }
 
     return () => {
       unsubscribeComments();
@@ -254,8 +275,39 @@ const Library = () => {
     setUploadLoading(true);
     setUploadError("");
 
+    // Validate uploaded file matching selection format
+    const fileType = uploadFile.type;
+    const fileName = uploadFile.name;
+
+    if (uploadFormat === "image") {
+      if (!fileType.startsWith("image/") || fileType === "image/gif") {
+        setUploadError("Selected file must be a static image (e.g. PNG, JPEG).");
+        setUploadLoading(false);
+        return;
+      }
+    } else if (uploadFormat === "gif") {
+      if (fileType !== "image/gif" && !fileName.toLowerCase().endsWith(".gif")) {
+        setUploadError("Selected file must be a GIF image.");
+        setUploadLoading(false);
+        return;
+      }
+    } else if (uploadFormat === "video") {
+      if (!fileType.startsWith("video/")) {
+        setUploadError("Selected file must be a video.");
+        setUploadLoading(false);
+        return;
+      }
+    } else if (uploadFormat === "audio") {
+      if (!fileType.startsWith("audio/")) {
+        setUploadError("Selected file must be an audio file.");
+        setUploadLoading(false);
+        return;
+      }
+    }
+
     try {
-      const storageRef = ref(storage, `memes/${user.uid}_meme_${Date.now()}`);
+      const extension = fileName.split('.').pop() || "bin";
+      const storageRef = ref(storage, `memes/${user.uid}_meme_${Date.now()}.${extension}`);
       const snapshot = await uploadBytes(storageRef, uploadFile);
       const fileUrl = await getDownloadURL(snapshot.ref);
 
@@ -269,6 +321,7 @@ const Library = () => {
         visibility: "public",
         media_url: fileUrl,
         template_id: "", // Direct uploads do not have a remix templates reference
+        text_layers_json: "[]", // Schema alignment fix
         created_at: serverTimestamp()
       });
 
@@ -326,15 +379,15 @@ const Library = () => {
       const statsRef = doc(db, "user_stats", creatorId);
 
       if (existingLikeId) {
-        // Unlike: remove from saves & decrement creator likes count
-        await deleteDoc(doc(db, "saves", existingLikeId));
+        // Unlike: remove from likes & decrement creator likes count
+        await deleteDoc(doc(db, "likes", existingLikeId));
         await updateDoc(statsRef, {
           total_likes_received: increment(-1)
         });
       } else {
-        // Like: create save document & increment creator likes count
+        // Like: create like document & increment creator likes count
         const likeDocId = `${user.uid}_${memeId}`;
-        await setDoc(doc(db, "saves", likeDocId), {
+        await setDoc(doc(db, "likes", likeDocId), {
           user_id: user.uid,
           meme_id: memeId,
           created_at: serverTimestamp()
@@ -544,7 +597,7 @@ const Library = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredMemes.map((meme) => {
                 const isLiked = !!userLikesMap[meme.id];
-                const creatorName = meme.creator_id === "admin" ? "Admin" : (userCache[meme.creator_id] || "Creator");
+                const creatorName = meme.creator_id === "admin" ? "Admin" : (userCache[meme.creator_id]?.name || "Creator");
 
                 return (
                   <div key={meme.id} className={`flex flex-col h-full overflow-hidden transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md ${containerClass}`}>
@@ -743,10 +796,10 @@ const Library = () => {
                   const myVal = userSubmittedRating?.[crit.key] || 0;
 
                   return (
-                    <div key={crit.key} className="space-y-1">
+                    <div key={crit.key} className="space-y-1 min-h-[70px]">
                       <div className="flex justify-between text-[11px]">
                         <span>{crit.label}</span>
-                        <span className="text-purple-650">{avg > 0 ? `${avg.toFixed(1)} / 5` : "Unrated"}</span>
+                        <span className="text-purple-650">{avg > 0 ? `${avg.toFixed(1)} / 5` : "— / 5"}</span>
                       </div>
 
                       {/* Progress Bar representing average */}
@@ -759,7 +812,7 @@ const Library = () => {
 
                       {/* Active Star Selector submission */}
                       {user && (
-                        <div className="flex space-x-1.5 pt-0.5 justify-end">
+                        <div className="flex space-x-1.5 pt-0.5 justify-end h-5">
                           {[1, 2, 3, 4, 5].map((star) => (
                             <button
                               key={star}
@@ -801,15 +854,34 @@ const Library = () => {
               {/* Expert scholarly Comments block */}
               <div className="flex-grow space-y-4 overflow-y-auto mb-6 max-h-[40vh] border border-gray-150 dark:border-gray-750 rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
                 {expertComments.length > 0 ? (
-                  expertComments.map((comment) => (
-                    <div key={comment.id} className="border-b border-gray-200 dark:border-gray-800 pb-3 last:border-b-0 text-xs">
-                      <div className="flex justify-between text-gray-500 mb-1">
-                        <span className="font-bold text-purple-750">🛡️ Certified Expert Review</span>
-                        <span>{comment.timestamp?.seconds ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString() : "Just now"}</span>
-                      </div>
-                      <p className="text-gray-800 dark:text-gray-200 font-medium leading-relaxed">{comment.body}</p>
-                    </div>
-                  ))
+                  (() => {
+                    const verifiedComments = expertComments.filter(comment => {
+                      const commenter = userCache[comment.user_id];
+                      return commenter?.role === "expert" || commenter?.role === "admin" || comment.user_id === "admin";
+                    });
+
+                    if (verifiedComments.length === 0) {
+                      return (
+                        <p className="text-center text-gray-450 dark:text-gray-500 text-xs py-8">
+                          No expert reviews have been logged for this meme's subject area yet.
+                        </p>
+                      );
+                    }
+
+                    return verifiedComments.map((comment) => {
+                      const commenter = userCache[comment.user_id];
+                      const commenterName = commenter?.name || "Verified Expert";
+                      return (
+                        <div key={comment.id} className="border-b border-gray-200 dark:border-gray-800 pb-3 last:border-b-0 text-xs">
+                          <div className="flex justify-between text-gray-500 mb-1">
+                            <span className="font-bold text-purple-750">🛡️ Certified Expert Review ({commenterName})</span>
+                            <span>{comment.timestamp?.seconds ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString() : "Just now"}</span>
+                          </div>
+                          <p className="text-gray-800 dark:text-gray-200 font-medium leading-relaxed">{comment.body}</p>
+                        </div>
+                      );
+                    });
+                  })()
                 ) : (
                   <p className="text-center text-gray-450 dark:text-gray-500 text-xs py-8">
                     No expert reviews have been logged for this meme's subject area yet.
