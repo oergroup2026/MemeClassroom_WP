@@ -766,36 +766,36 @@ const Admin = () => {
 
   // UDL Styling classes
   const containerClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400"
-    : "bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-800 shadow-sm rounded-xl";
+    ? "bg-zinc-900 border border-zinc-800 text-white shadow-sm rounded-xl"
+    : "bg-white border border-gray-200 shadow-sm rounded-xl";
 
   const bannerClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400 p-5 font-bold"
-    : "bg-purple-50 dark:bg-purple-950/20 text-purple-750 dark:text-purple-300 border border-purple-200 dark:border-purple-900 p-5 rounded-xl text-xs font-semibold leading-relaxed";
+    ? "bg-zinc-900 border border-zinc-800 text-zinc-300 p-5 rounded-xl text-xs font-semibold leading-relaxed"
+    : "bg-purple-50 text-purple-750 border border-purple-200 p-5 rounded-xl text-xs font-semibold leading-relaxed";
 
   const headerCellClass = highContrastMode
-    ? "bg-black border-b-2 border-yellow-400 text-yellow-400 font-extrabold uppercase text-[10px] p-3 text-left"
-    : "bg-gray-100 dark:bg-gray-900 border-b border-gray-250 dark:border-gray-800 text-gray-500 font-bold uppercase text-[10px] p-3 text-left";
+    ? "bg-zinc-950 border-b border-zinc-800 text-zinc-400 font-extrabold uppercase text-[10px] p-3 text-left"
+    : "bg-gray-100 border-b border-gray-250 text-gray-500 font-bold uppercase text-[10px] p-3 text-left";
 
   const rowCellClass = highContrastMode
-    ? "border-b border-yellow-400 p-3 text-yellow-400 bg-black text-xs font-medium"
-    : "border-b border-gray-150 dark:border-gray-800 p-3 text-gray-700 dark:text-gray-300 text-xs";
+    ? "border-b border-zinc-800 p-3 text-white bg-zinc-900 text-xs font-medium"
+    : "border-b border-gray-150 p-3 text-gray-700 text-xs";
 
   const inputClass = highContrastMode
-    ? "bg-black border border-yellow-400 text-yellow-400 placeholder-yellow-600 p-2 text-xs w-full"
-    : "w-full p-2 border border-gray-300 dark:border-gray-700 bg-gray-55 dark:bg-gray-900 rounded-lg text-xs outline-none focus:ring-1 focus:ring-purple-500";
+    ? "w-full p-2 border border-zinc-800 bg-zinc-950 rounded-lg text-xs text-white placeholder-gray-500 outline-none"
+    : "w-full p-2 border border-gray-300 bg-gray-55 rounded-lg text-xs outline-none focus:ring-1 focus:ring-purple-500";
 
   const btnClass = (customColor = "purple") => {
-    if (highContrastMode) {
-      return "bg-black border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black font-black px-3.5 py-1.5 text-xs uppercase transition";
-    }
     const colorMap = {
       purple: "bg-purple-600 hover:bg-purple-750 text-white",
       red: "bg-red-650 hover:bg-red-700 text-white",
       indigo: "bg-indigo-650 hover:bg-indigo-700 text-white",
       green: "bg-green-600 hover:bg-green-700 text-white",
-      gray: "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
+      gray: "bg-gray-100 hover:bg-gray-200 text-gray-700"
     };
+    if (highContrastMode) {
+      colorMap.gray = "bg-zinc-800 hover:bg-zinc-700 text-gray-300 border border-zinc-750";
+    }
     return `${colorMap[customColor]} font-bold px-3.5 py-1.5 rounded-lg text-xs transition shadow-sm`;
   };
 

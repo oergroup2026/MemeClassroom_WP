@@ -17,10 +17,18 @@ import { useUdl } from './context/UdlContext';
 function App() {
   const { highContrastMode, fontSizeAdjustment } = useUdl();
 
+  React.useEffect(() => {
+    if (highContrastMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [highContrastMode]);
+
   // UDL baseline styling options
   const themeClasses = highContrastMode 
-    ? 'high-contrast bg-black text-yellow-400' 
-    : 'bg-gray-50 text-gray-800 dark:bg-gray-950 dark:text-gray-100';
+    ? 'high-contrast bg-black text-gray-100' 
+    : 'bg-white text-gray-800';
 
   // Legibility rules: normal baseline is 'text-base'
   const sizeClasses = fontSizeAdjustment === 'large' 

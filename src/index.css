@@ -5,9 +5,9 @@
 :root {
   --text: #374151; /* slate gray body */
   --text-h: #0f172a; /* deep navy/black headings */
-  --bg: #f8f9fa; /* light gray background */
-  --border: #e5e7eb; /* clean light gray borders */
-  --code-bg: #f3f4f6;
+  --bg: #ffffff; /* pure white background */
+  --border: #f3f4f6; /* clean light gray borders */
+  --code-bg: #f9fafb;
   --accent: #0056b3; /* commanding royal blue */
   --accent-bg: rgba(0, 86, 179, 0.08);
   --accent-border: rgba(0, 86, 179, 0.4);
@@ -21,7 +21,7 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -34,26 +34,6 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #d1d5db;
-    --text-h: #f9fafb;
-    --bg: #0f172a; /* deep slate navy */
-    --border: #1e293b;
-    --code-bg: #1e293b;
-    --accent: #3b82f6;
-    --accent-bg: rgba(59, 130, 246, 0.15);
-    --accent-border: rgba(59, 130, 246, 0.5);
-    --social-bg: rgba(30, 41, 59, 0.6);
-    --shadow:
-      rgba(0, 0, 0, 0.3) 0 10px 15px -3px, rgba(0, 0, 0, 0.2) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
 body {
   margin: 0;
   min-height: 100vh;
@@ -62,21 +42,21 @@ body {
 /* High contrast custom override classes for accessibility */
 .high-contrast {
   background-color: #000000 !important;
-  color: #fbbf24 !important;
+  color: #ffffff !important;
 }
 
 .high-contrast input,
 .high-contrast select,
 .high-contrast textarea {
   background-color: #000000 !important;
-  color: #fbbf24 !important;
-  border-color: #fbbf24 !important;
+  color: #ffffff !important;
+  border-color: #374151 !important;
 }
 
 .high-contrast button {
   background-color: #000000 !important;
-  color: #fbbf24 !important;
-  border-color: #fbbf24 !important;
+  color: #ffffff !important;
+  border-color: #374151 !important;
 }
 
 /* Glassmorphism panel base rules */
@@ -98,8 +78,8 @@ body {
 /* High Contrast adjustments for glass panels */
 .high-contrast .glass-panel {
   background: #000000 !important;
-  border: 2px solid #fbbf24 !important;
-  color: #fbbf24 !important;
+  border: 1px solid #374151 !important;
+  color: #ffffff !important;
   backdrop-filter: none !important;
   box-shadow: none !important;
 }

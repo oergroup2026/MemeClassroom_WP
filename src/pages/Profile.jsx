@@ -339,13 +339,13 @@ const Profile = () => {
   };
 
   const containerClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400"
-    : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-xl";
+    ? "bg-zinc-900 border border-zinc-800 text-white shadow-sm rounded-xl"
+    : "bg-white border border-gray-200 shadow-sm rounded-xl";
 
   const renderCardGrid = (items, isBookmarkTab = false) => {
     if (items.length === 0) {
       return (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-12 text-center text-gray-500 shadow-sm">
+        <div className={`p-12 text-center text-gray-500 ${containerClass}`}>
           <p className="text-sm font-medium">No items found in this section.</p>
         </div>
       );

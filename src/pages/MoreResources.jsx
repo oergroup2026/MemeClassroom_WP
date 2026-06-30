@@ -87,20 +87,16 @@ const MoreResources = () => {
 
   // UDL Styling classes
   const containerClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400 p-5 rounded-none"
-    : "glass-panel bg-white/50 dark:bg-gray-900/60 backdrop-blur-md border border-gray-250/50 dark:border-gray-800/40 p-5 rounded-xl shadow-sm flex flex-col justify-between h-full transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md";
+    ? "bg-zinc-900 border border-zinc-800 text-white p-5 rounded-xl shadow-sm flex flex-col justify-between h-full"
+    : "glass-panel bg-white/50 backdrop-blur-md border border-gray-250/50 p-5 rounded-xl shadow-sm flex flex-col justify-between h-full transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md";
 
-  const btnClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black font-black px-4 py-2 text-xs"
-    : "bg-purple-600 hover:bg-purple-750 text-white font-semibold px-4 py-2 rounded-lg text-xs transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md";
+  const btnClass = "bg-purple-600 hover:bg-purple-750 text-white font-semibold px-4 py-2 rounded-lg text-xs transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md";
 
-  const actionBtnClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black font-black w-full py-2 text-xs text-center block"
-    : "bg-indigo-650 hover:bg-indigo-700 text-white font-bold w-full py-2.5 rounded-lg text-xs text-center block transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md";
+  const actionBtnClass = "bg-indigo-650 hover:bg-indigo-700 text-white font-bold w-full py-2.5 rounded-lg text-xs text-center block transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md";
 
   const inputClass = highContrastMode
-    ? "bg-black border border-yellow-400 text-yellow-400 placeholder-yellow-600 p-2 text-xs w-full"
-    : "w-full p-2 border border-gray-300 dark:border-gray-700 bg-gray-55 dark:bg-gray-900 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 outline-none";
+    ? "w-full p-2 border border-zinc-800 bg-zinc-950 rounded-lg text-xs text-white placeholder-gray-500 outline-none"
+    : "w-full p-2 border border-gray-300 bg-gray-55 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 outline-none";
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8">

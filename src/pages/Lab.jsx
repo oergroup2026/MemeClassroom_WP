@@ -645,16 +645,14 @@ const Lab = () => {
 
   // Styles dynamically adjusted for UDL settings
   const containerClass = highContrastMode 
-    ? "bg-black border-2 border-yellow-400 text-yellow-400" 
-    : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-xl";
+    ? "bg-zinc-900 border border-zinc-800 text-white shadow-sm rounded-xl" 
+    : "bg-white border border-gray-200 shadow-sm rounded-xl";
 
-  const btnClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black font-extrabold px-4 py-2"
-    : "bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg transition";
+  const btnClass = "bg-purple-600 hover:bg-purple-750 text-white font-medium px-4 py-2 rounded-lg transition";
 
   const cancelBtnClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400 font-bold px-4 py-2"
-    : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-650 font-medium px-4 py-2 rounded-lg transition";
+    ? "bg-zinc-800 text-gray-300 font-bold px-4 py-2 rounded-lg hover:bg-zinc-700"
+    : "bg-gray-200 text-gray-700 hover:bg-gray-300 font-medium px-4 py-2 rounded-lg transition";
 
   const activeTextLayer = textLayers.find(l => l.id === selectedTextId);
 
