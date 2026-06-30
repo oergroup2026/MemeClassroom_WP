@@ -242,6 +242,34 @@ const Staffroom = () => {
     }
   };
 
+  const handleDeleteThread = async (threadId) => {
+    if (!window.confirm("Are you sure you want to delete this thread? This action cannot be undone.")) return;
+    try {
+      await deleteDoc(doc(db, "staffroom_posts", threadId));
+      if (user) {
+        const statsDocRef = doc(db, "user_stats", user.uid);
+        await updateDoc(statsDocRef, {
+          staffroom_posts_count: increment(-1)
+        });
+      }
+      alert("Thread deleted successfully.");
+    } catch (e) {
+      console.error("Failed to delete thread", e);
+      alert("Failed to delete thread. Please try again.");
+    }
+  };
+
+  const handleDeleteReply = async (replyId) => {
+    if (!window.confirm("Are you sure you want to delete this reply?")) return;
+    try {
+      await deleteDoc(doc(db, "staffroom_replies", replyId));
+      alert("Reply deleted successfully.");
+    } catch (e) {
+      console.error("Failed to delete reply", e);
+      alert("Failed to delete reply. Please try again.");
+    }
+  };
+
   // "Accept Solution" solved logic gates
   const handleAcceptSolution = async (threadId, replyId) => {
     try {
@@ -378,12 +406,22 @@ const Staffroom = () => {
                       </div>
 
                       {/* Clickable Contributor gateway link */}
-                      <button
-                        onClick={() => openUserModal(thread.author_id)}
-                        className="text-[10px] text-purple-750 font-bold hover:underline"
-                      >
-                        By {authorName}
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => openUserModal(thread.author_id)}
+                          className="text-[10px] text-purple-750 font-bold hover:underline"
+                        >
+                          By {authorName}
+                        </button>
+                        {user && (thread.author_id === user.uid || profile?.role === "admin") && (
+                          <button
+                            onClick={() => handleDeleteThread(thread.id)}
+                            className="text-red-500 hover:text-red-750 text-[10px] font-bold transition ml-2"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Text Body */}
@@ -435,12 +473,22 @@ const Staffroom = () => {
                               }`}
                             >
                               <div className="flex justify-between items-center mb-1">
-                                <button
-                                  onClick={() => openUserModal(reply.author_id)}
-                                  className="font-bold text-[10px] text-purple-650 hover:underline"
-                                >
-                                  {rAuthorName}
-                                </button>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => openUserModal(reply.author_id)}
+                                    className="font-bold text-[10px] text-purple-650 hover:underline"
+                                  >
+                                    {rAuthorName}
+                                  </button>
+                                  {user && (reply.author_id === user.uid || profile?.role === "admin") && (
+                                    <button
+                                      onClick={() => handleDeleteReply(reply.id)}
+                                      className="text-red-500 hover:text-red-750 text-[10px] font-bold transition ml-2"
+                                    >
+                                      Delete
+                                    </button>
+                                  )}
+                                </div>
                                 
                                 {isAccepted ? (
                                   <span className="text-[10px] font-bold text-emerald-700 flex items-center space-x-1">

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { collection, query, onSnapshot, getDoc, doc, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, onSnapshot, getDoc, doc, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
 
 const MoreResources = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { highContrastMode } = useUdl();
   const { openUserModal } = useUserModal();
 
@@ -85,6 +85,17 @@ const MoreResources = () => {
     }
   };
 
+  const handleDeleteExternalLink = async (linkId) => {
+    if (!window.confirm("Are you sure you want to delete this external link? This action cannot be undone.")) return;
+    try {
+      await deleteDoc(doc(db, "external_links", linkId));
+      alert("External link deleted successfully.");
+    } catch (e) {
+      console.error("Failed to delete external link", e);
+      alert("Failed to delete. Please try again.");
+    }
+  };
+
   // UDL Styling classes
   const containerClass = highContrastMode
     ? "bg-zinc-900 border border-zinc-800 text-white p-5 rounded-xl shadow-sm flex flex-col justify-between h-full"
@@ -154,7 +165,17 @@ const MoreResources = () => {
 
                   {/* Contributor badge footer */}
                   <div className="pt-2 border-t border-gray-155 dark:border-gray-750 flex items-center justify-between text-[10px] text-gray-400 font-semibold">
-                    <span>Added: {link.created_at ? new Date(link.created_at.seconds * 1000).toLocaleDateString() : "Just now"}</span>
+                    <div className="flex items-center space-x-2">
+                      <span>Added: {link.created_at ? new Date(link.created_at.seconds * 1000).toLocaleDateString() : "Just now"}</span>
+                      {user && (link.contributor_id === user.uid || profile?.role === "admin") && (
+                        <button
+                          onClick={() => handleDeleteExternalLink(link.id)}
+                          className="text-red-500 hover:text-red-700 font-bold transition ml-2"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
                     <button
                       onClick={() => openUserModal(link.contributor_id)}
                       className="text-purple-650 hover:underline capitalize"

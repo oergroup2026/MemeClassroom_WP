@@ -12,7 +12,8 @@ import {
   getDoc, 
   setDoc, 
   serverTimestamp,
-  runTransaction
+  runTransaction,
+  onSnapshot
 } from "firebase/firestore";
 import { 
   ref, 
@@ -178,42 +179,61 @@ export const AuthProvider = ({ children }) => {
   // Listen to Auth state changes
   useEffect(() => {
     if (DEV_MODE) return;
+    let unsubProfile = null;
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (unsubProfile) {
+        unsubProfile();
+        unsubProfile = null;
+      }
       if (currentUser) {
         try {
           const userDocRef = doc(db, "users", currentUser.uid);
-          const userDocSnap = await getDoc(userDocRef);
-          if (userDocSnap.exists()) {
-            const profileData = userDocSnap.data();
-            if (profileData.banned) {
-              await firebaseSignOut(auth);
-              setProfile(null);
-              setUser(null);
+          unsubProfile = onSnapshot(userDocRef, (snap) => {
+            if (snap.exists()) {
+              const profileData = snap.data();
+              if (profileData.banned) {
+                if (unsubProfile) {
+                  unsubProfile();
+                  unsubProfile = null;
+                }
+                firebaseSignOut(auth).then(() => {
+                  setProfile(null);
+                  setUser(null);
+                });
+              } else {
+                setProfile(profileData);
+                setUser(currentUser);
+              }
             } else {
-              setProfile(profileData);
-              setUser(currentUser);
+              // Google user who hasn't finished onboarding yet
+              const isGoogle = currentUser.providerData.some(p => p.providerId === "google.com");
+              if (isGoogle) {
+                setOnboardingUser(currentUser);
+                setUser(null);
+                setProfile(null);
+              }
             }
-          } else {
-            // Google user who hasn't finished onboarding yet
-            const isGoogle = currentUser.providerData.some(p => p.providerId === "google.com");
-            if (isGoogle) {
-              setOnboardingUser(currentUser);
-              setUser(null);
-              setProfile(null);
-            }
-          }
+            setLoading(false);
+          }, (err) => {
+            console.error("Profile snapshot subscription error", err);
+            setLoading(false);
+          });
         } catch (e) {
           console.error("Failed to load user profile", e);
+          setLoading(false);
         }
       } else {
         setUser(null);
         setProfile(null);
         setOnboardingUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (unsubProfile) unsubProfile();
+    };
   }, []);
 
   return (

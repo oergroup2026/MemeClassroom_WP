@@ -203,6 +203,23 @@ const Resources = () => {
     }
   };
 
+  const handleDeleteResource = async (resId) => {
+    if (!window.confirm("Are you sure you want to delete this resource? This action cannot be undone.")) return;
+    try {
+      await deleteDoc(doc(db, "resources", resId));
+      if (user) {
+        const statsDocRef = doc(db, "user_stats", user.uid);
+        await updateDoc(statsDocRef, {
+          resources_contributed_count: increment(-1)
+        });
+      }
+      alert("Resource deleted successfully.");
+    } catch (e) {
+      console.error("Failed to delete resource", e);
+      alert("Failed to delete resource. Please try again.");
+    }
+  };
+
   // 6. Submit resource (atomic transaction increment user_stats)
   const handleResourceSubmit = async (e) => {
     e.preventDefault();
@@ -447,6 +464,18 @@ const Resources = () => {
                         >
                           🏳️ Report
                         </button>
+
+                        {/* Delete Resource Button */}
+                        {user && (res.author_id === user.uid || profile?.role === "admin") && (
+                          <button
+                            onClick={() => handleDeleteResource(res.id)}
+                            className="text-gray-400 hover:text-red-500 flex items-center space-x-1"
+                            title="Delete Resource"
+                          >
+                            <span>🗑️</span>
+                            <span>Delete</span>
+                          </button>
+                        )}
                       </div>
                       
                       {res.file_url && res.type !== "course" && (

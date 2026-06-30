@@ -6,16 +6,16 @@ const About = () => {
 
   // UDL Styling classes
   const glassPanelClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400 p-6 rounded-none"
-    : "glass-panel bg-white/50 dark:bg-gray-900/60 backdrop-blur-md border border-gray-200/50 dark:border-gray-800/40 p-6 rounded-xl shadow-md transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-lg";
+    ? "bg-zinc-900 border border-zinc-800 text-white p-6 rounded-xl shadow-sm"
+    : "glass-panel bg-white/70 border border-gray-200/60 p-6 rounded-xl shadow-sm transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md";
 
   const darkPaneClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400 p-8 rounded-none mt-12"
-    : "bg-gray-900 dark:bg-gray-950/90 text-gray-100 border border-transparent p-8 rounded-xl shadow-xl mt-12 transition-all";
+    ? "bg-zinc-900 border border-zinc-800 text-white p-8 rounded-xl mt-12"
+    : "bg-purple-50/50 text-gray-800 border border-purple-100 p-8 rounded-xl shadow-sm mt-12 transition-all";
 
   const bannerClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400 p-6 rounded-none col-span-1 md:col-span-2"
-    : "bg-gradient-to-r from-purple-800/65 to-indigo-800/65 backdrop-blur border border-purple-500/20 text-white p-6 rounded-xl shadow-md col-span-1 md:col-span-2 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-lg";
+    ? "bg-zinc-900 border border-zinc-800 text-white p-6 rounded-xl col-span-1 md:col-span-2"
+    : "bg-gradient-to-r from-purple-800/90 to-indigo-850/90 border border-purple-500/20 text-white p-6 rounded-xl shadow-md col-span-1 md:col-span-2 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-lg";
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 space-y-10">
@@ -108,32 +108,32 @@ const About = () => {
       {/* 4. Pedagogical Foundation Section (Dark Pane Layout) */}
       <div className={darkPaneClass}>
         <div className="max-w-3xl mx-auto space-y-6">
-          <h2 className="text-xl md:text-2xl font-black text-center text-white">
+          <h2 className={`text-xl md:text-2xl font-black text-center ${highContrastMode ? 'text-white' : 'text-gray-900'}`}>
             Pedagogical Foundation
           </h2>
-          <p className="text-xs md:text-sm text-center text-gray-300 leading-relaxed max-w-2xl mx-auto">
+          <p className={`text-xs md:text-sm text-center leading-relaxed max-w-2xl mx-auto ${highContrastMode ? 'text-gray-300' : 'text-gray-600'}`}>
             Meme Classroom moves beyond viewing memes as mere "gimmicks," positioning them as legitimate tools for inclusive, multimodal learning.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
-            <div className={`p-5 rounded-xl border ${highContrastMode ? 'border-yellow-400 bg-black text-yellow-400' : 'border-gray-800 bg-gray-950/40 text-gray-250'} transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2`}>
+            <div className={`p-5 rounded-xl border transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2 ${highContrastMode ? 'border-zinc-800 bg-zinc-950 text-white' : 'border-purple-100 bg-white text-gray-800'}`}>
               <span className="text-lg"><img src="collaborate.png" alt="not" className="w-10 h-10" /></span>
-              <h4 className="font-extrabold text-xs text-white">Sociocultural Theory</h4>
-              <p className="text-[11px] text-gray-400 leading-relaxed">
+              <h4 className={`font-extrabold text-xs ${highContrastMode ? 'text-white' : 'text-gray-900'}`}>Sociocultural Theory</h4>
+              <p className={`text-[11px] leading-relaxed ${highContrastMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 Utilizing memes as "cultural tools" for collaborative knowledge construction.
               </p>
             </div>
-            <div className={`p-5 rounded-xl border ${highContrastMode ? 'border-yellow-400 bg-black text-yellow-400' : 'border-gray-800 bg-gray-950/40 text-gray-250'} transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2`}>
+            <div className={`p-5 rounded-xl border transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2 ${highContrastMode ? 'border-zinc-800 bg-zinc-950 text-white' : 'border-purple-100 bg-white text-gray-800'}`}>
               <span className="text-lg"><img src="complexity.png" alt="not" className="w-10 h-10" /></span>
-              <h4 className="font-extrabold text-xs text-white">Multiliteracies Framework</h4>
-              <p className="text-[11px] text-gray-400 leading-relaxed">
+              <h4 className={`font-extrabold text-xs ${highContrastMode ? 'text-white' : 'text-gray-900'}`}>Multiliteracies Framework</h4>
+              <p className={`text-[11px] leading-relaxed ${highContrastMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 Recognizing memes as hybrid texts that require specific design and interpretive skills.
               </p>
             </div>
-            <div className={`p-5 rounded-xl border ${highContrastMode ? 'border-yellow-400 bg-black text-yellow-400' : 'border-gray-800 bg-gray-950/40 text-gray-250'} transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2`}>
+            <div className={`p-5 rounded-xl border transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2 ${highContrastMode ? 'border-zinc-800 bg-zinc-950 text-white' : 'border-purple-100 bg-white text-gray-800'}`}>
               <span className="text-lg"><img src="blub.png" alt="not" className="w-10 h-10" /></span>
-              <h4 className="font-extrabold text-xs text-white">Open Pedagogy</h4>
-              <p className="text-[11px] text-gray-400 leading-relaxed">
+              <h4 className={`font-extrabold text-xs ${highContrastMode ? 'text-white' : 'text-gray-900'}`}>Open Pedagogy</h4>
+              <p className={`text-[11px] leading-relaxed ${highContrastMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 Fostering transparent, collaborative practices that position learners as co-creators.
               </p>
             </div>

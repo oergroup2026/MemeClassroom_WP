@@ -8,6 +8,12 @@ const Navbar = () => {
   const { highContrastMode, toggleHighContrast } = useUdl();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { id: 1, text: "🎉 Welcome to Meme Classroom! Explore resources and start building memes.", read: false, time: "Just now" },
+    { id: 2, text: "🏆 Level 1 badge unlocked! Check your profile page to see achievements.", read: false, time: "1 hour ago" },
+    { id: 3, text: "💬 New thread in Staffroom: 'Pedagogical benefits of science memes'.", read: false, time: "2 hours ago" }
+  ]);
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -88,11 +94,56 @@ const Navbar = () => {
 
             {/* Notification Bell */}
             {user && (
-              <button className="p-1.5 rounded-full text-gray-400 hover:text-gray-500 relative">
-                <span className="sr-only">View notifications</span>
-                {/* <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span> */}
-                <img src="notification.png" alt="not" className="w-6 h-6" />
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setNotificationsOpen(!notificationsOpen);
+                    setUserDropdownOpen(false);
+                  }}
+                  className="p-1.5 rounded-full text-gray-400 hover:text-gray-500 relative focus:outline-none"
+                >
+                  <span className="sr-only">View notifications</span>
+                  {notifications.some(n => !n.read) && (
+                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900 animate-pulse"></span>
+                  )}
+                  <svg className="w-6 h-6 text-gray-500 hover:text-purple-650 dark:text-gray-400 dark:hover:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                </button>
+
+                {notificationsOpen && (
+                  <div className="absolute right-0 mt-2 w-72 rounded-xl shadow-xl py-2 bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 z-50 animate-fadeIn">
+                    <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                      <span className="text-xs font-bold text-gray-900 dark:text-white">Notifications</span>
+                      {notifications.some(n => !n.read) && (
+                        <button
+                          onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
+                          className="text-[10px] text-purple-650 hover:text-purple-750 dark:text-purple-400 dark:hover:text-purple-300 font-extrabold"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-60 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-750">
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-xs text-gray-400">
+                          No notifications yet.
+                        </div>
+                      ) : (
+                        notifications.map((notif) => (
+                          <div
+                            key={notif.id}
+                            className={`px-4 py-3 text-left transition hover:bg-gray-50 dark:hover:bg-gray-750 ${notif.read ? 'opacity-70' : 'bg-purple-50/20 dark:bg-purple-950/5'}`}
+                          >
+                            <p className="text-xs text-gray-800 dark:text-gray-200 leading-normal">{notif.text}</p>
+                            <span className="block text-[9px] text-gray-400 mt-1">{notif.time}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Auth Buttons or User Menu */}
