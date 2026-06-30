@@ -464,6 +464,35 @@ const Library = () => {
     }
   };
 
+  const handleDeleteMeme = async (memeId) => {
+    if (!window.confirm("Are you sure you want to delete this meme? This action cannot be undone.")) return;
+    try {
+      await deleteDoc(doc(db, "memes", memeId));
+      if (user) {
+        const statsDocRef = doc(db, "user_stats", user.uid);
+        await updateDoc(statsDocRef, {
+          memes_created_count: increment(-1)
+        });
+      }
+      setActiveMeme(null);
+      alert("Meme deleted successfully.");
+    } catch (e) {
+      console.error("Failed to delete meme", e);
+      alert("Failed to delete meme. Please try again.");
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm("Are you sure you want to delete this comment?")) return;
+    try {
+      await deleteDoc(doc(db, "comments", commentId));
+      alert("Comment deleted successfully.");
+    } catch (e) {
+      console.error("Failed to delete comment", e);
+      alert("Failed to delete comment. Please try again.");
+    }
+  };
+
   // Helper to compute average criteria score
   const getAverageScore = (criteria) => {
     if (currentMemeRatings.length === 0) return 0;
@@ -708,7 +737,7 @@ const Library = () => {
                         {/* Edit/Remix Button (shown only if template_id exists) */}
                         {meme.template_id && (
                           <button
-                            onClick={() => navigate(`/lab?templateId=${meme.template_id}&templateUrl=${meme.media_url}&format=${meme.format}`)}
+                            onClick={() => navigate(`/lab?templateId=${meme.template_id}&templateUrl=${encodeURIComponent(meme.media_url)}&format=${meme.format}`)}
                             className="text-[10px] font-bold text-purple-650 hover:underline flex items-center space-x-1"
                           >
                             <span>🌀</span>
@@ -763,8 +792,26 @@ const Library = () => {
                 )}
               </div>
 
-              {/* Download Action Trigger */}
-              <div className="flex gap-2 mb-4">
+              {/* Creator details and potential Delete option */}
+              <div className="flex justify-between items-center mb-4 text-xs font-semibold text-gray-500">
+                <button
+                  onClick={() => openUserModal(activeMeme.creator_id)}
+                  className="hover:underline text-purple-750"
+                >
+                  By {activeMeme.creator_id === "admin" ? "Admin" : (userCache[activeMeme.creator_id] || "Creator")}
+                </button>
+                {user && (activeMeme.creator_id === user.uid || profile?.role === "admin") && (
+                  <button
+                    onClick={() => handleDeleteMeme(activeMeme.id)}
+                    className="text-red-500 hover:text-red-750 hover:underline transition"
+                  >
+                    Delete Meme
+                  </button>
+                )}
+              </div>
+
+              {/* Download & Template Actions */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
                 <button
                   onClick={() => {
                     if (activeMeme.format === "image" || activeMeme.format === "gif") {
@@ -773,10 +820,20 @@ const Library = () => {
                       handleMediaDownload(activeMeme.media_url, activeMeme.title);
                     }
                   }}
-                  className="w-full bg-purple-50 dark:bg-purple-950/20 text-purple-750 dark:text-purple-300 font-bold py-2 rounded-lg border border-purple-200 dark:border-purple-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-purple-100 transition"
+                  className="w-full bg-purple-50 dark:bg-purple-950/20 text-purple-750 dark:text-purple-300 font-bold py-2 px-3 rounded-lg border border-purple-200 dark:border-purple-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-purple-100 dark:hover:bg-purple-950/40 transition"
                 >
                   <span>📥</span>
-                  <span>Download Meme with CC License & Watermark</span>
+                  <span>Download</span>
+                </button>
+                <button
+                  onClick={() => {
+                    navigate(`/lab?templateUrl=${encodeURIComponent(activeMeme.media_url)}&format=${activeMeme.format}&clearText=true`);
+                    setActiveMeme(null);
+                  }}
+                  className="w-full bg-indigo-50 dark:bg-indigo-950/20 text-indigo-750 dark:text-indigo-300 font-bold py-2 px-3 rounded-lg border border-indigo-200 dark:border-indigo-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-950/40 transition"
+                >
+                  <span>🌀</span>
+                  <span>Use as Template</span>
                 </button>
               </div>
 
@@ -869,11 +926,22 @@ const Library = () => {
                     return verifiedComments.map((comment) => {
                       const commenter = userCache[comment.user_id];
                       const commenterName = commenter?.name || "Verified Expert";
+                      const isCommentAuthor = user && (comment.user_id === user.uid || profile?.role === "admin");
                       return (
                         <div key={comment.id} className="border-b border-gray-200 dark:border-gray-800 pb-3 last:border-b-0 text-xs">
-                          <div className="flex justify-between text-gray-500 mb-1">
+                          <div className="flex justify-between items-center text-gray-500 mb-1">
                             <span className="font-bold text-purple-750">🛡️ Certified Expert Review ({commenterName})</span>
-                            <span>{comment.timestamp?.seconds ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString() : "Just now"}</span>
+                            <div className="flex items-center space-x-2">
+                              <span>{comment.timestamp?.seconds ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString() : "Just now"}</span>
+                              {isCommentAuthor && (
+                                <button
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                  className="text-red-500 hover:text-red-700 font-bold transition ml-2"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <p className="text-gray-800 dark:text-gray-200 font-medium leading-relaxed">{comment.body}</p>
                         </div>

@@ -14,7 +14,8 @@ import {
   addDoc,
   serverTimestamp
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, storage } from "../firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 
@@ -274,6 +275,28 @@ const Profile = () => {
     }
   };
 
+  const handleCustomAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !user) return;
+
+    setAvatarLoading(true);
+    try {
+      const storageRef = ref(storage, `avatars/${user.uid}_${Date.now()}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(snapshot.ref);
+
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, { avatar_url: downloadUrl });
+
+      setShowAvatarModal(false);
+    } catch (err) {
+      console.error("Failed to upload custom avatar", err);
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
   // Watermark Downloader logic
   const downloadMemeWithWatermark = (imageUrl, title) => {
     const img = new Image();
@@ -335,6 +358,25 @@ const Profile = () => {
       await deleteDoc(doc(db, "saves", saveId));
     } catch (e) {
       console.error("Failed to remove bookmark", e);
+    }
+  };
+
+  const handleDeleteMeme = async (memeId, isDraft) => {
+    if (!window.confirm(`Are you sure you want to delete this ${isDraft ? "draft" : "meme"}? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, "memes", memeId));
+      if (!isDraft && user) {
+        const statsDocRef = doc(db, "user_stats", user.uid);
+        await updateDoc(statsDocRef, {
+          memes_created_count: increment(-1)
+        });
+      }
+      alert(`${isDraft ? "Draft" : "Meme"} deleted successfully.`);
+    } catch (e) {
+      console.error("Failed to delete meme", e);
+      alert("Failed to delete. Please try again.");
     }
   };
 
@@ -438,6 +480,15 @@ const Profile = () => {
                         Delete
                       </button>
                     )}
+
+                    {!isBookmarkTab && user && (meme.creator_id === user.uid || profile?.role === "admin") && (
+                      <button
+                        onClick={() => handleDeleteMeme(meme.id, meme.visibility === "draft")}
+                        className="text-red-500 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
 
                   {/* Remix Trigger / Resume in Lab if Draft */}
@@ -451,7 +502,7 @@ const Profile = () => {
                   ) : (
                     meme.template_id && (
                       <button
-                        onClick={() => navigate(`/lab?templateId=${meme.template_id}&templateUrl=${meme.media_url}&format=${meme.format}`)}
+                        onClick={() => navigate(`/lab?templateId=${meme.template_id}&templateUrl=${encodeURIComponent(meme.media_url)}&format=${meme.format}`)}
                         className="text-purple-650 hover:underline"
                       >
                         🌀 Remix
@@ -654,6 +705,34 @@ const Profile = () => {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Custom Image Upload Option */}
+            <div className="mt-2 pt-4 border-t border-gray-100 dark:border-gray-800 mb-6">
+              <span className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
+                Or upload your own image:
+              </span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCustomAvatarUpload}
+                  className="hidden"
+                  id="custom-avatar-upload-input"
+                  disabled={avatarLoading}
+                />
+                <label
+                  htmlFor="custom-avatar-upload-input"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-250 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 text-xs font-bold rounded-lg cursor-pointer transition shadow-sm inline-flex items-center gap-1.5"
+                >
+                  📁 Browse Image
+                </label>
+                {avatarLoading && (
+                  <span className="text-[10px] text-gray-400 animate-pulse font-semibold">
+                    Uploading...
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end">
