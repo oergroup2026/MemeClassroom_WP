@@ -102,9 +102,11 @@ const Navbar = () => {
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                   className="flex items-center space-x-2 focus:outline-none"
                 >
-                  <div className="h-8 w-8 rounded-full bg-purple-650 text-white flex items-center justify-center font-semibold text-sm border-2 border-purple-300">
-                    {getInitials(profile.name)}
-                  </div>
+                  <img
+                    src={profile.avatar_url || "/avatar1.png"}
+                    className="h-8 w-8 rounded-full object-cover border-2 border-purple-300"
+                    alt={profile.name}
+                  />
                 </button>
 
                 {userDropdownOpen && (

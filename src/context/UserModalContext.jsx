@@ -84,19 +84,26 @@ export const UserModalProvider = ({ children }) => {
               <div className="space-y-6">
                 
                 {/* Profile demographics header details */}
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h3 className="text-xl font-extrabold">{userData.name}</h3>
-                    {userData.is_verified && (
-                      <img src="/verified-badge.png" className="w-5 h-5 ml-1 inline-block" alt="Verified User" title="Verified User" />
-                    )}
+                <div className="flex items-center space-x-4">
+                  <img
+                    src={userData.avatar_url || "/avatar1.png"}
+                    className="w-14 h-14 rounded-full object-cover border-2 border-purple-300 dark:border-purple-700"
+                    alt={userData.name}
+                  />
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="text-xl font-extrabold">{userData.name}</h3>
+                      {userData.is_verified && (
+                        <img src="/verified-badge.png" className="w-5 h-5 ml-1 inline-block" alt="Verified User" title="Verified User" />
+                      )}
+                    </div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-purple-650 mt-1 capitalize">
+                      {userData.role} • {userData.institution}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {userData.place}, {userData.state}, {userData.country}
+                    </p>
                   </div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-purple-650 mt-1 capitalize">
-                    {userData.role} • {userData.institution}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {userData.place}, {userData.state}, {userData.country}
-                  </p>
                 </div>
 
                 {/* Milestone Badges lists */}
