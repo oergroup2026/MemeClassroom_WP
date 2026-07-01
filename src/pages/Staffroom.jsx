@@ -59,7 +59,7 @@ const Staffroom = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list = [];
       snapshot.forEach(doc => {
-        list.push({ id: doc.id, title: doc.data().title });
+        list.push({ id: doc.id, ...doc.data() });
       });
       setAvailableMemes(list);
     });
@@ -305,11 +305,11 @@ const Staffroom = () => {
     ? "border-2 border-emerald-600 bg-emerald-950/20 text-white rounded-xl"
     : "border-2 border-emerald-500 bg-emerald-50/10";
 
-  const btnClass = "bg-purple-600 hover:bg-purple-750 text-white font-medium text-xs px-3 py-1.5 rounded-lg transition shadow-sm";
+  const btnClass = "bg-purple-600 hover:bg-purple-750 text-white font-semibold text-sm px-4 py-2 rounded-lg transition shadow-sm";
 
   const inputClass = highContrastMode
-    ? "w-full px-3 py-2 border border-zinc-800 bg-zinc-950 rounded-lg text-xs text-white placeholder-gray-500"
-    : "w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg text-xs text-gray-850";
+    ? "w-full px-3 py-2 border border-zinc-800 bg-zinc-950 rounded-lg text-sm text-white placeholder-gray-500"
+    : "w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg text-sm text-gray-850";
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 space-y-8">
@@ -376,6 +376,7 @@ const Staffroom = () => {
                 const authorName = userCache[thread.author_id] || "Teacher";
                 const isSolved = thread.is_solved;
                 const activeReplies = replies[thread.id] || [];
+                const linkedMeme = availableMemes.find(m => m.id === thread.meme_id);
 
                 return (
                   <div 
@@ -384,22 +385,22 @@ const Staffroom = () => {
                   >
                     
                     {/* Header tags */}
-                    <div className="flex justify-between items-center mb-3">
+                    <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center space-x-2">
-                        <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded ${
+                        <span className={`text-[11px] font-extrabold uppercase px-2.5 py-1 rounded ${
                           thread.post_type === "query" ? "bg-red-50 text-red-650" : "bg-teal-50 text-teal-650"
                         }`}>
                           {thread.post_type === "query" ? "Doubt / Query" : "Experience Story"}
                         </span>
                         
                         {thread.outcome_tag && (
-                          <span className="text-[9px] font-semibold text-gray-400">
+                          <span className="text-[11px] font-semibold text-gray-550 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
                             Outcome: {thread.outcome_tag}
                           </span>
                         )}
 
                         {isSolved && (
-                          <span className="bg-emerald-50 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                          <span className="bg-emerald-50 text-emerald-700 text-[11px] font-bold px-2.5 py-1 rounded-full border border-emerald-200">
                             ✓ Solved
                           </span>
                         )}
@@ -409,14 +410,14 @@ const Staffroom = () => {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => openUserModal(thread.author_id)}
-                          className="text-[10px] text-purple-750 font-bold hover:underline"
+                          className="text-xs text-purple-750 font-bold hover:underline"
                         >
                           By {authorName}
                         </button>
                         {user && (thread.author_id === user.uid || profile?.role === "admin") && (
                           <button
                             onClick={() => handleDeleteThread(thread.id)}
-                            className="text-red-500 hover:text-red-750 text-[10px] font-bold transition ml-2"
+                            className="text-red-500 hover:text-red-750 text-xs font-bold transition ml-2"
                           >
                             Delete
                           </button>
@@ -425,23 +426,58 @@ const Staffroom = () => {
                     </div>
 
                     {/* Text Body */}
-                    <p className="text-xs text-gray-650 dark:text-gray-200 leading-relaxed font-medium mb-4">
+                    <p className="text-sm sm:text-[15px] text-gray-700 dark:text-gray-200 leading-relaxed font-medium mb-4 whitespace-pre-line">
                       {thread.body}
                     </p>
 
+                    {/* Linked Meme Preview Box */}
+                    {linkedMeme && (
+                      <div className="my-4 border border-gray-150 dark:border-zinc-850 rounded-xl overflow-hidden bg-gray-50 dark:bg-zinc-950 flex flex-col sm:flex-row items-center p-3 gap-4">
+                        <div className="w-full sm:w-32 aspect-[4/3] relative flex items-center justify-center bg-white dark:bg-zinc-900 rounded-lg border border-gray-100 dark:border-zinc-800 overflow-hidden flex-shrink-0">
+                          {linkedMeme.format === "image" && (
+                            <img src={linkedMeme.media_url} alt={linkedMeme.title} className="max-w-full max-h-full object-contain" />
+                          )}
+                          {linkedMeme.format === "gif" && (
+                            <img src={linkedMeme.media_url} alt={linkedMeme.title} className="max-w-full max-h-full object-contain" />
+                          )}
+                          {linkedMeme.format === "video" && (
+                            <video src={linkedMeme.media_url} className="max-w-full max-h-full object-contain" controls />
+                          )}
+                          {linkedMeme.format === "audio" && (
+                            <div className="text-2xl">🔊</div>
+                          )}
+                        </div>
+                        <div className="flex-grow min-w-0 text-left">
+                          <span className="text-[10px] uppercase tracking-wider text-purple-650 dark:text-purple-400 font-bold block mb-0.5">Linked Meme Reference</span>
+                          <h4 className="font-extrabold text-sm text-gray-905 dark:text-white truncate">{linkedMeme.title}</h4>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-750 dark:text-indigo-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                              {linkedMeme.subject}
+                            </span>
+                            <span className="bg-teal-50 dark:bg-teal-950/20 text-teal-750 dark:text-teal-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                              Ages {linkedMeme.age_group}
+                            </span>
+                            <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">
+                              {linkedMeme.format}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Attachment slot */}
                     {thread.attachment_name && (
-                      <div className="my-3 p-2 border border-dashed rounded text-[11px] text-gray-500 flex items-center space-x-1.5 bg-gray-50 dark:bg-gray-900">
+                      <div className="my-3 p-2 border border-dashed rounded text-xs text-gray-500 flex items-center space-x-1.5 bg-gray-50 dark:bg-gray-900">
                         <span>📎 Attachment:</span>
                         <span className="italic">{thread.attachment_name} (Pruning active)</span>
                       </div>
                     )}
 
                     {/* Likes & replies count panel */}
-                    <div className="flex items-center space-x-4 border-t border-gray-100 dark:border-gray-700/50 pt-3 text-[11px]">
+                    <div className="flex items-center space-x-4 border-t border-gray-100 dark:border-gray-700/50 pt-3 text-xs">
                       <button
                         onClick={() => handleThreadLike(thread)}
-                        className={`flex items-center space-x-1 transition ${
+                        className={`flex items-center space-x-1.5 transition ${
                           user && thread.liked_by?.includes(user.uid)
                             ? "text-purple-600 font-bold"
                             : "text-gray-400 hover:text-purple-650"
@@ -466,24 +502,24 @@ const Staffroom = () => {
                           return (
                             <div 
                               key={reply.id} 
-                              className={`p-3 rounded-lg text-xs leading-relaxed ${
+                              className={`p-3 rounded-lg text-sm leading-relaxed ${
                                 isAccepted 
                                   ? 'bg-emerald-500/10 border border-emerald-300' 
                                   : 'bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800'
                               }`}
                             >
-                              <div className="flex justify-between items-center mb-1">
+                              <div className="flex justify-between items-center mb-1.5">
                                 <div className="flex items-center space-x-2">
                                   <button
                                     onClick={() => openUserModal(reply.author_id)}
-                                    className="font-bold text-[10px] text-purple-650 hover:underline"
+                                    className="font-bold text-xs text-purple-650 hover:underline"
                                   >
                                     {rAuthorName}
                                   </button>
                                   {user && (reply.author_id === user.uid || profile?.role === "admin") && (
                                     <button
                                       onClick={() => handleDeleteReply(reply.id)}
-                                      className="text-red-500 hover:text-red-750 text-[10px] font-bold transition ml-2"
+                                      className="text-red-500 hover:text-red-750 text-xs font-bold transition ml-2"
                                     >
                                       Delete
                                     </button>
@@ -491,7 +527,7 @@ const Staffroom = () => {
                                 </div>
                                 
                                 {isAccepted ? (
-                                  <span className="text-[10px] font-bold text-emerald-700 flex items-center space-x-1">
+                                  <span className="text-xs font-bold text-emerald-700 flex items-center space-x-1">
                                     <span>🛡️</span>
                                     <span>Accepted Solution</span>
                                   </span>
@@ -499,14 +535,14 @@ const Staffroom = () => {
                                   user && user.uid === thread.author_id && thread.post_type === "query" && !isSolved && (
                                     <button
                                       onClick={() => handleAcceptSolution(thread.id, reply.id)}
-                                      className="text-[9px] bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 px-2 py-0.5 rounded hover:bg-emerald-100"
+                                      className="text-xs bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 px-2.5 py-1 rounded hover:bg-emerald-100"
                                     >
                                       ✓ Accept Solution
                                     </button>
                                   )
                                 )}
                               </div>
-                              <p className="text-gray-700 dark:text-gray-300 font-medium">{reply.body}</p>
+                              <p className="text-gray-700 dark:text-gray-305 font-medium">{reply.body}</p>
                             </div>
                           );
                         })}
