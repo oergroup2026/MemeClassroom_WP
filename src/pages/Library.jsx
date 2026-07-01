@@ -69,32 +69,58 @@ const Library = () => {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
-  // Watermark Downloader for Images/GIFs appending a 40px CC attribution footer
+  // Proportional white bottom border containing the MemeClassroom watermark and CC license text
   const downloadMemeWithWatermark = (imageUrl, title) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = imageUrl;
+    // Add cache buster parameter to bypass browser caching of non-CORS headers
+    img.src = imageUrl + (imageUrl.includes("?") ? "&" : "?") + "t=" + new Date().getTime();
     img.onload = () => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      canvas.width = img.naturalWidth || img.width || 500;
-      canvas.height = (img.naturalHeight || img.height || 500) + 40;
+      const w = img.naturalWidth || img.width || 500;
+      const h = img.naturalHeight || img.height || 500;
 
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height - 40);
+      // Proportional border height (approx 8% of image height, minimum 45px, maximum 120px)
+      const borderHeight = Math.max(45, Math.min(120, Math.round(h * 0.08)));
 
-      ctx.fillStyle = "#1e1b4b"; // Dark indigo background
-      ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+      canvas.width = w;
+      canvas.height = h + borderHeight;
 
-      ctx.fillStyle = "#fbbf24"; // High contrast yellow text
-      ctx.font = "bold 14px sans-serif";
+      // Draw original image on top
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // Draw bottom white border background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, h, w, borderHeight);
+
+      // Draw a neat inner border around the meme image itself to separate it
+      ctx.strokeStyle = "#e5e7eb";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, w, h);
+
+      // Proportional font size
+      const fontSize = Math.max(11, Math.round(borderHeight * 0.28));
+      ctx.fillStyle = "#374151"; // Slate-700
+      ctx.font = `bold ${fontSize}px sans-serif`;
       ctx.textBaseline = "middle";
 
-      ctx.textAlign = "left";
-      ctx.fillText("Created on MemeClassroom", 20, canvas.height - 20);
+      const paddingX = Math.max(15, Math.round(w * 0.04));
+      const textY = h + Math.round(borderHeight / 2);
 
+      // Left aligned watermark
+      ctx.textAlign = "left";
+      ctx.fillText("MemeClassroom", paddingX, textY);
+
+      // Right aligned watermark/license
       ctx.textAlign = "right";
-      ctx.fillText("Licensed under CC BY-NC-SA 4.0", canvas.width - 20, canvas.height - 20);
+      ctx.fillText("CC BY-NC-SA 4.0 License", w - paddingX, textY);
+
+      // Draw a neat outer border around the entire downloaded card canvas
+      ctx.strokeStyle = "#d1d5db";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
       const link = document.createElement("a");
       link.download = `${title || 'meme'}_watermarked.png`;
@@ -167,10 +193,14 @@ const Library = () => {
   }, []);
 
   const getMemeAverageRating = (memeId, criteria) => {
-    const memeRatings = allRatings.filter(r => r.meme_id === memeId);
+    const memeRatings = allRatings.filter(r => r.meme_id === memeId && r[criteria] !== undefined && r[criteria] !== null);
     if (memeRatings.length === 0) return 0;
     const sum = memeRatings.reduce((acc, curr) => acc + (curr[criteria] || 0), 0);
     return sum / memeRatings.length;
+  };
+
+  const getMemeRatingCount = (memeId, criteria) => {
+    return allRatings.filter(r => r.meme_id === memeId && r[criteria] !== undefined && r[criteria] !== null).length;
   };
 
   const getSubjectTagClass = (subj) => {
@@ -281,7 +311,8 @@ const Library = () => {
           const ageAvg = getMemeAverageRating(memeId, "age_appropriateness");
           const langAvg = getMemeAverageRating(memeId, "language_appropriateness");
           const valAvg = getMemeAverageRating(memeId, "content_validity");
-          const active = [ageAvg, langAvg, valAvg].filter(x => x > 0);
+          const creatAvg = getMemeAverageRating(memeId, "creativity");
+          const active = [ageAvg, langAvg, valAvg, creatAvg].filter(x => x > 0);
           return active.length > 0 ? active.reduce((sum, x) => sum + x, 0) / active.length : 0;
         };
         return getOverall(b.id) - getOverall(a.id);
@@ -544,10 +575,6 @@ const Library = () => {
         let newRating = {
           meme_id: activeMeme.id,
           user_id: user.uid,
-          age_appropriateness: 3,
-          language_appropriateness: 3,
-          content_validity: 3,
-          creativity: 3,
           ...existingData,
           [criteria]: score,
           created_at: serverTimestamp()
@@ -624,8 +651,14 @@ const Library = () => {
   // Helper to compute average criteria score
   const getAverageScore = (criteria) => {
     if (currentMemeRatings.length === 0) return 0;
-    const sum = currentMemeRatings.reduce((acc, curr) => acc + (curr[criteria] || 0), 0);
-    return sum / currentMemeRatings.length;
+    const validRatings = currentMemeRatings.filter(r => r[criteria] !== undefined && r[criteria] !== null);
+    if (validRatings.length === 0) return 0;
+    const sum = validRatings.reduce((acc, curr) => acc + (curr[criteria] || 0), 0);
+    return sum / validRatings.length;
+  };
+
+  const getScoreCount = (criteria) => {
+    return currentMemeRatings.filter(r => r[criteria] !== undefined && r[criteria] !== null).length;
   };
 
   // Dynamic styling configurations for UDL contrast adjustments
@@ -885,38 +918,45 @@ const Library = () => {
                 return (
                   <div key={meme.id} className={`flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out hover:-translate-y-1.5 hover:shadow-xl hover:ring-2 hover:ring-purple-500/20 meme-card-animate ${containerClass}`}>
 
+                    {/* Card Header: Meme Title & Creator Info */}
+                    <div className="flex items-center px-4 py-3 border-b border-gray-100 dark:border-zinc-800">
+                      <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-950 flex items-center justify-center text-purple-700 dark:text-purple-300 font-black text-xs mr-2.5 shadow-sm flex-shrink-0">
+                        {creatorName ? creatorName.charAt(0).toUpperCase() : "M"}
+                      </div>
+                      <div className="flex-grow min-w-0">
+                        <h3
+                          onClick={() => setActiveMeme(meme)}
+                          className="font-extrabold text-sm text-gray-900 dark:text-white hover:text-purple-6xl transition cursor-pointer truncate leading-tight"
+                          title={meme.title}
+                        >
+                          {meme.title}
+                        </h3>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); if (meme.creator_id !== "admin") openUserModal(meme.creator_id); }}
+                          className="text-[10px] font-medium text-gray-500 dark:text-gray-400 hover:text-purple-650 transition text-left block leading-tight mt-0.5"
+                        >
+                          {creatorName}
+                        </button>
+                      </div>
+                    </div>
+
                     {/* Visual Media Preview Box */}
                     <div
                       onClick={() => setActiveMeme(meme)}
-                      className="bg-gray-100 dark:bg-gray-900 aspect-video relative flex items-center justify-center cursor-pointer overflow-hidden group"
+                      className="bg-white dark:bg-zinc-950 aspect-[4/3] relative flex items-center justify-center cursor-pointer overflow-hidden group p-3 border-b border-gray-150 dark:border-zinc-800"
                     >
                       {meme.format === "image" && (
-                        <img src={meme.media_url} alt={meme.title} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                        <img src={meme.media_url} alt={meme.title} className="max-w-full max-h-full object-contain group-hover:scale-102 transition duration-305" />
                       )}
                       {meme.format === "video" && (
-                        <video src={meme.media_url} className="w-full h-full object-cover" />
+                        <video src={meme.media_url} className="max-w-full max-h-full object-contain" />
                       )}
                       {meme.format === "gif" && (
-                        <img src={meme.media_url} alt={meme.title} className="w-full h-full object-cover" />
+                        <img src={meme.media_url} alt={meme.title} className="max-w-full max-h-full object-contain" />
                       )}
                       {meme.format === "audio" && (
                         <div className="text-3xl">🔊</div>
                       )}
-
-                      <div className="absolute top-2 left-2 flex gap-1 z-10">
-                        {meme.creator_id === "admin" ? (
-                          <span className="bg-purple-650 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                            Admin
-                          </span>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openUserModal(meme.creator_id); }}
-                            className="bg-gray-900/70 hover:bg-purple-650 text-white text-[10px] font-medium px-2 py-0.5 rounded-full transition cursor-pointer"
-                          >
-                            By {creatorName}
-                          </button>
-                        )}
-                      </div>
 
                       {/* Hover Overlay Visual Indicator */}
                       <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
@@ -927,118 +967,142 @@ const Library = () => {
                     {/* Metadata Details Card Body */}
                     <div className="p-4 flex-grow flex flex-col justify-between">
                       <div>
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h3
-                            onClick={() => setActiveMeme(meme)}
-                            className="font-extrabold text-sm hover:text-purple-600 cursor-pointer line-clamp-1"
-                          >
-                            {meme.title}
-                          </h3>
+                        {/* Action Icons Row */}
+                        <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-zinc-800/60 pb-3">
+                          <div className="flex items-center justify-between w-full text-lg px-0.5">
+                            {/* Like Heart Button */}
+                            <button
+                              onClick={() => handleLikeToggle(meme.id, meme.creator_id)}
+                              className={`transition-all hover:scale-110 active:scale-95 ${isLiked ? 'text-red-500 font-bold' : 'text-gray-400 hover:text-gray-500'} ${animatingHeartMemeId === meme.id ? 'heart-pop-active' : ''}`}
+                              title="Like Meme"
+                            >
+                              <span className="inline-block">{isLiked ? "❤️" : "🤍"}</span>
+                            </button>
+
+                            {/* Rate / Review Star Button (CTA) */}
+                            <button
+                              onClick={() => setActiveMeme(meme)}
+                              className="text-gray-400 hover:text-yellow-500 transition hover:scale-110 active:scale-95"
+                              title="Rate and Review Meme"
+                            >
+                              ⭐
+                            </button>
+
+                            {/* Customise / Use as Template Pencil Button */}
+                            <button
+                              onClick={() => {
+                                if (meme.template_id) {
+                                  navigate(`/lab?templateId=${meme.template_id}&templateUrl=${meme.media_url}&format=${meme.format}`);
+                                } else {
+                                  navigate(`/lab?templateUrl=${encodeURIComponent(meme.media_url)}&format=${meme.format}&clearText=true`);
+                                }
+                              }}
+                              className="text-gray-400 hover:text-purple-650 transition hover:scale-110 active:scale-95"
+                              title={meme.template_id ? "Customise / Remix Meme" : "Use as Template"}
+                            >
+                              ✏️
+                            </button>
+
+                            {/* Download Button */}
+                            <button
+                              onClick={() => {
+                                if (meme.format === "image" || meme.format === "gif") {
+                                  downloadMemeWithWatermark(meme.media_url, meme.title);
+                                } else {
+                                  handleMediaDownload(meme.media_url, meme.title);
+                                }
+                              }}
+                              className="text-gray-455 dark:text-gray-500 hover:text-indigo-650 transition hover:scale-110"
+                              title="Download Meme (CC BY-NC-SA 4.0)"
+                            >
+                              📥
+                            </button>
+
+                            {/* Flag Report Button */}
+                            <button
+                              onClick={() => handleFlagContent(meme.id)}
+                              className="text-gray-400 hover:text-red-500 transition hover:scale-110"
+                              title="Report Inappropriate Content"
+                            >
+                              🏳️
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Likes Count */}
+                        <div className="text-xs font-bold text-gray-800 dark:text-white mb-3">
+                          {meme.likes_count || 0} {meme.likes_count === 1 ? "like" : "likes"}
                         </div>
 
                         {/* Curriculum Tag Pills */}
                         <div className="flex flex-wrap gap-1.5 mb-4">
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm ${getSubjectTagClass(meme.subject)}`}>
+                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold shadow-sm ${getSubjectTagClass(meme.subject)}`}>
                             {meme.subject}
                           </span>
-                          <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-750 dark:text-indigo-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                          <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-750 dark:text-indigo-300 text-[9px] px-2 py-0.5 rounded-full font-bold">
                             Ages {meme.age_group}
                           </span>
-                          <span className="bg-teal-50 dark:bg-teal-950/20 text-teal-750 dark:text-teal-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                          <span className="bg-teal-50 dark:bg-teal-950/20 text-teal-750 dark:text-teal-300 text-[9px] px-2 py-0.5 rounded-full font-bold">
                             {meme.language}
                           </span>
-                          <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">
+                          <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">
                             {meme.format}
                           </span>
                         </div>
 
                         {/* Pedagogical Category Averages Panel */}
-                        <div className="grid grid-cols-3 gap-1 bg-gray-50 dark:bg-zinc-900 p-2 rounded-lg text-[9px] mb-3 leading-tight border border-gray-100 dark:border-zinc-800">
+                        <div className="grid grid-cols-4 gap-1 bg-gray-50 dark:bg-zinc-900/50 p-2 rounded-lg text-[9px] mb-3 leading-tight border border-gray-150 dark:border-zinc-800/80">
                           <div className="text-center">
-                            <span className="block text-gray-400 font-semibold uppercase">Age Appr.</span>
-                            <span className="font-extrabold text-purple-700 dark:text-purple-400">
+                            <span className="block text-gray-400 dark:text-gray-550 font-semibold uppercase">Age Appr.</span>
+                            <span className="font-extrabold text-purple-700 dark:text-purple-400 block mt-0.5">
                               {getMemeAverageRating(meme.id, "age_appropriateness") > 0 
                                 ? `${getMemeAverageRating(meme.id, "age_appropriateness").toFixed(1)}/5` 
                                 : "—"}
                             </span>
+                            <span className="text-[8px] text-gray-400 dark:text-gray-550 block">
+                              ({getMemeRatingCount(meme.id, "age_appropriateness")})
+                            </span>
                           </div>
-                          <div className="text-center border-x border-gray-250 dark:border-zinc-800">
-                            <span className="block text-gray-400 font-semibold uppercase">Language</span>
-                            <span className="font-extrabold text-purple-700 dark:text-purple-400">
+                          <div className="text-center border-l border-gray-200 dark:border-zinc-800/80">
+                            <span className="block text-gray-400 dark:text-gray-550 font-semibold uppercase">Language Appr.</span>
+                            <span className="font-extrabold text-purple-700 dark:text-purple-400 block mt-0.5">
                               {getMemeAverageRating(meme.id, "language_appropriateness") > 0 
                                 ? `${getMemeAverageRating(meme.id, "language_appropriateness").toFixed(1)}/5` 
                                 : "—"}
                             </span>
+                            <span className="text-[8px] text-gray-400 dark:text-gray-550 block">
+                              ({getMemeRatingCount(meme.id, "language_appropriateness")})
+                            </span>
                           </div>
-                          <div className="text-center">
-                            <span className="block text-gray-400 font-semibold uppercase">Validity</span>
-                            <span className="font-extrabold text-purple-700 dark:text-purple-400">
+                          <div className="text-center border-l border-gray-200 dark:border-zinc-800/80">
+                            <span className="block text-gray-400 dark:text-gray-550 font-semibold uppercase">Content Validity</span>
+                            <span className="font-extrabold text-purple-700 dark:text-purple-400 block mt-0.5">
                               {getMemeAverageRating(meme.id, "content_validity") > 0 
                                 ? `${getMemeAverageRating(meme.id, "content_validity").toFixed(1)}/5` 
                                 : "—"}
+                            </span>
+                            <span className="text-[8px] text-gray-400 dark:text-gray-550 block">
+                              ({getMemeRatingCount(meme.id, "content_validity")})
+                            </span>
+                          </div>
+                          <div className="text-center border-l border-gray-200 dark:border-zinc-800/80">
+                            <span className="block text-gray-400 dark:text-gray-550 font-semibold uppercase">Creativity</span>
+                            <span className="font-extrabold text-purple-700 dark:text-purple-400 block mt-0.5">
+                              {getMemeAverageRating(meme.id, "creativity") > 0 
+                                ? `${getMemeAverageRating(meme.id, "creativity").toFixed(1)}/5` 
+                                : "—"}
+                            </span>
+                            <span className="text-[8px] text-gray-400 dark:text-gray-550 block">
+                              ({getMemeRatingCount(meme.id, "creativity")})
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Card Lower Controls Tray */}
-                      <div className="pt-3 border-t border-gray-150 dark:border-gray-750 flex items-center justify-between text-xs">
-                        <div className="flex items-center space-x-3">
-                          {/* Like Heart Button */}
-                          <button
-                            onClick={() => handleLikeToggle(meme.id, meme.creator_id)}
-                            className={`flex items-center space-x-1 transition-all ${isLiked ? 'text-red-500 font-bold' : 'text-gray-400 hover:text-gray-500'} ${animatingHeartMemeId === meme.id ? 'heart-pop-active' : ''}`}
-                          >
-                            <span className="inline-block">{isLiked ? "❤️" : "🤍"}</span>
-                            <span>{meme.likes_count || 0} Likes</span>
-                          </button>
-
-                          {/* Flag Report Button */}
-                          <button
-                            onClick={() => handleFlagContent(meme.id)}
-                            className="text-gray-400 hover:text-red-500 transition"
-                            title="Report Inappropriate Content"
-                          >
-                            🏳️
-                          </button>
-
-                          {/* Download Button */}
-                          <button
-                            onClick={() => {
-                              if (meme.format === "image" || meme.format === "gif") {
-                                downloadMemeWithWatermark(meme.media_url, meme.title);
-                              } else {
-                                handleMediaDownload(meme.media_url, meme.title);
-                              }
-                            }}
-                            className="text-gray-400 hover:text-indigo-650 transition"
-                            title="Download Meme (CC BY-NC-SA 4.0)"
-                          >
-                            📥
-                          </button>
-                        </div>
-
-                        {/* Edit/Remix or Use as Template Buttons */}
-                        <div className="flex items-center space-x-2">
-                          {meme.template_id ? (
-                            <button
-                              onClick={() => navigate(`/lab?templateId=${meme.template_id}&templateUrl=${meme.media_url}&format=${meme.format}`)}
-                              className="text-[10px] font-bold text-purple-650 hover:underline flex items-center space-x-1"
-                              title="Remix this meme"
-                            >
-                              <span>🌀</span>
-                              <span>Remix</span>
-                            </button>
-                          ) : null}
-                          <button
-                            onClick={() => navigate(`/lab?templateUrl=${encodeURIComponent(meme.media_url)}&format=${meme.format}&clearText=true`)}
-                            className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center space-x-1"
-                            title="Use as Template"
-                          >
-                            <span>🎨</span>
-                            <span>Use as Template</span>
-                          </button>
-                        </div>
+                      {/* License Info Footer */}
+                      <div className="flex items-center text-[9px] text-gray-450 dark:text-gray-550 font-semibold space-x-1.5 pt-2.5 border-t border-gray-100 dark:border-zinc-850">
+                        <span>🄲🄲 🄱🅈 🄽🄲 🅂🄰</span>
+                        <span>BY-NC-SA 4.0</span>
                       </div>
                     </div>
                   </div>
@@ -1141,7 +1205,8 @@ const Library = () => {
                     const ageAvg = getAverageScore("age_appropriateness");
                     const langAvg = getAverageScore("language_appropriateness");
                     const valAvg = getAverageScore("content_validity");
-                    const activeAverages = [ageAvg, langAvg, valAvg].filter(a => a > 0);
+                    const creatAvg = getAverageScore("creativity");
+                    const activeAverages = [ageAvg, langAvg, valAvg, creatAvg].filter(a => a > 0);
                     const overallAverage = activeAverages.length > 0 
                       ? activeAverages.reduce((a, b) => a + b, 0) / activeAverages.length 
                       : 0;
@@ -1156,7 +1221,8 @@ const Library = () => {
                 {[
                   { label: "Age Appropriateness", key: "age_appropriateness" },
                   { label: "Language Appropriateness", key: "language_appropriateness" },
-                  { label: "Content Validity", key: "content_validity" }
+                  { label: "Content Validity", key: "content_validity" },
+                  { label: "Creativity", key: "creativity" }
                 ].map((crit) => {
                   const avg = getAverageScore(crit.key);
                   const myVal = userSubmittedRating?.[crit.key] || 0;
@@ -1165,7 +1231,9 @@ const Library = () => {
                     <div key={crit.key} className="space-y-1 min-h-[70px]">
                       <div className="flex justify-between text-[11px]">
                         <span>{crit.label}</span>
-                        <span className="text-purple-650">{avg > 0 ? `${avg.toFixed(1)} / 5` : "— / 5"}</span>
+                        <span className="text-purple-650 font-bold">
+                          {avg > 0 ? `${avg.toFixed(1)}/5 (${getScoreCount(crit.key)} ${getScoreCount(crit.key) === 1 ? 'rating' : 'ratings'})` : "—/5 (0 ratings)"}
+                        </span>
                       </div>
 
                       {/* Progress Bar representing average */}
