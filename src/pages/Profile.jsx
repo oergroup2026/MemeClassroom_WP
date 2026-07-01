@@ -297,32 +297,58 @@ const Profile = () => {
     }
   };
 
-  // Watermark Downloader logic
+  // Proportional white bottom border containing the MemeClassroom watermark and CC license text
   const downloadMemeWithWatermark = (imageUrl, title) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = imageUrl;
+    // Add cache buster parameter to bypass browser caching of non-CORS headers
+    img.src = imageUrl + (imageUrl.includes("?") ? "&" : "?") + "t=" + new Date().getTime();
     img.onload = () => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      canvas.width = img.naturalWidth || img.width || 500;
-      canvas.height = (img.naturalHeight || img.height || 500) + 40;
+      const w = img.naturalWidth || img.width || 500;
+      const h = img.naturalHeight || img.height || 500;
 
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height - 40);
+      // Proportional border height (approx 8% of image height, minimum 45px, maximum 120px)
+      const borderHeight = Math.max(45, Math.min(120, Math.round(h * 0.08)));
 
-      ctx.fillStyle = "#1e1b4b";
-      ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+      canvas.width = w;
+      canvas.height = h + borderHeight;
 
-      ctx.fillStyle = "#fbbf24";
-      ctx.font = "bold 14px sans-serif";
+      // Draw original image on top
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // Draw bottom white border background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, h, w, borderHeight);
+
+      // Draw a neat inner border around the meme image itself to separate it
+      ctx.strokeStyle = "#e5e7eb";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, w, h);
+
+      // Proportional font size
+      const fontSize = Math.max(11, Math.round(borderHeight * 0.28));
+      ctx.fillStyle = "#374151"; // Slate-700
+      ctx.font = `bold ${fontSize}px sans-serif`;
       ctx.textBaseline = "middle";
 
-      ctx.textAlign = "left";
-      ctx.fillText("Created on MemeClassroom", 20, canvas.height - 20);
+      const paddingX = Math.max(15, Math.round(w * 0.04));
+      const textY = h + Math.round(borderHeight / 2);
 
+      // Left aligned watermark
+      ctx.textAlign = "left";
+      ctx.fillText("MemeClassroom", paddingX, textY);
+
+      // Right aligned watermark/license
       ctx.textAlign = "right";
-      ctx.fillText("Licensed under CC BY-NC-SA 4.0", canvas.width - 20, canvas.height - 20);
+      ctx.fillText("CC BY-NC-SA 4.0 License", w - paddingX, textY);
+
+      // Draw a neat outer border around the entire downloaded card canvas
+      ctx.strokeStyle = "#d1d5db";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
       const link = document.createElement("a");
       link.download = `${title || 'meme'}_watermarked.png`;
