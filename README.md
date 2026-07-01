@@ -1,16 +1,36 @@
-# React + Vite
+# 🎬 MemeClassroom
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+MemeClassroom is an innovative educational platform designed to merge **Meme Pedagogy** with modern learning workflows. Built on top of React, Vite, and Tailwind CSS, and fully backed by Firebase, the platform integrates Universal Design for Learning (UDL) principles to make education highly engaging, accessible, and interactive.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Features
 
-## React Compiler
+*   **Admin HQ:** Comprehensive management console for instructors to oversee content, students, and pedagogical metrics.
+*   **UDL (Universal Design for Learning) Integration:** Built-in accessibility and flexible learning pathways to accommodate diverse learner needs.
+*   **Coursera Visual Theme:** Clean, professional UI aesthetics inspired by global e-learning standards, complete with optimized light and dark modes.
+*   **Customizable User Profiles:** Includes an interactive avatar picker featuring 5 unique custom options.
+*   **Robust Firebase Backend:** Secure implementation using Firestore database, Firebase Storage, and automated Firebase Hosting via GitHub Actions.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🛠️ Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+*   **Frontend Framework:** React (v19)
+*   **Build Tool:** Vite (configured with Fast HMR)
+*   **Styling:** Tailwind CSS (configured for semantic day/night themes)
+*   **Backend & Hosting:** Firebase (Firestore, Cloud Storage, Hosting)
+*   **Linting:** ESLint
+
+---
+
+## 📦 Getting Started
+
+### Prerequisites
+
+Ensure you have **Node.js** (v18+ recommended) and the **Firebase CLI** installed.
+
+### 1. Clone the Repository
+```bash
+git clone [https://github.com/oergroup2026/MemeClassroom_WP.git](https://github.com/oergroup2026/MemeClassroom_WP.git)
+cd MemeClassroom_WP
