@@ -230,32 +230,47 @@ const Library = () => {
     const commenterIds = expertComments.map(c => c.user_id);
     const uniqueIds = [...new Set([...creatorIds, ...commenterIds])];
 
-    uniqueIds.forEach(async (userId) => {
-      if (userId === "admin") return;
-      if (resolvedCreatorsRef.current[userId]) return;
+    const fetchUsers = async () => {
+      const idsToFetch = uniqueIds.filter(id => id !== "admin" && !resolvedCreatorsRef.current[id]);
+      if (idsToFetch.length === 0) return;
 
-      resolvedCreatorsRef.current[userId] = "fetching";
+      // Mark all as fetching
+      idsToFetch.forEach(id => {
+        resolvedCreatorsRef.current[id] = "fetching";
+      });
+
       try {
-        const userDoc = await getDoc(doc(db, "users", userId));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          resolvedCreatorsRef.current[userId] = "fetched";
-          setUserCache(prev => ({ 
-            ...prev, 
-            [userId]: { name: userData.name || "Unknown User", role: userData.role || "student" } 
-          }));
-        } else {
-          resolvedCreatorsRef.current[userId] = "fetched";
-          setUserCache(prev => ({ 
-            ...prev, 
-            [userId]: { name: "Unknown User", role: "student" } 
-          }));
+        const newCacheUpdates = {};
+        await Promise.all(idsToFetch.map(async (userId) => {
+          try {
+            const userDoc = await getDoc(doc(db, "users", userId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              resolvedCreatorsRef.current[userId] = "fetched";
+              newCacheUpdates[userId] = { 
+                name: userData.name || "Unknown User", 
+                role: userData.role || "student",
+                is_verified: userData.is_verified || false 
+              };
+            } else {
+              resolvedCreatorsRef.current[userId] = "fetched";
+              newCacheUpdates[userId] = { name: "Unknown User", role: "student", is_verified: false };
+            }
+          } catch (e) {
+            console.error("Error resolving user profile", e);
+            resolvedCreatorsRef.current[userId] = null; // reset so it can try again
+          }
+        }));
+
+        if (Object.keys(newCacheUpdates).length > 0) {
+          setUserCache(prev => ({ ...prev, ...newCacheUpdates }));
         }
-      } catch (e) {
-        console.error("Error resolving user profile", e);
-        delete resolvedCreatorsRef.current[userId];
+      } catch (err) {
+        console.error("Failed fetching users in batch", err);
       }
-    });
+    };
+
+    fetchUsers();
   }, [memes, expertComments]);
 
   // Real-time Likes list for the user (mapped to dedicated 'likes' collection)
