@@ -60,6 +60,36 @@ const Lab = () => {
     }
   }, [searchParams]);
 
+  // Fetch approved templates from Firestore
+  useEffect(() => {
+    const q = query(
+      collection(db, "templates"),
+      where("status", "==", "approved")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAvailableTemplates(list);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleSelectTemplate = (temp) => {
+    setTemplateId(temp.id);
+    if (temp.format === "image" || !temp.format) {
+      setImages([temp.media_url]);
+      setActiveTab("image");
+    } else if (temp.format === "video") {
+      setVideoUrl(temp.media_url);
+      setActiveTab("video");
+    } else if (temp.format === "gif") {
+      setGifUrl(temp.media_url);
+      setActiveTab("gif");
+    } else if (temp.format === "audio") {
+      setAudioUrl(temp.media_url);
+      setActiveTab("audio");
+    }
+  };
+
   // Preload draft parameters to resume editing
   useEffect(() => {
     const draftId = searchParams.get("draftId");
@@ -104,36 +134,6 @@ const Lab = () => {
 
     loadDraft();
   }, [searchParams]);
-
-  // Fetch approved templates from Firestore
-  useEffect(() => {
-    const q = query(
-      collection(db, "templates"),
-      where("status", "==", "approved")
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setAvailableTemplates(list);
-    });
-    return () => unsub();
-  }, []);
-
-  const handleSelectTemplate = (temp) => {
-    setTemplateId(temp.id);
-    if (temp.format === "image" || !temp.format) {
-      setImages([temp.media_url]);
-      setActiveTab("image");
-    } else if (temp.format === "video") {
-      setVideoUrl(temp.media_url);
-      setActiveTab("video");
-    } else if (temp.format === "gif") {
-      setGifUrl(temp.media_url);
-      setActiveTab("gif");
-    } else if (temp.format === "audio") {
-      setAudioUrl(temp.media_url);
-      setActiveTab("audio");
-    }
-  };
 
   // --- Image Tab State ---
   const [images, setImages] = useState([]); // Array of base64/object URLs
@@ -186,7 +186,7 @@ const Lab = () => {
   const [autoSaveToast, setAutoSaveToast] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // --- Template Upload & Browsing Pipeline State ---
+  // --- Template Upload Pipeline State ---
   const [templateTitle, setTemplateTitle] = useState("");
   const [templateFile, setTemplateFile] = useState(null);
   const [templateLoading, setTemplateLoading] = useState(false);
@@ -1091,17 +1091,23 @@ const Lab = () => {
                 <div className="space-y-4">
                   <h3 className="font-bold text-xs uppercase tracking-wider text-purple-650 dark:text-purple-400 border-b pb-2">Browse Templates</h3>
                   {availableTemplates.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-3 max-h-[220px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-2 gap-3 max-h-[240px] overflow-y-auto pr-1">
                       {availableTemplates.map((temp) => (
                         <button
                           key={temp.id}
                           onClick={() => handleSelectTemplate(temp)}
-                          className="flex flex-col items-center p-2 border border-gray-200 dark:border-gray-800 rounded-lg hover:border-purple-500 hover:bg-purple-50/10 transition text-left"
+                          className="flex flex-col items-center p-2 border border-gray-250 dark:border-gray-800 rounded-lg hover:border-purple-500 hover:bg-purple-50/10 transition text-left w-full"
                         >
                           <div className="w-full aspect-video bg-black rounded overflow-hidden flex items-center justify-center mb-1">
-                            <img src={temp.media_url} alt={temp.title} className="max-w-full max-h-full object-contain" />
+                            {temp.format === "video" ? (
+                              <div className="text-white text-[10px]">🎥 Video Template</div>
+                            ) : temp.format === "audio" ? (
+                              <div className="text-white text-[10px]">🎵 Audio Template</div>
+                            ) : (
+                              <img src={temp.media_url} alt={temp.title} className="w-full h-full object-cover" />
+                            )}
                           </div>
-                          <span className="text-[10px] font-bold line-clamp-1 text-gray-750 dark:text-gray-200">{temp.title}</span>
+                          <span className="text-[10px] font-bold truncate w-full text-center text-gray-700 dark:text-gray-300">{temp.title}</span>
                         </button>
                       ))}
                     </div>
@@ -1110,7 +1116,7 @@ const Lab = () => {
                   )}
                 </div>
 
-                <div className="border-t border-gray-200 dark:border-gray-850 pt-4 space-y-4">
+                <div className="border-t border-gray-250 dark:border-gray-800 pt-4 space-y-4">
                   <h3 className="font-bold text-xs uppercase tracking-wider text-purple-650 dark:text-purple-400 border-b pb-2">Contribute Blank Template</h3>
                   <form onSubmit={handleTemplateUploadSubmit} className="space-y-4 text-xs font-semibold">
                     

@@ -442,8 +442,7 @@ const Profile = () => {
                       {[
                         { label: "Age Appr.", key: "age_appropriateness" },
                         { label: "Language", key: "language_appropriateness" },
-                        { label: "Validity", key: "content_validity" },
-                        { label: "Creativity", key: "creativity" }
+                        { label: "Validity", key: "content_validity" }
                       ].map(bar => (
                         <div key={bar.key} className="flex items-center justify-between">
                           <span>{bar.label}</span>
@@ -502,7 +501,7 @@ const Profile = () => {
                   ) : (
                     meme.template_id && (
                       <button
-                        onClick={() => navigate(`/lab?templateId=${meme.template_id}&templateUrl=${encodeURIComponent(meme.media_url)}&format=${meme.format}`)}
+                        onClick={() => navigate(`/lab?templateId=${meme.template_id}&templateUrl=${meme.media_url}&format=${meme.format}`)}
                         className="text-purple-650 hover:underline"
                       >
                         🌀 Remix
