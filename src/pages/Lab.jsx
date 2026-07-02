@@ -445,12 +445,47 @@ const Lab = () => {
   }, [user, title, subject, ageGroup, activeTab, language, images, videoUrl, gifUrl, audioUrl, textLayers]);
 
   const loadImage = (src) => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = src;
-      img.onload = () => resolve(img);
-      img.onerror = (e) => reject(e);
+    return new Promise(async (resolve, reject) => {
+      let blobUrl = null;
+      try {
+        let finalSrc = src;
+
+        // Fetch external templates via CORS proxy as Blobs to bypass canvas taint errors
+        if (src.startsWith("http") && !src.startsWith(window.location.origin)) {
+          const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(src)}`;
+          const response = await fetch(proxiedUrl);
+          if (response.ok) {
+            const blob = await response.blob();
+            blobUrl = URL.createObjectURL(blob);
+            finalSrc = blobUrl;
+          }
+        }
+
+        const img = new Image();
+        img.src = finalSrc;
+        img.onload = () => {
+          resolve(img);
+          if (blobUrl) {
+            URL.revokeObjectURL(blobUrl);
+          }
+        };
+        img.onerror = (e) => {
+          if (blobUrl) {
+            URL.revokeObjectURL(blobUrl);
+          }
+          reject(e);
+        };
+      } catch (err) {
+        // Fallback to loading original source with crossOrigin anonymous if fetch fails
+        if (blobUrl) {
+          URL.revokeObjectURL(blobUrl);
+        }
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = src;
+        img.onload = () => resolve(img);
+        img.onerror = (e) => reject(e);
+      }
     });
   };
 

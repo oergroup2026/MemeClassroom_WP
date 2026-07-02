@@ -81,6 +81,11 @@ const Admin = () => {
   const [resBody, setResBody] = useState("");
   const [resUrl, setResUrl] = useState("");
   const [resFile, setResFile] = useState(null);
+  const [resPublicationYear, setResPublicationYear] = useState("");
+  const [resPublisherName, setResPublisherName] = useState("");
+  const [resThumbnailUrl, setResThumbnailUrl] = useState("");
+  const [resThumbnailFile, setResThumbnailFile] = useState(null);
+  const [resKeywords, setResKeywords] = useState("");
 
   // Marketing Form States
   const [adTitle, setAdTitle] = useState("");
@@ -342,21 +347,48 @@ const Admin = () => {
           const snap = await uploadBytes(storageRef, resFile);
           fileUrl = await getDownloadURL(snap.ref);
         }
-        await addDoc(collection(db, "resources"), {
+
+        let thumbnailUrl = resThumbnailUrl;
+        if (resThumbnailFile) {
+          const thumbRef = ref(storage, `resources/thumb_seed_${Date.now()}`);
+          const snap = await uploadBytes(thumbRef, resThumbnailFile);
+          thumbnailUrl = await getDownloadURL(snap.ref);
+        }
+
+        const parsedKeywords = resKeywords
+          ? resKeywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean)
+          : [];
+        
+        const resourceData = {
           title: resTitle,
           type: resType,
           subject: resSubject,
           grade_group: resGrade,
           body: resBody,
           file_url: fileUrl,
+          thumbnail_url: thumbnailUrl,
+          keywords: parsedKeywords,
+          likes_count: 0,
           status: "approved",
           author_id: user.uid,
           created_at: serverTimestamp()
-        });
+        };
+
+        if (resType === "article" || resType === "research_paper") {
+          resourceData.publication_year = resPublicationYear;
+          resourceData.publisher_name = resPublisherName;
+        }
+
+        await addDoc(collection(db, "resources"), resourceData);
         setResTitle("");
         setResBody("");
         setResUrl("");
         setResFile(null);
+        setResPublicationYear("");
+        setResPublisherName("");
+        setResThumbnailUrl("");
+        setResThumbnailFile(null);
+        setResKeywords("");
         triggerAlert("Academic Resource seeded directly into Meme Reads gallery.");
       }
     } catch (e) {
@@ -1291,6 +1323,32 @@ const Admin = () => {
                     {taxonomy.grades.map(g => <option key={g} value={g}>Ages {g}</option>)}
                   </select>
                 </div>
+                {(resType === "article" || resType === "research_paper") && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Year of Publication *</label>
+                      <input 
+                        type="text" 
+                        value={resPublicationYear} 
+                        onChange={e => setResPublicationYear(e.target.value)} 
+                        className={inputClass}
+                        placeholder="e.g. 2024"
+                        required={resType === "article" || resType === "research_paper"}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Journal/Magazine/Website *</label>
+                      <input 
+                        type="text" 
+                        value={resPublisherName} 
+                        onChange={e => setResPublisherName(e.target.value)} 
+                        className={inputClass}
+                        placeholder="e.g. Nature Science"
+                        required={resType === "article" || resType === "research_paper"}
+                      />
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Summary / Body *</label>
                   <textarea 
@@ -1317,6 +1375,37 @@ const Admin = () => {
                     type="file" 
                     onChange={e => setResFile(e.target.files?.[0] || null)} 
                     className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Thumbnail Image URL</label>
+                    <input 
+                      type="url" 
+                      value={resThumbnailUrl} 
+                      onChange={e => setResThumbnailUrl(e.target.value)} 
+                      className={inputClass}
+                      placeholder="https://example.com/thumbnail.png"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Or Upload Thumbnail Image</label>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={e => setResThumbnailFile(e.target.files?.[0] || null)} 
+                      className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Keywords (comma-separated)</label>
+                  <input 
+                    type="text" 
+                    value={resKeywords} 
+                    onChange={e => setResKeywords(e.target.value)} 
+                    className={inputClass}
+                    placeholder="e.g. biology, cell, science"
                   />
                 </div>
               </>

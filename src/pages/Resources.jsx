@@ -72,16 +72,70 @@ const Resources = () => {
   const [uploadGrade, setUploadGrade] = useState("13-15");
   const [uploadUrl, setUploadUrl] = useState("");
   const [uploadFile, setUploadFile] = useState(null);
+  const [uploadPublicationYear, setUploadPublicationYear] = useState("");
+  const [uploadPublisherName, setUploadPublisherName] = useState("");
+  const [uploadThumbnailUrl, setUploadThumbnailUrl] = useState("");
+  const [uploadThumbnailFile, setUploadThumbnailFile] = useState(null);
+  const [uploadKeywords, setUploadKeywords] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [savedResourceLikesMap, setSavedResourceLikesMap] = useState({});
+  const [likePendingMap, setLikePendingMap] = useState({});
+  const [featuredResources, setFeaturedResources] = useState(MOCK_FEATURED);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
   // 1. Cycle Hero Featured Slider every 6 seconds
   useEffect(() => {
     const timer = setInterval(() => {
-      setFeaturedIndex((prev) => (prev + 1) % MOCK_FEATURED.length);
+      setFeaturedIndex((prev) => (prev + 1) % (featuredResources.length || 1));
     }, 6000);
     return () => clearInterval(timer);
-  }, []);
+  }, [featuredResources]);
+
+  // Real-time Resource Likes listener
+  useEffect(() => {
+    if (!user) return;
+    const likesCol = collection(db, "resource_likes");
+    const q = query(likesCol, where("user_id", "==", user.uid));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const map = {};
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        map[data.resource_id] = doc.id;
+      });
+      setSavedResourceLikesMap(map);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Dynamic Hero Carousel promoting most liked resources
+  useEffect(() => {
+    if (resources.length > 0) {
+      const sortedByLikes = [...resources]
+        .filter(r => (r.likes_count || 0) > 0)
+        .sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0));
+
+      if (sortedByLikes.length > 0) {
+        // Map top liked resources (up to 3) to the carousel shape
+        const topLiked = sortedByLikes.slice(0, 3).map(r => ({
+          id: r.id,
+          title: r.title,
+          body: r.body,
+          type: r.type,
+          subject: r.subject,
+          grade_group: r.grade_group,
+          author_id: r.author_id
+        }));
+        setFeaturedResources(topLiked);
+      } else {
+        setFeaturedResources(MOCK_FEATURED);
+      }
+    } else {
+      setFeaturedResources(MOCK_FEATURED);
+    }
+  }, [resources]);
 
   // 2. Real-Time resources listener (only approved ones)
   useEffect(() => {
@@ -136,7 +190,7 @@ const Resources = () => {
     return () => unsubscribe();
   }, [user]);
 
-  // 3. Multi-Variable filters & Tab Segmentation
+  // 3. Multi-Variable filters & Tab Segmentation & Search
   useEffect(() => {
     let result = resources;
 
@@ -155,8 +209,25 @@ const Resources = () => {
       result = result.filter(r => r.grade_group === gradeFilter);
     }
 
+    // Filter by search bar query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(r => {
+        const matchTitle = r.title?.toLowerCase().includes(q);
+        const matchBody = r.body?.toLowerCase().includes(q);
+        const matchSubject = r.subject?.toLowerCase().includes(q);
+        const matchPublisher = r.publisher_name?.toLowerCase().includes(q);
+        const matchType = r.type?.toLowerCase().includes(q);
+        const matchKeywords = Array.isArray(r.keywords)
+          ? r.keywords.some(k => k.toLowerCase().includes(q))
+          : (r.keywords ? String(r.keywords).toLowerCase().includes(q) : false);
+
+        return matchTitle || matchBody || matchSubject || matchPublisher || matchType || matchKeywords;
+      });
+    }
+
     setFilteredResources(result);
-  }, [activeTab, subjectFilter, gradeFilter, resources]);
+  }, [activeTab, subjectFilter, gradeFilter, searchQuery, resources]);
 
   // 4. Bookmark Resource Toggle
   const handleBookmarkToggle = async (resourceId) => {
@@ -220,6 +291,49 @@ const Resources = () => {
     }
   };
 
+  const handleResourceLikeToggle = async (resourceId, authorId) => {
+    if (!user) return;
+    if (likePendingMap[resourceId]) return;
+    setLikePendingMap(prev => ({ ...prev, [resourceId]: true }));
+
+    const existingLikeId = savedResourceLikesMap[resourceId];
+    const resourceRef = doc(db, "resources", resourceId);
+    const statsRef = doc(db, "user_stats", authorId);
+
+    try {
+      if (existingLikeId) {
+        await deleteDoc(doc(db, "resource_likes", existingLikeId));
+        if (authorId !== "admin") {
+          await setDoc(statsRef, {
+            total_likes_received: increment(-1)
+          }, { merge: true });
+        }
+        await updateDoc(resourceRef, {
+          likes_count: increment(-1)
+        });
+      } else {
+        const likeDocId = `${user.uid}_${resourceId}`;
+        await setDoc(doc(db, "resource_likes", likeDocId), {
+          user_id: user.uid,
+          resource_id: resourceId,
+          created_at: serverTimestamp()
+        });
+        if (authorId !== "admin") {
+          await setDoc(statsRef, {
+            total_likes_received: increment(1)
+          }, { merge: true });
+        }
+        await updateDoc(resourceRef, {
+          likes_count: increment(1)
+        });
+      }
+    } catch (e) {
+      console.error("Resource like toggle failed", e);
+    } finally {
+      setLikePendingMap(prev => ({ ...prev, [resourceId]: false }));
+    }
+  };
+
   // 6. Submit resource (atomic transaction increment user_stats)
   const handleResourceSubmit = async (e) => {
     e.preventDefault();
@@ -228,6 +342,7 @@ const Resources = () => {
     setUploadError("");
 
     let fileUrl = uploadUrl;
+    let thumbnailUrl = uploadThumbnailUrl;
 
     try {
       // If a file is uploaded, push it to Firebase Storage
@@ -237,35 +352,61 @@ const Resources = () => {
         fileUrl = await getDownloadURL(snapshot.ref);
       }
 
+      // Upload thumbnail if file is selected
+      if (uploadThumbnailFile) {
+        const thumbRef = ref(storage, `resources/thumb_${user.uid}_${Date.now()}`);
+        const snapshot = await uploadBytes(thumbRef, uploadThumbnailFile);
+        thumbnailUrl = await getDownloadURL(snapshot.ref);
+      }
+
+      const parsedKeywords = uploadKeywords
+        ? uploadKeywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean)
+        : [];
+
       const resColRef = collection(db, "resources");
       const statsDocRef = doc(db, "user_stats", user.uid);
-
+ 
       // Perform transaction to write resource and increment stats atomically
       await runTransaction(db, async (transaction) => {
         const newDocRef = doc(resColRef);
         
-        transaction.set(newDocRef, {
+        const resourceData = {
           title: uploadTitle,
           body: uploadBody,
           type: uploadType,
           subject: uploadSubject,
           grade_group: uploadGrade,
           file_url: fileUrl,
+          thumbnail_url: thumbnailUrl,
+          keywords: parsedKeywords,
+          likes_count: 0,
           author_id: user.uid,
           status: "approved", // Live immediately by default
           created_at: serverTimestamp()
-        });
+        };
 
+        if (uploadType === "article" || uploadType === "research_paper") {
+          resourceData.publication_year = uploadPublicationYear;
+          resourceData.publisher_name = uploadPublisherName;
+        }
+
+        transaction.set(newDocRef, resourceData);
+ 
         transaction.update(statsDocRef, {
           resources_contributed_count: increment(1)
         });
       });
-
+ 
       setShowUploadModal(false);
       setUploadTitle("");
       setUploadBody("");
       setUploadUrl("");
       setUploadFile(null);
+      setUploadPublicationYear("");
+      setUploadPublisherName("");
+      setUploadThumbnailUrl("");
+      setUploadThumbnailFile(null);
+      setUploadKeywords("");
     } catch (err) {
       console.error(err);
       setUploadError("Submission failed. Ensure connection is stable.");
@@ -285,7 +426,7 @@ const Resources = () => {
     ? "w-full px-3 py-2 border border-zinc-800 bg-zinc-950 rounded-lg text-xs text-white placeholder-gray-500"
     : "w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg text-xs text-gray-855";
 
-  const activeFeat = MOCK_FEATURED[featuredIndex];
+  const activeFeat = featuredResources[featuredIndex] || MOCK_FEATURED[0];
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 space-y-8">
@@ -300,7 +441,18 @@ const Resources = () => {
         </div>
         <div className="mt-4 sm:mt-0">
           {user && (
-            <button onClick={() => setShowUploadModal(true)} className={btnClass}>
+            <button onClick={() => {
+              setUploadTitle("");
+              setUploadBody("");
+              setUploadUrl("");
+              setUploadFile(null);
+              setUploadPublicationYear("");
+              setUploadPublisherName("");
+              setUploadThumbnailUrl("");
+              setUploadThumbnailFile(null);
+              setUploadKeywords("");
+              setShowUploadModal(true);
+            }} className={btnClass}>
               ➕ Contribute Resource
             </button>
           )}
@@ -328,7 +480,7 @@ const Resources = () => {
         </div>
 
         <div className="flex space-x-1.5 pt-6">
-          {MOCK_FEATURED.map((_, idx) => (
+          {featuredResources.map((_, idx) => (
             <button
               key={idx}
               onClick={() => setFeaturedIndex(idx)}
@@ -362,6 +514,28 @@ const Resources = () => {
             {tab.label}
           </button>
         ))}
+      </div>
+
+      {/* Search Bar Input */}
+      <div className={`p-4 ${containerClass} flex items-center justify-between space-x-3`}>
+        <div className="relative flex-grow">
+          <span className="absolute left-3.5 top-2.5 text-gray-400">🔍</span>
+          <input
+            type="text"
+            placeholder="Search resources by title, description, keywords, subject, or publisher..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`${inputClass} pl-10 h-10 w-full rounded-xl`}
+          />
+        </div>
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="text-xs font-bold text-red-655 hover:underline px-2"
+          >
+            Clear Search
+          </button>
+        )}
       </div>
 
       {/* Main Grid View */}
@@ -410,28 +584,70 @@ const Resources = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredResources.map((res) => {
                 const isBookmarked = !!savedResourcesMap[res.id];
+                const isLiked = !!savedResourceLikesMap[res.id];
                 const authorName = res.author_id === "admin" ? "Admin" : (userCache[res.author_id] || "Contributor");
-
+ 
                 return (
                   <div key={res.id} className={`p-5 flex flex-col justify-between h-full ${containerClass}`}>
                     <div>
-                      <div className="flex justify-between items-start mb-3">
-                        <span className="bg-purple-50 dark:bg-purple-950/20 text-purple-750 dark:text-purple-300 text-[10px] font-bold px-2 py-0.5 rounded-full capitalize">
+                      {/* Contributor profile details similar to Library card layout */}
+                      <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-zinc-800 pb-3">
+                        <div className="flex items-center min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-950 flex items-center justify-center text-purple-750 dark:text-purple-300 font-black text-xs mr-2.5 shadow-sm flex-shrink-0">
+                            {authorName ? authorName.charAt(0).toUpperCase() : "C"}
+                          </div>
+                          <div className="flex-grow min-w-0">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); if (res.author_id !== "admin") openUserModal(res.author_id); }}
+                              className="text-xs font-bold text-gray-900 dark:text-white hover:text-purple-650 dark:hover:text-purple-400 transition text-left block leading-tight truncate"
+                            >
+                              {authorName}
+                            </button>
+                            <span className="text-[9px] text-gray-400 block leading-tight mt-0.5">
+                              Contributor
+                            </span>
+                          </div>
+                        </div>
+                        <span className="bg-purple-55 dark:bg-purple-950/20 text-purple-750 dark:text-purple-300 text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0 ml-2">
                           {res.type.replace("_", " ")}
                         </span>
-                        
-                        {/* Contributor Label clickable username gateway link */}
-                        <button
-                          onClick={() => openUserModal(res.author_id)}
-                          className="text-[10px] text-gray-400 hover:text-purple-650 font-medium"
-                        >
-                          By {authorName}
-                        </button>
                       </div>
-
+ 
+                      {/* Thumbnail Banner */}
+                      {res.thumbnail_url && (
+                        <div className="w-full aspect-[16/9] mb-3 rounded-lg overflow-hidden border border-gray-155 dark:border-zinc-800 bg-gray-50 flex items-center justify-center">
+                          <img src={res.thumbnail_url} alt={res.title} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+ 
                       <h3 className="font-extrabold text-sm mb-2">{res.title}</h3>
                       <p className="text-xs text-gray-500 mb-4 line-clamp-3 leading-relaxed">{res.body}</p>
 
+                      {/* Keywords tags display */}
+                      {res.keywords && res.keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {res.keywords.map((k) => (
+                            <span
+                              key={k}
+                              className="bg-gray-100 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 text-[9px] px-1.5 py-0.5 rounded"
+                            >
+                              #{k}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+ 
+                      {/* Conditionally display Year of Publication & Publisher details for Article / Research Paper */}
+                      {(res.type === "article" || res.type === "research_paper") && (res.publication_year || res.publisher_name) && (
+                        <div className="mb-4 p-2 bg-purple-50/50 dark:bg-purple-950/10 border border-purple-100 dark:border-purple-900/50 rounded-lg text-[10px] text-purple-900 dark:text-purple-300 flex items-center space-x-1.5">
+                          <span>📖</span>
+                          <span className="font-semibold">
+                            {res.publisher_name && `${res.publisher_name}`}
+                            {res.publication_year && ` (${res.publication_year})`}
+                          </span>
+                        </div>
+                      )}
+ 
                       {/* Course iFrame Embed stub */}
                       {res.type === "course" && res.file_url && (
                         <div className="w-full aspect-video rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-black mb-4">
@@ -444,50 +660,65 @@ const Resources = () => {
                         </div>
                       )}
                     </div>
-
-                    <div className="pt-3 border-t border-gray-150 dark:border-gray-750 flex items-center justify-between text-xs font-semibold">
-                      <div className="flex space-x-3">
-                        {/* Bookmark Button */}
-                        <button
-                          onClick={() => handleBookmarkToggle(res.id)}
-                          className={`flex items-center space-x-1 ${isBookmarked ? 'text-indigo-650' : 'text-gray-400 hover:text-gray-500'}`}
-                        >
-                          <span>📥</span>
-                          <span>{isBookmarked ? 'Bookmarked' : 'Save'}</span>
-                        </button>
-
-                        {/* Moderation Flag Button */}
-                        <button
-                          onClick={() => handleFlagResource(res.id)}
-                          className="text-gray-400 hover:text-red-500"
-                          title="Report resource"
-                        >
-                          🏳️ Report
-                        </button>
-
-                        {/* Delete Resource Button */}
-                        {user && (res.author_id === user.uid || profile?.role === "admin") && (
-                          <button
-                            onClick={() => handleDeleteResource(res.id)}
-                            className="text-gray-400 hover:text-red-500 flex items-center space-x-1"
-                            title="Delete Resource"
+ 
+                    <div className="pt-3 border-t border-gray-150 dark:border-gray-750 flex flex-col space-y-2 text-xs font-semibold">
+                      <div className="flex items-center justify-between text-gray-400 text-[10px] pb-1">
+                        <span>📅 Added: {res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : "Just now"}</span>
+                        {res.file_url && res.type !== "course" && (
+                          <a
+                            href={res.file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-900/50 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-[10px] font-bold px-2.5 py-1 rounded-full transition duration-150 flex items-center"
                           >
-                            <span>🗑️</span>
-                            <span>Delete</span>
-                          </button>
+                            {res.file_url.includes("firebasestorage.googleapis.com") ? "📄 Open PDF ↗" : "🔗 Visit Website ↗"}
+                          </a>
                         )}
                       </div>
-                      
-                      {res.file_url && res.type !== "course" && (
-                        <a
-                          href={res.file_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-purple-650 hover:underline text-[11px]"
-                        >
-                          Access File ↗
-                        </a>
-                      )}
+ 
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="flex space-x-3">
+                          {/* Like Button */}
+                          <button
+                            onClick={() => handleResourceLikeToggle(res.id, res.author_id)}
+                            className={`flex items-center space-x-1 transition hover:scale-105 active:scale-95 ${isLiked ? 'text-red-500 font-bold' : 'text-gray-400 hover:text-gray-500'}`}
+                            title="Like Resource"
+                          >
+                            <span>{isLiked ? "❤️" : "🤍"}</span>
+                            <span>{res.likes_count || 0}</span>
+                          </button>
+
+                          {/* Bookmark Button */}
+                          <button
+                            onClick={() => handleBookmarkToggle(res.id)}
+                            className={`flex items-center space-x-1 ${isBookmarked ? 'text-indigo-650' : 'text-gray-400 hover:text-gray-500'}`}
+                          >
+                            <span>📥</span>
+                            <span>{isBookmarked ? 'Bookmarked' : 'Save'}</span>
+                          </button>
+ 
+                          {/* Moderation Flag Button */}
+                          <button
+                            onClick={() => handleFlagResource(res.id)}
+                            className="text-gray-400 hover:text-red-500"
+                            title="Report resource"
+                          >
+                            🏳️ Report
+                          </button>
+ 
+                          {/* Delete Resource Button */}
+                          {user && (res.author_id === user.uid || profile?.role === "admin") && (
+                            <button
+                              onClick={() => handleDeleteResource(res.id)}
+                              className="text-gray-405 hover:text-red-500 flex items-center space-x-1"
+                              title="Delete Resource"
+                            >
+                              <span>🗑️</span>
+                              <span>Delete</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
@@ -572,14 +803,12 @@ const Resources = () => {
                     <option value="Geography">Geography</option>
                   </select>
                 </div>
-              </div>
-
-              <div>
+                   <div>
                 <label className="block text-gray-500 uppercase mb-1">Grade Group</label>
                 <select
                   value={uploadGrade}
                   onChange={(e) => setUploadGrade(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-55 dark:bg-gray-900 rounded"
                 >
                   <option value="10-12">Ages 10-12</option>
                   <option value="13-15">Ages 13-15</option>
@@ -587,7 +816,34 @@ const Resources = () => {
                   <option value="University">University</option>
                 </select>
               </div>
-
+ 
+              {(uploadType === "article" || uploadType === "research_paper") && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Year of Publication *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 2024"
+                      value={uploadPublicationYear}
+                      onChange={(e) => setUploadPublicationYear(e.target.value)}
+                      className={inputClass}
+                      required={uploadType === "article" || uploadType === "research_paper"}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Journal/Magazine/Website *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Nature Science"
+                      value={uploadPublisherName}
+                      onChange={(e) => setUploadPublisherName(e.target.value)}
+                      className={inputClass}
+                      required={uploadType === "article" || uploadType === "research_paper"}
+                    />
+                  </div>
+                </div>
+              )}
+ 
               <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-gray-500 uppercase mb-1">External Hyperlink / Embed URL</label>
@@ -609,10 +865,54 @@ const Resources = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-gray-500 uppercase mb-1">Thumbnail Image URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/thumbnail.png"
+                    value={uploadThumbnailUrl}
+                    onChange={(e) => setUploadThumbnailUrl(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-500 uppercase mb-1">Or Upload Thumbnail Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setUploadThumbnailFile(e.target.files?.[0] || null)}
+                    className="block w-full text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-500 uppercase mb-1">Keywords (comma-separated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. biology, cell division, mitosis"
+                  value={uploadKeywords}
+                  onChange={(e) => setUploadKeywords(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+ 
               <div className="flex justify-end space-x-2 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowUploadModal(false)}
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadTitle("");
+                    setUploadBody("");
+                    setUploadUrl("");
+                    setUploadFile(null);
+                    setUploadPublicationYear("");
+                    setUploadPublisherName("");
+                    setUploadThumbnailUrl("");
+                    setUploadThumbnailFile(null);
+                    setUploadKeywords("");
+                  }}
                   className="bg-gray-200 dark:bg-gray-700 text-gray-750 dark:text-gray-250 px-4 py-2 rounded-lg font-bold"
                 >
                   Cancel
@@ -624,7 +924,7 @@ const Resources = () => {
                 >
                   {uploadLoading ? "Publishing..." : "Submit Resource"}
                 </button>
-              </div>
+              </div>             </div>
             </form>
           </div>
         </div>
