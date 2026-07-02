@@ -69,76 +69,91 @@ const Library = () => {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
-  // Proportional white bottom border containing the MemeClassroom watermark and CC license text
-  const downloadMemeWithWatermark = (imageUrl, title) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    // Add cache buster parameter to bypass browser caching of non-CORS headers
-    img.src = imageUrl + (imageUrl.includes("?") ? "&" : "?") + "t=" + new Date().getTime();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
+  // Proportional white bottom border containing the MemeClassroom watermark and CC license text via CORS proxy
+  const downloadMemeWithWatermark = async (imageUrl, title) => {
+    try {
+      // Use corsproxy.io to bypass browser caching and cross-origin blocking
+      const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`;
+      const response = await fetch(proxiedUrl);
+      if (!response.ok) throw new Error("CORS proxy fetch failed");
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
 
-      const w = img.naturalWidth || img.width || 500;
-      const h = img.naturalHeight || img.height || 500;
+      const img = new Image();
+      img.src = blobUrl;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
 
-      // Proportional border height (approx 8% of image height, minimum 45px, maximum 120px)
-      const borderHeight = Math.max(45, Math.min(120, Math.round(h * 0.08)));
+        const w = img.naturalWidth || img.width || 500;
+        const h = img.naturalHeight || img.height || 500;
 
-      canvas.width = w;
-      canvas.height = h + borderHeight;
+        // Proportional border height (approx 8% of image height, minimum 45px, maximum 120px)
+        const borderHeight = Math.max(45, Math.min(120, Math.round(h * 0.08)));
 
-      // Draw original image on top
-      ctx.drawImage(img, 0, 0, w, h);
+        canvas.width = w;
+        canvas.height = h + borderHeight;
 
-      // Draw bottom white border background
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, h, w, borderHeight);
+        // Draw original image on top
+        ctx.drawImage(img, 0, 0, w, h);
 
-      // Draw a neat inner border around the meme image itself to separate it
-      ctx.strokeStyle = "#e5e7eb";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(0, 0, w, h);
+        // Draw bottom white border background
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, h, w, borderHeight);
 
-      // Proportional font size
-      const fontSize = Math.max(11, Math.round(borderHeight * 0.28));
-      ctx.fillStyle = "#374151"; // Slate-700
-      ctx.font = `bold ${fontSize}px sans-serif`;
-      ctx.textBaseline = "middle";
+        // Draw a neat inner border around the meme image itself to separate it
+        ctx.strokeStyle = "#e5e7eb";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, w, h);
 
-      const paddingX = Math.max(15, Math.round(w * 0.04));
-      const textY = h + Math.round(borderHeight / 2);
+        // Proportional font size
+        const fontSize = Math.max(11, Math.round(borderHeight * 0.28));
+        ctx.fillStyle = "#374151"; // Slate-700
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textBaseline = "middle";
 
-      // Left aligned watermark
-      ctx.textAlign = "left";
-      ctx.fillText("MemeClassroom", paddingX, textY);
+        const paddingX = Math.max(15, Math.round(w * 0.04));
+        const textY = h + Math.round(borderHeight / 2);
 
-      // Right aligned watermark/license
-      ctx.textAlign = "right";
-      ctx.fillText("CC BY-NC-SA 4.0 License", w - paddingX, textY);
+        // Left aligned watermark
+        ctx.textAlign = "left";
+        ctx.fillText("MemeClassroom", paddingX, textY);
 
-      // Draw a neat outer border around the entire downloaded card canvas
-      ctx.strokeStyle = "#d1d5db";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        // Right aligned watermark/license
+        ctx.textAlign = "right";
+        ctx.fillText("CC BY-NC-SA 4.0 License", w - paddingX, textY);
 
-      const link = document.createElement("a");
-      link.download = `${title || 'meme'}_watermarked.png`;
-      link.href = canvas.toDataURL("image/png");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    };
-    img.onerror = () => {
-      // Fallback direct link download
-      const link = document.createElement("a");
-      link.href = imageUrl;
-      link.target = "_blank";
-      link.download = `${title || 'meme'}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    };
+        // Draw a neat outer border around the entire downloaded card canvas
+        ctx.strokeStyle = "#d1d5db";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+        const link = document.createElement("a");
+        link.download = `${title || 'meme'}_watermarked.png`;
+        link.href = canvas.toDataURL("image/png");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(blobUrl);
+        fallbackDirectDownload(imageUrl, title);
+      };
+    } catch (err) {
+      console.error("Watermark download error, falling back", err);
+      fallbackDirectDownload(imageUrl, title);
+    }
+  };
+
+  const fallbackDirectDownload = (imageUrl, title) => {
+    const link = document.createElement("a");
+    link.href = imageUrl;
+    link.target = "_blank";
+    link.download = `${title || 'meme'}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Direct download for Videos and Audios with CC license toast reminder
