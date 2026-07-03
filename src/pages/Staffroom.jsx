@@ -156,21 +156,6 @@ const Staffroom = () => {
       list.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
       setThreads(list);
 
-      // Resolve author usernames
-      const uniqueAuthorIds = [...new Set(list.map(t => t.author_id))];
-      uniqueAuthorIds.forEach(async (authorId) => {
-        if (!userCache[authorId]) {
-          try {
-            const userDoc = await getDoc(doc(db, "users", authorId));
-            if (userDoc.exists()) {
-              setUserCache(prev => ({ ...prev, [authorId]: userDoc.data().name }));
-            }
-          } catch (e) {
-            console.error("Failed to load forum username", e);
-          }
-        }
-      });
-
       // Fetch replies for each thread dynamically
       list.forEach((thread) => {
         const repliesCol = collection(db, "staffroom_replies");
@@ -179,16 +164,6 @@ const Staffroom = () => {
           const rList = [];
           replySnap.forEach(d => {
             rList.push({ id: d.id, ...d.data() });
-            
-            // Resolve reply author name
-            const rAuthorId = d.data().author_id;
-            if (!userCache[rAuthorId]) {
-              getDoc(doc(db, "users", rAuthorId)).then(uDoc => {
-                if (uDoc.exists()) {
-                  setUserCache(prev => ({ ...prev, [rAuthorId]: uDoc.data().name }));
-                }
-              });
-            }
           });
           rList.sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
           setReplies(prev => ({ ...prev, [thread.id]: rList }));
@@ -198,7 +173,77 @@ const Staffroom = () => {
     });
 
     return () => unsubscribe();
-  }, [userCache]);
+  }, []);
+
+  // 2.5. Dedicated User profile (name, role, is_verified) resolution listener
+  useEffect(() => {
+    const ids = [];
+
+    // Thread authors
+    threads.forEach(t => {
+      if (t.author_id) ids.push(t.author_id);
+    });
+
+    // Reply authors
+    Object.values(replies).forEach(rList => {
+      rList.forEach(r => {
+        if (r.author_id) ids.push(r.author_id);
+      });
+    });
+
+    // Active meme creator
+    if (activeMeme && activeMeme.creator_id) {
+      ids.push(activeMeme.creator_id);
+    }
+
+    // Active meme commenters
+    expertComments.forEach(c => {
+      if (c.user_id) ids.push(c.user_id);
+    });
+
+    const uniqueIds = [...new Set(ids)];
+
+    const fetchUsers = async () => {
+      const idsToFetch = uniqueIds.filter(id => id !== "admin" && !userCache[id]);
+      if (idsToFetch.length === 0) return;
+
+      // Mark loading placeholders immediately to prevent duplicate fetches
+      const placeholderUpdates = {};
+      idsToFetch.forEach(id => {
+        placeholderUpdates[id] = { name: "Loading...", role: "student", is_verified: false };
+      });
+      setUserCache(prev => ({ ...prev, ...placeholderUpdates }));
+
+      try {
+        const newCacheUpdates = {};
+        await Promise.all(idsToFetch.map(async (userId) => {
+          try {
+            const userDoc = await getDoc(doc(db, "users", userId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              newCacheUpdates[userId] = {
+                name: userData.name || "Unknown User",
+                role: userData.role || "student",
+                is_verified: userData.is_verified || false
+              };
+            } else {
+              newCacheUpdates[userId] = { name: "Unknown User", role: "student", is_verified: false };
+            }
+          } catch (e) {
+            console.error("Error resolving user profile in Staffroom", e);
+          }
+        }));
+
+        if (Object.keys(newCacheUpdates).length > 0) {
+          setUserCache(prev => ({ ...prev, ...newCacheUpdates }));
+        }
+      } catch (err) {
+        console.error("Failed fetching users in batch", err);
+      }
+    };
+
+    fetchUsers();
+  }, [threads, replies, activeMeme, expertComments]);
 
   // 3. Social Embed safe script watchdog timer
   useEffect(() => {
@@ -665,7 +710,7 @@ const Staffroom = () => {
           <div className="space-y-6">
             {filteredThreads.length > 0 ? (
               filteredThreads.map((thread) => {
-                const authorName = userCache[thread.author_id] || "Teacher";
+                const authorName = userCache[thread.author_id]?.name || "Teacher";
                 const isSolved = thread.is_solved;
                 const activeReplies = replies[thread.id] || [];
                 const linkedMeme = availableMemes.find(m => m.id === thread.meme_id);
@@ -792,7 +837,7 @@ const Staffroom = () => {
                     {activeReplies.length > 0 && (
                       <div className="mt-4 pl-4 border-l-2 border-gray-200 dark:border-gray-750 space-y-3.5">
                         {activeReplies.map((reply) => {
-                          const rAuthorName = userCache[reply.author_id] || "Peer";
+                          const rAuthorName = userCache[reply.author_id]?.name || "Peer";
                           const isAccepted = reply.is_accepted_solution;
 
                           return (

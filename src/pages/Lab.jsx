@@ -199,6 +199,38 @@ const Lab = () => {
   const audioPlayerRef = useRef(null);
   const dragInfoRef = useRef({ isDragging: false, textId: null, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
 
+  // Drag and Drop files upload state
+  const [isDragOverDropzone, setIsDragOverDropzone] = useState(false);
+
+  const handleDropzoneDrop = (e) => {
+    e.preventDefault();
+    setIsDragOverDropzone(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      if (activeTab === "image") {
+        const fileArray = Array.from(files).filter(f => f.type.startsWith("image/"));
+        if (images.length + fileArray.length > 4) {
+          setAlertMessage("You can select up to 4 images for the collage.");
+          return;
+        }
+        const newUrls = fileArray.map(file => createObjectURLSafe(file));
+        setImages(prev => [...prev, ...newUrls]);
+        setImageFiles(prev => [...prev, ...fileArray]);
+      } else if (activeTab === "video") {
+        const videoFile = files[0];
+        if (videoFile && videoFile.type.startsWith("video/")) {
+          handleVideoUpload({ target: { files: [videoFile] } });
+        }
+      } else if (activeTab === "audio") {
+        const audioFile = files[0];
+        if (audioFile && audioFile.type.startsWith("audio/")) {
+          setAudioUrl(createObjectURLSafe(audioFile));
+          setAudioFile(audioFile);
+        }
+      }
+    }
+  };
+
   // Auto-Save Drafts reference ID in Firestore
   const draftIdRef = useRef(null);
 
@@ -736,88 +768,174 @@ const Lab = () => {
         </div>
       )}
 
-      {/* Main Studio Editor Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            {/* Unified SaaS Workbench Card */}
+      <div className={`flex flex-col lg:flex-row h-auto lg:h-[720px] rounded-2xl overflow-hidden shadow-2xl border ${
+        highContrastMode 
+          ? "bg-zinc-950 border-zinc-800 text-white" 
+          : "bg-slate-50 border-gray-200 text-gray-800"
+      }`}>
         
-        {/* Left Column: Tabbed controls sidebar (1/3 width) */}
-        <div className={`p-6 ${containerClass} flex flex-col h-full min-h-[550px] shadow-md`}>
-          
-          {/* Tab selectors for sidebar */}
-          <div className="flex border-b border-gray-200 dark:border-gray-800 pb-3 mb-6 gap-2">
-            {[
-              { id: "media", label: "📁 Media" },
-              { id: "text", label: "✍️ Text Overlays" },
-              { id: "settings", label: "⚙️ Templates" }
-            ].map(tab => (
+        {/* 1. LEFT SIDEBAR (Segmented Toolbar & Tab Content) */}
+        <div className={`w-full lg:w-[360px] border-r flex flex-col shrink-0 h-[500px] lg:h-full ${
+          highContrastMode
+            ? "bg-zinc-900 border-zinc-800 text-white"
+            : "bg-white border-gray-200 text-gray-800"
+        }`}>
+          {/* Segmented Control Pill Header */}
+          <div className={`px-4 py-3 border-b ${
+            highContrastMode ? "border-zinc-800 bg-zinc-950" : "border-gray-150 bg-gray-50/50"
+          }`}>
+            <div className={`flex p-1 rounded-xl space-x-1 ${
+              highContrastMode ? "bg-zinc-850" : "bg-gray-100"
+            }`}>
               <button
-                key={tab.id}
-                onClick={() => setActiveControlTab(tab.id)}
-                className={`flex-1 py-2 text-xs font-bold text-center rounded-lg transition-all ${
-                  activeControlTab === tab.id
-                    ? "bg-purple-600 text-white shadow-sm"
-                    : "text-gray-400 hover:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-850"
+                type="button"
+                onClick={() => setActiveControlTab("media")}
+                className={`flex-1 flex items-center justify-center space-x-1.5 py-2 text-xs font-bold rounded-lg transition ${
+                  activeControlTab === "media"
+                    ? (highContrastMode ? "bg-zinc-700 text-white shadow-sm" : "bg-white text-purple-700 shadow-sm")
+                    : (highContrastMode ? "text-zinc-400 hover:text-zinc-200" : "text-gray-500 hover:text-gray-800")
                 }`}
               >
-                {tab.label}
+                <span>📁</span>
+                <span>Media</span>
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setActiveControlTab("text")}
+                className={`flex-1 flex items-center justify-center space-x-1.5 py-2 text-xs font-bold rounded-lg transition ${
+                  activeControlTab === "text"
+                    ? (highContrastMode ? "bg-zinc-700 text-white shadow-sm" : "bg-white text-purple-700 shadow-sm")
+                    : (highContrastMode ? "text-zinc-400 hover:text-zinc-200" : "text-gray-500 hover:text-gray-800")
+                }`}
+              >
+                <span>✍️</span>
+                <span>Text</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveControlTab("settings")}
+                className={`flex-1 flex items-center justify-center space-x-1.5 py-2 text-xs font-bold rounded-lg transition ${
+                  activeControlTab === "settings"
+                    ? (highContrastMode ? "bg-zinc-700 text-white shadow-sm" : "bg-white text-purple-700 shadow-sm")
+                    : (highContrastMode ? "text-zinc-400 hover:text-zinc-200" : "text-gray-500 hover:text-gray-800")
+                }`}
+              >
+                <span>⚙️</span>
+                <span>Templates</span>
+              </button>
+            </div>
           </div>
 
-          {/* Sidebar Tab Contents wrapper */}
-          <div className="flex-grow space-y-6 overflow-y-auto max-h-[70vh] pr-1">
-            
-            {/* 1. MEDIA TAB CONTROLS */}
+          {/* Active Tab Panel Content */}
+          <div className="flex-grow p-5 overflow-y-auto space-y-6">
+            {/* MEDIA CONTROLS */}
             {activeControlTab === "media" && (
               <div className="space-y-6">
                 
                 {activeTab === "image" && (
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-purple-650 dark:text-purple-400 border-b pb-2">Collage Media Assets</h3>
-                    <div className="flex flex-col gap-4">
-                      <label className="w-full">
-                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-2 text-gray-500">Upload pictures (Max 4)</span>
-                        <input 
-                          type="file" 
-                          multiple 
-                          accept="image/*" 
-                          onChange={handleImageUpload} 
-                          className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
-                        />
-                      </label>
-                      {images.length > 0 && (
-                        <button 
-                          onClick={() => setImages([])}
-                          className="text-xs font-semibold text-red-655 hover:underline self-start mt-2"
-                        >
-                          Clear Collage Grid
-                        </button>
-                      )}
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
+                      <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Collage Media Assets</h3>
+                      <span className="text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-bold px-2 py-0.5 rounded-full">
+                        {images.length}/4 Images
+                      </span>
                     </div>
+
+                    {/* Premium Dashed-Border Upload Dropzone */}
+                    <div 
+                      onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
+                      onDragLeave={() => setIsDragOverDropzone(false)}
+                      onDrop={handleDropzoneDrop}
+                      className={`border-2 border-dashed rounded-xl p-5 text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[140px] ${
+                        isDragOverDropzone
+                          ? "border-purple-600 bg-purple-50/50 dark:bg-purple-950/20"
+                          : (highContrastMode 
+                              ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
+                              : "border-gray-300 bg-slate-50/50 hover:border-purple-450 hover:bg-slate-50")
+                      }`}
+                    >
+                      <input 
+                        type="file" 
+                        multiple 
+                        accept="image/*" 
+                        onChange={handleImageUpload} 
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      <svg className="w-8 h-8 text-purple-500 mb-2.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 block mb-1">
+                        Drag & drop images here
+                      </span>
+                      <span className="text-[10px] text-gray-500 block">
+                        or click to browse your files
+                      </span>
+                    </div>
+
+                    {images.length > 0 && (
+                      <button 
+                        onClick={() => setImages([])}
+                        className="text-xs font-bold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center space-x-1 mt-2 transition"
+                      >
+                        <span>🗑️</span>
+                        <span>Clear Collage Grid</span>
+                      </button>
+                    )}
                   </div>
                 )}
 
                 {activeTab === "video" && (
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-purple-650 dark:text-purple-400 border-b pb-2">Video Media Assets</h3>
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
+                      <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Video Media Assets</h3>
+                      {videoUrl && (
+                        <span className="text-[10px] bg-green-100 dark:bg-green-955/40 text-green-700 dark:text-green-300 font-bold px-2 py-0.5 rounded-full">
+                          Loaded
+                        </span>
+                      )}
+                    </div>
                     
                     <div className="space-y-4">
-                      <div>
-                        <label className="block text-[11px] font-semibold uppercase tracking-wider mb-2 text-gray-500">Upload Video (&lt; 15s)</label>
+                      {/* Premium Dashed-Border Upload Dropzone */}
+                      <div 
+                        onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
+                        onDragLeave={() => setIsDragOverDropzone(false)}
+                        onDrop={handleDropzoneDrop}
+                        className={`border-2 border-dashed rounded-xl p-5 text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[140px] ${
+                          isDragOverDropzone
+                            ? "border-purple-600 bg-purple-50/50 dark:bg-purple-950/20"
+                            : (highContrastMode 
+                                ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
+                                : "border-gray-300 bg-slate-50/50 hover:border-purple-450 hover:bg-slate-50")
+                        }`}
+                      >
                         <input 
                           type="file" 
                           accept="video/*" 
                           onChange={handleVideoUpload} 
-                          className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
+                        <svg className="w-8 h-8 text-purple-500 mb-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 block mb-1">
+                          Drag & drop video here
+                        </span>
+                        <span className="text-[10px] text-gray-500 block">
+                          or click to browse (&lt; 15s limit)
+                        </span>
                       </div>
+
                       <div>
-                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-2 text-gray-500">Load Mock Sample</span>
+                        <span className="block text-[11px] font-bold uppercase tracking-wider mb-2 text-gray-500">Or Load Mock Sample</span>
                         <div className="flex flex-wrap gap-2">
                           {MEDIA_SAMPLES.video.map((sample, idx) => (
                             <button
                               key={sample.id}
+                              type="button"
                               onClick={() => selectMediaPreset(sample.url, "video", 15)}
-                              className="text-[11px] bg-purple-50 dark:bg-purple-950/20 text-purple-750 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100"
+                              className="text-[11px] bg-purple-50 dark:bg-purple-955/20 text-purple-755 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition active:scale-95"
                             >
                               Sample {idx + 1}
                             </button>
@@ -828,7 +946,7 @@ const Lab = () => {
 
                     {videoUrl && (
                       <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-3 text-gray-500">Crop / Trim Playback Window</span>
+                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-3 text-gray-550">Crop / Trim Playback Window</span>
                         <div className="space-y-3 text-xs font-semibold">
                           <div>
                             <label className="flex justify-between">
@@ -867,8 +985,10 @@ const Lab = () => {
                 )}
 
                 {activeTab === "gif" && (
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-purple-655 dark:text-purple-400 border-b pb-2">GIF Media Assets</h3>
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
+                      <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">GIF Media Assets</h3>
+                    </div>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-[11px] font-semibold uppercase tracking-wider mb-2 text-gray-500">GIF Source URL</label>
@@ -876,18 +996,19 @@ const Lab = () => {
                           type="text" 
                           value={gifUrl} 
                           onChange={(e) => setGifUrl(e.target.value)} 
-                          placeholder="Giphy or upload URL"
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-xs bg-gray-55 dark:bg-gray-900"
+                          placeholder="Giphy URL or external link..."
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-xs bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-purple-500 outline-none"
                         />
                       </div>
                       <div>
-                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-2 text-gray-500">Load Mock Sample</span>
+                        <span className="block text-[11px] font-bold uppercase tracking-wider mb-2 text-gray-500">Load Mock Sample</span>
                         <div className="flex flex-wrap gap-2">
                           {MEDIA_SAMPLES.gif.map((sample, idx) => (
                             <button
                               key={sample.id}
+                              type="button"
                               onClick={() => selectMediaPreset(sample.url, "gif")}
-                              className="text-[11px] bg-purple-50 dark:bg-purple-950/20 text-purple-750 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100"
+                              className="text-[11px] bg-purple-50 dark:bg-purple-955/20 text-purple-755 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition active:scale-95"
                             >
                               Sample {idx + 1}
                             </button>
@@ -899,30 +1020,62 @@ const Lab = () => {
                 )}
 
                 {activeTab === "audio" && (
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-purple-650 dark:text-purple-400 border-b pb-2">Audio Media Assets</h3>
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
+                      <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Audio Media Assets</h3>
+                      {audioUrl && (
+                        <span className="text-[10px] bg-green-100 dark:bg-green-955/40 text-green-700 dark:text-green-300 font-bold px-2 py-0.5 rounded-full">
+                          Loaded
+                        </span>
+                      )}
+                    </div>
                     
                     <div className="space-y-4">
-                      <div>
-                        <label className="block text-[11px] font-semibold uppercase tracking-wider mb-2 text-gray-500">Upload Audio (&lt; 20 MB)</label>
+                      {/* Premium Dashed-Border Upload Dropzone */}
+                      <div 
+                        onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
+                        onDragLeave={() => setIsDragOverDropzone(false)}
+                        onDrop={handleDropzoneDrop}
+                        className={`border-2 border-dashed rounded-xl p-5 text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[140px] ${
+                          isDragOverDropzone
+                            ? "border-purple-600 bg-purple-50/50 dark:bg-purple-955/20"
+                            : (highContrastMode 
+                                ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
+                                : "border-gray-300 bg-slate-50/50 hover:border-purple-450 hover:bg-slate-50")
+                        }`}
+                      >
                         <input 
                           type="file" 
                           accept="audio/*" 
                           onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) setAudioUrl(createObjectURLSafe(file));
+                            if (file) {
+                              setAudioUrl(createObjectURLSafe(file));
+                              setAudioFile(file);
+                            }
                           }} 
-                          className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
+                        <svg className="w-8 h-8 text-purple-500 mb-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                        </svg>
+                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 block mb-1">
+                          Drag & drop audio here
+                        </span>
+                        <span className="text-[10px] text-gray-500 block">
+                          or click to browse (&lt; 20 MB limit)
+                        </span>
                       </div>
+
                       <div>
-                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-2 text-gray-500">Load Mock Sample</span>
+                        <span className="block text-[11px] font-bold uppercase tracking-wider mb-2 text-gray-500">Or Load Mock Sample</span>
                         <div className="flex flex-wrap gap-2">
                           {MEDIA_SAMPLES.audio.map((sample, idx) => (
                             <button
                               key={sample.id}
+                              type="button"
                               onClick={() => selectMediaPreset(sample.url, "audio", 45)}
-                              className="text-[11px] bg-purple-50 dark:bg-purple-950/20 text-purple-750 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100"
+                              className="text-[11px] bg-purple-50 dark:bg-purple-955/20 text-purple-755 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition active:scale-95"
                             >
                               Sample {idx + 1}
                             </button>
@@ -933,7 +1086,7 @@ const Lab = () => {
 
                     {audioUrl && (
                       <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-3 text-gray-500">Crop / Trim Playback Window</span>
+                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-3 text-gray-550">Crop / Trim Playback Window</span>
                         <div className="space-y-3 text-xs font-semibold">
                           <div>
                             <label className="flex justify-between">
@@ -974,33 +1127,36 @@ const Lab = () => {
               </div>
             )}
 
-            {/* 2. TEXT TAB CONTROLS */}
+            {/* TEXT LAYER CONTROLS */}
             {activeControlTab === "text" && (
               <div className="space-y-6">
-                <h3 className="font-bold text-xs uppercase tracking-wider text-purple-650 dark:text-purple-400 border-b pb-2">Overlay Text Engine</h3>
+                <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Overlay Text Engine</h3>
+                </div>
                 
                 <button
+                  type="button"
                   onClick={addTextLayer}
-                  className="w-full bg-purple-100 text-purple-750 dark:bg-purple-950 dark:text-purple-300 border border-purple-250 dark:border-purple-800 hover:bg-purple-200 font-semibold py-2.5 px-4 rounded-lg shadow-sm text-xs transition duration-200 mb-4"
+                  className="w-full bg-purple-50 text-purple-700 dark:bg-purple-955/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 font-bold py-2.5 px-4 rounded-xl shadow-sm text-xs transition duration-200 mb-4 active:scale-95"
                 >
-                  ➕ Add Custom Text Layer
+                  ➕ Add New Text Layer
                 </button>
 
                 {activeTextLayer ? (
-                  <div className="space-y-4 text-xs font-semibold bg-gray-55 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-150 dark:border-gray-800">
+                  <div className="space-y-4 text-xs font-semibold bg-gray-55 dark:bg-zinc-900/60 p-4 rounded-xl border border-gray-150 dark:border-zinc-800">
                     <div>
-                      <label className="block text-gray-500 uppercase mb-1">Text String</label>
+                      <label className="block text-gray-550 uppercase mb-1.5">Text String</label>
                       <textarea
                         value={activeTextLayer.text}
                         onChange={(e) => updateTextLayer("text", e.target.value)}
                         rows="2"
-                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded"
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded focus:ring-2 focus:ring-purple-500 outline-none"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-gray-500 uppercase mb-1">Font Family</label>
+                        <label className="block text-gray-555 uppercase mb-1.5">Font Family</label>
                         <select
                           value={activeTextLayer.fontFamily}
                           onChange={(e) => updateTextLayer("fontFamily", e.target.value)}
@@ -1016,7 +1172,7 @@ const Lab = () => {
                       </div>
 
                       <div>
-                        <label className="block text-gray-500 uppercase mb-1">Text Color</label>
+                        <label className="block text-gray-555 uppercase mb-1.5">Text Color</label>
                         <input
                           type="color"
                           value={activeTextLayer.color}
@@ -1027,20 +1183,20 @@ const Lab = () => {
                     </div>
 
                     <div>
-                      <label className="block text-gray-500 uppercase mb-1">Font Size ({activeTextLayer.fontSize}px)</label>
+                      <label className="block text-gray-555 uppercase mb-1.5">Font Size ({activeTextLayer.fontSize}px)</label>
                       <input
                         type="range"
                         min="10"
                         max="80"
                         value={activeTextLayer.fontSize}
                         onChange={(e) => updateTextLayer("fontSize", parseInt(e.target.value))}
-                        className="w-full accent-purple-650 h-1 bg-gray-250 rounded-lg cursor-pointer"
+                        className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-gray-500 uppercase mb-1">Stroke Shadow</label>
+                        <label className="block text-gray-555 uppercase mb-1.5">Stroke Shadow</label>
                         <input
                           type="color"
                           value={activeTextLayer.strokeColor}
@@ -1049,60 +1205,64 @@ const Lab = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-gray-500 uppercase mb-1">Stroke Width ({activeTextLayer.strokeWidth}px)</label>
+                        <label className="block text-gray-555 uppercase mb-1.5">Stroke Width ({activeTextLayer.strokeWidth}px)</label>
                         <input
                           type="range"
                           min="0"
                           max="6"
                           value={activeTextLayer.strokeWidth}
                           onChange={(e) => updateTextLayer("strokeWidth", parseInt(e.target.value))}
-                          className="w-full accent-purple-655 h-1 bg-gray-255 rounded-lg cursor-pointer"
+                          className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer"
                         />
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t flex justify-between">
+                    <div className="pt-4 border-t border-gray-200 dark:border-zinc-800 flex justify-between">
                       <button
+                        type="button"
                         onClick={deleteSelectedText}
-                        className="text-red-655 hover:underline"
+                        className="text-red-600 hover:text-red-700 font-bold"
                       >
                         Delete Layer
                       </button>
                       <button
+                        type="button"
                         onClick={() => setSelectedTextId(null)}
-                        className="text-gray-500 hover:underline"
+                        className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                       >
                         Deselect
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-400 text-xs border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-                    Click a text overlay on the canvas to configure styling parameters.
+                  <div className="text-center py-10 px-4 text-gray-400 text-xs border border-dashed border-gray-300 dark:border-zinc-700 rounded-xl bg-slate-50/50 dark:bg-zinc-900/50">
+                    💡 Click a text overlay on the canvas preview to edit its fonts, sizes, and colors directly.
                   </div>
                 )}
               </div>
             )}
 
-            {/* 3. SETTINGS TAB CONTROLS */}
+            {/* TEMPLATES CONTROLS */}
             {activeControlTab === "settings" && (
               <div className="space-y-6">
-                {/* Browse Templates Sub-Section */}
                 <div className="space-y-4">
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-purple-650 dark:text-purple-400 border-b pb-2">Browse Templates</h3>
+                  <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Browse Templates</h3>
+                  </div>
                   {availableTemplates.length > 0 ? (
                     <div className="grid grid-cols-2 gap-3 max-h-[240px] overflow-y-auto pr-1">
                       {availableTemplates.map((temp) => (
                         <button
+                          type="button"
                           key={temp.id}
                           onClick={() => handleSelectTemplate(temp)}
-                          className="flex flex-col items-center p-2 border border-gray-250 dark:border-gray-800 rounded-lg hover:border-purple-500 hover:bg-purple-50/10 transition text-left w-full"
+                          className="flex flex-col items-center p-2 border border-gray-200 dark:border-zinc-800 rounded-xl hover:border-purple-500 hover:bg-purple-50/10 transition text-left w-full active:scale-95"
                         >
-                          <div className="w-full aspect-video bg-black rounded overflow-hidden flex items-center justify-center mb-1">
+                          <div className="w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center mb-1.5">
                             {temp.format === "video" ? (
-                              <div className="text-white text-[10px]">🎥 Video Template</div>
+                              <div className="text-white text-[10px] font-bold">🎥 Video Template</div>
                             ) : temp.format === "audio" ? (
-                              <div className="text-white text-[10px]">🎵 Audio Template</div>
+                              <div className="text-white text-[10px] font-bold">🎵 Audio Template</div>
                             ) : (
                               <img src={temp.media_url} alt={temp.title} className="w-full h-full object-cover" />
                             )}
@@ -1116,35 +1276,37 @@ const Lab = () => {
                   )}
                 </div>
 
-                <div className="border-t border-gray-250 dark:border-gray-800 pt-4 space-y-4">
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-purple-650 dark:text-purple-400 border-b pb-2">Contribute Blank Template</h3>
+                <div className="border-t border-gray-200 dark:border-zinc-800 pt-4 space-y-4">
+                  <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Contribute Blank Template</h3>
+                  </div>
                   <form onSubmit={handleTemplateUploadSubmit} className="space-y-4 text-xs font-semibold">
                     
                     {templateSuccess && (
-                      <div className="p-3 bg-purple-55 dark:bg-purple-950/20 text-purple-750 rounded-lg border text-[11px]">
+                      <div className="p-3 bg-purple-55 dark:bg-purple-955/20 text-purple-750 rounded-lg border text-[11px]">
                         {templateSuccess}
                       </div>
                     )}
 
                     <div>
-                      <label className="block text-gray-500 uppercase mb-1">Template Title</label>
+                      <label className="block text-gray-555 uppercase mb-1.5">Template Title</label>
                       <input
                         type="text"
                         placeholder="e.g. Distracted Boyfriend Blank"
                         value={templateTitle}
                         onChange={(e) => setTemplateTitle(e.target.value)}
-                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-gray-500 uppercase mb-1">Background Image/GIF File</label>
+                      <label className="block text-gray-555 uppercase mb-1.5">Background Image/GIF File</label>
                       <input
                         type="file"
                         accept="image/*,image/gif"
                         onChange={(e) => setTemplateFile(e.target.files?.[0] || null)}
-                        className="block w-full text-[11px]"
+                        className="block w-full text-[11px] file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-[11px] file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
                         required
                       />
                     </div>
@@ -1152,7 +1314,7 @@ const Lab = () => {
                     <button
                       type="submit"
                       disabled={templateLoading}
-                      className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-bold transition shadow-sm"
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-xl font-bold transition shadow-sm active:scale-95"
                     >
                       {templateLoading ? "Uploading..." : "Submit Template"}
                     </button>
@@ -1160,160 +1322,231 @@ const Lab = () => {
                 </div>
               </div>
             )}
-
           </div>
-
         </div>
 
-        {/* Right 2 Columns: Media Tabs & Interactive Workspace Viewport (2/3 width) */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* 2. RIGHT VIEWPORT WORKSPACE */}
+        <div className="flex-grow flex flex-col h-full min-w-0 bg-slate-100 dark:bg-zinc-950 overflow-hidden relative">
           
-          {/* Format Tabs Selection (Top switcher segment control) */}
-          <div className="flex p-1 bg-gray-100 dark:bg-gray-850 rounded-xl space-x-1 w-fit">
-            {["image", "video", "gif", "audio"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => { setActiveTab(tab); setAlertMessage(""); }}
-                className={`px-6 py-2 text-xs font-bold capitalize rounded-lg transition-all ${
-                  activeTab === tab 
-                    ? "bg-white dark:bg-gray-800 text-purple-650 dark:text-purple-400 shadow-sm" 
-                    : "text-gray-500 hover:text-gray-755 dark:text-gray-400"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+          {/* Top workspace bar containing Format Switcher & Save */}
+          <div className={`flex items-center justify-between px-6 py-3 border-b shrink-0 ${
+            highContrastMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-200"
+          }`}>
+            {/* Format Switcher */}
+            <div className={`flex p-1 rounded-xl space-x-1 ${
+              highContrastMode ? "bg-zinc-850" : "bg-gray-150"
+            }`}>
+              {["image", "video", "gif", "audio"].map((tab) => (
+                <button
+                  type="button"
+                  key={tab}
+                  onClick={() => { setActiveTab(tab); setAlertMessage(""); }}
+                  className={`px-4 py-1.5 text-xs font-bold capitalize rounded-lg transition ${
+                    activeTab === tab 
+                      ? (highContrastMode ? "bg-zinc-700 text-white shadow-sm" : "bg-white text-purple-700 shadow-sm") 
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* Mobile Export button */}
+            <button
+              type="button"
+              onClick={() => setShowSaveModal(true)}
+              className="bg-indigo-650 hover:bg-indigo-700 text-white font-bold py-1.5 px-4 rounded-lg shadow-sm transition text-xs flex items-center space-x-1.5 lg:hidden"
+            >
+              <span>💾 Export</span>
+            </button>
           </div>
 
-          {/* Canvas physical drafting board board workspace */}
-          <div className="flex flex-col items-center">
+          {/* Drawing Workspace Canvas Container */}
+          <div className="flex-grow overflow-y-auto flex flex-col items-center justify-center p-6 relative">
+            {/* Soft Checkerboard Background Pattern */}
             <div 
-              ref={canvasContainerRef}
-              className="relative w-full max-w-lg mx-auto bg-slate-900 border border-slate-950 rounded-xl overflow-hidden aspect-square flex items-center justify-center select-none shadow-2xl ring-4 ring-slate-800/40"
-            >
-              {/* Draggable Text Overlays Layer wrapper */}
-              <div className="absolute inset-0 z-20 pointer-events-none">
-                {textLayers.map((layer) => (
-                  <div
-                    key={layer.id}
-                    onPointerDown={(e) => handleTextPointerDown(e, layer.id)}
-                    onDoubleClick={() => setEditingTextId(layer.id)}
-                    style={{
-                      position: "absolute",
-                      left: `${layer.x}px`,
-                      top: `${layer.y}px`,
-                      fontFamily: layer.fontFamily,
-                      fontSize: `${layer.fontSize}px`,
-                      color: layer.color,
-                      WebkitTextStroke: `${layer.strokeWidth}px ${layer.strokeColor}`,
-                      cursor: "move",
-                      whiteSpace: "nowrap"
-                    }}
-                    className={`pointer-events-auto px-2 py-1 rounded transition select-none ${
-                      selectedTextId === layer.id 
-                        ? "border-2 border-dashed border-purple-500 ring-2 ring-purple-300 bg-purple-500/10" 
-                        : ""
-                    }`}
-                  >
-                    {editingTextId === layer.id ? (
-                      <input
-                        type="text"
-                        value={layer.text}
-                        onChange={(e) => updateTextLayer("text", e.target.value)}
-                        onBlur={() => setEditingTextId(null)}
-                        onKeyDown={(e) => { if (e.key === "Enter") setEditingTextId(null); }}
-                        className="bg-black text-white px-1 text-base rounded border border-purple-400 focus:outline-none"
-                        autoFocus
-                      />
+              className="absolute inset-0 opacity-[0.25] pointer-events-none"
+              style={{
+                backgroundImage: highContrastMode 
+                  ? "radial-gradient(circle, #717172 1.2px, transparent 1.2px)" 
+                  : "radial-gradient(circle, #94a3b8 1.2px, transparent 1.2px)",
+                backgroundSize: "24px 24px"
+              }}
+            />
+
+            {/* Canvas Preview Area */}
+            <div className="relative z-10 w-full flex flex-col items-center">
+              <div 
+                ref={canvasContainerRef}
+                className={`relative w-full max-w-[480px] aspect-square flex items-center justify-center select-none shadow-xl border ${
+                  highContrastMode 
+                    ? "bg-zinc-900 border-zinc-800" 
+                    : "bg-slate-900 border-slate-955"
+                } rounded-2xl overflow-hidden`}
+              >
+                {/* Draggable Text Overlays Layer wrapper */}
+                <div className="absolute inset-0 z-20 pointer-events-none">
+                  {textLayers.map((layer) => (
+                    <div
+                      key={layer.id}
+                      onPointerDown={(e) => handleTextPointerDown(e, layer.id)}
+                      onDoubleClick={() => setEditingTextId(layer.id)}
+                      style={{
+                        position: "absolute",
+                        left: `${layer.x}px`,
+                        top: `${layer.y}px`,
+                        fontFamily: layer.fontFamily,
+                        fontSize: `${layer.fontSize}px`,
+                        color: layer.color,
+                        WebkitTextStroke: `${layer.strokeWidth}px ${layer.strokeColor}`,
+                        cursor: "move",
+                        whiteSpace: "nowrap"
+                      }}
+                      className={`pointer-events-auto px-2 py-1 rounded transition select-none ${
+                        selectedTextId === layer.id 
+                          ? "border-2 border-dashed border-purple-500 ring-2 ring-purple-350 bg-purple-500/10" 
+                          : ""
+                      }`}
+                    >
+                      {editingTextId === layer.id ? (
+                        <input
+                          type="text"
+                          value={layer.text}
+                          onChange={(e) => updateTextLayer("text", e.target.value)}
+                          onBlur={() => setEditingTextId(null)}
+                          onKeyDown={(e) => { if (e.key === "Enter") setEditingTextId(null); }}
+                          className="bg-black text-white px-1 text-base rounded border border-purple-400 focus:outline-none"
+                          autoFocus
+                        />
+                      ) : (
+                        layer.text
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Content rendering based on Active Tab */}
+                {activeTab === "image" && (
+                  <div className={`w-full h-full grid gap-1 ${
+                    images.length <= 1 ? "grid-cols-1" :
+                    images.length === 2 ? "grid-cols-2" :
+                    images.length === 3 ? "grid-cols-3" : "grid-cols-2 grid-rows-2"
+                  }`}>
+                    {images.length > 0 ? (
+                      images.map((src, idx) => (
+                        <img 
+                          key={idx} 
+                          src={src} 
+                          alt={`Collage slice ${idx}`} 
+                          className="w-full h-full object-cover" 
+                        />
+                      ))
                     ) : (
-                      layer.text
+                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-955/10">
+                        {/* Premium "Start Creating" Empty State Illustration */}
+                        <div className="mb-4 text-purple-400 animate-pulse">
+                          <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <p className="font-bold text-sm mb-1 text-gray-700 dark:text-gray-300">Start Creating Your Meme</p>
+                        <p className="text-xs text-gray-500 max-w-xs">
+                          Drag & drop photos into the left panel dropzone, load templates, or add text overlays to begin.
+                        </p>
+                      </div>
                     )}
                   </div>
-                ))}
-              </div>
+                )}
 
-              {/* Content rendering based on Active Tab */}
-              {activeTab === "image" && (
-                <div className={`w-full h-full grid gap-1 ${
-                  images.length <= 1 ? "grid-cols-1" :
-                  images.length === 2 ? "grid-cols-2" :
-                  images.length === 3 ? "grid-cols-3" : "grid-cols-2 grid-rows-2"
-                }`}>
-                  {images.length > 0 ? (
-                    images.map((src, idx) => (
-                      <img 
-                        key={idx} 
-                        src={src} 
-                        alt={`Collage slice ${idx}`} 
-                        className="w-full h-full object-cover" 
+                {activeTab === "video" && (
+                  <div className="w-full h-full flex items-center justify-center bg-black">
+                    {videoUrl ? (
+                      <video 
+                        ref={videoPlayerRef}
+                        src={videoUrl} 
+                        controls 
+                        className="w-full max-h-full object-contain" 
                       />
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full">
-                      <p className="font-semibold mb-1 text-white">Canvas is Empty</p>
-                      <p className="text-xs text-gray-500">Upload layout pictures or preset templates in the Media tab.</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-955/10">
+                        <div className="mb-4 text-purple-400">
+                          <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <p className="font-bold text-sm mb-1 text-gray-700 dark:text-gray-300">Video Canvas Empty</p>
+                        <p className="text-xs text-gray-500 max-w-xs">
+                          Upload a short video clip or select a sample preset in the left panel to play and trim.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {activeTab === "video" && (
-                <div className="w-full h-full flex items-center justify-center bg-black">
-                  {videoUrl ? (
-                    <video 
-                      ref={videoPlayerRef}
-                      src={videoUrl} 
-                      controls 
-                      className="w-full max-h-full object-contain" 
-                    />
-                  ) : (
-                    <p className="text-gray-500 text-xs">No video asset loaded</p>
-                  )}
-                </div>
-              )}
+                {activeTab === "gif" && (
+                  <div className="w-full h-full flex items-center justify-center bg-black">
+                    {gifUrl ? (
+                      <img 
+                        src={gifUrl} 
+                        alt="Active GIF Loop" 
+                        className="w-full max-h-full object-contain" 
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-955/10">
+                        <div className="mb-4 text-purple-400">
+                          <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </div>
+                        <p className="font-bold text-sm mb-1 text-gray-700 dark:text-gray-300">GIF Canvas Empty</p>
+                        <p className="text-xs text-gray-505 max-w-xs">
+                          Paste a Giphy link or select a sample GIF preset to load your looping overlay context.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {activeTab === "gif" && (
-                <div className="w-full h-full flex items-center justify-center bg-black">
-                  {gifUrl ? (
-                    <img 
-                      src={gifUrl} 
-                      alt="Active GIF Loop" 
-                      className="w-full max-h-full object-contain" 
-                    />
-                  ) : (
-                    <p className="text-gray-500 text-xs">No GIF loaded</p>
-                  )}
-                </div>
-              )}
-
-              {activeTab === "audio" && (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-950 p-6 text-center text-white">
-                  <div className="text-4xl mb-3 animate-pulse">🎵</div>
-                  <p className="text-xs font-semibold mb-4 text-purple-400 uppercase tracking-wider">Audio Waveform Container</p>
-                  {audioUrl ? (
-                    <audio 
-                      ref={audioPlayerRef}
-                      src={audioUrl} 
-                      controls 
-                      className="w-full max-w-xs" 
-                    />
-                  ) : (
-                    <p className="text-gray-500 text-xs">No audio file loaded</p>
-                  )}
-                </div>
-              )}
+                {activeTab === "audio" && (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-gray-950 p-6 text-center text-white">
+                    {audioUrl ? (
+                      <>
+                        <div className="text-4xl mb-3 animate-pulse">🎵</div>
+                        <p className="text-xs font-semibold mb-4 text-purple-455 uppercase tracking-wider">Audio Waveform Container</p>
+                        <audio 
+                          ref={audioPlayerRef}
+                          src={audioUrl} 
+                          controls 
+                          className="w-full max-w-xs" 
+                        />
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-955/10">
+                        <div className="mb-4 text-purple-400 animate-pulse">
+                          <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                          </svg>
+                        </div>
+                        <p className="font-bold text-sm mb-1 text-gray-700 dark:text-gray-300">Audio Workspace Empty</p>
+                        <p className="text-xs text-gray-500 max-w-xs">
+                          Upload background MP3 audio files or load a pre-set sample to enable audio output.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              <p className={`mt-3 text-[11px] text-center italic relative z-10 place-holder `}>
+                💡 Drag text layers on the canvas to position them. Double-click to edit text strings directly.
+              </p>
             </div>
-            
-            <p className="mt-3 text-[11px] text-gray-400 text-center italic">
-              💡 Drag text layers on the canvas to position them. Double-click to edit text strings directly.
-            </p>
           </div>
-
         </div>
-
       </div>
-
-      {/* SAVE MODAL DIALOG */}
+      
+{/* SAVE MODAL DIALOG */}
       {showSaveModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className={`w-full max-w-md p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
