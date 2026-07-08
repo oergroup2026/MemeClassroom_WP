@@ -339,6 +339,15 @@ const Admin = () => {
     }
   };
 
+  const handleToggleFeatureTemplate = async (tempId, currentFeatured) => {
+    try {
+      await updateDoc(doc(db, "templates", tempId), { is_featured: !currentFeatured });
+      triggerAlert(`Template featured status updated to ${!currentFeatured ? "featured" : "unfeatured"}.`);
+    } catch (e) {
+      triggerAlert(e.message || "Failed to toggle featured status.", "error");
+    }
+  };
+
   // DIRECT SEED SUBMISSIONS
   const handleDirectSeed = async (e) => {
     e.preventDefault();
@@ -1272,6 +1281,61 @@ const Admin = () => {
               <p className="text-xs text-gray-400 italic">No templates pending approvals.</p>
             )}
           </div>
+
+          {/* Approved Curation Templates Queue */}
+          <div className={`p-6 ${containerClass}`}>
+            <h3 className="text-sm font-extrabold mb-4 border-b pb-2 uppercase text-gray-400">
+              Manage Approved Templates ({templates.filter(t => t.status === "approved").length})
+            </h3>
+            {templates.filter(t => t.status === "approved").length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className={headerCellClass}>Template Title</th>
+                      <th className={headerCellClass}>Format</th>
+                      <th className={headerCellClass}>Featured</th>
+                      <th className={headerCellClass}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {templates.filter(t => t.status === "approved").map((temp) => (
+                      <tr key={temp.id}>
+                        <td className={rowCellClass}>{temp.title}</td>
+                        <td className={`${rowCellClass} capitalize`}>{temp.format}</td>
+                        <td className={rowCellClass}>
+                          {temp.is_featured ? (
+                            <span className="text-yellow-500 font-bold">⭐ Featured</span>
+                          ) : (
+                            <span className="text-gray-405">Regular</span>
+                          )}
+                        </td>
+                        <td className={rowCellClass}>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleToggleFeatureTemplate(temp.id, !!temp.is_featured)}
+                              className={btnClass(temp.is_featured ? "gray" : "purple")}
+                            >
+                              {temp.is_featured ? "✰ Unfeature" : "⭐ Feature"}
+                            </button>
+                            <button
+                              onClick={() => handleRejectTemplate(temp.id)}
+                              className={btnClass("red")}
+                            >
+                              🗑️ Revoke/Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">No approved templates in catalog yet.</p>
+            )}
+          </div>
+
         </div>
       )}
 

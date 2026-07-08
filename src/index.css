@@ -1,3 +1,6 @@
+/* ── Google Fonts for Meme Lab text overlays ─────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@700&family=Poppins:wght@700&family=Roboto+Slab:wght@700&family=Pacifico&family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -14,8 +14,7 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
-  increment,
-  runTransaction
+  increment
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase";
@@ -24,58 +23,7 @@ import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
 import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
 
-const trackCustomSubmission = async (type, name) => {
-  if (!name || !name.trim()) return;
-  const cleanName = name.trim();
-  const docId = `${type}_${cleanName.toLowerCase()}`;
-  const counterRef = doc(db, "custom_counts", docId);
-  const taxRef = doc(db, "configs", "taxonomy");
-
-  try {
-    await runTransaction(db, async (transaction) => {
-      const counterSnap = await transaction.get(counterRef);
-      let count = 1;
-      if (counterSnap.exists()) {
-        count = (counterSnap.data().count || 0) + 1;
-      }
-      transaction.set(counterRef, { name: cleanName, count, type }, { merge: true });
-
-      if (count >= 10) {
-        const taxSnap = await transaction.get(taxRef);
-        if (taxSnap.exists()) {
-          const taxData = taxSnap.data();
-          if (type === "subject") {
-            const subjects = taxData.subjects || [];
-            const exists = subjects.some(s => s.toLowerCase() === cleanName.toLowerCase());
-            if (!exists) {
-              const otherIdx = subjects.indexOf("Other");
-              if (otherIdx !== -1) {
-                subjects.splice(otherIdx, 0, cleanName);
-              } else {
-                subjects.push(cleanName);
-              }
-              transaction.update(taxRef, { subjects });
-            }
-          } else if (type === "language") {
-            const languages = taxData.languages || [];
-            const exists = languages.some(l => l.toLowerCase() === cleanName.toLowerCase());
-            if (!exists) {
-              const otherIdx = languages.indexOf("Other");
-              if (otherIdx !== -1) {
-                languages.splice(otherIdx, 0, cleanName);
-              } else {
-                languages.push(cleanName);
-              }
-              transaction.update(taxRef, { languages });
-            }
-          }
-        }
-      }
-    });
-  } catch (err) {
-    console.error("Error tracking custom submission", err);
-  }
-};
+import { trackCustomSubmission } from "../utils/taxonomyUtils";
 
 const Library = () => {
   const { user, profile } = useAuth();
