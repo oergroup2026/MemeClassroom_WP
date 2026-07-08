@@ -11,7 +11,7 @@ import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import Auth from './pages/Auth';
 import About from './pages/About';
-import MoreResources from './pages/MoreResources';
+// MoreResources is now merged into the Resources page (External Resources tab)
 import { useUdl } from './context/UdlContext';
 
 function App() {
@@ -43,20 +43,16 @@ function App() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <Routes>
           <Route path="/" element={<Home />} />
+          {/* Library and Resources are public — no login needed to view */}
           <Route path="/library" element={<Library />} />
+          <Route path="/resources" element={<Resources />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/about" element={<About />} />
-          <Route path="/more-resources" element={<MoreResources />} />
           
           {/* Protected Routes for Authenticated Users */}
           <Route path="/lab" element={
             <ProtectedRoute allowedRoles={['student', 'teacher', 'expert', 'admin']}>
               <Lab />
-            </ProtectedRoute>
-          } />
-          <Route path="/resources" element={
-            <ProtectedRoute allowedRoles={['student', 'teacher', 'expert', 'admin']}>
-              <Resources />
             </ProtectedRoute>
           } />
           <Route path="/staffroom" element={

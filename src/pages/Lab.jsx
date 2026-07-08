@@ -11,13 +11,68 @@ import {
   increment,
   query,
   where,
-  onSnapshot
+  onSnapshot,
+  runTransaction
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { MEDIA_SAMPLES } from "../constants/mediaSamples";
+import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
+
+const trackCustomSubmission = async (type, name) => {
+  if (!name || !name.trim()) return;
+  const cleanName = name.trim();
+  const docId = `${type}_${cleanName.toLowerCase()}`;
+  const counterRef = doc(db, "custom_counts", docId);
+  const taxRef = doc(db, "configs", "taxonomy");
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const counterSnap = await transaction.get(counterRef);
+      let count = 1;
+      if (counterSnap.exists()) {
+        count = (counterSnap.data().count || 0) + 1;
+      }
+      transaction.set(counterRef, { name: cleanName, count, type }, { merge: true });
+
+      if (count >= 10) {
+        const taxSnap = await transaction.get(taxRef);
+        if (taxSnap.exists()) {
+          const taxData = taxSnap.data();
+          if (type === "subject") {
+            const subjects = taxData.subjects || [];
+            const exists = subjects.some(s => s.toLowerCase() === cleanName.toLowerCase());
+            if (!exists) {
+              const otherIdx = subjects.indexOf("Other");
+              if (otherIdx !== -1) {
+                subjects.splice(otherIdx, 0, cleanName);
+              } else {
+                subjects.push(cleanName);
+              }
+              transaction.update(taxRef, { subjects });
+            }
+          } else if (type === "language") {
+            const languages = taxData.languages || [];
+            const exists = languages.some(l => l.toLowerCase() === cleanName.toLowerCase());
+            if (!exists) {
+              const otherIdx = languages.indexOf("Other");
+              if (otherIdx !== -1) {
+                languages.splice(otherIdx, 0, cleanName);
+              } else {
+                languages.push(cleanName);
+              }
+              transaction.update(taxRef, { languages });
+            }
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Error tracking custom submission", err);
+  }
+};
 
 const Lab = () => {
   const { user, profile } = useAuth();
@@ -90,6 +145,27 @@ const Lab = () => {
     }
   };
 
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "configs", "taxonomy"), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.subjects?.length) {
+          const loadedSubs = data.subjects.includes("Other") ? data.subjects : [...data.subjects, "Other"];
+          setSubjects(loadedSubs);
+        }
+        if (data.grades?.length) {
+          const hasOldGrades = data.grades.some(g => ["10-12", "13-15", "16-18", "University"].includes(g));
+          setGradeGroups(hasOldGrades ? GRADE_GROUPS : data.grades);
+        }
+        if (data.languages?.length) {
+          const loadedLangs = data.languages.includes("Other") ? data.languages : [...data.languages, "Other"];
+          setLanguages(loadedLangs);
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
+
   // Preload draft parameters to resume editing
   useEffect(() => {
     const draftId = searchParams.get("draftId");
@@ -101,9 +177,25 @@ const Lab = () => {
         if (draftDoc.exists()) {
           const data = draftDoc.data();
           setTitle(data.title || "");
-          setSubject(data.subject || "Biology");
-          setAgeGroup(data.age_group || "13-15");
-          setLanguage(data.language || "English");
+          const loadedSubject = data.subject || "Biology";
+          if (SUBJECTS.includes(loadedSubject)) {
+            setSubject(loadedSubject);
+            setCustomSubject("");
+          } else {
+            setSubject("Other");
+            setCustomSubject(loadedSubject);
+          }
+          setAgeGroup(data.age_group || "High School (9–10)");
+          const loadedLanguage = data.language || "English";
+          const langOptions = ["English", "Hindi", "Malayalam", "Tamil"];
+          if (langOptions.includes(loadedLanguage)) {
+            setLanguage(loadedLanguage);
+            setCustomLanguage("");
+          } else {
+            setLanguage("Other");
+            setCustomLanguage(loadedLanguage);
+          }
+          setKeywords(Array.isArray(data.keywords) ? data.keywords.join(", ") : (data.keywords || ""));
           setActiveTab(data.format || "image");
 
           if (data.format === "image") {
@@ -180,8 +272,17 @@ const Lab = () => {
   const [publishToLibrary, setPublishToLibrary] = useState(true);
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("Biology");
-  const [ageGroup, setAgeGroup] = useState("13-15");
+  const [customSubject, setCustomSubject] = useState("");
+  const [ageGroup, setAgeGroup] = useState("High School (9–10)");
   const [language, setLanguage] = useState("English");
+  const [customLanguage, setCustomLanguage] = useState("");
+  const [keywords, setKeywords] = useState("");
+
+  const [subjects, setSubjects] = useState(SUBJECTS);
+  const [gradeGroups, setGradeGroups] = useState(GRADE_GROUPS);
+  const [languages, setLanguages] = useState(["English", "Hindi", "Malayalam", "Tamil", "Other"]);
+  const [formSubjectSearch, setFormSubjectSearch] = useState("");
+  const [formLanguageSearch, setFormLanguageSearch] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
   const [autoSaveToast, setAutoSaveToast] = useState("");
   const [loading, setLoading] = useState(false);
@@ -439,13 +540,17 @@ const Lab = () => {
 
     const autoSaveInterval = setInterval(async () => {
       try {
+        const finalSubject = subject === "Other" ? (customSubject.trim() || "Other") : subject;
+        const finalLanguage = language === "Other" ? (customLanguage.trim() || "Other") : language;
+        const parsedKeywords = keywords ? keywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean) : [];
         const docData = {
           creator_id: user.uid,
           title: title || "Auto-Saved Draft",
-          subject,
+          subject: finalSubject,
           age_group: ageGroup,
           format: activeTab,
-          language,
+          language: finalLanguage,
+          keywords: parsedKeywords,
           visibility: "draft",
           media_url: activeTab === "image" ? (images[0] || "") : activeTab === "video" ? videoUrl : activeTab === "gif" ? gifUrl : audioUrl,
           text_layers_json: JSON.stringify(textLayers),
@@ -474,7 +579,7 @@ const Lab = () => {
     }, 30000);
 
     return () => clearInterval(autoSaveInterval);
-  }, [user, title, subject, ageGroup, activeTab, language, images, videoUrl, gifUrl, audioUrl, textLayers]);
+  }, [user, title, subject, customSubject, ageGroup, activeTab, language, customLanguage, keywords, images, videoUrl, gifUrl, audioUrl, textLayers]);
 
   const loadImage = (src) => {
     return new Promise(async (resolve, reject) => {
@@ -664,13 +769,17 @@ const Lab = () => {
         document.body.removeChild(link);
       }
 
+      const finalSubject = subject === "Other" ? (customSubject.trim() || "Other") : subject;
+      const finalLanguage = language === "Other" ? (customLanguage.trim() || "Other") : language;
+      const parsedKeywords = keywords ? keywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean) : [];
       const memeData = {
         creator_id: user.uid,
         title: title || "My Meme Classroom Creation",
-        subject,
+        subject: finalSubject,
         age_group: ageGroup,
         format: activeTab,
-        language,
+        language: finalLanguage,
+        keywords: parsedKeywords,
         visibility: publishToLibrary ? "public" : "draft",
         media_url: fileUrl,
         text_layers_json: JSON.stringify(textLayers),
@@ -691,6 +800,13 @@ const Lab = () => {
         await setDoc(statsRef, {
           memes_created_count: increment(1)
         }, { merge: true });
+      }
+
+      if (subject === "Other" && customSubject.trim()) {
+        trackCustomSubmission("subject", customSubject.trim());
+      }
+      if (language === "Other" && customLanguage.trim()) {
+        trackCustomSubmission("language", customLanguage.trim());
       }
 
       // Mock Local Download Trigger (only if NOT image/video/audio which already download their visual assets)
@@ -1606,35 +1722,98 @@ const Lab = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-500 uppercase mb-1">Subject</label>
+                  <input
+                    type="text"
+                    placeholder="Search subject..."
+                    value={formSubjectSearch}
+                    onChange={(e) => setFormSubjectSearch(e.target.value)}
+                    className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
+                  />
                   <select
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
                   >
-                    <option value="Biology">Biology</option>
-                    <option value="Physics">Physics</option>
-                    <option value="Maths">Maths</option>
-                    <option value="Chemistry">Chemistry</option>
-                    <option value="History">History</option>
-                    <option value="Geography">Geography</option>
+                    {subjects
+                      .filter(s => s.toLowerCase().includes(formSubjectSearch.toLowerCase()))
+                      .map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
                   </select>
+                  {subject === "Other" && (
+                    <input
+                      type="text"
+                      placeholder="Type custom subject..."
+                      value={customSubject}
+                      onChange={(e) => setCustomSubject(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2"
+                      required
+                    />
+                  )}
                 </div>
                 <div>
-                  <label className="block text-gray-500 uppercase mb-1">Age Group</label>
+                  <label className="block text-gray-500 uppercase mb-1">Grade Level</label>
                   <select
                     value={ageGroup}
                     onChange={(e) => setAgeGroup(e.target.value)}
                     className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
                   >
-                    <option value="10-12">Ages 10-12</option>
-                    <option value="13-15">Ages 13-15</option>
-                    <option value="16-18">Ages 16-18</option>
-                    <option value="University">University</option>
+                    {gradeGroups.map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
                   </select>
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-500 uppercase mb-1">Language</label>
+                  <input
+                    type="text"
+                    placeholder="Search language..."
+                    value={formLanguageSearch}
+                    onChange={(e) => setFormLanguageSearch(e.target.value)}
+                    className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
+                  />
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                  >
+                    {languages
+                      .filter(lang => lang.toLowerCase().includes(formLanguageSearch.toLowerCase()))
+                      .map(lang => (
+                        <option key={lang} value={lang}>{lang}</option>
+                      ))}
+                  </select>
+                  {language === "Other" && (
+                    <input
+                      type="text"
+                      placeholder="Type custom language..."
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2 text-xs"
+                      value={customLanguage}
+                      onChange={(e) => setCustomLanguage(e.target.value)}
+                      required
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-gray-500 uppercase mb-1">Topic / Keywords (Separate with comma)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. mitosis, cells, science jokes"
+                    value={keywords}
+                    onChange={(e) => setKeywords(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded placeholder-gray-400"
+                  />
+                </div>
+              </div>
+
               <div>
+                <span className="text-[10px] text-gray-400 block mb-2 font-normal">
+                  Note: Separate keywords with comma. These keywords will be indexed to enable a smooth search and filtering.
+                </span>
                 <label className="flex items-center space-x-2 py-2 cursor-pointer">
                   <input
                     type="checkbox"

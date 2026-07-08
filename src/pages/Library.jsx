@@ -22,6 +22,60 @@ import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
+import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
+
+const trackCustomSubmission = async (type, name) => {
+  if (!name || !name.trim()) return;
+  const cleanName = name.trim();
+  const docId = `${type}_${cleanName.toLowerCase()}`;
+  const counterRef = doc(db, "custom_counts", docId);
+  const taxRef = doc(db, "configs", "taxonomy");
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const counterSnap = await transaction.get(counterRef);
+      let count = 1;
+      if (counterSnap.exists()) {
+        count = (counterSnap.data().count || 0) + 1;
+      }
+      transaction.set(counterRef, { name: cleanName, count, type }, { merge: true });
+
+      if (count >= 10) {
+        const taxSnap = await transaction.get(taxRef);
+        if (taxSnap.exists()) {
+          const taxData = taxSnap.data();
+          if (type === "subject") {
+            const subjects = taxData.subjects || [];
+            const exists = subjects.some(s => s.toLowerCase() === cleanName.toLowerCase());
+            if (!exists) {
+              const otherIdx = subjects.indexOf("Other");
+              if (otherIdx !== -1) {
+                subjects.splice(otherIdx, 0, cleanName);
+              } else {
+                subjects.push(cleanName);
+              }
+              transaction.update(taxRef, { subjects });
+            }
+          } else if (type === "language") {
+            const languages = taxData.languages || [];
+            const exists = languages.some(l => l.toLowerCase() === cleanName.toLowerCase());
+            if (!exists) {
+              const otherIdx = languages.indexOf("Other");
+              if (otherIdx !== -1) {
+                languages.splice(otherIdx, 0, cleanName);
+              } else {
+                languages.push(cleanName);
+              }
+              transaction.update(taxRef, { languages });
+            }
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Error tracking custom submission", err);
+  }
+};
 
 const Library = () => {
   const { user, profile } = useAuth();
@@ -62,12 +116,24 @@ const Library = () => {
   // Direct Upload fields
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadSubject, setUploadSubject] = useState("Biology");
-  const [uploadGrade, setUploadGrade] = useState("13-15");
+  const [uploadCustomSubject, setUploadCustomSubject] = useState("");
+  const [uploadGrade, setUploadGrade] = useState("High School (9–10)");
   const [uploadLanguage, setUploadLanguage] = useState("English");
+  const [uploadCustomLanguage, setUploadCustomLanguage] = useState("");
+  const [uploadKeywords, setUploadKeywords] = useState("");
   const [uploadFormat, setUploadFormat] = useState("image");
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+
+  const [filterSubjectSearch, setFilterSubjectSearch] = useState("");
+  const [filterLanguageSearch, setFilterLanguageSearch] = useState("");
+  const [formSubjectSearch, setFormSubjectSearch] = useState("");
+  const [formLanguageSearch, setFormLanguageSearch] = useState("");
+
+  const [subjects, setSubjects] = useState(SUBJECTS);
+  const [gradeGroups, setGradeGroups] = useState(GRADE_GROUPS);
+  const [languages, setLanguages] = useState(["English", "Hindi", "Malayalam", "Tamil", "Other"]);
 
   // Proportional white bottom border containing the MemeClassroom watermark and CC license text via CORS proxy
   const downloadMemeWithWatermark = async (imageUrl, title) => {
@@ -288,6 +354,27 @@ const Library = () => {
     fetchUsers();
   }, [memes, expertComments]);
 
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "configs", "taxonomy"), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.subjects?.length) {
+          const loadedSubs = data.subjects.includes("Other") ? data.subjects : [...data.subjects, "Other"];
+          setSubjects(loadedSubs);
+        }
+        if (data.grades?.length) {
+          const hasOldGrades = data.grades.some(g => ["10-12", "13-15", "16-18", "University"].includes(g));
+          setGradeGroups(hasOldGrades ? GRADE_GROUPS : data.grades);
+        }
+        if (data.languages?.length) {
+          const loadedLangs = data.languages.includes("Other") ? data.languages : [...data.languages, "Other"];
+          setLanguages(loadedLangs);
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
+
   // Real-time Likes list for the user (mapped to dedicated 'likes' collection)
   useEffect(() => {
     if (!user) return;
@@ -309,8 +396,12 @@ const Library = () => {
     let result = memes;
 
     if (appliedSearchQuery.trim()) {
+      const q = appliedSearchQuery.toLowerCase().trim();
       result = result.filter(m => 
-        m.title.toLowerCase().includes(appliedSearchQuery.toLowerCase().trim())
+        m.title?.toLowerCase().includes(q) ||
+        (Array.isArray(m.keywords)
+          ? m.keywords.some(k => k.toLowerCase().includes(q))
+          : String(m.keywords || "").toLowerCase().includes(q))
       );
     }
     if (subjectFilter) {
@@ -450,12 +541,17 @@ const Library = () => {
       const snapshot = await uploadBytes(storageRef, uploadFile);
       const fileUrl = await getDownloadURL(snapshot.ref);
 
+      const finalSubject = uploadSubject === "Other" ? (uploadCustomSubject.trim() || "Other") : uploadSubject;
+      const finalLanguage = uploadLanguage === "Other" ? (uploadCustomLanguage.trim() || "Other") : uploadLanguage;
+      const parsedKeywords = uploadKeywords ? uploadKeywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean) : [];
+
       await addDoc(collection(db, "memes"), {
         title: uploadTitle || "Direct Gallery Upload",
         creator_id: user.uid,
-        subject: uploadSubject,
+        subject: finalSubject,
         age_group: uploadGrade,
-        language: uploadLanguage,
+        language: finalLanguage,
+        keywords: parsedKeywords,
         format: uploadFormat,
         visibility: "public",
         media_url: fileUrl,
@@ -463,6 +559,13 @@ const Library = () => {
         text_layers_json: "[]", // Schema alignment fix
         created_at: serverTimestamp()
       });
+
+      if (uploadSubject === "Other" && uploadCustomSubject.trim()) {
+        trackCustomSubmission("subject", uploadCustomSubject.trim());
+      }
+      if (uploadLanguage === "Other" && uploadCustomLanguage.trim()) {
+        trackCustomSubmission("language", uploadCustomLanguage.trim());
+      }
 
       // Update user stats
       const statsRef = doc(db, "user_stats", user.uid);
@@ -472,6 +575,9 @@ const Library = () => {
 
       setShowDirectUploadModal(false);
       setUploadTitle("");
+      setUploadCustomSubject("");
+      setUploadCustomLanguage("");
+      setUploadKeywords("");
       setUploadFile(null);
     } catch (err) {
       console.error(err);
@@ -481,11 +587,21 @@ const Library = () => {
     }
   };
 
-  // 4. Community Moderation (Flag content)
+  // 4. Community Moderation (Flag content) — NEW PROTOCOL: no auto-hide, admin decides
+  const [flaggedByUser, setFlaggedByUser] = useState({});
+  const [showFlagPopup, setShowFlagPopup] = useState(false);
+  const [libToast, setLibToast] = useState(null);
+
+  const showLibToast = (message, type = "info") => {
+    setLibToast({ message, type, id: Date.now() });
+    setTimeout(() => setLibToast(null), 4500);
+  };
+
   const handleFlagContent = async (memeId) => {
-    if (!user) return;
+    if (!user) { showLibToast("Please sign in to report content.", "warning"); return; }
+    if (flaggedByUser[memeId]) { showLibToast("You have already reported this content.", "info"); return; }
     try {
-      // Check if user already flagged this content
+      // Check in Firestore if user already flagged
       const flagsRef = collection(db, "flags");
       const q = query(
         flagsRef,
@@ -494,11 +610,12 @@ const Library = () => {
       );
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
-        alert("You have already reported this content.");
+        setFlaggedByUser((prev) => ({ ...prev, [memeId]: true }));
+        showLibToast("You have already reported this content.", "info");
         return;
       }
 
-      // 1. Log flag event to Firestore
+      // Write flag record
       await addDoc(collection(db, "flags"), {
         reporter_id: user.uid,
         content_type: "meme",
@@ -508,33 +625,15 @@ const Library = () => {
         created_at: serverTimestamp()
       });
 
-      // Get current reports count on the meme document
+      // Increment flag_count on the meme — do NOT auto-hide
       const memeDocRef = doc(db, "memes", memeId);
-      const memeSnap = await getDoc(memeDocRef);
-      if (memeSnap.exists()) {
-        const data = memeSnap.data();
-        const newReportsCount = (data.reports_count || 0) + 1;
-        
-        if (newReportsCount >= 3) {
-          // Hide the post
-          await updateDoc(memeDocRef, {
-            reports_count: newReportsCount,
-            visibility: "flagged_hidden"
-          });
-          alert("Content has been reported and hidden due to multiple community flags.");
-          if (activeMeme && activeMeme.id === memeId) {
-            setActiveMeme(null);
-          }
-        } else {
-          // Just increment count without hiding
-          await updateDoc(memeDocRef, {
-            reports_count: newReportsCount
-          });
-          alert("Thank you for your report. The community moderation team will review this content.");
-        }
-      }
+      await updateDoc(memeDocRef, { flag_count: increment(1) });
+
+      setFlaggedByUser((prev) => ({ ...prev, [memeId]: true }));
+      setShowFlagPopup(true);
     } catch (e) {
       console.error("Flag content failed", e);
+      showLibToast("Failed to submit report. Please try again.", "error");
     }
   };
 
@@ -704,6 +803,33 @@ const Library = () => {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4">
+
+      {/* Library Toast */}
+      {libToast && (
+        <div className={`fixed bottom-6 right-6 z-[200] flex items-start gap-3 px-5 py-4 rounded-xl shadow-2xl text-white text-sm font-medium max-w-sm ${
+          libToast.type === "success" ? "bg-green-600" : libToast.type === "warning" ? "bg-yellow-500 text-gray-900" : libToast.type === "error" ? "bg-red-600" : "bg-indigo-600"
+        }`}>
+          <span className="flex-1">{libToast.message}</span>
+          <button onClick={() => setLibToast(null)} className="opacity-70 hover:opacity-100 font-bold text-lg leading-none">×</button>
+        </div>
+      )}
+
+      {/* Flag Popup */}
+      {showFlagPopup && (
+        <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4" onClick={() => setShowFlagPopup(false)}>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl p-8 max-w-sm text-center space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="text-5xl">🏳️</div>
+            <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">Report Submitted</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+              Thank you for reporting. This content will only be removed upon admin review and approval.
+            </p>
+            <button onClick={() => setShowFlagPopup(false)} className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
       <style>{`
         .gallery-header-title {
           background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
@@ -847,18 +973,24 @@ const Library = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-[11px] font-semibold text-gray-400 uppercase mb-1">Subject</label>
+              <input
+                type="text"
+                placeholder="🔍 Search subject..."
+                value={filterSubjectSearch}
+                onChange={(e) => setFilterSubjectSearch(e.target.value)}
+                className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
+              />
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
                 className={inputClass}
               >
                 <option value="">All Subjects</option>
-                <option value="Biology">Biology</option>
-                <option value="Physics">Physics</option>
-                <option value="Maths">Maths</option>
-                <option value="Chemistry">Chemistry</option>
-                <option value="History">History</option>
-                <option value="Geography">Geography</option>
+                {subjects
+                  .filter(s => s !== "Other" && s.toLowerCase().includes(filterSubjectSearch.toLowerCase()))
+                  .map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
               </select>
             </div>
 
@@ -870,25 +1002,32 @@ const Library = () => {
                 className={inputClass}
               >
                 <option value="">All Grades</option>
-                <option value="10-12">Ages 10-12</option>
-                <option value="13-15">Ages 13-15</option>
-                <option value="16-18">Ages 16-18</option>
-                <option value="University">University</option>
+                {gradeGroups.map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
               </select>
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-gray-400 uppercase mb-1">Language</label>
+              <input
+                type="text"
+                placeholder="🔍 Search language..."
+                value={filterLanguageSearch}
+                onChange={(e) => setFilterLanguageSearch(e.target.value)}
+                className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
+              />
               <select
                 value={languageFilter}
                 onChange={(e) => setLanguageFilter(e.target.value)}
                 className={inputClass}
               >
                 <option value="">All Languages</option>
-                <option value="English">English</option>
-                <option value="Hindi">Hindi</option>
-                <option value="Malayalam">Malayalam</option>
-                <option value="Tamil">Tamil</option>
+                {languages
+                  .filter(lang => lang !== "Other" && lang.toLowerCase().includes(filterLanguageSearch.toLowerCase()))
+                  .map(lang => (
+                    <option key={lang} value={lang}>{lang}</option>
+                  ))}
               </select>
             </div>
 
@@ -1070,7 +1209,7 @@ const Library = () => {
                             {meme.subject}
                           </span>
                           <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-750 dark:text-indigo-300 text-[9px] px-2 py-0.5 rounded-full font-bold">
-                            Ages {meme.age_group}
+                            {meme.age_group}
                           </span>
                           <span className="bg-teal-50 dark:bg-teal-950/20 text-teal-750 dark:text-teal-300 text-[9px] px-2 py-0.5 rounded-full font-bold">
                             {meme.language}
@@ -1422,18 +1561,33 @@ const Library = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-500 uppercase mb-1">Subject</label>
+                  <input
+                    type="text"
+                    placeholder="Search subject..."
+                    value={formSubjectSearch}
+                    onChange={(e) => setFormSubjectSearch(e.target.value)}
+                    className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
+                  />
                   <select
                     value={uploadSubject}
                     onChange={(e) => setUploadSubject(e.target.value)}
                     className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
                   >
-                    <option value="Biology">Biology</option>
-                    <option value="Physics">Physics</option>
-                    <option value="Maths">Maths</option>
-                    <option value="Chemistry">Chemistry</option>
-                    <option value="History">History</option>
-                    <option value="Geography">Geography</option>
+                    {subjects
+                      .filter(s => s.toLowerCase().includes(formSubjectSearch.toLowerCase()))
+                      .map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
                   </select>
+                  {uploadSubject === "Other" && (
+                    <input
+                      type="text"
+                      placeholder="Type your subject..."
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2 text-xs"
+                      value={uploadCustomSubject || ""}
+                      onChange={(e) => setUploadCustomSubject(e.target.value)}
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-gray-500 uppercase mb-1">Grade</label>
@@ -1442,10 +1596,9 @@ const Library = () => {
                     onChange={(e) => setUploadGrade(e.target.value)}
                     className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
                   >
-                    <option value="10-12">Ages 10-12</option>
-                    <option value="13-15">Ages 13-15</option>
-                    <option value="16-18">Ages 16-18</option>
-                    <option value="University">University</option>
+                    {gradeGroups.map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1453,16 +1606,34 @@ const Library = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-500 uppercase mb-1">Language</label>
+                  <input
+                    type="text"
+                    placeholder="Search language..."
+                    value={formLanguageSearch}
+                    onChange={(e) => setFormLanguageSearch(e.target.value)}
+                    className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
+                  />
                   <select
                     value={uploadLanguage}
                     onChange={(e) => setUploadLanguage(e.target.value)}
                     className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
                   >
-                    <option value="English">English</option>
-                    <option value="Hindi">Hindi</option>
-                    <option value="Malayalam">Malayalam</option>
-                    <option value="Tamil">Tamil</option>
+                    {languages
+                      .filter(lang => lang.toLowerCase().includes(formLanguageSearch.toLowerCase()))
+                      .map(lang => (
+                        <option key={lang} value={lang}>{lang}</option>
+                      ))}
                   </select>
+                  {uploadLanguage === "Other" && (
+                    <input
+                      type="text"
+                      placeholder="Type custom language..."
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2 text-xs"
+                      value={uploadCustomLanguage}
+                      onChange={(e) => setUploadCustomLanguage(e.target.value)}
+                      required
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-gray-500 uppercase mb-1">Format Type</label>
@@ -1477,6 +1648,20 @@ const Library = () => {
                     <option value="audio">Audio</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-500 uppercase mb-1">Topic / Keywords (Separate with comma)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. cell division, mitosis, biology meme"
+                  value={uploadKeywords}
+                  onChange={(e) => setUploadKeywords(e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded placeholder-gray-400"
+                />
+                <span className="text-[10px] text-gray-400 block mt-1 font-normal">
+                  Note: Instruct users to separate keywords with comma. These keywords will be indexed to enable a smooth search and filtering.
+                </span>
               </div>
 
               <div>

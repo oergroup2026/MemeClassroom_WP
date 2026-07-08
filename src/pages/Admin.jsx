@@ -70,14 +70,14 @@ const Admin = () => {
   const [memeUrl, setMemeUrl] = useState("");
   const [memeFile, setMemeFile] = useState(null);
   const [memeSubject, setMemeSubject] = useState("Biology");
-  const [memeGrade, setMemeGrade] = useState("13-15");
+  const [memeGrade, setMemeGrade] = useState("High School (9–10)");
   const [memeLang, setMemeLang] = useState("English");
   
   // Resource Form
   const [resTitle, setResTitle] = useState("");
   const [resType, setResType] = useState("article");
   const [resSubject, setResSubject] = useState("Biology");
-  const [resGrade, setResGrade] = useState("13-15");
+  const [resGrade, setResGrade] = useState("High School (9–10)");
   const [resBody, setResBody] = useState("");
   const [resUrl, setResUrl] = useState("");
   const [resFile, setResFile] = useState(null);
@@ -105,6 +105,10 @@ const Admin = () => {
   // Taxonomy Form States
   const [newTaxSubject, setNewTaxSubject] = useState("");
   const [newTaxGrade, setNewTaxGrade] = useState("");
+  const [newTaxLanguage, setNewTaxLanguage] = useState("");
+  const [taxSubjectSearch, setTaxSubjectSearch] = useState("");
+  const [taxGradeSearch, setTaxGradeSearch] = useState("");
+  const [taxLangSearch, setTaxLangSearch] = useState("");
 
   const [loadingAction, setLoadingAction] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -187,12 +191,44 @@ const Admin = () => {
     // 10. Taxonomy
     const taxUnsub = onSnapshot(doc(db, "configs", "taxonomy"), (snap) => {
       if (snap.exists()) {
-        setTaxonomy(snap.data());
+        const data = snap.data();
+        const hasOldGrades = data.grades?.some(g => ["10-12", "13-15", "16-18", "University", "Adult / Lifelong Learning"].includes(g));
+        const missingLanguages = !data.languages || data.languages.length === 0;
+        
+        if (hasOldGrades || missingLanguages) {
+          const updates = {};
+          if (hasOldGrades) {
+            updates.grades = [
+              "Middle School (6–8)",
+              "High School (9–10)",
+              "Senior Secondary (11–12)",
+              "Undergraduate",
+              "Postgraduate",
+              "Competitive Exams",
+              "General"
+            ];
+          }
+          if (missingLanguages) {
+            updates.languages = ["English", "Hindi", "Malayalam", "Tamil", "Other"];
+          }
+          setDoc(doc(db, "configs", "taxonomy"), { ...data, ...updates }, { merge: true })
+            .catch(err => console.error("Taxonomy auto-migration failed", err));
+        }
+        setTaxonomy(data);
       } else {
         // Fallback default taxonomy settings
         setTaxonomy({
-          subjects: ["Biology", "Physics", "Maths", "Chemistry", "History", "Geography"],
-          grades: ["10-12", "13-15", "16-18", "University"]
+          subjects: ["Biology", "Physics", "Maths", "Chemistry", "History", "Geography", "English", "Computer Science", "Environmental Science", "Economics", "Other"],
+          grades: [
+            "Middle School (6–8)",
+            "High School (9–10)",
+            "Senior Secondary (11–12)",
+            "Undergraduate",
+            "Postgraduate",
+            "Competitive Exams",
+            "General"
+          ],
+          languages: ["English", "Hindi", "Malayalam", "Tamil", "Other"]
         });
       }
     });
@@ -220,18 +256,9 @@ const Admin = () => {
   // MODERATION ACTIONS
   const handleDismissFlag = async (flagId, contentType, contentId) => {
     try {
-      // Resolve report
+      // Resolve report — mark as dismissed only (no longer hide/unhide content)
       await updateDoc(doc(db, "flags", flagId), { status: "dismissed" });
-      
-      // Reset content visibility back to active
-      if (contentType === "resource") {
-        await updateDoc(doc(db, "resources", contentId), { status: "approved" });
-      } else if (contentType === "meme") {
-        await updateDoc(doc(db, "memes", contentId), { visibility: "public" });
-      } else if (contentType === "post") {
-        await updateDoc(doc(db, "posts", contentId), { status: "active" });
-      }
-      triggerAlert("Flag resolved and content visibility restored.");
+      triggerAlert("Flag dismissed. Content remains visible unless admin takes further action.");
     } catch (e) {
       triggerAlert(e.message || "Action failed.", "error");
     }
@@ -244,11 +271,32 @@ const Admin = () => {
       if (contentType === "resource") {
         await deleteDoc(doc(db, "resources", contentId));
       } else if (contentType === "meme") {
-        await deleteDoc(doc(db, "memes", contentId));
+        // Hide meme (admin decision) instead of hard delete
+        await updateDoc(doc(db, "memes", contentId), { visibility: "flagged_hidden" });
       } else if (contentType === "post") {
         await deleteDoc(doc(db, "posts", contentId));
       }
-      triggerAlert("Content permanently removed from databases.");
+      triggerAlert("Content actioned by admin. Flag resolved.");
+    } catch (e) {
+      triggerAlert(e.message || "Deletion failed.", "error");
+    }
+  };
+
+  // RESOURCE APPROVAL ACTIONS
+  const handleApproveResource = async (resourceId) => {
+    try {
+      await updateDoc(doc(db, "resources", resourceId), { admin_approved: true });
+      triggerAlert("Resource approved. 'Pending Admin Approval' badge removed.");
+    } catch (e) {
+      triggerAlert(e.message || "Approval failed.", "error");
+    }
+  };
+
+  const handleDeleteResourceAdmin = async (resourceId) => {
+    if (!window.confirm("Permanently delete this resource? This cannot be undone.")) return;
+    try {
+      await deleteDoc(doc(db, "resources", resourceId));
+      triggerAlert("Resource permanently removed.");
     } catch (e) {
       triggerAlert(e.message || "Deletion failed.", "error");
     }
@@ -624,6 +672,42 @@ const Admin = () => {
     }
   };
 
+  const handleAddLanguage = async (e) => {
+    e.preventDefault();
+    if (profile.role !== "admin" || !newTaxLanguage) return;
+    try {
+      const currentLanguages = taxonomy.languages || ["English", "Hindi", "Malayalam", "Tamil", "Other"];
+      if (currentLanguages.includes(newTaxLanguage)) {
+        triggerAlert("Language already exists in list.", "error");
+        return;
+      }
+      let updated = [...currentLanguages];
+      const otherIdx = updated.indexOf("Other");
+      if (otherIdx !== -1) {
+        updated.splice(otherIdx, 0, newTaxLanguage);
+      } else {
+        updated.push(newTaxLanguage);
+      }
+      await setDoc(doc(db, "configs", "taxonomy"), { ...taxonomy, languages: updated }, { merge: true });
+      setNewTaxLanguage("");
+      triggerAlert(`Added language ${newTaxLanguage} to config lists.`);
+    } catch (e) {
+      triggerAlert(e.message || "Failed to update languages.", "error");
+    }
+  };
+
+  const handleRemoveLanguage = async (lang) => {
+    if (profile.role !== "admin") return;
+    try {
+      const currentLanguages = taxonomy.languages || ["English", "Hindi", "Malayalam", "Tamil", "Other"];
+      const updated = currentLanguages.filter(item => item !== lang);
+      await setDoc(doc(db, "configs", "taxonomy"), { ...taxonomy, languages: updated }, { merge: true });
+      triggerAlert(`Removed language ${lang} from configuration catalogs.`);
+    } catch (e) {
+      triggerAlert(e.message || "Removal failed.", "error");
+    }
+  };
+
   // MANUAL STAFFROOM MEDIA PRUNING OVERRIDE (Strictly Admin)
   const handleManualPruningOverride = async () => {
     if (profile.role !== "admin") return;
@@ -680,7 +764,7 @@ const Admin = () => {
           format: "image",
           media_url: "https://images.unsplash.com/photo-1614064641938-3bbee52942c7?auto=format&fit=crop&w=600&q=80",
           subject: "Chemistry",
-          age_group: "13-15",
+          age_group: "High School (9–10)",
           language: "English",
           visibility: "public",
           creator_id: user.uid,
@@ -695,7 +779,7 @@ const Admin = () => {
           format: "image",
           media_url: "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80",
           subject: "Maths",
-          age_group: "10-12",
+          age_group: "Middle School (6–8)",
           language: "English",
           visibility: "public",
           creator_id: user.uid,
@@ -949,8 +1033,77 @@ const Admin = () => {
       {/* TAB CONTENT B: MODERATION & APPROVAL QUEUES */}
       {activeTab === "moderation" && (
         <div className="space-y-8">
-          
-          {/* Flagged Items */}
+
+          {/* Resources Pending Admin Approval */}
+          {(() => {
+            const pendingResources = resources.filter(r => !r.admin_approved);
+            return (
+              <div className={`p-6 ${containerClass}`}>
+                <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-yellow-600 dark:text-yellow-400">
+                  ⏳ Resources Pending Approval ({pendingResources.length})
+                </h3>
+                <p className="text-xs text-gray-400 mb-4">These resources are live on the platform but need your review. Approve to remove the 'Pending Admin Approval' badge, or delete if inappropriate.</p>
+                {pendingResources.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr>
+                          <th className={headerCellClass}>Title</th>
+                          <th className={headerCellClass}>Type</th>
+                          <th className={headerCellClass}>Subject</th>
+                          <th className={headerCellClass}>Author ID</th>
+                          <th className={headerCellClass}>Date</th>
+                          <th className={headerCellClass}>Flags</th>
+                          <th className={headerCellClass}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingResources.map((res) => (
+                          <tr key={res.id}>
+                            <td className={rowCellClass}>
+                              <span className="font-semibold">{res.title}</span>
+                              {res.file_url && (
+                                <a href={res.file_url} target="_blank" rel="noreferrer" className="block text-indigo-600 text-[9px] hover:underline mt-0.5">View File ↗</a>
+                              )}
+                            </td>
+                            <td className={`${rowCellClass} capitalize`}>{res.type?.replace(/_/g, " ")}</td>
+                            <td className={rowCellClass}>{res.subject || "—"}</td>
+                            <td className={`${rowCellClass} font-mono text-[10px]`}>{res.author_id}</td>
+                            <td className={rowCellClass}>
+                              {res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : "—"}
+                            </td>
+                            <td className={rowCellClass}>
+                              {(res.flag_count || 0) > 0 ? (
+                                <span className="text-red-500 font-bold">🏳️ {res.flag_count}</span>
+                              ) : "—"}
+                            </td>
+                            <td className={rowCellClass}>
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleApproveResource(res.id)}
+                                  className={btnClass("green")}
+                                >
+                                  ✅ Approve
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteResourceAdmin(res.id)}
+                                  className={btnClass("red")}
+                                >
+                                  🗑️ Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">All resources have been reviewed. No pending approvals.</p>
+                )}
+              </div>
+            );
+          })()}
           <div className={`p-6 ${containerClass}`}>
             <h3 className="text-sm font-extrabold mb-4 border-b pb-2 uppercase text-gray-400">
               Flagged Items Feed ({flags.length})
@@ -1240,7 +1393,7 @@ const Admin = () => {
                     onChange={e => setMemeGrade(e.target.value)} 
                     className={inputClass}
                   >
-                    {taxonomy.grades.map(g => <option key={g} value={g}>Ages {g}</option>)}
+                    {taxonomy.grades.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1320,7 +1473,7 @@ const Admin = () => {
                     onChange={e => setResGrade(e.target.value)} 
                     className={inputClass}
                   >
-                    {taxonomy.grades.map(g => <option key={g} value={g}>Ages {g}</option>)}
+                    {taxonomy.grades.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
                 {(resType === "article" || resType === "research_paper") && (
@@ -1833,8 +1986,8 @@ const Admin = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {/* Subjects configuration list */}
-            <div className={`p-6 ${containerClass} space-y-6`}>
-              <h3 className="text-sm font-extrabold mb-4 border-b pb-2 uppercase text-gray-400">
+            <div className={`p-6 ${containerClass} space-y-4`}>
+              <h3 className="text-sm font-extrabold mb-2 border-b pb-2 uppercase text-gray-400">
                 Curricular Subjects Config
               </h3>
               
@@ -1844,31 +1997,42 @@ const Admin = () => {
                   value={newTaxSubject} 
                   onChange={e => setNewTaxSubject(e.target.value)} 
                   className={inputClass} 
-                  placeholder="e.g. Economics"
+                  placeholder="Add subject..."
                 />
                 <button type="submit" className={btnClass("purple")}>
                   Add
                 </button>
               </form>
 
+              {/* Subject Search Bar */}
+              <input
+                type="text"
+                placeholder="🔍 Search subjects..."
+                value={taxSubjectSearch}
+                onChange={e => setTaxSubjectSearch(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-xs"
+              />
+
               <div className="space-y-2 max-h-60 overflow-y-auto pt-2">
-                {taxonomy.subjects.map(sub => (
-                  <div key={sub} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-150 dark:border-gray-800 text-xs">
-                    <span>{sub}</span>
-                    <button 
-                      onClick={() => handleRemoveSubject(sub)}
-                      className="text-red-500 hover:text-red-700 font-bold"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+                {(taxonomy.subjects || [])
+                  .filter(sub => sub.toLowerCase().includes(taxSubjectSearch.toLowerCase()))
+                  .map(sub => (
+                    <div key={sub} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-150 dark:border-gray-800 text-xs">
+                      <span>{sub}</span>
+                      <button 
+                        onClick={() => handleRemoveSubject(sub)}
+                        className="text-red-500 hover:text-red-700 font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
               </div>
             </div>
 
             {/* Grades configuration list */}
-            <div className={`p-6 ${containerClass} space-y-6`}>
-              <h3 className="text-sm font-extrabold mb-4 border-b pb-2 uppercase text-gray-400">
+            <div className={`p-6 ${containerClass} space-y-4`}>
+              <h3 className="text-sm font-extrabold mb-2 border-b pb-2 uppercase text-gray-400">
                 Grade Groups Config
               </h3>
 
@@ -1878,28 +2042,88 @@ const Admin = () => {
                   value={newTaxGrade} 
                   onChange={e => setNewTaxGrade(e.target.value)} 
                   className={inputClass} 
-                  placeholder="e.g. 7-9"
+                  placeholder="Add grade..."
                 />
                 <button type="submit" className={btnClass("purple")}>
                   Add
                 </button>
               </form>
 
+              {/* Grade Search Bar */}
+              <input
+                type="text"
+                placeholder="🔍 Search grades..."
+                value={taxGradeSearch}
+                onChange={e => setTaxGradeSearch(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-xs"
+              />
+
               <div className="space-y-2 max-h-60 overflow-y-auto pt-2">
-                {taxonomy.grades.map(gr => (
-                  <div key={gr} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-150 dark:border-gray-800 text-xs">
-                    <span>Ages {gr}</span>
-                    <button 
-                      onClick={() => handleRemoveGrade(gr)}
-                      className="text-red-500 hover:text-red-700 font-bold"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+                {(taxonomy.grades || [])
+                  .filter(gr => gr.toLowerCase().includes(taxGradeSearch.toLowerCase()))
+                  .map(gr => (
+                    <div key={gr} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-150 dark:border-gray-800 text-xs">
+                      <span>{gr}</span>
+                      <button 
+                        onClick={() => handleRemoveGrade(gr)}
+                        className="text-red-500 hover:text-red-700 font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
               </div>
             </div>
 
+            {/* Languages configuration list */}
+            <div className={`p-6 ${containerClass} space-y-4`}>
+              <h3 className="text-sm font-extrabold mb-2 border-b pb-2 uppercase text-gray-400">
+                Languages Config
+              </h3>
+
+              <form onSubmit={handleAddLanguage} className="flex space-x-2">
+                <input 
+                  type="text" 
+                  value={newTaxLanguage} 
+                  onChange={e => setNewTaxLanguage(e.target.value)} 
+                  className={inputClass} 
+                  placeholder="Add language..."
+                />
+                <button type="submit" className={btnClass("purple")}>
+                  Add
+                </button>
+              </form>
+
+              {/* Language Search Bar */}
+              <input
+                type="text"
+                placeholder="🔍 Search languages..."
+                value={taxLangSearch}
+                onChange={e => setTaxLangSearch(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-xs"
+              />
+
+              <div className="space-y-2 max-h-60 overflow-y-auto pt-2">
+                {(taxonomy.languages || ["English", "Hindi", "Malayalam", "Tamil", "Other"])
+                  .filter(lang => lang.toLowerCase().includes(taxLangSearch.toLowerCase()))
+                  .map(lang => (
+                    <div key={lang} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-150 dark:border-gray-800 text-xs">
+                      <span>{lang}</span>
+                      {lang !== "Other" && (
+                        <button 
+                          onClick={() => handleRemoveLanguage(lang)}
+                          className="text-red-500 hover:text-red-700 font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
             {/* Manual Pruning trigger */}
             <div className={`p-6 ${containerClass} flex flex-col justify-between`}>
               <div>
@@ -1940,33 +2164,33 @@ const Admin = () => {
                 {loadingAction ? "Cleaning up..." : "🧹 Run Manual Pruning Override"}
               </button>
             </div>
-          </div>
 
-          {/* Developer Sandbox Testing Utilities */}
-          <div className={`p-6 ${containerClass} mt-8 space-y-4`}>
-            <div>
-              <h3 className="text-sm font-extrabold border-b pb-2 uppercase text-gray-400">
-                Developer Sandbox Testing Utilities
-              </h3>
-              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                Use these staging controls to seed or wipe highly realistic placeholder documents (`is_placeholder: true`) across `/memes`, `/templates`, and `/external_links` database paths to quickly evaluate UI bindings.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-4 pt-2">
-              <button
-                onClick={handleSeedTestData}
-                disabled={isSeeding}
-                className={btnClass("purple")}
-              >
-                {isSeeding ? "Seeding..." : "🌱 Seed Sandbox Test Data"}
-              </button>
-              <button
-                onClick={handleWipePlaceholderData}
-                disabled={isWiping}
-                className={btnClass("red") + " border border-red-650 bg-red-900/10 hover:bg-red-900/20 text-red-500"}
-              >
-                {isWiping ? "Wiping..." : "🗑️ Wipe Placeholder Data"}
-              </button>
+            {/* Developer Sandbox Testing Utilities */}
+            <div className={`p-6 ${containerClass} flex flex-col justify-between`}>
+              <div>
+                <h3 className="text-sm font-extrabold border-b pb-2 uppercase text-gray-400">
+                  Developer Sandbox Testing Utilities
+                </h3>
+                <p className="text-xs text-gray-550 mt-2 leading-relaxed">
+                  Use these staging controls to seed or wipe highly realistic placeholder documents (`is_placeholder: true`) across `/memes`, `/templates`, and `/external_links` database paths to quickly evaluate UI bindings.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-4 pt-6">
+                <button
+                  onClick={handleSeedTestData}
+                  disabled={isSeeding}
+                  className={btnClass("purple")}
+                >
+                  {isSeeding ? "Seeding..." : "🌱 Seed Sandbox Test Data"}
+                </button>
+                <button
+                  onClick={handleWipePlaceholderData}
+                  disabled={isWiping}
+                  className={btnClass("red") + " border border-red-650 bg-red-900/10 hover:bg-red-900/20 text-red-500"}
+                >
+                  {isWiping ? "Wiping..." : "🗑️ Wipe Placeholder Data"}
+                </button>
+              </div>
             </div>
           </div>
         </>

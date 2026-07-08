@@ -474,7 +474,7 @@ const Profile = () => {
                       {meme.subject}
                     </span>
                     <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 text-[9px] px-1.5 py-0.5 rounded font-bold">
-                      Ages {meme.age_group}
+                      {meme.age_group}
                     </span>
                   </div>
 

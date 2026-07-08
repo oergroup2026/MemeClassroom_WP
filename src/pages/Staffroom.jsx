@@ -796,7 +796,7 @@ const Staffroom = () => {
                               {linkedMeme.subject}
                             </span>
                             <span className="bg-teal-50 dark:bg-teal-950/20 text-teal-750 dark:text-teal-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                              Ages {linkedMeme.age_group}
+                              {linkedMeme.age_group}
                             </span>
                             <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">
                               {linkedMeme.format}

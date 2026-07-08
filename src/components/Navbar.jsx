@@ -39,14 +39,13 @@ const Navbar = () => {
     const links = [
       { to: "/", label: "Home" },
       { to: "/library", label: "Meme Library" },
-      { to: "/about", label: "About" },
-      { to: "/more-resources", label: "More Resources" }
+      { to: "/resources", label: "Meme Resources" },
+      { to: "/about", label: "About" }
     ];
 
     if (user && profile) {
       links.push({ to: "/lab", label: "Meme Lab" });
       links.push({ to: "/staffroom", label: "Staffroom" });
-      links.push({ to: "/resources", label: "Meme Resources" });
       links.push({ to: "/profile", label: "Profile" });
 
       if (profile.role === "admin" || profile.role === "manager") {
