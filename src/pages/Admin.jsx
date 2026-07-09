@@ -274,7 +274,7 @@ const Admin = () => {
         // Hide meme (admin decision) instead of hard delete
         await updateDoc(doc(db, "memes", contentId), { visibility: "flagged_hidden" });
       } else if (contentType === "post") {
-        await deleteDoc(doc(db, "posts", contentId));
+        await deleteDoc(doc(db, "staffroom_posts", contentId));
       }
       triggerAlert("Content actioned by admin. Flag resolved.");
     } catch (e) {
