@@ -58,6 +58,33 @@ const Auth = () => {
     }
   };
 
+  const formatFirebaseError = (err, defaultMsg) => {
+    const code = err?.code || "";
+    const message = err?.message || "";
+
+    // Check if network/internet issue
+    if (
+      code === "auth/network-request-failed" ||
+      !navigator.onLine ||
+      message.toLowerCase().includes("network") ||
+      message.toLowerCase().includes("internet")
+    ) {
+      return "Internet issue: Please check your connection and try again.";
+    }
+
+    // Check if credentials wrong
+    if (
+      code === "auth/invalid-credential" ||
+      code === "auth/wrong-password" ||
+      code === "auth/user-not-found" ||
+      code === "auth/invalid-email"
+    ) {
+      return "Opps! Invalid Username or Password. Please cross-verify and try again....";
+    }
+
+    return message || defaultMsg;
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -66,7 +93,7 @@ const Auth = () => {
       await signInWithEmail(email, password);
       navigate("/profile");
     } catch (err) {
-      setError(err.message || "Failed to sign in. Please verify your credentials.");
+      setError(formatFirebaseError(err, "Failed to sign in. Please verify your credentials."));
     } finally {
       setLoading(false);
     }
@@ -87,7 +114,7 @@ const Auth = () => {
       await signUpWithEmail(email, password, profileData, idCardFile);
       navigate("/profile");
     } catch (err) {
-      setError(err.message || "Failed to create an account.");
+      setError(formatFirebaseError(err, "Failed to create an account."));
     } finally {
       setLoading(false);
     }
@@ -101,7 +128,7 @@ const Auth = () => {
       // Google AuthContext checks if user exists. If yes, AuthContext logs in.
       // If no, AuthContext populates onboardingUser and triggers the intercept.
     } catch (err) {
-      setError(err.message || "Google Sign-In failed.");
+      setError(formatFirebaseError(err, "Google Sign-In failed."));
     } finally {
       setLoading(false);
     }
@@ -123,7 +150,7 @@ const Auth = () => {
       await completeGoogleOnboarding(profileData, idCardFile);
       navigate("/profile");
     } catch (err) {
-      setError(err.message || "Onboarding setup failed.");
+      setError(formatFirebaseError(err, "Onboarding setup failed."));
     } finally {
       setLoading(false);
     }
@@ -148,7 +175,7 @@ const Auth = () => {
 
         {error && (
           <div className="mb-6 p-4 text-sm rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-650">
-            {/* {error} */} Opps! Invalid Username or Password. Please cross-verify and try again....
+            {error}
           </div>
         )}
 

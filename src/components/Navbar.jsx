@@ -12,7 +12,8 @@ const Navbar = () => {
   const [notifications, setNotifications] = useState([
     { id: 1, text: "🎉 Welcome to Meme Classroom! Explore resources and start building memes.", read: false, time: "Just now" },
     { id: 2, text: "🏆 Level 1 badge unlocked! Check your profile page to see achievements.", read: false, time: "1 hour ago" },
-    { id: 3, text: "💬 New thread in Staffroom: 'Pedagogical benefits of science memes'.", read: false, time: "2 hours ago" }
+    { id: 3, text: "💬 New thread in Staffroom: 'Pedagogical benefits of science memes'.", read: false, time: "2 hours ago" },
+    { id: 4, text: "🔥 Got Stuck ? View our tutorials or contact our team !  ", read: false, time: "1 hours ago" }
   ]);
   const navigate = useNavigate();
 
@@ -39,7 +40,7 @@ const Navbar = () => {
     const links = [
       { to: "/", label: "Home" },
       { to: "/library", label: "Meme Library" },
-      { to: "/resources", label: "Meme Resources" },
+      { to: "/resources", label: "Resources" },
       { to: "/about", label: "About" }
     ];
 
