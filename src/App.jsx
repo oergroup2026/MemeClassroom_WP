@@ -1,6 +1,7 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Library from './pages/Library';
@@ -11,11 +12,12 @@ import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import Auth from './pages/Auth';
 import About from './pages/About';
-// MoreResources is now merged into the Resources page (External Resources tab)
+import NotFound from './pages/NotFound';
 import { useUdl } from './context/UdlContext';
 
 function App() {
   const { highContrastMode, fontSizeAdjustment } = useUdl();
+  const location = useLocation();
 
   React.useEffect(() => {
     if (highContrastMode) {
@@ -40,7 +42,7 @@ function App() {
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-all duration-200 ${themeClasses} ${sizeClasses}`}>
       <Navbar />
-      <main className="flex-grow container mx-auto px-4 py-8">
+      <main key={location.pathname} className="flex-grow container mx-auto px-4 py-8 page-enter">
         <Routes>
           <Route path="/" element={<Home />} />
           {/* Library and Resources are public — no login needed to view */}
@@ -72,10 +74,15 @@ function App() {
               <Admin />
             </ProtectedRoute>
           } />
+
+          {/* Catch-all 404 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
+      <Footer />
     </div>
   );
 }
 
 export default App;
+

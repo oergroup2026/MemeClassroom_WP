@@ -971,7 +971,10 @@ const Staffroom = () => {
                   <span>{percent}% ({count})</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
-                  <div className="bg-purple-600 h-full transition-all duration-500" style={{ width: `${percent}%` }} />
+                  <div
+                    className="bg-purple-600 h-full rounded-full poll-bar-fill"
+                    style={{ '--poll-pct': `${percent}%`, width: `${percent}%` }}
+                  />
                 </div>
               </div>
             );

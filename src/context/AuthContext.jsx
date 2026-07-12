@@ -5,7 +5,8 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   signOut as firebaseSignOut, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  sendPasswordResetEmail
 } from "firebase/auth";
 import { 
   doc, 
@@ -176,6 +177,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Password Reset
+  const resetPassword = async (email) => {
+    await sendPasswordResetEmail(auth, email);
+  };
+
   // Listen to Auth state changes
   useEffect(() => {
     if (DEV_MODE) return;
@@ -246,7 +252,8 @@ export const AuthProvider = ({ children }) => {
       signInWithEmail,
       signInWithGoogle,
       completeGoogleOnboarding,
-      signOut
+      signOut,
+      resetPassword
     }}>
       {children}
     </AuthContext.Provider>

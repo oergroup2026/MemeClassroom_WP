@@ -18,6 +18,7 @@ import { db, storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
+import { useToast } from "../components/ToastNotification";
 
 const MILESTONES = [0, 1, 5, 10, 25, 50];
 const LEVEL_NAMES = ["None", "Bronze", "Silver", "Gold", "Platinum", "Diamond"];
@@ -41,6 +42,7 @@ const Profile = () => {
   const { user, profile } = useAuth();
   const { highContrastMode } = useUdl();
   const navigate = useNavigate();
+  const toast = useToast();
 
   // Tab selections: "my-memes" | "my-drafts" | "bookmarks"
   const [activeTab, setActiveTab] = useState("my-memes");
@@ -269,7 +271,7 @@ const Profile = () => {
       setShowAvatarModal(false);
     } catch (err) {
       console.error("Failed to update avatar", err);
-      alert("Failed to update avatar. Please try again.");
+      toast("Failed to update avatar. Please try again.", "error");
     } finally {
       setAvatarLoading(false);
     }
@@ -291,7 +293,7 @@ const Profile = () => {
       setShowAvatarModal(false);
     } catch (err) {
       console.error("Failed to upload custom avatar", err);
-      alert("Failed to upload image. Please try again.");
+      toast("Failed to upload image. Please try again.", "error");
     } finally {
       setAvatarLoading(false);
     }
@@ -392,7 +394,7 @@ const Profile = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    alert("License Notice: This media file is licensed under Creative Commons CC BY-NC-SA 4.0 parameters.");
+    toast("License Notice: This file is licensed under Creative Commons CC BY-NC-SA 4.0.", "info");
   };
 
   const handleRemoveBookmark = async (saveId) => {
@@ -415,10 +417,10 @@ const Profile = () => {
           memes_created_count: increment(-1)
         });
       }
-      alert(`${isDraft ? "Draft" : "Meme"} deleted successfully.`);
+      toast(`${isDraft ? "Draft" : "Meme"} deleted successfully.`, "success");
     } catch (e) {
       console.error("Failed to delete meme", e);
-      alert("Failed to delete. Please try again.");
+      toast("Failed to delete. Please try again.", "error");
     }
   };
 
@@ -646,11 +648,11 @@ const Profile = () => {
                   <span className="font-bold text-gray-850 dark:text-gray-100">{progress.currentBadgeName}</span>
                 </div>
 
-                {/* Horizontal Progress Bar */}
+                {/* Horizontal Progress Bar with animation */}
                 <div className="w-full bg-gray-250 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
                   <div
-                    className="bg-purple-650 h-full transition-all duration-300"
-                    style={{ width: `${progress.progressPercent}%` }}
+                    className="bg-purple-650 h-full badge-progress-bar rounded-full"
+                    style={{ '--progress-target': `${progress.progressPercent}%`, width: `${progress.progressPercent}%` }}
                   ></div>
                 </div>
                 <span className="text-[10px] text-gray-500 block leading-tight">{progress.text}</span>
