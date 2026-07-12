@@ -14,20 +14,31 @@ import {
   serverTimestamp, 
   runTransaction
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { db, storage, auth } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
+import { useToast } from "../components/ToastNotification";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const Admin = () => {
   const { user, profile } = useAuth();
   const { highContrastMode } = useUdl();
+  const toast = useToast();
 
   // Active Tab: "analytics" | "moderation" | "archivist" | "users" | "marketing" | "taxonomy"
   const [activeTab, setActiveTab] = useState("analytics");
   const [alertMsg, setAlertMsg] = useState("");
   const [alertType, setAlertType] = useState("success"); // "success" | "error"
+
+  // ConfirmDialog state
+  const [confirmState, setConfirmState] = useState({ isOpen: false, title: "", message: "", variant: "danger", confirmLabel: "Delete", onConfirm: null });
+  const openConfirm = (opts) => setConfirmState({ isOpen: true, ...opts });
+  const closeConfirm = () => setConfirmState((s) => ({ ...s, isOpen: false, onConfirm: null }));
+
+  // Staffroom attachments
+  const [staffroomAttachments, setStafroomAttachments] = useState([]);
 
   // Firestore collections state
   const [users, setUsers] = useState([]);
@@ -233,6 +244,20 @@ const Admin = () => {
       }
     });
 
+    // 11. Staffroom posts with real attachments
+    const attQ = query(collection(db, "staffroom_posts"), where("attachment_storage_path", "!=", ""));
+    const attUnsub = onSnapshot(attQ, (snap) => {
+      const list = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        if (data.attachment_storage_path) {
+          list.push({ id: d.id, title: data.title || data.body?.slice(0, 50) || "Untitled", attachment_name: data.attachment_name, attachment_url: data.attachment_url, attachment_storage_path: data.attachment_storage_path, author_id: data.author_id, created_at: data.created_at });
+        }
+      });
+      list.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
+      setStafroomAttachments(list);
+    });
+
     return () => {
       uUnsub();
       mUnsub();
@@ -244,8 +269,10 @@ const Admin = () => {
       testUnsub();
       pUnsub();
       taxUnsub();
+      attUnsub();
     };
   }, []);
+
 
   const triggerAlert = (msg, type = "success") => {
     setAlertMsg(msg);
@@ -292,14 +319,22 @@ const Admin = () => {
     }
   };
 
-  const handleDeleteResourceAdmin = async (resourceId) => {
-    if (!window.confirm("Permanently delete this resource? This cannot be undone.")) return;
-    try {
-      await deleteDoc(doc(db, "resources", resourceId));
-      triggerAlert("Resource permanently removed.");
-    } catch (e) {
-      triggerAlert(e.message || "Deletion failed.", "error");
-    }
+  const handleDeleteResourceAdmin = (resourceId) => {
+    openConfirm({
+      title: "Delete Resource?",
+      message: "Permanently delete this resource? This cannot be undone.",
+      variant: "danger",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "resources", resourceId));
+          triggerAlert("Resource permanently removed.");
+        } catch (e) {
+          triggerAlert(e.message || "Deletion failed.", "error");
+        }
+      },
+    });
   };
 
   const handleApproveExpert = async (appId, applicantId) => {
@@ -526,17 +561,24 @@ const Admin = () => {
     }
   };
 
-  const handleDeleteUser = async (userId) => {
+  const handleDeleteUser = (userId) => {
     if (profile.role !== "admin") return;
-    if (window.confirm("Are you sure you want to permanently delete this user document? This action is irreversible.")) {
-      try {
-        await deleteDoc(doc(db, "users", userId));
-        await deleteDoc(doc(db, "user_stats", userId));
-        triggerAlert("User files permanently purged from database registries.");
-      } catch (e) {
-        triggerAlert(e.message || "User deletion failed.", "error");
-      }
-    }
+    openConfirm({
+      title: "Delete User?",
+      message: "Permanently delete this user document? This action is irreversible.",
+      variant: "danger",
+      confirmLabel: "Delete User",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "users", userId));
+          await deleteDoc(doc(db, "user_stats", userId));
+          triggerAlert("User files permanently purged from database registries.");
+        } catch (e) {
+          triggerAlert(e.message || "User deletion failed.", "error");
+        }
+      },
+    });
   };
 
   // MARKETING SUBMISSIONS (Strictly Admin)
@@ -717,28 +759,86 @@ const Admin = () => {
     }
   };
 
-  // MANUAL STAFFROOM MEDIA PRUNING OVERRIDE (Strictly Admin)
+  // MANUAL STAFFROOM MEDIA PRUNING OVERRIDE — deletes real Storage files older than 30 days
   const handleManualPruningOverride = async () => {
     if (profile.role !== "admin") return;
     setLoadingAction(true);
     try {
-      // Simulate pruning action scanning expired attachments (older than 30 days)
-      const mockPrunedCount = Math.floor(Math.random() * 20) + 10; // 10 to 30 attachments
-      const mockSpaceSaved = Math.round(mockPrunedCount * 1.25 * 10) / 10; // ~1.25 MB per attachment
+      const cutoffSeconds = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
+      let prunedCount = 0;
+      let spaceSavedMb = 0;
+
+      // Query posts with a real attachment storage path
+      const snap = await getDocs(
+        query(collection(db, "staffroom_posts"), where("attachment_storage_path", "!=", ""))
+      );
+
+      for (const postDoc of snap.docs) {
+        const data = postDoc.data();
+        const postAge = data.created_at?.seconds || 0;
+        if (postAge < cutoffSeconds && data.attachment_storage_path) {
+          try {
+            // Delete from Firebase Storage
+            const fileRef = ref(storage, data.attachment_storage_path);
+            await deleteObject(fileRef);
+            // Clear the attachment fields on the post (keep text)
+            await updateDoc(postDoc.ref, {
+              attachment_url: "",
+              attachment_storage_path: "",
+              attachment_name: data.attachment_name + " (pruned)"
+            });
+            prunedCount++;
+            spaceSavedMb += 1.2; // estimate per file
+          } catch (fileErr) {
+            console.warn("Could not prune file:", data.attachment_storage_path, fileErr);
+          }
+        }
+      }
 
       const logsRef = doc(db, "configs", "pruning");
       await setDoc(logsRef, {
-        pruned_count: (pruningLog.pruned_count || 0) + mockPrunedCount,
-        space_saved_mb: (pruningLog.space_saved_mb || 0) + mockSpaceSaved,
+        pruned_count: (pruningLog.pruned_count || 0) + prunedCount,
+        space_saved_mb: Math.round(((pruningLog.space_saved_mb || 0) + spaceSavedMb) * 10) / 10,
         last_pruned_at: serverTimestamp()
       });
 
-      triggerAlert(`Media Pruning Completed! Cleared ${mockPrunedCount} expired attachments from Staffroom logs. Saved ${mockSpaceSaved} MB of hosting space.`);
+      triggerAlert(
+        prunedCount > 0
+          ? `Pruning complete! Deleted ${prunedCount} expired attachments (~${spaceSavedMb.toFixed(1)} MB freed).`
+          : "No attachments older than 30 days found. Storage is clean."
+      );
     } catch (e) {
       triggerAlert(e.message || "Manual pruning cleanup failed.", "error");
     } finally {
       setLoadingAction(false);
     }
+  };
+
+  // DELETE STAFFROOM ATTACHMENT — admin one-off removal
+  const handleDeleteAttachment = (postId, storagePath, attachmentName) => {
+    openConfirm({
+      title: "Delete Attachment?",
+      message: `Permanently delete "${attachmentName}" from storage? The post text will remain.`,
+      variant: "danger",
+      confirmLabel: "Delete File",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          if (storagePath) {
+            const fileRef = ref(storage, storagePath);
+            await deleteObject(fileRef);
+          }
+          await updateDoc(doc(db, "staffroom_posts", postId), {
+            attachment_url: "",
+            attachment_storage_path: "",
+            attachment_name: attachmentName + " (deleted by admin)"
+          });
+          triggerAlert("Attachment deleted from storage successfully.");
+        } catch (e) {
+          triggerAlert(e.message || "Failed to delete attachment.", "error");
+        }
+      },
+    });
   };
 
   // SEED TEST DATA ACTION
@@ -934,6 +1034,16 @@ const Admin = () => {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 space-y-8">
+      {/* Confirm dialog */}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        variant={confirmState.variant}
+        confirmLabel={confirmState.confirmLabel}
+        onConfirm={confirmState.onConfirm}
+        onCancel={closeConfirm}
+      />
       {/* 1. Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-gray-850 pb-5">
         <div>
@@ -1336,8 +1446,66 @@ const Admin = () => {
             )}
           </div>
 
+          {/* Staffroom Attachments Manager */}
+          <div className={`p-6 ${containerClass}`}>
+            <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-sky-600 dark:text-sky-400">
+              📎 Staffroom Uploaded Attachments ({staffroomAttachments.length})
+            </h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Files uploaded by educators to Staffroom threads. Remove individual files to free storage, or use the bulk pruning tool (Analytics tab) to clear all attachments older than 30 days.
+            </p>
+            {staffroomAttachments.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className={headerCellClass}>Thread</th>
+                      <th className={headerCellClass}>File Name</th>
+                      <th className={headerCellClass}>Uploaded</th>
+                      <th className={headerCellClass}>View</th>
+                      <th className={headerCellClass}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staffroomAttachments.map((att) => (
+                      <tr key={att.id}>
+                        <td className={rowCellClass}>
+                          <span className="font-semibold truncate block max-w-[180px]">{att.title}</span>
+                        </td>
+                        <td className={`${rowCellClass} font-mono text-[10px]`}>
+                          <span className="truncate block max-w-[150px]">{att.attachment_name}</span>
+                        </td>
+                        <td className={rowCellClass}>
+                          {att.created_at ? new Date(att.created_at.seconds * 1000).toLocaleDateString() : "—"}
+                        </td>
+                        <td className={rowCellClass}>
+                          {att.attachment_url ? (
+                            <a href={att.attachment_url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline text-[10px] font-bold">
+                              View ↗
+                            </a>
+                          ) : "—"}
+                        </td>
+                        <td className={rowCellClass}>
+                          <button
+                            onClick={() => handleDeleteAttachment(att.id, att.attachment_storage_path, att.attachment_name)}
+                            className={btnClass("red")}
+                          >
+                            🗑️ Delete File
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">No uploaded attachments found. Files appear here once teachers upload them to Staffroom posts.</p>
+            )}
+          </div>
+
         </div>
       )}
+
 
       {/* TAB CONTENT C: DIRECT GLOBAL CONTENT ARCHIVIST */}
       {activeTab === "archivist" && (

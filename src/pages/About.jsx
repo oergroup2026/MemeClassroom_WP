@@ -37,6 +37,7 @@ const About = () => {
         {/* Quote Box */}
         <div className={`max-w-3xl mx-auto mt-6 text-left border-l-4 ${highContrastMode ? 'border-yellow-400 bg-black text-yellow-400' : 'border-purple-600 bg-purple-50/20 dark:bg-purple-950/10'} p-5 italic rounded-r-xl text-sm leading-relaxed`}>
           "Grounded in open pedagogy, Meme Classroom values learner voice, co-creation, and cultural relevance. By connecting everyday internet culture with classroom practice, it supports inclusive, multimodal learning through collaboration rather than content consumption."
+          <span className="block mt-2 not-italic text-xs text-gray-400 dark:text-gray-500">— MemeClassroom Pedagogical Framework, 2024</span>
         </div>
       </div>
 
@@ -63,28 +64,28 @@ const About = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className={glassPanelClass}>
-            <div className="text-2xl mb-2"><img src="research.png" alt="not" className="w-10 h-10" /></div>
+            <div className="text-2xl mb-2"><img src="research.png" alt="Meme Lab icon" className="w-10 h-10" /></div>
             <h3 className="font-extrabold text-base mb-1 text-purple-600">Meme Lab (Creation)</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
               A multi-format editor featuring ready-to-use templates and tagging capabilities (by subject, topic, and language) to help teachers produce context-specific content.
             </p>
           </div>
           <div className={glassPanelClass}>
-            <div className="text-2xl mb-2"><img src="stack-of-books.png" alt="not" className="w-10 h-10" /></div>
+            <div className="text-2xl mb-2"><img src="stack-of-books.png" alt="Library icon" className="w-10 h-10" /></div>
             <h3 className="font-extrabold text-base mb-1 text-purple-600">Meme Library (Curation)</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
               A searchable repository where memes are filtered by grade and subject, featuring peer ratings to ensure content validity and age-appropriateness.
             </p>
           </div>
           <div className={glassPanelClass}>
-            <div className="text-2xl mb-2"><img src="school.png" alt="not" className="w-10 h-10" /></div>
+            <div className="text-2xl mb-2"><img src="school.png" alt="Staffroom icon" className="w-10 h-10" /></div>
             <h3 className="font-extrabold text-base mb-1 text-purple-600">Staffroom (Collaboration)</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
               A social space modeled after digital communities where teachers share experiences, post memes, and engage in professional dialogue.
             </p>
           </div>
           <div className={glassPanelClass}>
-            <div className="text-2xl mb-2"><img src="process.png" alt="not" className="w-10 h-10" /></div>
+            <div className="text-2xl mb-2"><img src="process.png" alt="Resources icon" className="w-10 h-10" /></div>
             <h3 className="font-extrabold text-base mb-1 text-purple-600">Meme Reads (Scaffolding)</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
               A resource hub providing pedagogical guidance, including lesson ideas, ethical guidelines, and scholarly articles on meme-based instruction.
@@ -94,7 +95,7 @@ const About = () => {
           <div className={bannerClass}>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <span className="text-xl mr-2"><img src="star-medal.png" alt="not" className="w-10 h-10" /></span>
+                <span className="text-xl mr-2"><img src="star-medal.png" alt="Badge icon" className="w-10 h-10" /></span>
                 <span className="font-black text-sm uppercase tracking-wider text-purple-200">Badges & Gamification</span>
                 <p className="text-xs mt-2 opacity-95 leading-relaxed max-w-xl">
                   A reward system designed to recognize and motivate sustained teacher engagement and community contribution.
@@ -117,27 +118,40 @@ const About = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
             <div className={`p-5 rounded-xl border transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2 ${highContrastMode ? 'border-zinc-800 bg-zinc-950 text-white' : 'border-purple-100 bg-white text-gray-800'}`}>
-              <span className="text-lg"><img src="collaborate.png" alt="not" className="w-10 h-10" /></span>
+              <span className="text-lg"><img src="collaborate.png" alt="Collaboration icon" className="w-10 h-10" /></span>
               <h4 className={`font-extrabold text-xs ${highContrastMode ? 'text-white' : 'text-gray-900'}`}>Sociocultural Theory</h4>
               <p className={`text-[11px] leading-relaxed ${highContrastMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 Utilizing memes as "cultural tools" for collaborative knowledge construction.
               </p>
             </div>
             <div className={`p-5 rounded-xl border transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2 ${highContrastMode ? 'border-zinc-800 bg-zinc-950 text-white' : 'border-purple-100 bg-white text-gray-800'}`}>
-              <span className="text-lg"><img src="complexity.png" alt="not" className="w-10 h-10" /></span>
+              <span className="text-lg"><img src="complexity.png" alt="Multiliteracies icon" className="w-10 h-10" /></span>
               <h4 className={`font-extrabold text-xs ${highContrastMode ? 'text-white' : 'text-gray-900'}`}>Multiliteracies Framework</h4>
               <p className={`text-[11px] leading-relaxed ${highContrastMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 Recognizing memes as hybrid texts that require specific design and interpretive skills.
               </p>
             </div>
             <div className={`p-5 rounded-xl border transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2 ${highContrastMode ? 'border-zinc-800 bg-zinc-950 text-white' : 'border-purple-100 bg-white text-gray-800'}`}>
-              <span className="text-lg"><img src="blub.png" alt="not" className="w-10 h-10" /></span>
+              <span className="text-lg"><img src="blub.png" alt="Open pedagogy icon" className="w-10 h-10" /></span>
               <h4 className={`font-extrabold text-xs ${highContrastMode ? 'text-white' : 'text-gray-900'}`}>Open Pedagogy</h4>
               <p className={`text-[11px] leading-relaxed ${highContrastMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 Fostering transparent, collaborative practices that position learners as co-creators.
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── CTA ───────────────────────────────────────────────────────────── */}
+      <div className="mt-14 text-center">
+        <h2 className="text-xl font-black mb-3 text-gray-900 dark:text-white">Ready to bring memes into your classroom?</h2>
+        <div className="flex flex-wrap justify-center gap-3">
+          <a href="/library" className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">
+            Explore the Library →
+          </a>
+          <a href="/auth?mode=register" className="border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 font-bold px-6 py-2.5 rounded-xl text-sm transition">
+            Join the Community
+          </a>
         </div>
       </div>
     </div>

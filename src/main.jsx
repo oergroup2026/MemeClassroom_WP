@@ -6,6 +6,7 @@ import App from './App.jsx'
 import { UdlProvider } from './context/UdlContext.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { UserModalProvider } from './context/UserModalContext.jsx'
+import { ToastProvider } from './components/ToastNotification.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -13,7 +14,9 @@ createRoot(document.getElementById('root')).render(
       <UdlProvider>
         <AuthProvider>
           <UserModalProvider>
-            <App />
+            <ToastProvider>
+              <App />
+            </ToastProvider>
           </UserModalProvider>
         </AuthProvider>
       </UdlProvider>
