@@ -51,17 +51,10 @@ function App() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/about" element={<About />} />
           
-          {/* Protected Routes for Authenticated Users */}
-          <Route path="/lab" element={
-            <ProtectedRoute allowedRoles={['student', 'teacher', 'expert', 'admin']}>
-              <Lab />
-            </ProtectedRoute>
-          } />
-          <Route path="/staffroom" element={
-            <ProtectedRoute allowedRoles={['student', 'teacher', 'expert', 'admin']}>
-              <Staffroom />
-            </ProtectedRoute>
-          } />
+          {/* Public Routes accessible without authentication */}
+          <Route path="/lab" element={<Lab />} />
+          <Route path="/staffroom" element={<Staffroom />} />
+          
           <Route path="/profile" element={
             <ProtectedRoute allowedRoles={['student', 'teacher', 'expert', 'admin']}>
               <Profile />

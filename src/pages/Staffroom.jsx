@@ -1147,11 +1147,18 @@ const Staffroom = () => {
           </p>
         </div>
         <div className="mt-4 sm:mt-0">
-          {user && (
-            <button onClick={() => openCompose("story")} className={btnClass}>
-              📝 Compose Thread
-            </button>
-          )}
+          <button
+            onClick={() => {
+              if (user) {
+                openCompose("story");
+              } else {
+                navigate("/auth");
+              }
+            }}
+            className={btnClass}
+          >
+            📝 Compose Thread
+          </button>
         </div>
       </div>
 
@@ -1324,9 +1331,9 @@ const Staffroom = () => {
                   }`}
                   title="Sort feed"
                 >
-                  <option value="newest">⬆ Newest</option>
-                  <option value="upvoted">❤️ Most Upvoted</option>
-                  <option value="discussed">💬 Most Discussed</option>
+                  <option value="newest">Newest</option>
+                  <option value="upvoted">Most Upvoted</option>
+                  <option value="discussed">Most Discussed</option>
                 </select>
               </div>
             </div>
@@ -1668,7 +1675,7 @@ const Staffroom = () => {
                     )}
 
                     {/* Reply compose */}
-                    {user && (
+                    {user ? (
                       <div className="mt-4 pt-3 border-t border-gray-150 dark:border-gray-800/40 space-y-1">
                         <textarea
                           placeholder="Write a peer response… (min 10 characters)"
@@ -1688,6 +1695,15 @@ const Staffroom = () => {
                             Reply
                           </button>
                         </div>
+                      </div>
+                    ) : (
+                      <div className="mt-4 pt-3 border-t border-gray-150 dark:border-gray-800/40 text-center py-2">
+                        <button
+                          onClick={() => navigate("/auth")}
+                          className="text-xs font-bold text-purple-650 hover:underline transition"
+                        >
+                          Sign in to reply to this thread
+                        </button>
                       </div>
                     )}
                   </div>

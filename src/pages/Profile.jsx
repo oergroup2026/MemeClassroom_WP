@@ -60,6 +60,50 @@ const Profile = () => {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
 
+  // Profile details editing state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editInstitution, setEditInstitution] = useState("");
+  const [editPlace, setEditPlace] = useState("");
+  const [editState, setEditState] = useState("");
+  const [editCountry, setEditCountry] = useState("");
+  const [editTagline, setEditTagline] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+
+  const openEditModal = () => {
+    setEditName(profile?.name || "");
+    setEditInstitution(profile?.institution || "");
+    setEditPlace(profile?.place || "");
+    setEditState(profile?.state || "");
+    setEditCountry(profile?.country || "");
+    setEditTagline(profile?.tagline || "");
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) return;
+    setEditLoading(true);
+    try {
+      const userDocRef = doc(db, "users", user.uid);
+      await updateDoc(userDocRef, {
+        name: editName.trim(),
+        institution: editInstitution.trim(),
+        place: editPlace.trim(),
+        state: editState.trim(),
+        country: editCountry.trim(),
+        tagline: editTagline.trim(),
+      });
+      setShowEditModal(false);
+      toast("Profile updated successfully!", "success");
+    } catch (err) {
+      console.error("Failed to update profile details", err);
+      toast("Failed to save changes. Please try again.", "error");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   // Meme Lists
   const [myMemes, setMyMemes] = useState([]);
   const [myDrafts, setMyDrafts] = useState([]);
@@ -596,8 +640,19 @@ const Profile = () => {
                   {profile.role} • {profile.institution}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {profile.place}, {profile.state}, {profile.country}
+                  {[profile.place, profile.state, profile.country].filter(Boolean).join(", ") || "Location details not set"}
                 </p>
+                {profile.tagline && (
+                  <p className="text-xs italic text-gray-400 dark:text-gray-500 mt-2 max-w-sm">
+                    "{profile.tagline}"
+                  </p>
+                )}
+                <button
+                  onClick={openEditModal}
+                  className="mt-3 bg-purple-50 dark:bg-purple-950/20 hover:bg-purple-100 dark:hover:bg-purple-900/35 border border-purple-200 dark:border-purple-850 text-purple-700 dark:text-purple-300 font-bold text-xs px-3.5 py-1.5 rounded-lg transition"
+                >
+                  ⚙️ Edit Profile Details
+                </button>
               </div>
             </div>
 
@@ -787,6 +842,111 @@ const Profile = () => {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Profile Details Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white dark:bg-gray-850 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-800 transform transition-all scale-100 overflow-y-auto max-h-[90vh]">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Edit Profile Details</h3>
+              <button 
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className={inputClass}
+                  placeholder="Jane Doe"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Institution Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editInstitution}
+                  onChange={(e) => setEditInstitution(e.target.value)}
+                  className={inputClass}
+                  placeholder="Oakridge High School"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Bio / Tagline</label>
+                <input
+                  type="text"
+                  value={editTagline}
+                  onChange={(e) => setEditTagline(e.target.value)}
+                  className={inputClass}
+                  placeholder="e.g. Biology Educator & Meme Enthusiast"
+                  maxLength={100}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">City / Place</label>
+                  <input
+                    type="text"
+                    value={editPlace}
+                    onChange={(e) => setEditPlace(e.target.value)}
+                    className={inputClass}
+                    placeholder="e.g. Bangalore"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">State</label>
+                  <input
+                    type="text"
+                    value={editState}
+                    onChange={(e) => setEditState(e.target.value)}
+                    className={inputClass}
+                    placeholder="e.g. Karnataka"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Country</label>
+                <input
+                  type="text"
+                  value={editCountry}
+                  onChange={(e) => setEditCountry(e.target.value)}
+                  className={inputClass}
+                  placeholder="e.g. India"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition shadow-sm"
+                >
+                  {editLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

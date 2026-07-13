@@ -95,13 +95,13 @@ const Navbar = () => {
     const links = [
       { to: "/", label: "Home", end: true },
       { to: "/library", label: "Meme Library" },
+      { to: "/lab", label: "Meme Lab" },
+      { to: "/staffroom", label: "Staffroom" },
       { to: "/resources", label: "Meme Reads" },
       { to: "/about", label: "About" },
     ];
 
     if (user && profile) {
-      links.push({ to: "/lab", label: "Meme Lab" });
-      links.push({ to: "/staffroom", label: "Staffroom" });
       links.push({ to: "/profile", label: "Profile" });
       if (profile.role === "admin" || profile.role === "manager") {
         links.push({ to: "/admin", label: "Admin Panel" });

@@ -1106,10 +1106,10 @@ const Resources = () => {
               className={`${inputClass} w-auto flex-shrink-0 rounded-lg px-3 py-2 h-10`}
               title="Sort resources"
             >
-              <option value="newest">🕒 Newest</option>
-              <option value="most_liked">❤️ Most Liked</option>
-              <option value="most_viewed">👁 Most Viewed</option>
-              <option value="oldest">📅 Oldest</option>
+              <option value="newest">Newest</option>
+              <option value="most_liked">Most Liked</option>
+              <option value="most_viewed">Most Viewed</option>
+              <option value="oldest">Oldest</option>
             </select>
           </div>
 

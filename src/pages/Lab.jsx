@@ -1281,31 +1281,25 @@ const Lab = () => {
   const activeTextLayer = textLayers.find(l => l.id === selectedTextId);
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-4" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
+    <div className="max-w-6xl mx-auto py-2 px-4" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
       
-      {/* Page Title & Guidelines Toggle */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-200 dark:border-gray-800 pb-5 mb-8">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Meme Lab Studio</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Create high-pedagogy multi-media memes with overlays and custom templates.
-          </p>
-        </div>
-        <div className="mt-4 md:mt-0 flex gap-2 items-center">
+      {/* Toolbar row — action buttons only */}
+      <div className="flex items-center justify-end gap-2 mb-4">
           <button
             onClick={() => setShowTutorialModal(true)}
-            className="flex items-center space-x-1.5 border border-purple-300 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-950/20 text-purple-600 dark:text-purple-400 text-sm font-semibold px-4 py-2 rounded-lg transition"
+            title="Tutorial & Guidelines"
+            className="flex items-center gap-1.5 border border-gray-200 dark:border-zinc-700 hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 text-gray-500 dark:text-gray-400 hover:text-purple-600 text-xs font-semibold px-3 py-2 rounded-lg transition"
           >
-            <span>ℹ️ Tutorial & Guidelines</span>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01"/></svg>
+            <span className="hidden sm:inline">Guide</span>
           </button>
-          
           <button
             onClick={() => setShowSaveModal(true)}
-            className="bg-indigo-650 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg shadow-md transition duration-200 text-sm flex items-center space-x-1.5"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition text-xs flex items-center gap-1.5"
           >
-            <span>💾 Export Studio Meme</span>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>Export</span>
           </button>
-        </div>
       </div>
 
       {alertMessage && (
@@ -1338,54 +1332,80 @@ const Lab = () => {
       )}
 
             {/* Unified SaaS Workbench Card */}
-      <div className={`flex flex-col lg:flex-row h-auto lg:h-[720px] rounded-2xl overflow-hidden shadow-2xl border ${
+      <div className={`flex flex-col lg:flex-row h-auto lg:h-[580px] rounded-2xl overflow-hidden shadow-xl border ${
         highContrastMode 
           ? "bg-zinc-950 border-zinc-800 text-white" 
-          : "bg-slate-50 border-gray-200 text-gray-800"
+          : "bg-white border-gray-200 text-gray-800"
       }`}>
         
-        {/* 1. LEFT SIDEBAR (Segmented Toolbar & Tab Content) */}
-        <div className={`w-full lg:w-[360px] border-r flex flex-col shrink-0 h-[500px] lg:h-full ${
+        {/* 1. LEFT SIDEBAR */}
+        <div className={`w-full lg:w-[300px] border-r flex flex-col shrink-0 h-[420px] lg:h-full ${
           highContrastMode
             ? "bg-zinc-900 border-zinc-800 text-white"
-            : "bg-white border-gray-200 text-gray-800"
+            : "bg-white border-gray-100 text-gray-800"
         }`}>
-          {/* Segmented Control Pill Header */}
-          <div className={`px-4 py-3 border-b ${
-            highContrastMode ? "border-zinc-800 bg-zinc-950" : "border-gray-150 bg-gray-50/50"
+
+          {/* Format Tab Row — Image / Video / GIF / Audio */}
+          <div className={`px-3 pt-3 pb-2 border-b ${
+            highContrastMode ? "border-zinc-800" : "border-gray-100"
           }`}>
-            <div className={`flex p-1 rounded-xl space-x-1 ${
-              highContrastMode ? "bg-zinc-850" : "bg-gray-100"
+            <div className={`flex gap-1 p-1 rounded-lg ${
+              highContrastMode ? "bg-zinc-800" : "bg-gray-100"
+            }`}>
+              {[("image"), ("video"), ("gif"), ("audio")].map((tab) => (
+                <button
+                  type="button"
+                  key={tab}
+                  onClick={() => { setActiveTab(tab); setAlertMessage(""); }}
+                  className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[11px] font-bold transition ${
+                    activeTab === tab
+                      ? (highContrastMode ? "bg-zinc-700 text-white shadow-sm" : "bg-white text-purple-700 shadow-sm")
+                      : "text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  {TAB_ICONS[tab]}
+                  <span className="capitalize hidden sm:inline">{tab}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tool Switcher — Media / Text */}
+          <div className={`px-3 py-2 border-b ${
+            highContrastMode ? "border-zinc-800" : "border-gray-100"
+          }`}>
+            <div className={`flex gap-1 ${
+              highContrastMode ? "" : ""
             }`}>
               <button
                 type="button"
                 onClick={() => setActiveControlTab("media")}
-                className={`flex-1 flex items-center justify-center space-x-1.5 py-2 text-xs font-bold rounded-lg transition ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition border ${
                   activeControlTab === "media"
-                    ? (highContrastMode ? "bg-zinc-700 text-white shadow-sm" : "bg-white text-purple-700 shadow-sm")
-                    : (highContrastMode ? "text-zinc-400 hover:text-zinc-200" : "text-gray-500 hover:text-gray-800")
+                    ? (highContrastMode ? "bg-zinc-700 text-white border-zinc-600" : "bg-purple-50 text-purple-700 border-purple-200")
+                    : (highContrastMode ? "text-zinc-400 border-transparent hover:text-zinc-200" : "text-gray-500 border-transparent hover:text-gray-800")
                 }`}
               >
-                <span>📁</span>
-                <span>Media & Templates</span>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                Media
               </button>
               <button
                 type="button"
                 onClick={() => setActiveControlTab("text")}
-                className={`flex-1 flex items-center justify-center space-x-1.5 py-2 text-xs font-bold rounded-lg transition ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition border ${
                   activeControlTab === "text"
-                    ? (highContrastMode ? "bg-zinc-700 text-white shadow-sm" : "bg-white text-purple-700 shadow-sm")
-                    : (highContrastMode ? "text-zinc-400 hover:text-zinc-200" : "text-gray-500 hover:text-gray-800")
+                    ? (highContrastMode ? "bg-zinc-700 text-white border-zinc-600" : "bg-purple-50 text-purple-700 border-purple-200")
+                    : (highContrastMode ? "text-zinc-400 border-transparent hover:text-zinc-200" : "text-gray-500 border-transparent hover:text-gray-800")
                 }`}
               >
-                <span>✍️</span>
-                <span>Text</span>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                Text
               </button>
             </div>
           </div>
 
-          {/* Active Tab Panel Content */}
-          <div className="flex-grow p-5 overflow-y-auto space-y-6">
+          {/* Active Tool Panel Content */}
+          <div className="flex-grow px-4 py-4 overflow-y-auto space-y-5">
             {/* MEDIA CONTROLS */}
             {activeControlTab === "media" && (
               <div className="space-y-6">
@@ -1404,13 +1424,11 @@ const Lab = () => {
                     return temp.format === activeTab;
                   });
 
-                  // Merge with default image presets if on active image tab
                   const templatesToDisplay = [
                     ...dbFormatTemplates,
                     ...(activeTab === "image" ? DEFAULT_IMAGE_TEMPLATES : [])
                   ];
 
-                  // Sort so featured templates come first
                   templatesToDisplay.sort((a, b) => {
                     const aFeat = !!a.is_featured;
                     const bFeat = !!b.is_featured;
@@ -1420,64 +1438,67 @@ const Lab = () => {
                   });
 
                   return (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between border-b pb-1.5 border-gray-150 dark:border-zinc-800">
-                        <span className="block text-[10px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-400">Library Templates ({activeTab})</span>
-                      </div>
+                    <div className="space-y-2">
+                      <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">Templates</span>
                       {templatesToDisplay.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-2.5 max-h-[160px] overflow-y-auto pr-1">
+                        <div className="grid grid-cols-3 gap-1.5 max-h-[148px] overflow-y-auto pr-0.5">
                           {templatesToDisplay.map((temp) => (
                             <button
                               type="button"
                               key={temp.id}
                               onClick={() => handleSelectTemplate(temp)}
-                              className="flex flex-col items-center p-1.5 border border-gray-200 dark:border-zinc-850 rounded-xl hover:border-purple-500 hover:bg-purple-50/10 transition text-left w-full active:scale-95 bg-white dark:bg-zinc-900 shadow-sm"
+                              title={temp.title}
+                              className={`group relative w-full aspect-video rounded-lg overflow-hidden border transition active:scale-95 ${
+                                temp.is_featured
+                                  ? "border-indigo-400 dark:border-indigo-500"
+                                  : "border-gray-200 dark:border-zinc-700 hover:border-purple-400"
+                              }`}
                             >
-                              <div className="w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center mb-1 relative">
-                                {temp.is_featured && (
-                                  <div className="absolute top-1 left-1 bg-yellow-400 text-black text-[8px] font-extrabold px-1 rounded shadow z-10">
-                                    ⭐ FEATURED
-                                  </div>
-                                )}
-                                {temp.format === "video" ? (
-                                  <div className="text-white text-[9px] font-bold">🎥 Video Template</div>
-                                ) : temp.format === "audio" ? (
-                                  <div className="text-white text-[9px] font-bold">🎵 Audio Template</div>
-                                ) : (
-                                  <img src={temp.media_url} alt={temp.title} className="w-full h-full object-cover" />
-                                )}
+                              {temp.format === "video" ? (
+                                <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                                  <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                </div>
+                              ) : temp.format === "audio" ? (
+                                <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                                  <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
+                                </div>
+                              ) : (
+                                <img src={temp.media_url} alt={temp.title} className="w-full h-full object-cover" />
+                              )}
+                              {/* Hover overlay with name */}
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-end p-1">
+                                <span className="text-white text-[8px] font-bold leading-tight line-clamp-2">{temp.title}</span>
                               </div>
-                              <span className="text-[9px] font-bold truncate w-full text-center text-gray-700 dark:text-gray-300">{temp.title}</span>
                             </button>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-gray-405 text-[10px] italic">No approved templates available yet. Click Contribute below to submit one!</p>
+                        <p className="text-gray-400 text-[10px] italic">No templates yet.</p>
                       )}
                     </div>
                   );
                 })()}
                 
                 {activeTab === "image" && (
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
-                      <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Collage Media Assets</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Upload</span>
                       <span className="text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-bold px-2 py-0.5 rounded-full">
-                        {images.length}/4 Images
+                        {images.length}/4
                       </span>
                     </div>
 
-                    {/* Premium Dashed-Border Upload Dropzone */}
+                    {/* Compact Dropzone */}
                     <div 
                       onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
                       onDragLeave={() => setIsDragOverDropzone(false)}
                       onDrop={handleDropzoneDrop}
-                      className={`border-2 border-dashed rounded-xl p-5 text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[140px] ${
+                      className={`border-2 border-dashed rounded-xl text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[88px] ${
                         isDragOverDropzone
-                          ? "border-purple-600 bg-purple-50/50 dark:bg-purple-955/20"
+                          ? "border-purple-500 bg-purple-50/50 dark:bg-purple-955/20"
                           : (highContrastMode 
                               ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
-                              : "border-gray-300 bg-slate-50/50 hover:border-purple-450 hover:bg-slate-50")
+                              : "border-gray-200 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/30")
                       }`}
                     >
                       <input 
@@ -1487,25 +1508,20 @@ const Lab = () => {
                         onChange={handleImageUpload} 
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                       />
-                      <svg className="w-8 h-8 text-purple-500 mb-2.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <svg className="w-6 h-6 text-gray-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 block mb-1">
-                        Drag & drop images here
-                      </span>
-                      <span className="text-[10px] text-gray-500 block">
-                        or click to browse your files
-                      </span>
+                      <span className="text-[11px] text-gray-500">Drop image or <span className="text-purple-600 font-semibold">browse</span></span>
                     </div>
 
-                    {/* Remix from Library Button */}
+                    {/* Browse Library Button */}
                     <button
                       type="button"
                       onClick={() => setShowLibraryPickerModal(true)}
-                      className="w-full border-2 border-purple-500 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-955/20 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+                      className="w-full border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-955/20 font-semibold py-1.5 rounded-lg text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
                     >
-                      <span>📖</span>
-                      <span>Remix from Library</span>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>
+                      Browse Library
                     </button>
 
                     {/* Per-image thumbnail strip with individual ✕ removal */}
@@ -1608,10 +1624,10 @@ const Lab = () => {
 
                         <button
                           onClick={() => { setImages([]); setImageFiles([]); }}
-                          className="text-xs font-bold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center space-x-1 transition"
+                          className="text-xs font-semibold text-red-500 hover:text-red-600 dark:text-red-400 flex items-center gap-1 transition"
                         >
-                          <span>🗑️</span>
-                          <span>Clear All Images</span>
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          Clear all
                         </button>
                       </div>
                     )}
@@ -1632,26 +1648,25 @@ const Lab = () => {
                     {/* Week 6: Browser compatibility warning for ffmpeg.wasm */}
                     {!window.crossOriginIsolated && (
                       <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300">
-                        <span className="text-sm shrink-0">⚠️</span>
+                        <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                         <p className="text-[10px] leading-relaxed">
-                          <strong>Real video trimming unavailable.</strong> Your browser or server lacks Cross-Origin Isolation.
-                          Trimming works best on Chrome/Edge. The video will upload without applying the trim.
+                          <strong>Real video trimming unavailable.</strong> Your browser lacks Cross-Origin Isolation. Trimming works best on Chrome/Edge.
                         </p>
                       </div>
                     )}
                     
                     <div className="space-y-4">
-                      {/* Premium Dashed-Border Upload Dropzone */}
+                      {/* Compact Dropzone */}
                       <div 
                         onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
                         onDragLeave={() => setIsDragOverDropzone(false)}
                         onDrop={handleDropzoneDrop}
-                        className={`border-2 border-dashed rounded-xl p-5 text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[140px] ${
+                        className={`border-2 border-dashed rounded-xl text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[88px] ${
                           isDragOverDropzone
-                            ? "border-purple-600 bg-purple-50/50 dark:bg-purple-950/20"
+                            ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/20"
                             : (highContrastMode 
                                 ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
-                                : "border-gray-300 bg-slate-50/50 hover:border-purple-450 hover:bg-slate-50")
+                                : "border-gray-200 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/30")
                         }`}
                       >
                         <input 
@@ -1660,15 +1675,10 @@ const Lab = () => {
                           onChange={handleVideoUpload} 
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
-                        <svg className="w-8 h-8 text-purple-500 mb-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg className="w-6 h-6 text-gray-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
-                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 block mb-1">
-                          Drag & drop video here
-                        </span>
-                        <span className="text-[10px] text-gray-500 block">
-                          or click to browse (&lt; 15s limit)
-                        </span>
+                        <span className="text-[11px] text-gray-500">Drop video or <span className="text-purple-600 font-semibold">browse</span> (&lt;15s)</span>
                       </div>
 
                       <div>
@@ -1760,17 +1770,17 @@ const Lab = () => {
                       )}
                     </div>
                     <div className="space-y-4">
-                      {/* Premium Dashed-Border Upload Dropzone */}
+                      {/* Compact Dropzone */}
                       <div 
                         onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
                         onDragLeave={() => setIsDragOverDropzone(false)}
                         onDrop={handleDropzoneDrop}
-                        className={`border-2 border-dashed rounded-xl p-5 text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[140px] ${
+                        className={`border-2 border-dashed rounded-xl text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[88px] ${
                           isDragOverDropzone
-                            ? "border-purple-600 bg-purple-50/50 dark:bg-purple-950/20"
+                            ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/20"
                             : (highContrastMode 
                                 ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
-                                : "border-gray-300 bg-slate-50/50 hover:border-purple-450 hover:bg-slate-50")
+                                : "border-gray-200 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/30")
                         }`}
                       >
                         <input 
@@ -1785,15 +1795,10 @@ const Lab = () => {
                           }} 
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
-                        <svg className="w-8 h-8 text-purple-500 mb-2.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg className="w-6 h-6 text-gray-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
-                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 block mb-1">
-                          Drag & drop GIF here
-                        </span>
-                        <span className="text-[10px] text-gray-500 block">
-                          or click to browse your files
-                        </span>
+                        <span className="text-[11px] text-gray-500">Drop GIF or <span className="text-purple-600 font-semibold">browse</span></span>
                       </div>
 
                       {/* Giphy Search Engine */}
@@ -1856,17 +1861,17 @@ const Lab = () => {
                     </div>
                     
                     <div className="space-y-4">
-                      {/* Premium Dashed-Border Upload Dropzone */}
+                      {/* Compact Dropzone */}
                       <div 
                         onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
                         onDragLeave={() => setIsDragOverDropzone(false)}
                         onDrop={handleDropzoneDrop}
-                        className={`border-2 border-dashed rounded-xl p-5 text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[140px] ${
+                        className={`border-2 border-dashed rounded-xl text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[88px] ${
                           isDragOverDropzone
-                            ? "border-purple-600 bg-purple-50/50 dark:bg-purple-955/20"
+                            ? "border-purple-500 bg-purple-50/50 dark:bg-purple-955/20"
                             : (highContrastMode 
                                 ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
-                                : "border-gray-300 bg-slate-50/50 hover:border-purple-450 hover:bg-slate-50")
+                                : "border-gray-200 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/30")
                         }`}
                       >
                         <input 
@@ -1881,15 +1886,10 @@ const Lab = () => {
                           }} 
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
-                        <svg className="w-8 h-8 text-purple-500 mb-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg className="w-6 h-6 text-gray-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                         </svg>
-                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 block mb-1">
-                          Drag & drop audio here
-                        </span>
-                        <span className="text-[10px] text-gray-500 block">
-                          or click to browse (&lt; 20 MB limit)
-                        </span>
+                        <span className="text-[11px] text-gray-500">Drop audio or <span className="text-purple-600 font-semibold">browse</span> (&lt;20 MB)</span>
                       </div>
 
                       <div>
@@ -1979,9 +1979,10 @@ const Lab = () => {
                 <button
                   type="button"
                   onClick={addTextLayer}
-                  className="w-full bg-purple-50 text-purple-700 dark:bg-purple-955/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 font-bold py-2.5 px-4 rounded-xl shadow-sm text-xs transition duration-200 mb-4 active:scale-95"
+                  className="w-full bg-purple-50 text-purple-700 dark:bg-purple-955/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 font-semibold py-2 px-4 rounded-lg text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
                 >
-                  ➕ Add New Text Layer
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+                  Add Text Layer
                 </button>
 
                 {/* Layer list */}
@@ -2006,45 +2007,51 @@ const Lab = () => {
                 )}
 
                 {activeTextLayer ? (
-                  <div className="space-y-4 text-xs font-semibold bg-gray-55 dark:bg-zinc-900/60 p-4 rounded-xl border border-gray-150 dark:border-zinc-800">
+                  <div className="space-y-3 text-xs font-semibold bg-gray-50 dark:bg-zinc-900/60 p-3 rounded-xl border border-gray-150 dark:border-zinc-800">
+                    {/* Text content */}
                     <div>
-                      <label className="block text-gray-550 uppercase mb-1.5">Text String</label>
+                      <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Text</label>
                       <textarea
                         value={activeTextLayer.text}
                         onChange={(e) => updateTextLayer("text", e.target.value)}
                         rows="2"
-                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded focus:ring-2 focus:ring-purple-500 outline-none"
+                        className="w-full px-2 py-1.5 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 outline-none resize-none"
                       />
                     </div>
 
                     {/* Alignment */}
-                    <div>
-                      <label className="block text-gray-550 uppercase mb-1.5">Alignment</label>
-                      <div className="flex gap-1">
-                        {[("left"), ("center"), ("right")].map(align => (
-                          <button
-                            key={align}
-                            type="button"
-                            onClick={() => updateTextLayer("textAlign", align)}
-                            className={`flex-1 py-1 rounded text-xs font-bold capitalize transition border ${
-                              (activeTextLayer.textAlign || "left") === align
-                                ? "bg-purple-600 text-white border-purple-600"
-                                : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-zinc-700 hover:border-purple-400"
-                            }`}
-                          >
-                            {align === "left" ? "⮤" : align === "center" ? "⭎" : "⮥"}
-                          </button>
-                        ))}
-                      </div>
+                    <div className="flex gap-1">
+                      {[("left"), ("center"), ("right")].map(align => (
+                        <button
+                          key={align}
+                          type="button"
+                          onClick={() => updateTextLayer("textAlign", align)}
+                          title={align}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold capitalize transition border ${
+                            (activeTextLayer.textAlign || "left") === align
+                              ? "bg-purple-600 text-white border-purple-600"
+                              : "bg-gray-100 dark:bg-zinc-800 text-gray-500 border-gray-200 dark:border-zinc-700 hover:border-purple-400"
+                          }`}
+                        >
+                          {align === "left" ? (
+                            <svg className="w-3.5 h-3.5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h8m-8 6h12"/></svg>
+                          ) : align === "center" ? (
+                            <svg className="w-3.5 h-3.5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M8 12h8M6 18h12"/></svg>
+                          ) : (
+                            <svg className="w-3.5 h-3.5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M12 12h8M8 18h12"/></svg>
+                          )}
+                        </button>
+                      ))}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Font + Color row */}
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-gray-555 uppercase mb-1.5">Font Family</label>
+                        <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Font</label>
                         <select
                           value={activeTextLayer.fontFamily}
                           onChange={(e) => updateTextLayer("fontFamily", e.target.value)}
-                          className="w-full px-2 py-1 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded"
+                          className="w-full px-2 py-1 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg text-xs"
                           style={{ fontFamily: activeTextLayer.fontFamily }}
                         >
                           <optgroup label="Meme Classics">
@@ -2068,135 +2075,108 @@ const Lab = () => {
                           </optgroup>
                         </select>
                       </div>
-
                       <div>
-                        <label className="block text-gray-555 uppercase mb-1.5">Text Color</label>
+                        <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Color</label>
                         <input
                           type="color"
                           value={activeTextLayer.color}
                           onChange={(e) => updateTextLayer("color", e.target.value)}
-                          className="w-full h-8 border cursor-pointer rounded p-0 bg-transparent"
+                          className="w-full h-8 border border-gray-200 cursor-pointer rounded-lg p-0 bg-transparent"
                         />
                       </div>
                     </div>
 
+                    {/* Font Size */}
                     <div>
-                      <label className="block text-gray-555 uppercase mb-1.5">Font Size ({activeTextLayer.fontSize}px)</label>
+                      <label className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                        <span>Size</span>
+                        <span className="text-purple-500 font-bold">{activeTextLayer.fontSize}px</span>
+                      </label>
                       <input
                         type="range"
                         min="10"
                         max="80"
                         value={activeTextLayer.fontSize}
                         onChange={(e) => updateTextLayer("fontSize", parseInt(e.target.value))}
-                        className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer"
+                        className="w-full accent-purple-600 h-1 bg-gray-200 dark:bg-zinc-700 rounded-lg cursor-pointer"
                       />
                     </div>
 
-                    {/* Opacity */}
-                    <div>
-                      <label className="block text-gray-555 uppercase mb-1.5">Opacity ({Math.round((activeTextLayer.opacity ?? 1) * 100)}%)</label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={activeTextLayer.opacity ?? 1}
-                        onChange={(e) => updateTextLayer("opacity", parseFloat(e.target.value))}
-                        className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer"
-                      />
-                    </div>
-
-                    {/* Rotation */}
-                    <div>
-                      <label className="block text-gray-555 uppercase mb-1.5">Rotation ({activeTextLayer.rotation || 0}°)</label>
-                      <input
-                        type="range"
-                        min="-180"
-                        max="180"
-                        step="1"
-                        value={activeTextLayer.rotation || 0}
-                        onChange={(e) => updateTextLayer("rotation", parseInt(e.target.value))}
-                        className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-gray-555 uppercase mb-1.5">Stroke Shadow</label>
-                        <input
-                          type="color"
-                          value={activeTextLayer.strokeColor}
-                          onChange={(e) => updateTextLayer("strokeColor", e.target.value)}
-                          className="w-full h-8 border cursor-pointer rounded p-0 bg-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-555 uppercase mb-1.5">Stroke Width ({activeTextLayer.strokeWidth}px)</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="6"
-                          value={activeTextLayer.strokeWidth}
-                          onChange={(e) => updateTextLayer("strokeWidth", parseInt(e.target.value))}
-                          className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Text Wrap */}
-                    <div>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={!!activeTextLayer.maxWidth}
-                          onChange={(e) => updateTextLayer("maxWidth", e.target.checked ? 200 : null)}
-                          className="rounded accent-purple-600"
-                        />
-                        <span className="uppercase text-gray-555">Wrap Text</span>
-                      </label>
-                      {activeTextLayer.maxWidth && (
-                        <div className="mt-2">
-                          <label className="block text-gray-555 uppercase mb-1">Max Width ({activeTextLayer.maxWidth}px)</label>
+                    {/* Advanced options — collapsed by default */}
+                    <details className="group">
+                      <summary className="flex items-center justify-between cursor-pointer select-none text-[10px] text-gray-400 uppercase tracking-wider hover:text-purple-600 transition list-none">
+                        <span>Advanced</span>
+                        <svg className="w-3 h-3 transition group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                      </summary>
+                      <div className="mt-3 space-y-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+                        {/* Opacity */}
+                        <div>
+                          <label className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                            <span>Opacity</span>
+                            <span className="text-purple-500 font-bold">{Math.round((activeTextLayer.opacity ?? 1) * 100)}%</span>
+                          </label>
                           <input
                             type="range"
-                            min="60"
-                            max="440"
-                            step="10"
-                            value={activeTextLayer.maxWidth}
-                            onChange={(e) => updateTextLayer("maxWidth", parseInt(e.target.value))}
-                            className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer"
+                            min="0" max="1" step="0.05"
+                            value={activeTextLayer.opacity ?? 1}
+                            onChange={(e) => updateTextLayer("opacity", parseFloat(e.target.value))}
+                            className="w-full accent-purple-600 h-1 bg-gray-200 dark:bg-zinc-700 rounded-lg cursor-pointer"
                           />
                         </div>
-                      )}
-                    </div>
+                        {/* Rotation */}
+                        <div>
+                          <label className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                            <span>Rotation</span>
+                            <span className="text-purple-500 font-bold">{activeTextLayer.rotation || 0}°</span>
+                          </label>
+                          <input
+                            type="range"
+                            min="-180" max="180" step="1"
+                            value={activeTextLayer.rotation || 0}
+                            onChange={(e) => updateTextLayer("rotation", parseInt(e.target.value))}
+                            className="w-full accent-purple-600 h-1 bg-gray-200 dark:bg-zinc-700 rounded-lg cursor-pointer"
+                          />
+                        </div>
+                        {/* Stroke */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Stroke</label>
+                            <input type="color" value={activeTextLayer.strokeColor} onChange={(e) => updateTextLayer("strokeColor", e.target.value)} className="w-full h-7 border border-gray-200 cursor-pointer rounded p-0 bg-transparent" />
+                          </div>
+                          <div>
+                            <label className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                              <span>Width</span>
+                              <span className="text-purple-500 font-bold">{activeTextLayer.strokeWidth}px</span>
+                            </label>
+                            <input type="range" min="0" max="6" value={activeTextLayer.strokeWidth} onChange={(e) => updateTextLayer("strokeWidth", parseInt(e.target.value))} className="w-full accent-purple-600 h-1 bg-gray-200 dark:bg-zinc-700 rounded-lg cursor-pointer" />
+                          </div>
+                        </div>
+                        {/* Text Wrap */}
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={!!activeTextLayer.maxWidth} onChange={(e) => updateTextLayer("maxWidth", e.target.checked ? 200 : null)} className="rounded accent-purple-600" />
+                          <span className="text-[10px] text-gray-500 uppercase">Wrap Text</span>
+                        </label>
+                        {activeTextLayer.maxWidth && (
+                          <div>
+                            <label className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                              <span>Max Width</span>
+                              <span className="text-purple-500 font-bold">{activeTextLayer.maxWidth}px</span>
+                            </label>
+                            <input type="range" min="60" max="440" step="10" value={activeTextLayer.maxWidth} onChange={(e) => updateTextLayer("maxWidth", parseInt(e.target.value))} className="w-full accent-purple-600 h-1 bg-gray-200 dark:bg-zinc-700 rounded-lg cursor-pointer" />
+                          </div>
+                        )}
+                      </div>
+                    </details>
 
-                    <div className="pt-4 border-t border-gray-200 dark:border-zinc-800 flex justify-between">
-                      <button
-                        type="button"
-                        onClick={deleteSelectedText}
-                        className="text-red-600 hover:text-red-700 font-bold"
-                      >
-                        Delete
-                      </button>
-                      <button
-                        type="button"
-                        onClick={duplicateSelectedText}
-                        className="text-purple-600 hover:text-purple-700 dark:text-purple-400 font-bold"
-                      >
-                        Duplicate
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTextId(null)}
-                        className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                      >
-                        Deselect
-                      </button>
+                    <div className="pt-3 border-t border-gray-100 dark:border-zinc-800 flex justify-between">
+                      <button type="button" onClick={deleteSelectedText} className="text-red-500 hover:text-red-600 font-semibold">Delete</button>
+                      <button type="button" onClick={duplicateSelectedText} className="text-purple-600 hover:text-purple-700 dark:text-purple-400 font-semibold">Duplicate</button>
+                      <button type="button" onClick={() => setSelectedTextId(null)} className="text-gray-400 hover:text-gray-600 font-semibold">Deselect</button>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-10 px-4 text-gray-400 text-xs border border-dashed border-gray-300 dark:border-zinc-700 rounded-xl bg-slate-50/50 dark:bg-zinc-900/50">
-                    💡 Click a text layer above to edit, or add a new one.
+                  <div className="text-center py-8 px-4 text-gray-400 text-xs border border-dashed border-gray-200 dark:border-zinc-700 rounded-xl">
+                    Select a layer above to edit, or add a new one.
                   </div>
                 )}
               </div>
@@ -2208,38 +2188,28 @@ const Lab = () => {
         </div>
 
         {/* 2. RIGHT VIEWPORT WORKSPACE */}
-        <div className="flex-grow flex flex-col h-full min-w-0 bg-slate-100 dark:bg-zinc-950 overflow-hidden relative">
+        <div className={`flex-grow flex flex-col h-full min-w-0 overflow-hidden relative ${
+          highContrastMode ? "bg-zinc-950" : "bg-slate-50"
+        }`}>
           
-          {/* Top workspace bar: Format Switcher + Canvas Controls */}
-          <div className={`flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b shrink-0 ${
+          {/* Canvas Controls Bar — aspect ratio + background colour */}
+          <div className={`flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b shrink-0 ${
             highContrastMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-200"
           }`}>
-            {/* Format Switcher */}
-            <div className={`flex p-1 rounded-xl space-x-1 ${
-              highContrastMode ? "bg-zinc-850" : "bg-gray-150"
-            }`}>
-              {["image", "video", "gif", "audio"].map((tab) => (
-                <button
-                  type="button"
-                  key={tab}
-                  onClick={() => { setActiveTab(tab); setAlertMessage(""); }}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold capitalize rounded-lg transition ${
-                    activeTab === tab 
-                      ? (highContrastMode ? "bg-zinc-700 text-white shadow-sm" : "bg-white text-purple-700 shadow-sm") 
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                  }`}
-                >
-                  {TAB_ICONS[tab]}
-                  <span className="hidden sm:inline">{tab}</span>
-                </button>
-              ))}
+            {/* Active format label */}
+            <div className="flex items-center gap-2">
+              <span className={`flex items-center gap-1 text-[11px] font-bold capitalize ${
+                highContrastMode ? "text-zinc-300" : "text-gray-700"
+              }`}>
+                {TAB_ICONS[activeTab]}
+                <span>{activeTab}</span>
+              </span>
             </div>
 
             {/* Canvas Controls — aspect ratio, background (image tab only) */}
             {activeTab === "image" && (
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Aspect Ratio */}
-                <div className={`flex p-0.5 rounded-lg space-x-0.5 ${
+                <div className={`flex p-0.5 rounded-lg gap-0.5 ${
                   highContrastMode ? "bg-zinc-800" : "bg-gray-100"
                 }`}>
                   {Object.keys(ASPECT_RATIOS).map(ratio => (
@@ -2251,7 +2221,7 @@ const Lab = () => {
                       className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${
                         canvasAspect === ratio
                           ? "bg-purple-600 text-white"
-                          : "text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                          : (highContrastMode ? "text-zinc-400 hover:text-white" : "text-gray-500 hover:text-gray-800")
                       }`}
                     >
                       {ratio}
@@ -2259,39 +2229,41 @@ const Lab = () => {
                   ))}
                 </div>
 
-                {/* Background Color */}
                 <label className="flex items-center gap-1.5 cursor-pointer" title="Canvas background color">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase">BG</span>
+                  <span className={`text-[10px] font-bold uppercase ${
+                    highContrastMode ? "text-zinc-400" : "text-gray-500"
+                  }`}>BG</span>
                   <input
                     type="color"
                     value={canvasBg}
                     onChange={(e) => setCanvasBg(e.target.value)}
-                    className="w-6 h-6 rounded cursor-pointer border border-gray-300 dark:border-zinc-700 p-0"
+                    className="w-5 h-5 rounded cursor-pointer border border-gray-200 dark:border-zinc-700 p-0 bg-transparent"
                   />
                 </label>
               </div>
             )}
 
-            {/* Mobile Export button */}
+            {/* Mobile Export */}
             <button
               type="button"
               onClick={() => setShowSaveModal(true)}
-              className="bg-indigo-650 hover:bg-indigo-700 text-white font-bold py-1.5 px-4 rounded-lg shadow-sm transition text-xs flex items-center space-x-1.5 lg:hidden"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded-lg shadow-sm transition text-xs flex items-center gap-1.5 lg:hidden"
             >
-              <span>💾 Export</span>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              Export
             </button>
           </div>
 
           {/* Drawing Workspace Canvas Container */}
           <div className="flex-grow overflow-y-auto flex flex-col items-center justify-center p-6 relative">
-            {/* Soft Checkerboard Background Pattern */}
+            {/* Subtle dot grid */}
             <div 
-              className="absolute inset-0 opacity-[0.25] pointer-events-none"
+              className={`absolute inset-0 pointer-events-none ${highContrastMode ? "opacity-[0.08]" : "opacity-[0.15]"}`}
               style={{
-                backgroundImage: highContrastMode 
-                  ? "radial-gradient(circle, #717172 1.2px, transparent 1.2px)" 
-                  : "radial-gradient(circle, #94a3b8 1.2px, transparent 1.2px)",
-                backgroundSize: "24px 24px"
+                backgroundImage: highContrastMode
+                  ? "radial-gradient(circle, #a78bfa 1px, transparent 1px)"
+                  : "radial-gradient(circle, #94a3b8 1px, transparent 1px)",
+                backgroundSize: "28px 28px"
               }}
             />
 
@@ -2820,7 +2792,7 @@ const Lab = () => {
               <div className="flex-grow border-t border-gray-200 dark:border-zinc-800" />
             </div>
 
-            <div className="space-y-4 text-xs font-semibold mb-6">
+            <div className={`space-y-4 text-xs font-semibold mb-6 ${!user ? "opacity-50 pointer-events-none select-none" : ""}`}>
               <div>
                 <label className="block text-gray-500 uppercase mb-1">Meme Title</label>
                 <input
@@ -2927,24 +2899,50 @@ const Lab = () => {
             </div>
 
             {/* Clearer Call-To-Action (CTA) Grid */}
-            <div className="flex flex-col gap-2 mt-6 border-t pt-4 border-gray-100 dark:border-zinc-800">
-              <button
-                type="button"
-                onClick={() => handlePublishSubmit(true)}
-                disabled={loading}
-                className="w-full bg-purple-650 hover:bg-purple-755 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
-              >
-                <span>🚀</span>
-                <span>Publish to Library & Download</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSaveModal(false)}
-                className="w-full text-[10px] text-gray-400 hover:text-gray-500 font-bold py-1.5 text-center mt-1.5 transition"
-              >
-                Cancel
-              </button>
-            </div>
+            {user ? (
+              <div className="flex flex-col gap-2 mt-6 border-t pt-4 border-gray-100 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => handlePublishSubmit(true)}
+                  disabled={loading}
+                  className="w-full bg-purple-650 hover:bg-purple-755 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
+                >
+                  <span>🚀</span>
+                  <span>Publish to Library & Download</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSaveModal(false)}
+                  className="w-full text-[10px] text-gray-400 hover:text-gray-500 font-bold py-1.5 text-center mt-1.5 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 mt-6 border-t pt-4 border-gray-100 dark:border-zinc-800 text-center">
+                <p className="text-[11px] text-gray-500 mb-2">
+                  To publish your meme to the community library and earn points, please sign in.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSaveModal(false);
+                    navigate("/auth");
+                  }}
+                  className="w-full bg-purple-605 hover:bg-purple-755 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
+                >
+                  <span>🔑</span>
+                  <span>Sign In to Publish</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSaveModal(false)}
+                  className="w-full text-[10px] text-gray-400 hover:text-gray-500 font-bold py-1.5 text-center mt-1.5 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
