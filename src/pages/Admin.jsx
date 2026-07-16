@@ -97,6 +97,10 @@ const Admin = () => {
   const [resThumbnailUrl, setResThumbnailUrl] = useState("");
   const [resThumbnailFile, setResThumbnailFile] = useState(null);
   const [resKeywords, setResKeywords] = useState("");
+  // Story-specific archivist fields
+  const [resUsageContext, setResUsageContext] = useState("");
+  const [resTemplateId, setResTemplateId] = useState("");
+  const [resEducationalUse, setResEducationalUse] = useState("");
 
   // Marketing Form States
   const [adTitle, setAdTitle] = useState("");
@@ -368,7 +372,15 @@ const Admin = () => {
   const handleRejectTemplate = async (tempId) => {
     try {
       await updateDoc(doc(db, "templates", tempId), { status: "rejected" });
-      triggerAlert("Template rejected.");
+      // Also hide any linked meme story resource
+      const linkedStoryQ = query(
+        collection(db, "resources"),
+        where("type", "==", "stories"),
+        where("template_id", "==", tempId)
+      );
+      const linkedSnap = await getDocs(linkedStoryQ);
+      await Promise.all(linkedSnap.docs.map(d => updateDoc(doc(db, "resources", d.id), { status: "hidden_moderation" })));
+      triggerAlert("Template rejected. Any linked meme story has been hidden.");
     } catch (e) {
       triggerAlert(e.message || "Template rejection failed.", "error");
     }
@@ -452,11 +464,11 @@ const Admin = () => {
           : [];
         
         const resourceData = {
-          title: resTitle,
+          title: resTitle.trim(),
           type: resType,
-          subject: resSubject,
-          grade_group: resGrade,
-          body: resBody,
+          subject: resType === "stories" ? "" : resSubject,
+          grade_group: resType === "stories" ? "" : resGrade,
+          body: resBody.trim(),
           file_url: fileUrl,
           thumbnail_url: thumbnailUrl,
           keywords: parsedKeywords,
@@ -471,6 +483,15 @@ const Admin = () => {
           resourceData.publisher_name = resPublisherName;
         }
 
+        // If it's a meme story, attach story-specific fields
+        if (resType === "stories") {
+          resourceData.meme_name = resTitle.trim();
+          resourceData.usage_context = resUsageContext.trim();
+          resourceData.educational_use = resEducationalUse.trim();
+          if (resTemplateId.trim()) resourceData.template_id = resTemplateId.trim();
+          resourceData.admin_approved = true; // Admin seeds are auto-approved
+        }
+
         await addDoc(collection(db, "resources"), resourceData);
         setResTitle("");
         setResBody("");
@@ -481,6 +502,9 @@ const Admin = () => {
         setResThumbnailUrl("");
         setResThumbnailFile(null);
         setResKeywords("");
+        setResUsageContext("");
+        setResTemplateId("");
+        setResEducationalUse("");
         triggerAlert("Academic Resource seeded directly into Meme Reads gallery.");
       }
     } catch (e) {
@@ -1335,7 +1359,7 @@ const Admin = () => {
             )}
           </div>
 
-          {/* Contributed Templates Queue */}
+          {/* Pending Lab Templates Queue */}
           <div className={`p-6 ${containerClass}`}>
             <h3 className="text-sm font-extrabold mb-4 border-b pb-2 uppercase text-gray-400">
               Pending Lab Templates ({templates.filter(t => t.status === "pending").length})
@@ -1347,43 +1371,54 @@ const Admin = () => {
                     <tr>
                       <th className={headerCellClass}>Template Title</th>
                       <th className={headerCellClass}>Format</th>
+                      <th className={headerCellClass}>Has Story</th>
                       <th className={headerCellClass}>Media Url</th>
                       <th className={headerCellClass}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {templates.filter(t => t.status === "pending").map((temp) => (
-                      <tr key={temp.id}>
-                        <td className={rowCellClass}>{temp.title}</td>
-                        <td className={`${rowCellClass} capitalize`}>{temp.format}</td>
-                        <td className={rowCellClass}>
-                          <a 
-                            href={temp.media_url} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="text-indigo-600 hover:underline font-bold truncate max-w-xs block"
-                          >
-                            {temp.media_url}
-                          </a>
-                        </td>
-                        <td className={rowCellClass}>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleApproveTemplate(temp.id)}
-                              className={btnClass("purple")}
+                    {templates.filter(t => t.status === "pending").map((temp) => {
+                      const linkedStory = resources.find(r => r.type === "stories" && r.template_id === temp.id);
+                      return (
+                        <tr key={temp.id}>
+                          <td className={rowCellClass}>{temp.title}</td>
+                          <td className={`${rowCellClass} capitalize`}>{temp.format}</td>
+                          <td className={rowCellClass}>
+                            {linkedStory ? (
+                              <span className="bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded text-[10px] font-bold">📖 Story Added</span>
+                            ) : (
+                              <span className="text-gray-400 text-[10px]">—</span>
+                            )}
+                          </td>
+                          <td className={rowCellClass}>
+                            <a 
+                              href={temp.media_url} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="text-indigo-600 hover:underline font-bold truncate max-w-xs block"
                             >
-                              Approve to Tray
-                            </button>
-                            <button
-                              onClick={() => handleRejectTemplate(temp.id)}
-                              className={btnClass("gray")}
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              {temp.media_url}
+                            </a>
+                          </td>
+                          <td className={rowCellClass}>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleApproveTemplate(temp.id)}
+                                className={btnClass("purple")}
+                              >
+                                Approve to Tray
+                              </button>
+                              <button
+                                onClick={() => handleRejectTemplate(temp.id)}
+                                className={btnClass("gray")}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1663,17 +1698,6 @@ const Admin = () => {
             {archivistMode === "resource" && (
               <>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Resource Title *</label>
-                  <input 
-                    type="text" 
-                    value={resTitle} 
-                    onChange={e => setResTitle(e.target.value)} 
-                    className={inputClass}
-                    placeholder="e.g. Gamification in Maths Pedagogy"
-                    required
-                  />
-                </div>
-                <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Resource Type *</label>
                   <select 
                     value={resType} 
@@ -1689,25 +1713,42 @@ const Admin = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Subject *</label>
-                  <select 
-                    value={resSubject} 
-                    onChange={e => setResSubject(e.target.value)} 
+                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">
+                    {resType === "stories" ? "Template/Meme Name *" : "Resource Title *"}
+                  </label>
+                  <input 
+                    type="text" 
+                    value={resTitle} 
+                    onChange={e => setResTitle(e.target.value)} 
                     className={inputClass}
-                  >
-                    {taxonomy.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                    placeholder={resType === "stories" ? "e.g. Winnie the Pooh Reading a Paper" : "e.g. Gamification in Maths Pedagogy"}
+                    required
+                  />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Age Group *</label>
-                  <select 
-                    value={resGrade} 
-                    onChange={e => setResGrade(e.target.value)} 
-                    className={inputClass}
-                  >
-                    {taxonomy.grades.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
+                {resType !== "stories" && (
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Subject *</label>
+                      <select 
+                        value={resSubject} 
+                        onChange={e => setResSubject(e.target.value)} 
+                        className={inputClass}
+                      >
+                        {taxonomy.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Age Group *</label>
+                      <select 
+                        value={resGrade} 
+                        onChange={e => setResGrade(e.target.value)} 
+                        className={inputClass}
+                      >
+                        {taxonomy.grades.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
                 {(resType === "article" || resType === "research_paper") && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1735,15 +1776,51 @@ const Admin = () => {
                   </div>
                 )}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Summary / Body *</label>
+                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">
+                    {resType === "stories" ? "Background *" : "Summary / Body *"}
+                  </label>
                   <textarea 
                     value={resBody} 
                     onChange={e => setResBody(e.target.value)} 
                     className={`${inputClass} h-20`}
-                    placeholder="Provide a quick summary or layout description..."
+                    placeholder={resType === "stories" ? "Where did this template originate? Mention the source (movie, TV show, game, etc.) and how it became popular." : "Provide a quick summary or layout description..."}
                     required
                   />
                 </div>
+
+                {/* Story-specific fields */}
+                {resType === "stories" && (
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Typical Meaning & Usage</label>
+                      <textarea 
+                        value={resUsageContext} 
+                        onChange={e => setResUsageContext(e.target.value)} 
+                        className={`${inputClass} h-16`}
+                        placeholder="Used to express confusion while reading something complicated or reacting to unexpected information."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Educational Use</label>
+                      <textarea 
+                        value={resEducationalUse} 
+                        onChange={e => setResEducationalUse(e.target.value)} 
+                        className={`${inputClass} h-16`}
+                        placeholder="Suggest classroom situations where this template can be used. E.g. Assignment instructions"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Linked Template ID (optional)</label>
+                      <input 
+                        type="text" 
+                        value={resTemplateId} 
+                        onChange={e => setResTemplateId(e.target.value)} 
+                        className={inputClass}
+                        placeholder="Paste Firestore template document ID"
+                      />
+                    </div>
+                  </>
+                )}
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Attachment File/Source URL</label>
                   <input 

@@ -115,22 +115,51 @@ const Toast = ({ message, type = "info", onDismiss }) => {
 const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, onLike, onBookmark, onClose, onViewLink }) => {
   if (!res) return null;
   const typeLabel = res.type ? res.type.replace(/_/g, " ") : "Resource";
+  const isStory = res.type === "stories";
+
+  // Local state for expand — lives in the modal instance
+  const [storyExpanded, setStoryExpanded] = React.useState(false);
+
   return (
     <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${
+          isStory
+            ? "bg-gradient-to-b from-amber-50 to-white dark:from-zinc-900 dark:to-zinc-950 border border-amber-200/40 dark:border-amber-700/30"
+            : "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-6 py-4 flex items-start justify-between">
-          <div className="flex-1 pr-4">
-            <span className="inline-block bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-[10px] font-bold uppercase px-2 py-0.5 rounded mb-2 capitalize">
-              {typeLabel}
-            </span>
-            <h2 className="text-xl font-extrabold text-gray-900 dark:text-white leading-snug">{res.title}</h2>
+        {isStory ? (
+          <div className="sticky top-0 bg-gradient-to-r from-amber-600 to-amber-500 px-6 py-4 flex items-start justify-between">
+            <div className="flex items-center gap-3 flex-1 pr-4">
+              <span className="text-3xl flex-shrink-0">📖</span>
+              <div>
+                <span className="inline-block bg-white/20 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded mb-1">
+                  Meme Story
+                </span>
+                <h2 className="text-xl font-extrabold text-white leading-snug">{res.title}</h2>
+                {res.meme_name && (
+                  <span className="inline-flex items-center gap-1 bg-white/15 text-amber-100 text-xs font-semibold px-2 py-0.5 rounded-full mt-1">
+                    🎭 {res.meme_name}
+                  </span>
+                )}
+              </div>
+            </div>
+            <button onClick={onClose} className="text-white/80 hover:text-white text-2xl font-bold leading-none flex-shrink-0">×</button>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-2xl font-bold leading-none flex-shrink-0">×</button>
-        </div>
+        ) : (
+          <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-6 py-4 flex items-start justify-between">
+            <div className="flex-1 pr-4">
+              <span className="inline-block bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-[10px] font-bold uppercase px-2 py-0.5 rounded mb-2 capitalize">
+                {typeLabel}
+              </span>
+              <h2 className="text-xl font-extrabold text-gray-900 dark:text-white leading-snug">{res.title}</h2>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-2xl font-bold leading-none flex-shrink-0">×</button>
+          </div>
+        )}
 
         <div className="px-6 py-5 space-y-5">
           {/* Thumbnail */}
@@ -157,8 +186,41 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, onL
             </div>
           )}
 
-          {/* Full Body */}
-          <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{res.body}</div>
+          {/* Story body — with Read Full Story expand for long content */}
+          {isStory ? (
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-1">
+                <span>📜</span> Background
+              </h4>
+              <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                {res.body && res.body.length > 400 && !storyExpanded ? (
+                  <>
+                    <p className="whitespace-pre-wrap">{res.body.slice(0, 400)}...</p>
+                    <button
+                      onClick={() => setStoryExpanded(true)}
+                      className="text-amber-600 dark:text-amber-400 font-bold hover:underline mt-2 text-xs"
+                    >
+                      Read Full Story ↓
+                    </button>
+                  </>
+                ) : (
+                  <p className="whitespace-pre-wrap">{res.body}</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{res.body}</div>
+          )}
+
+          {/* Typical Meaning & Usage (stories only) */}
+          {isStory && res.usage_context && (
+            <div className="bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/50 rounded-xl p-4">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 mb-2 flex items-center gap-1">
+                <span>💡</span> Typical Meaning & Usage
+              </h4>
+              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{res.usage_context}</p>
+            </div>
+          )}
 
           {/* Keywords */}
           {res.keywords && res.keywords.length > 0 && (
@@ -185,7 +247,11 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, onL
         </div>
 
         {/* Footer Actions */}
-        <div className="sticky bottom-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 px-6 py-4 flex flex-wrap items-center gap-3">
+        <div className={`sticky bottom-0 px-6 py-4 flex flex-wrap items-center gap-3 border-t ${
+          isStory
+            ? "bg-amber-50 dark:bg-zinc-900 border-amber-100 dark:border-zinc-800"
+            : "bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800"
+        }`}>
           {res.file_url && res.type !== "course" && (
             <a
               href={res.file_url}
@@ -313,6 +379,9 @@ const Resources = () => {
   const [uploadKeywords, setUploadKeywords] = useState("");
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  // Story-specific upload fields
+  const [uploadUsageContext, setUploadUsageContext] = useState("");
+  const [uploadEducationalUse, setUploadEducationalUse] = useState("");
 
   // ── External link form state (for "External" tab)
   const [showExternalModal, setShowExternalModal] = useState(false);
@@ -324,6 +393,40 @@ const Resources = () => {
   const [extError, setExtError] = useState("");
 
   // ── Helpers
+  const getTitleLabel = () => {
+    switch (uploadType) {
+      case "stories":
+        return "Template/Meme Name *";
+      case "article":
+        return "Article Title *";
+      case "research_paper":
+        return "Research Paper Title *";
+      case "activity":
+        return "Activity Name *";
+      case "course":
+        return "Course Title *";
+      default:
+        return "Resource Title *";
+    }
+  };
+
+  const getTitlePlaceholder = () => {
+    switch (uploadType) {
+      case "stories":
+        return "e.g. Winnie the Pooh Reading a Paper";
+      case "article":
+        return "e.g. Cognitive Recalls on Meme-based Biology";
+      case "research_paper":
+        return "e.g. Analysis of Meme Pedagogy in Classrooms";
+      case "activity":
+        return "e.g. Mitosis Meme Matching Game";
+      case "course":
+        return "e.g. Introduction to Memetics 101";
+      default:
+        return "e.g. Cognitive Recalls on Meme-based Biology";
+    }
+  };
+
   const showToast = useCallback((message, type = "info") => {
     setToast({ message, type, id: Date.now() });
   }, []);
@@ -334,6 +437,7 @@ const Resources = () => {
     setUploadThumbnailFile(null); setUploadKeywords(""); setUploadError("");
     setUploadSubject("Biology"); setUploadCustomSubject(""); setUploadGrade("High School (9–10)");
     setUploadType("article"); setEditingResource(null);
+    setUploadUsageContext(""); setUploadEducationalUse("");
   };
 
   // ── URL tab sync
@@ -671,7 +775,7 @@ const Resources = () => {
 
   const handleOpenEditModal = (res) => {
     setEditingResource(res);
-    setUploadTitle(res.title || "");
+    setUploadTitle(res.title || res.meme_name || "");
     setUploadBody(res.body || "");
     setUploadType(res.type || "article");
     setUploadSubject(subjects.includes(res.subject) ? res.subject : "Other");
@@ -684,6 +788,8 @@ const Resources = () => {
     setUploadFile(null);
     setUploadThumbnailFile(null);
     setUploadKeywords(Array.isArray(res.keywords) ? res.keywords.join(", ") : (res.keywords || ""));
+    setUploadUsageContext(res.usage_context || "");
+    setUploadEducationalUse(res.educational_use || "");
     setUploadError("");
     setShowUploadModal(true);
   };
@@ -695,12 +801,11 @@ const Resources = () => {
     setUploadError("");
 
     const finalSubject = uploadSubject === "Other" ? uploadCustomSubject.trim() : uploadSubject;
-    if (!finalSubject) { setUploadError("Please specify a subject."); setUploadLoading(false); return; }
+    if (uploadType !== "stories" && !finalSubject) { setUploadError("Please specify a subject."); setUploadLoading(false); return; }
 
     let fileUrl = editingResource ? (editingResource.file_url || "") : uploadUrl;
     if (!editingResource) fileUrl = uploadUrl;
-    let thumbnailUrl = editingResource ? (editingResource.thumbnail_url || "") : uploadThumbnailUrl;
-    if (!editingResource) thumbnailUrl = uploadThumbnailUrl;
+    let thumbnailUrl = editingResource ? (editingResource.thumbnail_url || "") : "";
 
     try {
       if (uploadFile) {
@@ -712,6 +817,9 @@ const Resources = () => {
         const thumbRef = ref(storage, `resources/thumb_${user.uid}_${Date.now()}`);
         const snapshot = await uploadBytes(thumbRef, uploadThumbnailFile);
         thumbnailUrl = await getDownloadURL(snapshot.ref);
+      } else if (!thumbnailUrl && uploadFile && uploadFile.type.startsWith("image/")) {
+        // Auto-use the uploaded image as thumbnail if no separate thumbnail provided
+        thumbnailUrl = fileUrl;
       }
 
       const parsedKeywords = uploadKeywords
@@ -723,12 +831,15 @@ const Resources = () => {
         const wasApproved = editingResource.admin_approved === true;
         const isAdmin = profile?.role === "admin";
 
+        const finalSubject = uploadType === "stories" ? "" : (uploadSubject === "Other" ? uploadCustomSubject.trim() : uploadSubject);
+        const finalGrade = uploadType === "stories" ? "" : uploadGrade;
+
         const updatedData = {
-          title: uploadTitle,
+          title: uploadTitle.trim(),
           body: uploadBody,
           type: uploadType,
           subject: finalSubject,
-          grade_group: uploadGrade,
+          grade_group: finalGrade,
           file_url: fileUrl || editingResource.file_url || "",
           thumbnail_url: thumbnailUrl || editingResource.thumbnail_url || "",
           keywords: parsedKeywords,
@@ -738,9 +849,10 @@ const Resources = () => {
           updatedData.publication_year = uploadPublicationYear;
           updatedData.publisher_name = uploadPublisherName;
         }
-        // If resource was already admin-approved and editor is NOT admin → re-enter pending
-        if (wasApproved && !isAdmin) {
-          updatedData.admin_approved = false;
+        if (uploadType === "stories") {
+          updatedData.meme_name = uploadTitle.trim();
+          updatedData.usage_context = uploadUsageContext.trim();
+          updatedData.educational_use = uploadEducationalUse.trim();
         }
 
         await updateDoc(doc(db, "resources", editingResource.id), updatedData);
@@ -757,11 +869,11 @@ const Resources = () => {
         await runTransaction(db, async (transaction) => {
           const newDocRef = doc(resColRef);
           const resourceData = {
-            title: uploadTitle,
+            title: uploadTitle.trim(),
             body: uploadBody,
             type: uploadType,
-            subject: finalSubject,
-            grade_group: uploadGrade,
+            subject: uploadType === "stories" ? "" : finalSubject,
+            grade_group: uploadType === "stories" ? "" : uploadGrade,
             file_url: fileUrl,
             thumbnail_url: thumbnailUrl,
             keywords: parsedKeywords,
@@ -769,13 +881,18 @@ const Resources = () => {
             flag_count: 0,
             view_count: 0,
             author_id: user.uid,
-            status: "live", // Always live immediately
-            admin_approved: false, // Pending approval badge shows
+            status: "live",
+            admin_approved: false,
             created_at: serverTimestamp()
           };
           if (uploadType === "article" || uploadType === "research_paper") {
             resourceData.publication_year = uploadPublicationYear;
             resourceData.publisher_name = uploadPublisherName;
+          }
+          if (uploadType === "stories") {
+            resourceData.meme_name = uploadTitle.trim();
+            resourceData.usage_context = uploadUsageContext.trim();
+            resourceData.educational_use = uploadEducationalUse.trim();
           }
           transaction.set(newDocRef, resourceData);
           // Try updating stats; ignore if doc doesn't exist yet
@@ -1166,7 +1283,14 @@ const Resources = () => {
                       const alreadyFlagged = !!userFlagsMap[res.id];
 
                       return (
-                        <div key={res.id} className={`p-5 flex flex-col justify-between h-full ${containerClass}`}>
+                        <div 
+                          key={res.id} 
+                          className={`p-5 flex flex-col justify-between h-full ${
+                            res.type === "stories"
+                              ? "bg-gradient-to-b from-amber-50 to-white dark:from-zinc-900 dark:to-zinc-950 border border-amber-200 dark:border-amber-800/40 shadow-sm rounded-xl"
+                              : containerClass
+                          }`}
+                        >
                           <div>
                             {/* Pending Admin Approval Badge */}
                             {!res.admin_approved && (
@@ -1178,8 +1302,12 @@ const Resources = () => {
                             {/* Author header */}
                             <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-zinc-800 pb-3">
                               <div className="flex items-center min-w-0">
-                                <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-950 flex items-center justify-center text-purple-700 dark:text-purple-300 font-black text-xs mr-2.5 shadow-sm flex-shrink-0">
-                                  {authorName ? authorName.charAt(0).toUpperCase() : "C"}
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs mr-2.5 shadow-sm flex-shrink-0 ${
+                                  res.type === "stories"
+                                    ? "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
+                                    : "bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300"
+                                }`}>
+                                  {res.type === "stories" ? "📖" : (authorName ? authorName.charAt(0).toUpperCase() : "C")}
                                 </div>
                                 <div className="flex-grow min-w-0">
                                   <button
@@ -1191,8 +1319,12 @@ const Resources = () => {
                                   <span className="text-[9px] text-gray-400 block leading-tight mt-0.5">Contributor</span>
                                 </div>
                               </div>
-                              <span className="bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0 ml-2">
-                                {res.type?.replace(/_/g, " ") || "resource"}
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0 ml-2 ${
+                                res.type === "stories"
+                                  ? "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                                  : "bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300"
+                              }`}>
+                                {res.type === "stories" ? "📜 Meme Story" : (res.type?.replace(/_/g, " ") || "resource")}
                               </span>
                             </div>
 
@@ -1212,6 +1344,17 @@ const Resources = () => {
                             </button>
 
                             <p className="text-xs text-gray-500 mb-3 line-clamp-3 leading-relaxed">{res.body}</p>
+
+                            {/* Story-specific: meme name badge + usage context */}
+                            {res.type === "stories" && (
+                              <>
+                                {res.meme_name && (
+                                  <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full mb-2 border border-amber-200 dark:border-amber-700/50">
+                                    🎭 {res.meme_name}
+                                  </span>
+                                )}
+                              </>
+                            )}
 
                             {/* Keywords */}
                             {res.keywords && res.keywords.length > 0 && (
@@ -1445,54 +1588,92 @@ const Resources = () => {
             )}
 
             <form onSubmit={handleResourceSubmit} className="space-y-4 text-xs font-semibold">
+              {/* Type moved above title */}
               <div>
-                <label className="block text-gray-500 uppercase mb-1">Resource Title *</label>
-                <input type="text" placeholder="e.g. Cognitive Recalls on Meme-based Biology" value={uploadTitle}
+                <label className="block text-gray-500 uppercase mb-1">Category Type</label>
+                <select value={uploadType} onChange={(e) => setUploadType(e.target.value)} className={inputClass}>
+                  {RESOURCE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-500 uppercase mb-1">{getTitleLabel()}</label>
+                <input type="text" placeholder={getTitlePlaceholder()} value={uploadTitle}
                   onChange={(e) => setUploadTitle(e.target.value)} className={inputClass} required />
               </div>
 
               <div>
-                <label className="block text-gray-500 uppercase mb-1">Description / Abstract *</label>
-                <textarea placeholder="Provide a detailed description of the resource..." value={uploadBody}
+                <label className="block text-gray-500 uppercase mb-1">
+                  {uploadType === "stories" ? "Background *" : "Description / Abstract *"}
+                </label>
+                <textarea
+                  placeholder={uploadType === "stories"
+                    ? "Where did this template originate? Mention the source (movie, TV show, game, etc.) and how it became popular."
+                    : "Provide a detailed description of the resource..."}
+                  value={uploadBody}
                   onChange={(e) => setUploadBody(e.target.value)} rows="3"
                   className={`${inputClass} resize-none`} required />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Category Type</label>
-                  <select value={uploadType} onChange={(e) => setUploadType(e.target.value)} className={inputClass}>
-                    {RESOURCE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Subject</label>
-                  <input
-                    type="text"
-                    placeholder="Search subject..."
-                    value={formSubjectSearch}
-                    onChange={(e) => setFormSubjectSearch(e.target.value)}
-                    className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
-                  />
-                  <select value={uploadSubject} onChange={(e) => setUploadSubject(e.target.value)} className={inputClass}>
-                    {subjects
-                      .filter((s) => s.toLowerCase().includes(formSubjectSearch.toLowerCase()))
-                      .map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  {uploadSubject === "Other" && (
-                    <input type="text" placeholder="Type your subject..." value={uploadCustomSubject}
-                      onChange={(e) => setUploadCustomSubject(e.target.value)}
-                      className={`${inputClass} mt-2`} required />
-                  )}
-                </div>
-              </div>
+              {/* Stories-specific fields */}
+              {uploadType === "stories" && (
+                <>
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Typical Meaning & Usage</label>
+                    <textarea
+                      placeholder="Used to express confusion while reading something complicated or reacting to unexpected information."
+                      value={uploadUsageContext || ""}
+                      onChange={(e) => setUploadUsageContext(e.target.value)}
+                      rows="2"
+                      className={`${inputClass} resize-none`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Educational Use</label>
+                    <textarea
+                      placeholder="Suggest classroom situations where this template can be used. E.g. Assignment instructions"
+                      value={uploadEducationalUse || ""}
+                      onChange={(e) => setUploadEducationalUse(e.target.value)}
+                      rows="2"
+                      className={`${inputClass} resize-none`}
+                    />
+                  </div>
+                </>
+              )}
 
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">Grade Group</label>
-                <select value={uploadGrade} onChange={(e) => setUploadGrade(e.target.value)} className={inputClass}>
-                  {gradeGroups.map((g) => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </div>
+              {/* Subject + Grade — hidden for stories */}
+              {uploadType !== "stories" && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-500 uppercase mb-1">Subject</label>
+                      <input
+                        type="text"
+                        placeholder="Search subject..."
+                        value={formSubjectSearch}
+                        onChange={(e) => setFormSubjectSearch(e.target.value)}
+                        className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
+                      />
+                      <select value={uploadSubject} onChange={(e) => setUploadSubject(e.target.value)} className={inputClass}>
+                        {subjects
+                          .filter((s) => s.toLowerCase().includes(formSubjectSearch.toLowerCase()))
+                          .map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      {uploadSubject === "Other" && (
+                        <input type="text" placeholder="Type your subject..." value={uploadCustomSubject}
+                          onChange={(e) => setUploadCustomSubject(e.target.value)}
+                          className={`${inputClass} mt-2`} required />
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-gray-500 uppercase mb-1">Grade Group</label>
+                      <select value={uploadGrade} onChange={(e) => setUploadGrade(e.target.value)} className={inputClass}>
+                        {gradeGroups.map((g) => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {(uploadType === "article" || uploadType === "research_paper") && (
                 <div className="grid grid-cols-2 gap-4">
@@ -1516,21 +1697,20 @@ const Resources = () => {
               </div>
 
               <div>
-                <label className="block text-gray-500 uppercase mb-1">Or Attach File (PDF / Image)</label>
+                <label className="block text-gray-500 uppercase mb-1">Attach File (PDF / Image)</label>
                 <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="block w-full text-xs" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Thumbnail upload — hidden for stories (the template/uploaded file is used) */}
+              {uploadType !== "stories" && (
                 <div>
-                  <label className="block text-gray-500 uppercase mb-1">Thumbnail URL</label>
-                  <input type="url" placeholder="https://example.com/thumb.png" value={uploadThumbnailUrl}
-                    onChange={(e) => setUploadThumbnailUrl(e.target.value)} className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Or Upload Thumbnail</label>
+                  <label className="block text-gray-500 uppercase mb-1">Thumbnail Image (optional)</label>
                   <input type="file" accept="image/*" onChange={(e) => setUploadThumbnailFile(e.target.files?.[0] || null)} className="block w-full text-xs" />
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    💡 If no thumbnail is uploaded and you attach an image file, it will automatically be used as the thumbnail.
+                  </p>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-gray-500 uppercase mb-1">Keywords (comma-separated)</label>

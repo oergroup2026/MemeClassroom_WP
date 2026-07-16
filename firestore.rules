@@ -101,5 +101,32 @@ service cloud.firestore {
       allow delete: if isAdmin() || isExpertOrAdmin();
     }
 
+    // ─── Resources ───────────────────────────────────────────────────────────
+    match /resources/{resourceId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (resource.data.author_id == request.auth.uid || isAdmin());
+    }
+
+    // ─── Saves (Bookmarks) ───────────────────────────────────────────────────
+    match /saves/{saveId} {
+      allow read: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
+    }
+
+    // ─── Resource Likes ──────────────────────────────────────────────────────
+    match /resource_likes/{likeId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
+    }
+
+    // ─── Flags (Reports) ─────────────────────────────────────────────────────
+    match /flags/{flagId} {
+      allow read: if isAdmin();
+      allow create: if request.auth != null && request.resource.data.reporter_id == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
   }
 }

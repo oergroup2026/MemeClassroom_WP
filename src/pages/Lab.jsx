@@ -5,6 +5,7 @@ import {
   addDoc, 
   doc, 
   getDoc,
+  getDocs,
   setDoc, 
   serverTimestamp, 
   updateDoc,
@@ -362,6 +363,15 @@ const Lab = () => {
   const [templateSuccess, setTemplateSuccess] = useState("");
   const [availableTemplates, setAvailableTemplates] = useState([]);
   const [showContributeModal, setShowContributeModal] = useState(false);
+
+  // --- Meme Story State ---
+  const [memeStoryModal, setMemeStoryModal] = useState({ open: false, story: null, template: null, loading: false });
+  const [storyExpanded, setStoryExpanded] = useState(false);
+  // Contribute story fields (inside contribute template modal)
+  const [includeStory, setIncludeStory] = useState(false);
+  const [storyOrigin, setStoryOrigin] = useState("");
+  const [storyUsageContext, setStoryUsageContext] = useState("");
+  const [storyEducationalUse, setStoryEducationalUse] = useState("");
 
   // Refs
   const canvasContainerRef = useRef(null);
@@ -1216,6 +1226,24 @@ const Lab = () => {
     }
   };
 
+  // --- Meme Story Fetch ---
+  const fetchStoryForTemplate = async (templateId) => {
+    setMemeStoryModal(prev => ({ ...prev, loading: true }));
+    try {
+      const q = query(
+        collection(db, "resources"),
+        where("type", "==", "stories"),
+        where("template_id", "==", templateId)
+      );
+      const snap = await getDocs(q);
+      const story = snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+      setMemeStoryModal(prev => ({ ...prev, loading: false, story }));
+    } catch (err) {
+      console.error("Story fetch failed", err);
+      setMemeStoryModal(prev => ({ ...prev, loading: false, story: null }));
+    }
+  };
+
   // --- Separate Template Contribution Pipeline ---
   const handleTemplateUploadSubmit = async (e) => {
     e.preventDefault();
@@ -1242,7 +1270,7 @@ const Lab = () => {
         detectedFormat = "gif";
       }
 
-      await addDoc(collection(db, "templates"), {
+      const templateDocRef = await addDoc(collection(db, "templates"), {
         title: templateTitle || "Blank Background Template",
         creator_id: user.uid,
         media_url: fileUrl,
@@ -1252,9 +1280,33 @@ const Lab = () => {
         created_at: serverTimestamp()
       });
 
-      setTemplateSuccess("Template contributed successfully! Awaiting Admin approval.");
+      // Optionally attach a meme story to this template contribution
+      if (includeStory && (templateTitle.trim() || storyOrigin.trim())) {
+        await addDoc(collection(db, "resources"), {
+          type: "stories",
+          title: templateTitle.trim() || "Blank Background Template",
+          meme_name: templateTitle.trim() || "Blank Background Template",
+          body: storyOrigin.trim(),
+          usage_context: storyUsageContext.trim(),
+          educational_use: storyEducationalUse.trim(),
+          template_id: templateDocRef.id,
+          author_id: user.uid,
+          status: "live",
+          admin_approved: false,
+          likes_count: 0,
+          flag_count: 0,
+          view_count: 0,
+          created_at: serverTimestamp()
+        });
+      }
+
+      setTemplateSuccess(includeStory && templateTitle.trim() ? "Template + meme story contributed! Awaiting Admin approval." : "Template contributed successfully! Awaiting Admin approval.");
       setTemplateTitle("");
       setTemplateFile(null);
+      setIncludeStory(false);
+      setStoryOrigin("");
+      setStoryUsageContext("");
+      setStoryEducationalUse("");
       setTimeout(() => {
         setShowContributeModal(false);
         setTemplateSuccess("");
@@ -1443,37 +1495,66 @@ const Lab = () => {
                       {templatesToDisplay.length > 0 ? (
                         <div className="grid grid-cols-3 gap-1.5 max-h-[148px] overflow-y-auto pr-0.5">
                           {templatesToDisplay.map((temp) => (
-                            <button
-                              type="button"
-                              key={temp.id}
-                              onClick={() => handleSelectTemplate(temp)}
-                              title={temp.title}
-                              className={`group relative w-full aspect-video rounded-lg overflow-hidden border transition active:scale-95 ${
-                                temp.is_featured
-                                  ? "border-indigo-400 dark:border-indigo-500"
-                                  : "border-gray-200 dark:border-zinc-700 hover:border-purple-400"
-                              }`}
-                            >
-                              {temp.format === "video" ? (
-                                <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                                  <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                            <div key={temp.id} className="relative">
+                              <button
+                                type="button"
+                                onClick={() => handleSelectTemplate(temp)}
+                                title={temp.title}
+                                className={`group relative w-full aspect-video rounded-lg overflow-hidden border transition active:scale-95 ${
+                                  temp.is_featured
+                                    ? "border-indigo-400 dark:border-indigo-500"
+                                    : "border-gray-200 dark:border-zinc-700 hover:border-purple-400"
+                                }`}
+                              >
+                                {temp.format === "video" ? (
+                                  <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                  </div>
+                                ) : temp.format === "audio" ? (
+                                  <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
+                                  </div>
+                                ) : (
+                                  <img src={temp.media_url} alt={temp.title} className="w-full h-full object-cover" />
+                                )}
+                                {/* Hover overlay with name */}
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-end p-1">
+                                  <span className="text-white text-[8px] font-bold leading-tight line-clamp-2">{temp.title}</span>
                                 </div>
-                              ) : temp.format === "audio" ? (
-                                <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                                  <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
-                                </div>
-                              ) : (
-                                <img src={temp.media_url} alt={temp.title} className="w-full h-full object-cover" />
+                              </button>
+                              {/* 📖 Know More icon — only for db templates with an id */}
+                              {temp.id && !temp.id.startsWith("preset-") && (
+                                <button
+                                  type="button"
+                                  title="Know more about this meme"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setStoryExpanded(false);
+                                    setMemeStoryModal({ open: true, story: null, template: temp, loading: true });
+                                    fetchStoryForTemplate(temp.id);
+                                  }}
+                                  className="absolute top-0.5 right-0.5 w-5 h-5 bg-amber-500/90 hover:bg-amber-500 text-white rounded-md flex items-center justify-center text-[10px] shadow-md transition active:scale-90 z-10"
+                                >
+                                  📖
+                                </button>
                               )}
-                              {/* Hover overlay with name */}
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-end p-1">
-                                <span className="text-white text-[8px] font-bold leading-tight line-clamp-2">{temp.title}</span>
-                              </div>
-                            </button>
+                            </div>
                           ))}
                         </div>
                       ) : (
                         <p className="text-gray-400 text-[10px] italic">No templates yet.</p>
+                      )}
+
+                      {/* Contribute Template button — only for logged-in users */}
+                      {user && (
+                        <button
+                          type="button"
+                          onClick={() => setShowContributeModal(true)}
+                          className="w-full mt-2 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold border border-dashed border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition active:scale-95"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                          Contribute a Template
+                        </button>
                       )}
                     </div>
                   );
@@ -2998,6 +3079,125 @@ const Lab = () => {
         </div>
       )}
 
+      {/* MEME STORY MODAL */}
+      {memeStoryModal.open && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          onClick={() => setMemeStoryModal({ open: false, story: null, template: null, loading: false })}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl border border-amber-200/30 dark:border-amber-700/30 bg-gradient-to-b from-amber-50 to-white dark:from-zinc-900 dark:to-zinc-950"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Book-themed header */}
+            <div className="bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">📖</span>
+                <div>
+                  <h3 className="text-white font-extrabold text-sm">About This Meme</h3>
+                  {memeStoryModal.template && (
+                    <p className="text-amber-100 text-[10px] font-semibold mt-0.5">{memeStoryModal.template.title}</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setMemeStoryModal({ open: false, story: null, template: null, loading: false })}
+                className="text-white/80 hover:text-white text-xl font-bold leading-none transition"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
+              {memeStoryModal.loading ? (
+                <div className="flex flex-col items-center justify-center py-10 text-amber-600">
+                  <div className="w-8 h-8 border-4 border-amber-300 border-t-amber-600 rounded-full animate-spin mb-3" />
+                  <p className="text-xs font-semibold text-gray-500">Fetching the story...</p>
+                </div>
+              ) : memeStoryModal.story ? (
+                <>
+                  {/* Meme name */}
+                  {memeStoryModal.story.meme_name && (
+                    <div className="flex items-center gap-2">
+                      <span className="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-extrabold px-3 py-1 rounded-full border border-amber-200 dark:border-amber-700">
+                        🎭 {memeStoryModal.story.meme_name}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Origin Story / Background section */}
+                  {memeStoryModal.story.body && (
+                    <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4">
+                      <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-1">
+                        <span>📜</span> Background
+                      </h4>
+                      <div className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {/* Show Read Full Story toggle for long content */}
+                        {memeStoryModal.story.body.length > 280 && !storyExpanded
+                          ? <>
+                              <p>{memeStoryModal.story.body.slice(0, 280)}...</p>
+                              <button
+                                onClick={() => setStoryExpanded(true)}
+                                className="text-amber-600 dark:text-amber-400 font-bold hover:underline mt-1 text-[10px]"
+                              >
+                                Read Full Story ↓
+                              </button>
+                            </>
+                          : <p className="whitespace-pre-wrap">{memeStoryModal.story.body}</p>
+                        }
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Typical Meaning & Usage section */}
+                  {memeStoryModal.story.usage_context && (
+                    <div className="bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/50 rounded-xl p-4">
+                      <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 mb-2 flex items-center gap-1">
+                        <span>💡</span> Typical Meaning & Usage
+                      </h4>
+                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{memeStoryModal.story.usage_context}</p>
+                    </div>
+                  )}
+
+                  {/* Educational Use section */}
+                  {memeStoryModal.story.educational_use && (
+                    <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl p-4">
+                      <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
+                        <span>🎓</span> Educational Use
+                      </h4>
+                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{memeStoryModal.story.educational_use}</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* No story yet state */
+                <div className="text-center py-8 space-y-3">
+                  <div className="text-4xl">📭</div>
+                  <p className="text-sm font-bold text-gray-700 dark:text-gray-300">No story added yet</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Know this meme? Contribute its story to help others!</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 pb-5 pt-2 flex items-center justify-between border-t border-amber-100 dark:border-zinc-800 mt-1">
+              <a
+                href="/resources?tab=stories"
+                className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline"
+              >
+                📚 Read More on Resources →
+              </a>
+              <button
+                onClick={() => setMemeStoryModal({ open: false, story: null, template: null, loading: false })}
+                className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-4 py-1.5 rounded-lg transition active:scale-95"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TEMPLATE CONTRIBUTION MODAL */}
       {showContributeModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -3006,7 +3206,7 @@ const Lab = () => {
               <h3 className="font-bold text-sm uppercase tracking-wider text-purple-700 dark:text-purple-400">Contribute Template to Library</h3>
               <button 
                 type="button" 
-                onClick={() => { setShowContributeModal(false); setTemplateSuccess(""); }} 
+                onClick={() => { setShowContributeModal(false); setTemplateSuccess(""); setIncludeStory(false); setStoryOrigin(""); setStoryUsageContext(""); setStoryEducationalUse(""); }} 
                 className="text-gray-400 hover:text-gray-600 text-sm font-bold"
               >
                 ✕
@@ -3019,10 +3219,10 @@ const Lab = () => {
                 </div>
               )}
               <div>
-                <label className="block text-gray-500 uppercase mb-1.5">Template Title</label>
+                <label className="block text-gray-500 uppercase mb-1.5">Template/Meme Name *</label>
                 <input
                   type="text"
-                  placeholder="e.g. Distracted Boyfriend Blank"
+                  placeholder="e.g. Winnie the Pooh Reading a Paper"
                   value={templateTitle}
                   onChange={(e) => setTemplateTitle(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
@@ -3039,6 +3239,74 @@ const Lab = () => {
                   required
                 />
               </div>
+
+              {/* ── Meme Story toggle section ── */}
+              <div className="border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 bg-amber-50/50 dark:bg-amber-950/10 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-bold text-gray-700 dark:text-gray-200 text-xs">📖 Add the background story of this meme?</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Help other users understand the meme's origin and context.</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="includeStory"
+                      checked={!includeStory}
+                      onChange={() => setIncludeStory(false)}
+                      className="accent-amber-500"
+                    />
+                    <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">No, skip</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="includeStory"
+                      checked={includeStory}
+                      onChange={() => setIncludeStory(true)}
+                      className="accent-amber-500"
+                    />
+                    <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Yes, add story</span>
+                  </label>
+                </div>
+
+                {includeStory && (
+                  <div className="space-y-3 pt-2 border-t border-amber-200 dark:border-amber-800/40">
+                    <div>
+                      <label className="block text-gray-500 uppercase mb-1">Background</label>
+                      <textarea
+                        placeholder="Where did this template originate? Mention the source (movie, TV show, game, etc.) and how it became popular."
+                        value={storyOrigin}
+                        onChange={(e) => setStoryOrigin(e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none resize-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-500 uppercase mb-1">Typical Meaning & Usage</label>
+                      <textarea
+                        placeholder="Used to express confusion while reading something complicated or reacting to unexpected information."
+                        value={storyUsageContext}
+                        onChange={(e) => setStoryUsageContext(e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none resize-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-500 uppercase mb-1">Educational Use</label>
+                      <textarea
+                        placeholder="Suggest classroom situations where this template can be used. E.g. Assignment instructions"
+                        value={storyEducationalUse}
+                        onChange={(e) => setStoryEducationalUse(e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none resize-none"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button
                 type="submit"
                 disabled={templateLoading}
