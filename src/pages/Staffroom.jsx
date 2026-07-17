@@ -781,15 +781,26 @@ const Staffroom = () => {
       await runTransaction(db, async (tx) => {
         const ratingDoc = await tx.get(ratingRef);
         const existingData = ratingDoc.exists() ? ratingDoc.data() : {};
-        tx.set(ratingRef, {
+
+        const statsDoc = await tx.get(statsRef);
+        const currentCount = statsDoc.exists() ? (statsDoc.data().ratings_provided_count || 0) : 0;
+
+        let newRating = {
           meme_id: activeMeme.id,
           user_id: user.uid,
           ...existingData,
           [criteria]: score,
-          created_at: serverTimestamp(),
-        });
+          updated_at: new Date()
+        };
+
+        if (!existingData.created_at) {
+          newRating.created_at = new Date();
+        }
+
+        tx.set(ratingRef, newRating);
+
         if (!ratingDoc.exists()) {
-          tx.set(statsRef, { ratings_provided_count: increment(1) }, { merge: true });
+          tx.set(statsRef, { ratings_provided_count: currentCount + 1 }, { merge: true });
         }
       });
       toast("Rating submitted!", "success");

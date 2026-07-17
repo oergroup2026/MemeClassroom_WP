@@ -14,7 +14,8 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
-  increment
+  increment,
+  runTransaction
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase";
@@ -230,6 +231,15 @@ const Library = () => {
 
   const getMemeRatingCount = (memeId, criteria) => {
     return allRatings.filter(r => r.meme_id === memeId && r[criteria] !== undefined && r[criteria] !== null).length;
+  };
+
+  const getOverallAverageRating = (memeId) => {
+    const ageAvg = getMemeAverageRating(memeId, "age_appropriateness");
+    const langAvg = getMemeAverageRating(memeId, "language_appropriateness");
+    const valAvg = getMemeAverageRating(memeId, "content_validity");
+    const creatAvg = getMemeAverageRating(memeId, "creativity");
+    const active = [ageAvg, langAvg, valAvg, creatAvg].filter(x => x > 0);
+    return active.length > 0 ? active.reduce((sum, x) => sum + x, 0) / active.length : 0;
   };
 
   const getSubjectTagClass = (subj) => {
@@ -649,20 +659,27 @@ const Library = () => {
         const ratingDoc = await transaction.get(ratingRef);
         const existingData = ratingDoc.exists() ? ratingDoc.data() : {};
 
+        const statsDoc = await transaction.get(statsRef);
+        const currentCount = statsDoc.exists() ? (statsDoc.data().ratings_provided_count || 0) : 0;
+
         let newRating = {
           meme_id: activeMeme.id,
           user_id: user.uid,
           ...existingData,
           [criteria]: score,
-          created_at: serverTimestamp()
+          updated_at: new Date()
         };
+
+        if (!existingData.created_at) {
+          newRating.created_at = new Date();
+        }
 
         transaction.set(ratingRef, newRating);
 
         // Only increment user's ratings_provided_count if it's their first time rating this meme
         if (!ratingDoc.exists()) {
           transaction.set(statsRef, {
-            ratings_provided_count: increment(1)
+            ratings_provided_count: currentCount + 1
           }, { merge: true });
         }
       });
@@ -1099,6 +1116,22 @@ const Library = () => {
                   <div key={meme.id} className={`flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out hover:-translate-y-1.5 hover:shadow-xl hover:ring-2 hover:ring-purple-500/20 meme-card-animate ${containerClass}`}>
                     {/* Media Content Body */}
                     <div className="relative aspect-video w-full bg-slate-900 flex items-center justify-center overflow-hidden group select-none">
+                      
+                      {/* Creator Profile Overlay - Social Media Style */}
+                      <div 
+                        onClick={(e) => { e.stopPropagation(); openUserModal(meme.creator_id); }}
+                        className="absolute top-3 left-3 z-10 flex items-center space-x-1.5 bg-black/55 backdrop-blur-md px-2.5 py-1.2 rounded-full border border-white/10 shadow-sm transition hover:bg-black/75 cursor-pointer select-none"
+                      >
+                        <img
+                          src={userCache[meme.creator_id]?.avatar_url || "/avatar1.png"}
+                          alt={creatorName}
+                          className="w-5 h-5 rounded-full object-cover border border-white/20"
+                        />
+                        <span className="text-[10px] font-bold text-white/90 truncate max-w-[80px]">
+                          {creatorName}
+                        </span>
+                      </div>
+
                       {meme.format === "image" && (
                         <img src={meme.media_url} alt={meme.title} className="w-full h-full object-contain" />
                       )}
@@ -1124,68 +1157,30 @@ const Library = () => {
                     {/* Info Card Content */}
                     <div className="p-4 flex-grow flex flex-col justify-between">
                       <div>
-                        {/* Creator Profile Link & Actions Header */}
-                        <div className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-2.5 mb-2.5">
-                          <button
-                            onClick={() => openUserModal(meme.creator_id)}
-                            className="flex items-center space-x-1.5 min-w-0 group hover:opacity-80 transition"
-                          >
-                            <img
-                              src={userCache[meme.creator_id]?.avatar_url || "/avatar1.png"}
-                              alt={creatorName}
-                              className="w-5.5 h-5.5 rounded-full object-cover border border-purple-200"
-                            />
-                            <span className="text-[10px] font-bold text-gray-500 group-hover:text-purple-650 truncate max-w-[80px]">
-                              {creatorName}
-                            </span>
-                          </button>
+                        {/* Title and Rating Badge */}
+                        <div className="flex justify-between items-start gap-2 mb-2">
+                          <h4 className="font-extrabold text-xs text-gray-900 dark:text-white line-clamp-1 leading-tight flex-1" title={meme.title}>
+                            {meme.title}
+                          </h4>
+                          {(() => {
+                            const overall = getOverallAverageRating(meme.id);
+                            return overall > 0 ? (
+                              <span className="shrink-0 text-[10px] font-extrabold text-yellow-650 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/25 px-2 py-0.5 rounded-md flex items-center gap-0.5 border border-yellow-200/50 dark:border-yellow-950/50 shadow-sm">
+                                ⭐ {overall.toFixed(1)}
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
 
-                          <div className="flex items-center space-x-2 shrink-0">
-                            {/* Remix Template Button */}
-                            <button
-                              onClick={() => navigate(`/lab?templateId=${meme.id}`)}
-                              className="text-gray-455 hover:text-purple-655 transition hover:scale-110 active:scale-95"
-                              title={meme.template_id ? "Customise / Remix Meme" : "Use as Template"}
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                              </svg>
-                            </button>
-
-                            {/* Download Button */}
-                            <button
-                              onClick={() => {
-                                if (meme.format === "image" || meme.format === "gif") {
-                                  downloadMemeWithWatermark(meme.media_url, meme.title);
-                                } else {
-                                  handleMediaDownload(meme.media_url, meme.title);
-                                }
-                              }}
-                              className="text-gray-455 dark:text-gray-550 hover:text-indigo-650 transition hover:scale-110"
-                              title="Download Meme (CC BY-NC-SA 4.0)"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                              </svg>
-                            </button>
-
-                            {/* Flag Report Button */}
-                            <button
-                              onClick={() => handleFlagContent(meme.id)}
-                              className="text-gray-400 hover:text-red-500 transition hover:scale-110"
-                              title="Report Inappropriate Content"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
-                              </svg>
-                            </button>
+                        {meme.keywords && meme.keywords.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {meme.keywords.slice(0, 3).map((keyword, i) => (
+                              <span key={i} className="text-[8px] text-purple-600 dark:text-purple-400 font-medium">
+                                #{keyword}
+                              </span>
+                            ))}
                           </div>
-                        </div>
-
-                        {/* Likes Count */}
-                        <div className="text-xs font-bold text-gray-800 dark:text-white mb-2.5">
-                          {meme.likes_count || 0} {meme.likes_count === 1 ? "like" : "likes"}
-                        </div>
+                        )}
 
                         {/* Curriculum Tag Pills */}
                         <div className="flex flex-wrap gap-1.5 mb-3.5">
@@ -1253,29 +1248,66 @@ const Library = () => {
                       </div>
 
                       <div className="space-y-2 mt-auto">
-                        {/* Title & Caption */}
-                        <div>
-                          <h4 className="font-extrabold text-xs text-gray-900 dark:text-white line-clamp-1 leading-tight mb-0.5">
-                            {meme.title}
-                          </h4>
-                          {meme.keywords && meme.keywords.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {meme.keywords.slice(0, 3).map((keyword, i) => (
-                                <span key={i} className="text-[8px] text-purple-600 dark:text-purple-400 font-medium">
-                                  #{keyword}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        {/* 5-Option Action Bar */}
+                        <div className="flex items-center justify-between border-t border-gray-100 dark:border-zinc-850 pt-2.5 mt-2.5 text-gray-450 dark:text-gray-550">
+                          {/* 1. Like */}
+                          <button
+                            onClick={() => handleLikeToggle(meme.id, meme.creator_id)}
+                            className={`flex items-center space-x-1 hover:scale-110 active:scale-95 transition-all text-xs ${isLiked ? 'text-red-500 font-bold' : 'hover:text-red-500'}`}
+                            title="Like Meme"
+                          >
+                            <span>{isLiked ? "❤️" : "🤍"}</span>
+                            <span className="text-[10px] font-bold">{meme.likes_count || 0}</span>
+                          </button>
 
-                        {/* Detail View / Evaluation trigger */}
-                        <button
-                          onClick={() => setActiveMeme(meme)}
-                          className="w-full text-center py-2 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 text-xs font-bold rounded-lg transition duration-150"
-                        >
-                          Evaluate &amp; View Comments →
-                        </button>
+                          {/* 2. Edit / Remix */}
+                          <button
+                            onClick={() => navigate(`/lab?templateId=${meme.id}`)}
+                            className="hover:text-purple-650 hover:scale-110 active:scale-95 transition-all text-xs"
+                            title={meme.template_id ? "Customise / Remix Meme" : "Use as Template"}
+                          >
+                            ✏️
+                          </button>
+
+                          {/* 3. Download */}
+                          <button
+                            onClick={() => {
+                              if (meme.format === "image" || meme.format === "gif") {
+                                downloadMemeWithWatermark(meme.media_url, meme.title);
+                              } else {
+                                handleMediaDownload(meme.media_url, meme.title);
+                              }
+                            }}
+                            className="hover:text-indigo-650 hover:scale-110 active:scale-95 transition-all text-xs"
+                            title="Download Meme (CC BY-NC-SA 4.0)"
+                          >
+                            📥
+                          </button>
+
+                          {/* 4. Rate */}
+                          <button
+                            onClick={() => setActiveMeme(meme)}
+                            className={`flex items-center space-x-0.5 hover:text-yellow-500 hover:scale-110 active:scale-95 transition-all text-xs ${getOverallAverageRating(meme.id) > 0 ? 'text-yellow-500 font-bold' : ''}`}
+                            title="Rate & View Comments"
+                          >
+                            <span>⭐</span>
+                            {(() => {
+                              const overall = getOverallAverageRating(meme.id);
+                              return overall > 0 ? (
+                                <span className="text-[10px] font-bold">{overall.toFixed(1)}</span>
+                              ) : null;
+                            })()}
+                          </button>
+
+                          {/* 5. Flag */}
+                          <button
+                            onClick={() => handleFlagContent(meme.id)}
+                            className="hover:text-red-500 hover:scale-110 active:scale-95 transition-all text-xs"
+                            title="Report Inappropriate Content"
+                          >
+                            🏳️
+                          </button>
+                        </div>
 
                         {/* License Info Footer */}
                         <div className="flex items-center text-[9px] text-gray-400 dark:text-gray-550 font-semibold space-x-1 pt-1.5 border-t border-gray-150 dark:border-zinc-850">
