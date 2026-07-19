@@ -511,6 +511,8 @@ const Resources = () => {
 
       snapshot.forEach((d) => {
         const data = { id: d.id, ...d.data() };
+        // Also exclude admin_hidden resources from the public gallery
+        if (data.status === "admin_hidden") return;
         list.push(data);
         if (data.author_id && data.author_id !== "admin") {
           newAuthorIds.add(data.author_id);

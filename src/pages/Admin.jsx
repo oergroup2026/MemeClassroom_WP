@@ -129,6 +129,35 @@ const Admin = () => {
   const [isSeeding, setIsSeeding] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
 
+  // Content Manager Tab State
+  const [contentManagerTab, setContentManagerTab] = useState("memes"); // "memes" | "resources" | "posts" | "templates"
+  const [cmSearch, setCmSearch] = useState("");
+  const [staffroomAllPosts, setStafroomAllPosts] = useState([]);
+  const [staffroomAllReplies, setStafroomAllReplies] = useState([]);
+
+  // Content Manager — per-sub-tab filter states
+  const [cmMemeVisibility, setCmMemeVisibility] = useState("all"); // "all"|"public"|"admin_hidden"|"flagged_hidden"
+  const [cmMemeFormat, setCmMemeFormat] = useState("all");         // "all"|"image"|"video"|"gif"|"audio"
+  const [cmMemeCreator, setCmMemeCreator] = useState("all");       // "all"|"admin"|"user"
+
+  const [cmResStatus, setCmResStatus] = useState("all");           // "all"|"approved"|"pending"|"admin_hidden"|"hidden_moderation"
+  const [cmResType, setCmResType] = useState("all");               // "all"| resource type key
+  const [cmResCreator, setCmResCreator] = useState("all");         // "all"|"admin"|"user"
+
+  const [cmPostVisibility, setCmPostVisibility] = useState("all"); // "all"|"visible"|"admin_hidden"
+  const [cmPostType, setCmPostType] = useState("all");             // "all"|post_type value
+  const [cmPostCreator, setCmPostCreator] = useState("all");       // "all"|"admin"|"user"
+
+  const [cmTplStatus, setCmTplStatus] = useState("all");           // "all"|"approved"|"pending"|"rejected"
+  const [cmTplFormat, setCmTplFormat] = useState("all");           // "all"|"image"|"video"|"gif"|"audio"
+  const [cmTplCreator, setCmTplCreator] = useState("all");         // "all"|"admin"|"user"
+
+  // Content Manager — bulk selection (Set of IDs per sub-tab)
+  const [cmMemeSelected, setCmMemeSelected] = useState(new Set());
+  const [cmResSelected, setCmResSelected] = useState(new Set());
+  const [cmPostSelected, setCmPostSelected] = useState(new Set());
+  const [cmTplSelected, setCmTplSelected] = useState(new Set());
+
   // Force Tab check for Manager restrictions
   useEffect(() => {
     if (profile && profile.role === "manager") {
@@ -262,6 +291,21 @@ const Admin = () => {
       setStafroomAttachments(list);
     });
 
+    // 12. All staffroom posts (for Content Manager tab — admin full authority view)
+    const allPostsUnsub = onSnapshot(collection(db, "staffroom_posts"), (snap) => {
+      const list = [];
+      snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
+      setStafroomAllPosts(list);
+    });
+
+    // 13. All staffroom replies (for Content Manager tab — inline reply deletion)
+    const allRepliesUnsub = onSnapshot(collection(db, "staffroom_replies"), (snap) => {
+      const list = [];
+      snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+      setStafroomAllReplies(list);
+    });
+
     return () => {
       uUnsub();
       mUnsub();
@@ -274,6 +318,8 @@ const Admin = () => {
       pUnsub();
       taxUnsub();
       attUnsub();
+      allPostsUnsub();
+      allRepliesUnsub();
     };
   }, []);
 
@@ -865,6 +911,235 @@ const Admin = () => {
     });
   };
 
+  // ─── CONTENT MANAGER ACTIONS (Admin Universal Authority) ─────────────────────
+
+  // Toggle meme visibility: public ↔ admin_hidden
+  const handleAdminToggleMemeVisibility = (memeId, currentVisibility) => {
+    const newVisibility = currentVisibility === "admin_hidden" ? "public" : "admin_hidden";
+    const willHide = newVisibility === "admin_hidden";
+    openConfirm({
+      title: willHide ? "Hide Meme?" : "Restore Meme?",
+      message: willHide
+        ? "This will suppress the meme from the public Library feed. You can reverse this at any time."
+        : "This will restore the meme to the public Library feed.",
+      variant: willHide ? "danger" : "success",
+      confirmLabel: willHide ? "Hide Meme" : "Restore to Public",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await updateDoc(doc(db, "memes", memeId), { visibility: newVisibility });
+          triggerAlert(`Meme ${willHide ? "hidden from" : "restored to"} public Library.`);
+        } catch (e) {
+          triggerAlert(e.message || "Failed to update meme visibility.", "error");
+        }
+      },
+    });
+  };
+
+  // Hard delete a meme from Firestore
+  const handleAdminDeleteMeme = (memeId, memeTitle) => {
+    openConfirm({
+      title: "Permanently Delete Meme?",
+      message: `Delete "${memeTitle}"? This action is irreversible and removes the meme from all feeds permanently.`,
+      variant: "danger",
+      confirmLabel: "Delete Permanently",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "memes", memeId));
+          triggerAlert("Meme permanently removed from database.");
+        } catch (e) {
+          triggerAlert(e.message || "Meme deletion failed.", "error");
+        }
+      },
+    });
+  };
+
+  // Toggle resource visibility: approved ↔ admin_hidden
+  const handleAdminToggleResourceVisibility = (resourceId, currentStatus) => {
+    const newStatus = currentStatus === "admin_hidden" ? "approved" : "admin_hidden";
+    const willHide = newStatus === "admin_hidden";
+    openConfirm({
+      title: willHide ? "Hide Resource?" : "Restore Resource?",
+      message: willHide
+        ? "This will suppress the resource from Meme Reads. You can restore it at any time."
+        : "This will restore the resource to the Meme Reads gallery.",
+      variant: willHide ? "danger" : "success",
+      confirmLabel: willHide ? "Hide Resource" : "Restore",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await updateDoc(doc(db, "resources", resourceId), { status: newStatus });
+          triggerAlert(`Resource ${willHide ? "hidden from" : "restored to"} public gallery.`);
+        } catch (e) {
+          triggerAlert(e.message || "Failed to update resource status.", "error");
+        }
+      },
+    });
+  };
+
+  // Hard delete a template document (permanent, unlike handleRejectTemplate which only changes status)
+  const handleAdminHardDeleteTemplate = (templateId, templateTitle) => {
+    openConfirm({
+      title: "Permanently Delete Template?",
+      message: `Delete "${templateTitle}"? This completely removes the template from the Meme Lab catalog and cannot be undone.`,
+      variant: "danger",
+      confirmLabel: "Delete Template",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "templates", templateId));
+          triggerAlert("Template permanently removed from Meme Lab catalog.");
+        } catch (e) {
+          triggerAlert(e.message || "Template deletion failed.", "error");
+        }
+      },
+    });
+  };
+
+  // Toggle staffroom post visibility: (no visibility field) ↔ admin_hidden
+  const handleAdminTogglePostVisibility = (postId, currentVisibility) => {
+    const newVisibility = currentVisibility === "admin_hidden" ? "" : "admin_hidden";
+    const willHide = newVisibility === "admin_hidden";
+    openConfirm({
+      title: willHide ? "Hide Post?" : "Restore Post?",
+      message: willHide
+        ? "This will suppress the post from the Staffroom feed. You can restore it at any time."
+        : "This will restore the post to the Staffroom feed.",
+      variant: willHide ? "danger" : "success",
+      confirmLabel: willHide ? "Hide Post" : "Restore Post",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await updateDoc(doc(db, "staffroom_posts", postId), { visibility: newVisibility });
+          triggerAlert(`Post ${willHide ? "hidden from" : "restored to"} Staffroom.`);
+        } catch (e) {
+          triggerAlert(e.message || "Failed to update post visibility.", "error");
+        }
+      },
+    });
+  };
+
+  // Hard delete a staffroom post
+  const handleAdminDeletePost = (postId, postLabel) => {
+    openConfirm({
+      title: "Delete Staffroom Post?",
+      message: `Permanently delete "${postLabel}"? This removes the thread. Existing replies will be orphaned.`,
+      variant: "danger",
+      confirmLabel: "Delete Post",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "staffroom_posts", postId));
+          triggerAlert("Staffroom post permanently deleted.");
+        } catch (e) {
+          triggerAlert(e.message || "Post deletion failed.", "error");
+        }
+      },
+    });
+  };
+
+  // Hard delete a staffroom reply
+  const handleAdminDeleteReply = (replyId) => {
+    openConfirm({
+      title: "Delete Reply?",
+      message: "Permanently delete this reply? This action cannot be undone.",
+      variant: "danger",
+      confirmLabel: "Delete Reply",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "staffroom_replies", replyId));
+          triggerAlert("Reply deleted successfully.");
+        } catch (e) {
+          triggerAlert(e.message || "Reply deletion failed.", "error");
+        }
+      },
+    });
+  };
+
+  // ─── BULK DELETE HANDLERS (Content Manager) ────────────────────────────────
+
+  const handleBulkDeleteMemes = (ids) => {
+    if (!ids.length) return;
+    openConfirm({
+      title: `Delete ${ids.length} Meme${ids.length > 1 ? "s" : ""}?`,
+      message: `Permanently delete ${ids.length} selected meme${ids.length > 1 ? "s" : ""}? This action is irreversible.`,
+      variant: "danger",
+      confirmLabel: `Delete ${ids.length} Meme${ids.length > 1 ? "s" : ""}`,
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await Promise.all(ids.map(id => deleteDoc(doc(db, "memes", id))));
+          setCmMemeSelected(new Set());
+          triggerAlert(`${ids.length} meme${ids.length > 1 ? "s" : ""} permanently deleted.`);
+        } catch (e) {
+          triggerAlert(e.message || "Bulk meme deletion failed.", "error");
+        }
+      },
+    });
+  };
+
+  const handleBulkDeleteResources = (ids) => {
+    if (!ids.length) return;
+    openConfirm({
+      title: `Delete ${ids.length} Resource${ids.length > 1 ? "s" : ""}?`,
+      message: `Permanently delete ${ids.length} selected resource${ids.length > 1 ? "s" : ""}? This action is irreversible.`,
+      variant: "danger",
+      confirmLabel: `Delete ${ids.length} Resource${ids.length > 1 ? "s" : ""}`,
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await Promise.all(ids.map(id => deleteDoc(doc(db, "resources", id))));
+          setCmResSelected(new Set());
+          triggerAlert(`${ids.length} resource${ids.length > 1 ? "s" : ""} permanently deleted.`);
+        } catch (e) {
+          triggerAlert(e.message || "Bulk resource deletion failed.", "error");
+        }
+      },
+    });
+  };
+
+  const handleBulkDeletePosts = (ids) => {
+    if (!ids.length) return;
+    openConfirm({
+      title: `Delete ${ids.length} Post${ids.length > 1 ? "s" : ""}?`,
+      message: `Permanently delete ${ids.length} selected staffroom post${ids.length > 1 ? "s" : ""}? This action is irreversible.`,
+      variant: "danger",
+      confirmLabel: `Delete ${ids.length} Post${ids.length > 1 ? "s" : ""}`,
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await Promise.all(ids.map(id => deleteDoc(doc(db, "staffroom_posts", id))));
+          setCmPostSelected(new Set());
+          triggerAlert(`${ids.length} post${ids.length > 1 ? "s" : ""} permanently deleted.`);
+        } catch (e) {
+          triggerAlert(e.message || "Bulk post deletion failed.", "error");
+        }
+      },
+    });
+  };
+
+  const handleBulkDeleteTemplates = (ids) => {
+    if (!ids.length) return;
+    openConfirm({
+      title: `Delete ${ids.length} Template${ids.length > 1 ? "s" : ""}?`,
+      message: `Permanently delete ${ids.length} selected template${ids.length > 1 ? "s" : ""}? This action is irreversible.`,
+      variant: "danger",
+      confirmLabel: `Delete ${ids.length} Template${ids.length > 1 ? "s" : ""}`,
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await Promise.all(ids.map(id => deleteDoc(doc(db, "templates", id))));
+          setCmTplSelected(new Set());
+          triggerAlert(`${ids.length} template${ids.length > 1 ? "s" : ""} permanently deleted.`);
+        } catch (e) {
+          triggerAlert(e.message || "Bulk template deletion failed.", "error");
+        }
+      },
+    });
+  };
+
   // SEED TEST DATA ACTION
   const handleSeedTestData = async () => {
     if (profile.role !== "admin") return;
@@ -1099,6 +1374,7 @@ const Admin = () => {
           { id: "moderation", label: "Moderation Queue", roles: ["admin", "manager"] },
           { id: "archivist", label: "Content Archivist", roles: ["admin", "manager"] },
           { id: "users", label: "User Directory", roles: ["admin", "manager"] },
+          { id: "content", label: "🛡️ Content Manager", roles: ["admin"] },
           { id: "marketing", label: "Monetization & Ads", roles: ["admin"] },
           { id: "taxonomy", label: "System Taxonomy", roles: ["admin"] }
         ]
@@ -2503,6 +2779,799 @@ const Admin = () => {
             </div>
           </div>
         </>
+      )}
+
+      {/* TAB CONTENT G: CONTENT MANAGER (Admin Only — Universal Authority) */}
+      {activeTab === "content" && profile.role === "admin" && (
+        <div className="space-y-6">
+
+          {/* Sub-tab switcher + search bar */}
+          <div className={`p-4 ${containerClass} flex flex-col sm:flex-row sm:items-center gap-4`}>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: "memes", label: "🧪 All Memes", count: memes.length },
+                { id: "resources", label: "📄 All Resources", count: resources.length },
+                { id: "posts", label: "💬 All Posts", count: staffroomAllPosts.length },
+                { id: "templates", label: "🖼️ All Templates", count: templates.length },
+              ].map(st => (
+                <button
+                  key={st.id}
+                  onClick={() => {
+                    setContentManagerTab(st.id);
+                    setCmSearch("");
+                    // Reset all per-tab filters and selections on switch
+                    setCmMemeVisibility("all"); setCmMemeFormat("all"); setCmMemeCreator("all"); setCmMemeSelected(new Set());
+                    setCmResStatus("all"); setCmResType("all"); setCmResCreator("all"); setCmResSelected(new Set());
+                    setCmPostVisibility("all"); setCmPostType("all"); setCmPostCreator("all"); setCmPostSelected(new Set());
+                    setCmTplStatus("all"); setCmTplFormat("all"); setCmTplCreator("all"); setCmTplSelected(new Set());
+                  }}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                    contentManagerTab === st.id
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : highContrastMode
+                        ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                        : "bg-gray-100 text-gray-500 hover:text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {st.label} <span className="opacity-60 font-normal">({st.count})</span>
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={cmSearch}
+              onChange={e => setCmSearch(e.target.value)}
+              className={`${inputClass} sm:w-72 sm:ml-auto`}
+              placeholder="🔍 Search by title or creator ID..."
+            />
+          </div>
+
+          {/* Authority legend */}
+          <div className={bannerClass}>
+            <span className="text-base mr-2">🛡️</span>
+            <strong>Admin Content Authority</strong> — Full delete and visibility control over all platform content regardless of origin.{" "}
+            <strong>Hide</strong> is reversible (soft-suppression from public feeds).{" "}
+            <strong>Delete</strong> is permanent and irreversible.{" "}
+            Content seeded by admin accounts is marked with{" "}
+            <span className="inline-block bg-purple-200 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200 px-1.5 rounded font-mono text-[10px]">🔐 Admin</span>.
+          </div>
+
+          {/* ── ALL MEMES ──────────────────────────────────────────────────────── */}
+          {contentManagerTab === "memes" && (() => {
+            const lower = cmSearch.toLowerCase();
+            // Dynamic option lists derived from live data
+            const memeFormats = ["all", ...new Set(memes.map(m => m.format).filter(Boolean))];
+            const filtered = memes.filter(m => {
+              if (lower && !(
+                (m.title || "").toLowerCase().includes(lower) ||
+                (m.creator_id || "").toLowerCase().includes(lower) ||
+                (m.subject || "").toLowerCase().includes(lower)
+              )) return false;
+              if (cmMemeVisibility !== "all" && m.visibility !== cmMemeVisibility) return false;
+              if (cmMemeFormat !== "all" && m.format !== cmMemeFormat) return false;
+              if (cmMemeCreator === "admin" && m.creator_id !== user?.uid) return false;
+              if (cmMemeCreator === "user" && m.creator_id === user?.uid) return false;
+              return true;
+            });
+            const anyMemeFilter = cmMemeVisibility !== "all" || cmMemeFormat !== "all" || cmMemeCreator !== "all";
+            // Selection helpers
+            const isAllMemesSelected = filtered.length > 0 && filtered.every(m => cmMemeSelected.has(m.id));
+            const isSomeMemesSelected = filtered.some(m => cmMemeSelected.has(m.id));
+            const toggleMeme = (id) => setCmMemeSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+            const toggleAllMemes = () => {
+              if (isAllMemesSelected) setCmMemeSelected(prev => { const n = new Set(prev); filtered.forEach(m => n.delete(m.id)); return n; });
+              else setCmMemeSelected(prev => { const n = new Set(prev); filtered.forEach(m => n.add(m.id)); return n; });
+            };
+            return (
+              <div className={`p-6 ${containerClass}`}>
+                <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-indigo-600 dark:text-indigo-400">
+                  All Memes — Full Catalog ({filtered.length} of {memes.length})
+                </h3>
+                <p className="text-xs text-gray-400 mb-2">
+                  Includes public, flagged-hidden, and admin-hidden memes. Hide suppresses from Library feed; Delete is permanent.
+                </p>
+
+                {/* Memes filter bar */}
+                <div className="flex flex-wrap gap-2 mb-4 items-center">
+                  <select value={cmMemeVisibility} onChange={e => setCmMemeVisibility(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Visibility</option>
+                    <option value="public">✅ Public</option>
+                    <option value="flagged_hidden">🏳️ Flagged</option>
+                    <option value="admin_hidden">🚫 Admin Hidden</option>
+                  </select>
+                  <select value={cmMemeFormat} onChange={e => setCmMemeFormat(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Formats</option>
+                    {memeFormats.filter(f => f !== "all").map(f => (
+                      <option key={f} value={f} className="capitalize">{f.charAt(0).toUpperCase() + f.slice(1)}</option>
+                    ))}
+                  </select>
+                  <select value={cmMemeCreator} onChange={e => setCmMemeCreator(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Creators</option>
+                    <option value="admin">🔐 Admin-seeded</option>
+                    <option value="user">👤 User-created</option>
+                  </select>
+                  {anyMemeFilter && (
+                    <button
+                      onClick={() => { setCmMemeVisibility("all"); setCmMemeFormat("all"); setCmMemeCreator("all"); }}
+                      className="text-[10px] text-indigo-600 dark:text-indigo-400 underline hover:no-underline"
+                    >✕ Clear filters</button>
+                  )}
+                  <span className="ml-auto text-[10px] text-gray-400 font-semibold">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</span>
+                </div>
+
+                {/* Bulk action bar — Memes */}
+                {cmMemeSelected.size > 0 && (
+                  <div className="flex flex-wrap items-center gap-3 mb-3 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-200 dark:border-indigo-900">
+                    <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">{cmMemeSelected.size} selected</span>
+                    {!filtered.every(m => cmMemeSelected.has(m.id)) && (
+                      <button onClick={() => setCmMemeSelected(prev => { const n = new Set(prev); filtered.forEach(m => n.add(m.id)); return n; })} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                        + Select all {filtered.length} in view
+                      </button>
+                    )}
+                    <button onClick={() => setCmMemeSelected(new Set())} className="text-xs text-gray-500 dark:text-gray-400 hover:underline">✕ Clear selection</button>
+                    <button onClick={() => handleBulkDeleteMemes([...cmMemeSelected])} className={`${btnClass("red")} ml-auto`}>
+                      🗑️ Delete {cmMemeSelected.size} selected
+                    </button>
+                  </div>
+                )}
+
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        <th className={headerCellClass}>
+                          <input
+                            type="checkbox"
+                            checked={isAllMemesSelected}
+                            ref={el => { if (el) el.indeterminate = isSomeMemesSelected && !isAllMemesSelected; }}
+                            onChange={toggleAllMemes}
+                            className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
+                            title="Select / deselect all in current view"
+                          />
+                        </th>
+                        <th className={headerCellClass}>Preview</th>
+                        <th className={headerCellClass}>Title / Format</th>
+                        <th className={headerCellClass}>Subject</th>
+                        <th className={headerCellClass}>Creator</th>
+                        <th className={headerCellClass}>Visibility</th>
+                        <th className={headerCellClass}>Date</th>
+                        <th className={headerCellClass}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(meme => (
+                        <tr key={meme.id} className={cmMemeSelected.has(meme.id) ? "bg-indigo-50/50 dark:bg-indigo-950/20" : ""}>
+                          <td className={rowCellClass}>
+                            <input
+                              type="checkbox"
+                              checked={cmMemeSelected.has(meme.id)}
+                              onChange={() => toggleMeme(meme.id)}
+                              className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
+                            />
+                          </td>
+                          <td className={rowCellClass}>
+                            {meme.media_url ? (
+                              <a href={meme.media_url} target="_blank" rel="noreferrer" title="Open media in new tab">
+                                <img
+                                  src={meme.media_url}
+                                  alt={meme.title}
+                                  className="w-14 h-10 object-cover rounded border border-gray-200 dark:border-gray-700 hover:opacity-80 transition"
+                                />
+                              </a>
+                            ) : <span className="text-gray-400 text-[10px]">No media</span>}
+                          </td>
+                          <td className={rowCellClass}>
+                            <span className="font-semibold block max-w-[180px] truncate">{meme.title || "Untitled"}</span>
+                            {meme.format && <span className="text-[10px] text-gray-400 capitalize">{meme.format}</span>}
+                          </td>
+                          <td className={rowCellClass}>{meme.subject || "—"}</td>
+                          <td className={`${rowCellClass} font-mono text-[10px]`}>
+                            {meme.creator_id === user?.uid ? (
+                              <span className="bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded text-[10px] font-bold">🔐 Admin</span>
+                            ) : (
+                              <span className="truncate block max-w-[90px]">{meme.creator_id || "—"}</span>
+                            )}
+                          </td>
+                          <td className={rowCellClass}>
+                            {meme.visibility === "admin_hidden" ? (
+                              <span className="bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 px-2 py-0.5 rounded text-[10px] font-bold">🚫 Admin Hidden</span>
+                            ) : meme.visibility === "flagged_hidden" ? (
+                              <span className="bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded text-[10px] font-bold">🏳️ Flagged</span>
+                            ) : (
+                              <span className="bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-bold">✅ Public</span>
+                            )}
+                          </td>
+                          <td className={rowCellClass}>
+                            {meme.created_at ? new Date(meme.created_at.seconds * 1000).toLocaleDateString() : "—"}
+                          </td>
+                          <td className={rowCellClass}>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleAdminToggleMemeVisibility(meme.id, meme.visibility)}
+                                className={btnClass(meme.visibility === "admin_hidden" ? "green" : "gray")}
+                                title={meme.visibility === "admin_hidden" ? "Restore to public Library" : "Hide from public Library"}
+                              >
+                                {meme.visibility === "admin_hidden" ? "👁️ Unhide" : "🚫 Hide"}
+                              </button>
+                              <button
+                                onClick={() => handleAdminDeleteMeme(meme.id, meme.title)}
+                                className={btnClass("red")}
+                                title="Permanently delete this meme"
+                              >
+                                🗑️ Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {filtered.length === 0 && (
+                    <p className="text-xs text-gray-400 italic text-center py-6">No memes match your search query.</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── ALL RESOURCES ──────────────────────────────────────────────────── */}
+          {contentManagerTab === "resources" && (() => {
+            const lower = cmSearch.toLowerCase();
+            // Derive unique resource types from live data
+            const resTypes = ["all", ...new Set(resources.map(r => r.type).filter(Boolean))];
+            const filtered = resources.filter(r => {
+              if (lower && !(
+                (r.title || "").toLowerCase().includes(lower) ||
+                (r.author_id || "").toLowerCase().includes(lower) ||
+                (r.type || "").toLowerCase().includes(lower) ||
+                (r.subject || "").toLowerCase().includes(lower)
+              )) return false;
+              if (cmResStatus !== "all") {
+                const resStatus = r.status === "admin_hidden" ? "admin_hidden"
+                  : r.status === "hidden_moderation" ? "hidden_moderation"
+                  : r.admin_approved ? "approved" : "pending";
+                if (resStatus !== cmResStatus) return false;
+              }
+              if (cmResType !== "all" && r.type !== cmResType) return false;
+              if (cmResCreator === "admin" && r.author_id !== user?.uid) return false;
+              if (cmResCreator === "user" && r.author_id === user?.uid) return false;
+              return true;
+            });
+            const anyResFilter = cmResStatus !== "all" || cmResType !== "all" || cmResCreator !== "all";
+            // Selection helpers
+            const isAllResSelected = filtered.length > 0 && filtered.every(r => cmResSelected.has(r.id));
+            const isSomeResSelected = filtered.some(r => cmResSelected.has(r.id));
+            const toggleRes = (id) => setCmResSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+            const toggleAllRes = () => {
+              if (isAllResSelected) setCmResSelected(prev => { const n = new Set(prev); filtered.forEach(r => n.delete(r.id)); return n; });
+              else setCmResSelected(prev => { const n = new Set(prev); filtered.forEach(r => n.add(r.id)); return n; });
+            };
+            return (
+              <div className={`p-6 ${containerClass}`}>
+                <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-indigo-600 dark:text-indigo-400">
+                  All Resources — Full Catalog ({filtered.length} of {resources.length})
+                </h3>
+                <p className="text-xs text-gray-400 mb-2">
+                  Includes approved, pending, and admin-hidden resources. Hide removes from Meme Reads gallery; Delete removes the document permanently.
+                </p>
+
+                {/* Resources filter bar */}
+                <div className="flex flex-wrap gap-2 mb-4 items-center">
+                  <select value={cmResStatus} onChange={e => setCmResStatus(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Statuses</option>
+                    <option value="approved">✅ Approved</option>
+                    <option value="pending">⏳ Pending</option>
+                    <option value="admin_hidden">🚫 Admin Hidden</option>
+                    <option value="hidden_moderation">🏳️ Moderation</option>
+                  </select>
+                  <select value={cmResType} onChange={e => setCmResType(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Types</option>
+                    {resTypes.filter(t => t !== "all").map(t => (
+                      <option key={t} value={t}>{t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>
+                    ))}
+                  </select>
+                  <select value={cmResCreator} onChange={e => setCmResCreator(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Authors</option>
+                    <option value="admin">🔐 Admin-seeded</option>
+                    <option value="user">👤 User-created</option>
+                  </select>
+                  {anyResFilter && (
+                    <button
+                      onClick={() => { setCmResStatus("all"); setCmResType("all"); setCmResCreator("all"); }}
+                      className="text-[10px] text-indigo-600 dark:text-indigo-400 underline hover:no-underline"
+                    >✕ Clear filters</button>
+                  )}
+                  <span className="ml-auto text-[10px] text-gray-400 font-semibold">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</span>
+                </div>
+
+                {/* Bulk action bar — Resources */}
+                {cmResSelected.size > 0 && (
+                  <div className="flex flex-wrap items-center gap-3 mb-3 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-200 dark:border-indigo-900">
+                    <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">{cmResSelected.size} selected</span>
+                    {!filtered.every(r => cmResSelected.has(r.id)) && (
+                      <button onClick={() => setCmResSelected(prev => { const n = new Set(prev); filtered.forEach(r => n.add(r.id)); return n; })} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                        + Select all {filtered.length} in view
+                      </button>
+                    )}
+                    <button onClick={() => setCmResSelected(new Set())} className="text-xs text-gray-500 dark:text-gray-400 hover:underline">✕ Clear selection</button>
+                    <button onClick={() => handleBulkDeleteResources([...cmResSelected])} className={`${btnClass("red")} ml-auto`}>
+                      🗑️ Delete {cmResSelected.size} selected
+                    </button>
+                  </div>
+                )}
+
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        <th className={headerCellClass}>
+                          <input
+                            type="checkbox"
+                            checked={isAllResSelected}
+                            ref={el => { if (el) el.indeterminate = isSomeResSelected && !isAllResSelected; }}
+                            onChange={toggleAllRes}
+                            className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
+                            title="Select / deselect all in current view"
+                          />
+                        </th>
+                        <th className={headerCellClass}>Title</th>
+                        <th className={headerCellClass}>Type</th>
+                        <th className={headerCellClass}>Subject</th>
+                        <th className={headerCellClass}>Author</th>
+                        <th className={headerCellClass}>Status</th>
+                        <th className={headerCellClass}>Date</th>
+                        <th className={headerCellClass}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(res => (
+                        <tr key={res.id} className={cmResSelected.has(res.id) ? "bg-indigo-50/50 dark:bg-indigo-950/20" : ""}>
+                          <td className={rowCellClass}>
+                            <input
+                              type="checkbox"
+                              checked={cmResSelected.has(res.id)}
+                              onChange={() => toggleRes(res.id)}
+                              className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
+                            />
+                          </td>
+                          <td className={rowCellClass}>
+                            <span className="font-semibold block max-w-[200px] truncate">{res.title || "Untitled"}</span>
+                            {res.file_url && (
+                              <a href={res.file_url} target="_blank" rel="noreferrer" className="text-indigo-600 text-[9px] hover:underline">
+                                View File ↗
+                              </a>
+                            )}
+                          </td>
+                          <td className={`${rowCellClass} capitalize`}>{(res.type || "—").replace(/_/g, " ")}</td>
+                          <td className={rowCellClass}>{res.subject || "—"}</td>
+                          <td className={`${rowCellClass} font-mono text-[10px]`}>
+                            {res.author_id === user?.uid ? (
+                              <span className="bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded text-[10px] font-bold">🔐 Admin</span>
+                            ) : (
+                              <span className="truncate block max-w-[90px]">{res.author_id || "—"}</span>
+                            )}
+                          </td>
+                          <td className={rowCellClass}>
+                            {res.status === "admin_hidden" ? (
+                              <span className="bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 px-2 py-0.5 rounded text-[10px] font-bold">🚫 Admin Hidden</span>
+                            ) : res.status === "hidden_moderation" ? (
+                              <span className="bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded text-[10px] font-bold">🏳️ Moderation</span>
+                            ) : res.admin_approved ? (
+                              <span className="bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-bold">✅ Approved</span>
+                            ) : (
+                              <span className="bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded text-[10px] font-bold">⏳ Pending</span>
+                            )}
+                          </td>
+                          <td className={rowCellClass}>
+                            {res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : "—"}
+                          </td>
+                          <td className={rowCellClass}>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleAdminToggleResourceVisibility(res.id, res.status)}
+                                className={btnClass(res.status === "admin_hidden" ? "green" : "gray")}
+                                title={res.status === "admin_hidden" ? "Restore to Meme Reads" : "Hide from Meme Reads"}
+                              >
+                                {res.status === "admin_hidden" ? "👁️ Restore" : "🚫 Hide"}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteResourceAdmin(res.id)}
+                                className={btnClass("red")}
+                                title="Permanently delete this resource"
+                              >
+                                🗑️ Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {filtered.length === 0 && (
+                    <p className="text-xs text-gray-400 italic text-center py-6">No resources match your search query.</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── ALL STAFFROOM POSTS ─────────────────────────────────────────────── */}
+          {contentManagerTab === "posts" && (() => {
+            const lower = cmSearch.toLowerCase();
+            // Derive unique post types from live data
+            const postTypes = ["all", ...new Set(staffroomAllPosts.map(p => p.post_type).filter(Boolean))];
+            const filtered = staffroomAllPosts.filter(p => {
+              if (lower && !(
+                (p.title || p.body || "").toLowerCase().includes(lower) ||
+                (p.author_id || "").toLowerCase().includes(lower)
+              )) return false;
+              if (cmPostVisibility === "visible" && p.visibility === "admin_hidden") return false;
+              if (cmPostVisibility === "admin_hidden" && p.visibility !== "admin_hidden") return false;
+              if (cmPostType !== "all" && (p.post_type || "story") !== cmPostType) return false;
+              if (cmPostCreator === "admin" && p.author_id !== user?.uid) return false;
+              if (cmPostCreator === "user" && p.author_id === user?.uid) return false;
+              return true;
+            });
+            const anyPostFilter = cmPostVisibility !== "all" || cmPostType !== "all" || cmPostCreator !== "all";
+            // Selection helpers
+            const isAllPostsSelected = filtered.length > 0 && filtered.every(p => cmPostSelected.has(p.id));
+            const isSomePostsSelected = filtered.some(p => cmPostSelected.has(p.id));
+            const togglePost = (id) => setCmPostSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+            const toggleAllPosts = () => {
+              if (isAllPostsSelected) setCmPostSelected(prev => { const n = new Set(prev); filtered.forEach(p => n.delete(p.id)); return n; });
+              else setCmPostSelected(prev => { const n = new Set(prev); filtered.forEach(p => n.add(p.id)); return n; });
+            };
+            return (
+              <div className={`p-6 ${containerClass}`}>
+                <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-indigo-600 dark:text-indigo-400">
+                  All Staffroom Posts ({filtered.length} of {staffroomAllPosts.length})
+                </h3>
+                <p className="text-xs text-gray-400 mb-2">
+                  All threads including admin-posted announcements. Use Hide to suppress from the public feed without deleting. Reply deletion is inline.
+                </p>
+
+                {/* Posts filter bar */}
+                <div className="flex flex-wrap gap-2 mb-4 items-center">
+                  <select value={cmPostVisibility} onChange={e => setCmPostVisibility(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Visibility</option>
+                    <option value="visible">✅ Visible</option>
+                    <option value="admin_hidden">🚫 Admin Hidden</option>
+                  </select>
+                  <select value={cmPostType} onChange={e => setCmPostType(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Types</option>
+                    {postTypes.filter(t => t !== "all").map(t => (
+                      <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                    ))}
+                  </select>
+                  <select value={cmPostCreator} onChange={e => setCmPostCreator(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Authors</option>
+                    <option value="admin">🔐 Admin-posted</option>
+                    <option value="user">👤 User-posted</option>
+                  </select>
+                  {anyPostFilter && (
+                    <button
+                      onClick={() => { setCmPostVisibility("all"); setCmPostType("all"); setCmPostCreator("all"); }}
+                      className="text-[10px] text-indigo-600 dark:text-indigo-400 underline hover:no-underline"
+                    >✕ Clear filters</button>
+                  )}
+                  <span className="ml-auto text-[10px] text-gray-400 font-semibold">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</span>
+                </div>
+
+                {/* Bulk action bar — Posts */}
+                {cmPostSelected.size > 0 && (
+                  <div className="flex flex-wrap items-center gap-3 mb-3 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-200 dark:border-indigo-900">
+                    <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">{cmPostSelected.size} selected</span>
+                    {!filtered.every(p => cmPostSelected.has(p.id)) && (
+                      <button onClick={() => setCmPostSelected(prev => { const n = new Set(prev); filtered.forEach(p => n.add(p.id)); return n; })} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                        + Select all {filtered.length} in view
+                      </button>
+                    )}
+                    <button onClick={() => setCmPostSelected(new Set())} className="text-xs text-gray-500 dark:text-gray-400 hover:underline">✕ Clear selection</button>
+                    <button onClick={() => handleBulkDeletePosts([...cmPostSelected])} className={`${btnClass("red")} ml-auto`}>
+                      🗑️ Delete {cmPostSelected.size} selected
+                    </button>
+                  </div>
+                )}
+
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        <th className={headerCellClass}>
+                          <input
+                            type="checkbox"
+                            checked={isAllPostsSelected}
+                            ref={el => { if (el) el.indeterminate = isSomePostsSelected && !isAllPostsSelected; }}
+                            onChange={toggleAllPosts}
+                            className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
+                            title="Select / deselect all in current view"
+                          />
+                        </th>
+                        <th className={headerCellClass}>Thread / Body</th>
+                        <th className={headerCellClass}>Type</th>
+                        <th className={headerCellClass}>Author</th>
+                        <th className={headerCellClass}>Visibility</th>
+                        <th className={headerCellClass}>Replies</th>
+                        <th className={headerCellClass}>Date</th>
+                        <th className={headerCellClass}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(post => {
+                        const postReplies = staffroomAllReplies.filter(r => r.post_id === post.id);
+                        const postLabel = post.title || post.body?.slice(0, 50) || "Untitled";
+                        return (
+                          <tr key={post.id} className={`align-top ${cmPostSelected.has(post.id) ? "bg-indigo-50/50 dark:bg-indigo-950/20" : ""}`}>
+                          <td className={rowCellClass}>
+                            <input
+                              type="checkbox"
+                              checked={cmPostSelected.has(post.id)}
+                              onChange={() => togglePost(post.id)}
+                              className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
+                            />
+                          </td>
+                            <td className={rowCellClass}>
+                              <span className="font-semibold block max-w-[200px] truncate">{postLabel}</span>
+                              {post.attachment_name && (
+                                <span className="text-[10px] text-sky-600 dark:text-sky-400 block mt-0.5">📎 {post.attachment_name}</span>
+                              )}
+                              {post.is_announcement && (
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 block mt-0.5">📢 Announcement</span>
+                              )}
+                            </td>
+                            <td className={`${rowCellClass} capitalize`}>{post.post_type || "story"}</td>
+                            <td className={`${rowCellClass} font-mono text-[10px]`}>
+                              {post.author_id === user?.uid ? (
+                                <span className="bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded text-[10px] font-bold">🔐 Admin</span>
+                              ) : (
+                                <span className="truncate block max-w-[90px]">{post.author_id || "—"}</span>
+                              )}
+                            </td>
+                            <td className={rowCellClass}>
+                              {post.visibility === "admin_hidden" ? (
+                                <span className="bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 px-2 py-0.5 rounded text-[10px] font-bold">🚫 Hidden</span>
+                              ) : (
+                                <span className="bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-bold">✅ Visible</span>
+                              )}
+                            </td>
+                            <td className={rowCellClass}>
+                              <span className="font-bold text-gray-600 dark:text-gray-300">{postReplies.length}</span>
+                            </td>
+                            <td className={rowCellClass}>
+                              {post.created_at ? new Date(post.created_at.seconds * 1000).toLocaleDateString() : "—"}
+                            </td>
+                            <td className={rowCellClass}>
+                              <div className="flex space-x-2 mb-2">
+                                <button
+                                  onClick={() => handleAdminTogglePostVisibility(post.id, post.visibility)}
+                                  className={btnClass(post.visibility === "admin_hidden" ? "green" : "gray")}
+                                >
+                                  {post.visibility === "admin_hidden" ? "👁️ Restore" : "🚫 Hide"}
+                                </button>
+                                <button
+                                  onClick={() => handleAdminDeletePost(post.id, postLabel)}
+                                  className={btnClass("red")}
+                                >
+                                  🗑️ Delete
+                                </button>
+                              </div>
+                              {/* Inline reply management */}
+                              {postReplies.length > 0 && (
+                                <div className="space-y-1 border-t border-gray-150 dark:border-gray-800 pt-2">
+                                  <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider block">Replies:</span>
+                                  {postReplies.map(reply => (
+                                    <div
+                                      key={reply.id}
+                                      className="flex items-center justify-between gap-2 bg-gray-50 dark:bg-gray-900 rounded-lg px-2 py-1 border border-gray-150 dark:border-gray-800"
+                                    >
+                                      <span className="text-[10px] truncate max-w-[140px] text-gray-600 dark:text-gray-400">
+                                        {reply.body?.slice(0, 55) || "—"}
+                                      </span>
+                                      <button
+                                        onClick={() => handleAdminDeleteReply(reply.id)}
+                                        className="text-red-500 hover:text-red-700 font-bold text-[10px] shrink-0 hover:underline"
+                                        title="Delete this reply"
+                                      >
+                                        ✕ Del
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {filtered.length === 0 && (
+                    <p className="text-xs text-gray-400 italic text-center py-6">No posts match your search query.</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── ALL TEMPLATES ──────────────────────────────────────────────────── */}
+          {contentManagerTab === "templates" && (() => {
+            const lower = cmSearch.toLowerCase();
+            // Derive unique template formats from live data
+            const tplFormats = ["all", ...new Set(templates.map(t => t.format).filter(Boolean))];
+            const filtered = templates.filter(t => {
+              if (lower && !(
+                (t.title || "").toLowerCase().includes(lower) ||
+                (t.creator_id || "").toLowerCase().includes(lower)
+              )) return false;
+              if (cmTplStatus !== "all" && (t.status || "pending") !== cmTplStatus) return false;
+              if (cmTplFormat !== "all" && t.format !== cmTplFormat) return false;
+              if (cmTplCreator === "admin" && t.creator_id !== user?.uid) return false;
+              if (cmTplCreator === "user" && t.creator_id === user?.uid) return false;
+              return true;
+            });
+            const anyTplFilter = cmTplStatus !== "all" || cmTplFormat !== "all" || cmTplCreator !== "all";
+            // Selection helpers
+            const isAllTplSelected = filtered.length > 0 && filtered.every(t => cmTplSelected.has(t.id));
+            const isSomeTplSelected = filtered.some(t => cmTplSelected.has(t.id));
+            const toggleTpl = (id) => setCmTplSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+            const toggleAllTpl = () => {
+              if (isAllTplSelected) setCmTplSelected(prev => { const n = new Set(prev); filtered.forEach(t => n.delete(t.id)); return n; });
+              else setCmTplSelected(prev => { const n = new Set(prev); filtered.forEach(t => n.add(t.id)); return n; });
+            };
+            return (
+              <div className={`p-6 ${containerClass}`}>
+                <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-indigo-600 dark:text-indigo-400">
+                  All Templates — Full Catalog ({filtered.length} of {templates.length})
+                </h3>
+                <p className="text-xs text-gray-400 mb-2">
+                  Includes pending, approved, and rejected templates. Delete permanently removes the document (unlike Reject in the Moderation tab which only changes status).
+                </p>
+
+                {/* Templates filter bar */}
+                <div className="flex flex-wrap gap-2 mb-4 items-center">
+                  <select value={cmTplStatus} onChange={e => setCmTplStatus(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Statuses</option>
+                    <option value="approved">✅ Approved</option>
+                    <option value="pending">⏳ Pending</option>
+                    <option value="rejected">❌ Rejected</option>
+                  </select>
+                  <select value={cmTplFormat} onChange={e => setCmTplFormat(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Formats</option>
+                    {tplFormats.filter(f => f !== "all").map(f => (
+                      <option key={f} value={f} className="capitalize">{f.charAt(0).toUpperCase() + f.slice(1)}</option>
+                    ))}
+                  </select>
+                  <select value={cmTplCreator} onChange={e => setCmTplCreator(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">All Creators</option>
+                    <option value="admin">🔐 Admin-seeded</option>
+                    <option value="user">👤 User-submitted</option>
+                  </select>
+                  {anyTplFilter && (
+                    <button
+                      onClick={() => { setCmTplStatus("all"); setCmTplFormat("all"); setCmTplCreator("all"); }}
+                      className="text-[10px] text-indigo-600 dark:text-indigo-400 underline hover:no-underline"
+                    >✕ Clear filters</button>
+                  )}
+                  <span className="ml-auto text-[10px] text-gray-400 font-semibold">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</span>
+                </div>
+
+                {/* Bulk action bar — Templates */}
+                {cmTplSelected.size > 0 && (
+                  <div className="flex flex-wrap items-center gap-3 mb-3 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-200 dark:border-indigo-900">
+                    <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">{cmTplSelected.size} selected</span>
+                    {!filtered.every(t => cmTplSelected.has(t.id)) && (
+                      <button onClick={() => setCmTplSelected(prev => { const n = new Set(prev); filtered.forEach(t => n.add(t.id)); return n; })} className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                        + Select all {filtered.length} in view
+                      </button>
+                    )}
+                    <button onClick={() => setCmTplSelected(new Set())} className="text-xs text-gray-500 dark:text-gray-400 hover:underline">✕ Clear selection</button>
+                    <button onClick={() => handleBulkDeleteTemplates([...cmTplSelected])} className={`${btnClass("red")} ml-auto`}>
+                      🗑️ Delete {cmTplSelected.size} selected
+                    </button>
+                  </div>
+                )}
+
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        <th className={headerCellClass}>
+                          <input
+                            type="checkbox"
+                            checked={isAllTplSelected}
+                            ref={el => { if (el) el.indeterminate = isSomeTplSelected && !isAllTplSelected; }}
+                            onChange={toggleAllTpl}
+                            className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
+                            title="Select / deselect all in current view"
+                          />
+                        </th>
+                        <th className={headerCellClass}>Preview</th>
+                        <th className={headerCellClass}>Title</th>
+                        <th className={headerCellClass}>Format</th>
+                        <th className={headerCellClass}>Creator</th>
+                        <th className={headerCellClass}>Status</th>
+                        <th className={headerCellClass}>Date</th>
+                        <th className={headerCellClass}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(temp => (
+                        <tr key={temp.id} className={cmTplSelected.has(temp.id) ? "bg-indigo-50/50 dark:bg-indigo-950/20" : ""}>
+                          <td className={rowCellClass}>
+                            <input
+                              type="checkbox"
+                              checked={cmTplSelected.has(temp.id)}
+                              onChange={() => toggleTpl(temp.id)}
+                              className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
+                            />
+                          </td>
+                          <td className={rowCellClass}>
+                            {temp.media_url ? (
+                              <a href={temp.media_url} target="_blank" rel="noreferrer" title="Open template media">
+                                <img
+                                  src={temp.media_url}
+                                  alt={temp.title}
+                                  className="w-14 h-10 object-cover rounded border border-gray-200 dark:border-gray-700 hover:opacity-80 transition"
+                                />
+                              </a>
+                            ) : <span className="text-gray-400 text-[10px]">No media</span>}
+                          </td>
+                          <td className={rowCellClass}>
+                            <span className="font-semibold block max-w-[180px] truncate">{temp.title || "Untitled"}</span>
+                          </td>
+                          <td className={`${rowCellClass} capitalize`}>{temp.format || "—"}</td>
+                          <td className={`${rowCellClass} font-mono text-[10px]`}>
+                            {temp.creator_id === user?.uid ? (
+                              <span className="bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded text-[10px] font-bold">🔐 Admin</span>
+                            ) : (
+                              <span className="truncate block max-w-[90px]">{temp.creator_id || "—"}</span>
+                            )}
+                          </td>
+                          <td className={rowCellClass}>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {temp.status === "approved" ? (
+                                <span className="bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-bold">✅ Approved</span>
+                              ) : temp.status === "rejected" ? (
+                                <span className="bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 px-2 py-0.5 rounded text-[10px] font-bold">❌ Rejected</span>
+                              ) : (
+                                <span className="bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded text-[10px] font-bold">⏳ Pending</span>
+                              )}
+                              {temp.is_featured && <span className="text-yellow-500 text-xs">⭐</span>}
+                            </div>
+                          </td>
+                          <td className={rowCellClass}>
+                            {temp.created_at ? new Date(temp.created_at.seconds * 1000).toLocaleDateString() : "—"}
+                          </td>
+                          <td className={rowCellClass}>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleToggleFeatureTemplate(temp.id, !!temp.is_featured)}
+                                className={btnClass(temp.is_featured ? "gray" : "purple")}
+                                title={temp.is_featured ? "Remove from featured" : "Mark as featured"}
+                              >
+                                {temp.is_featured ? "✰ Unfeature" : "⭐ Feature"}
+                              </button>
+                              <button
+                                onClick={() => handleAdminHardDeleteTemplate(temp.id, temp.title)}
+                                className={btnClass("red")}
+                                title="Permanently delete this template document"
+                              >
+                                🗑️ Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {filtered.length === 0 && (
+                    <p className="text-xs text-gray-400 italic text-center py-6">No templates match your search query.</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+        </div>
       )}
     </div>
   );
