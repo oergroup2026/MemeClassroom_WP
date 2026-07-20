@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   collection,
   query,
@@ -112,8 +113,9 @@ const Toast = ({ message, type = "info", onDismiss }) => {
 };
 
 // ─── Resource Detail Modal ─────────────────────────────────────────────────────
-const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, onLike, onBookmark, onClose, onViewLink }) => {
+const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, activeTemplate, onLike, onBookmark, onClose, onViewLink }) => {
   if (!res) return null;
+  const navigate = useNavigate();
   const typeLabel = res.type ? res.type.replace(/_/g, " ") : "Resource";
   const isStory = res.type === "stories";
 
@@ -222,6 +224,52 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, onL
             </div>
           )}
 
+          {/* Educational Use (stories only) */}
+          {isStory && res.educational_use && (
+            <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl p-4">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-405 mb-2 flex items-center gap-1">
+                <span>🎓</span> Educational Use
+              </h4>
+              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{res.educational_use}</p>
+            </div>
+          )}
+
+          {/* Associated Template Details */}
+          {activeTemplate && (
+            <div className="bg-purple-50/50 dark:bg-purple-950/10 border border-purple-100/70 dark:border-purple-900/40 rounded-xl p-4 text-xs font-semibold">
+              <span className="block uppercase tracking-wider text-purple-700 dark:text-purple-400 text-[10px] mb-2 font-extrabold">
+                Original Meme Template
+              </span>
+              <div className="flex items-center space-x-4">
+                {activeTemplate.media_url ? (
+                  <img
+                    src={activeTemplate.media_url}
+                    alt={activeTemplate.title}
+                    className="w-14 h-14 rounded-lg object-cover border border-purple-200 dark:border-purple-800"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-500 font-bold text-xl">
+                    🧩
+                  </div>
+                )}
+                <div className="flex-grow">
+                  <h4 className="font-extrabold text-gray-800 dark:text-gray-200 text-sm leading-tight">{activeTemplate.title}</h4>
+                  <p className="text-gray-500 dark:text-gray-400 text-[10px] capitalize mt-0.5">Format: {activeTemplate.format || "image"}</p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                    navigate(`/lab?templateId=${activeTemplate.id}&templateUrl=${encodeURIComponent(activeTemplate.media_url)}&format=${activeTemplate.format || "image"}`);
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-3 rounded-lg text-[10px] transition shadow-sm"
+                >
+                  Remix Template
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Keywords */}
           {res.keywords && res.keywords.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -320,6 +368,7 @@ const Resources = () => {
   const { highContrastMode } = useUdl();
   const { openUserModal } = useUserModal();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // ── Tab state (reads from URL ?tab= for deep-linking from MoreResources redirect)
   const initialTab = searchParams.get("tab") || "all";
@@ -327,6 +376,8 @@ const Resources = () => {
 
   // ── Data
   const [resources, setResources] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [activeTemplate, setActiveTemplate] = useState(null);
   const [externalLinks, setExternalLinks] = useState([]);
   const userCacheRef = useRef({});
   const [displayCache, setDisplayCache] = useState({});
@@ -360,6 +411,7 @@ const Resources = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [editingResource, setEditingResource] = useState(null); // null = create mode; resource obj = edit mode
   const [detailResource, setDetailResource] = useState(null);
+  const currentResourceDetail = detailResource ? (resources.find(r => r.id === detailResource.id) || detailResource) : null;
   const [showFlagPopup, setShowFlagPopup] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -382,6 +434,7 @@ const Resources = () => {
   // Story-specific upload fields
   const [uploadUsageContext, setUploadUsageContext] = useState("");
   const [uploadEducationalUse, setUploadEducationalUse] = useState("");
+  const [uploadTemplateId, setUploadTemplateId] = useState("");
 
   // ── External link form state (for "External" tab)
   const [showExternalModal, setShowExternalModal] = useState(false);
@@ -437,7 +490,7 @@ const Resources = () => {
     setUploadThumbnailFile(null); setUploadKeywords(""); setUploadError("");
     setUploadSubject("Biology"); setUploadCustomSubject(""); setUploadGrade("High School (9–10)");
     setUploadType("article"); setEditingResource(null);
-    setUploadUsageContext(""); setUploadEducationalUse("");
+    setUploadUsageContext(""); setUploadEducationalUse(""); setUploadTemplateId("");
   };
 
   // ── URL tab sync
@@ -511,6 +564,8 @@ const Resources = () => {
 
       snapshot.forEach((d) => {
         const data = { id: d.id, ...d.data() };
+        // Also exclude admin_hidden resources from the public gallery
+        if (data.status === "admin_hidden") return;
         list.push(data);
         if (data.author_id && data.author_id !== "admin") {
           newAuthorIds.add(data.author_id);
@@ -544,7 +599,46 @@ const Resources = () => {
     });
 
     return () => unsubscribe();
-  }, []); // No dependency on userCache — use ref to avoid infinite loop
+  }, []);
+
+  // ── 4.1 Real-time templates listener
+  useEffect(() => {
+    const collRef = collection(db, "templates");
+    const unsubscribe = onSnapshot(collRef, (snapshot) => {
+      const results = [];
+      snapshot.forEach((d) => results.push({ id: d.id, ...d.data() }));
+      results.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+      setTemplates(results);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // ── 4.2 Fetch activeTemplate metadata when details modal is opened
+  useEffect(() => {
+    if (!currentResourceDetail) {
+      setActiveTemplate(null);
+      return;
+    }
+
+    if (currentResourceDetail.template_id) {
+      const fetchTemplate = async () => {
+        try {
+          const docSnap = await getDoc(doc(db, "templates", currentResourceDetail.template_id));
+          if (docSnap.exists()) {
+            setActiveTemplate({ id: docSnap.id, ...docSnap.data() });
+          } else {
+            setActiveTemplate(null);
+          }
+        } catch (e) {
+          console.error("Error fetching resource template:", e);
+          setActiveTemplate(null);
+        }
+      };
+      fetchTemplate();
+    } else {
+      setActiveTemplate(null);
+    }
+  }, [currentResourceDetail]);
 
   // ── 5. Real-time external links listener (loaded once, used when tab=external)
   useEffect(() => {
@@ -790,6 +884,7 @@ const Resources = () => {
     setUploadKeywords(Array.isArray(res.keywords) ? res.keywords.join(", ") : (res.keywords || ""));
     setUploadUsageContext(res.usage_context || "");
     setUploadEducationalUse(res.educational_use || "");
+    setUploadTemplateId(res.template_id || "");
     setUploadError("");
     setShowUploadModal(true);
   };
@@ -853,6 +948,7 @@ const Resources = () => {
           updatedData.meme_name = uploadTitle.trim();
           updatedData.usage_context = uploadUsageContext.trim();
           updatedData.educational_use = uploadEducationalUse.trim();
+          updatedData.template_id = uploadTemplateId.trim();
         }
 
         await updateDoc(doc(db, "resources", editingResource.id), updatedData);
@@ -893,6 +989,7 @@ const Resources = () => {
             resourceData.meme_name = uploadTitle.trim();
             resourceData.usage_context = uploadUsageContext.trim();
             resourceData.educational_use = uploadEducationalUse.trim();
+            resourceData.template_id = uploadTemplateId.trim();
           }
           transaction.set(newDocRef, resourceData);
           // Try updating stats; ignore if doc doesn't exist yet
@@ -1011,21 +1108,23 @@ const Resources = () => {
       )}
 
       {/* Flag Popup */}
-      {showFlagPopup && <FlagPopup onClose={() => setShowFlagPopup(false)} />}
+      {showFlagPopup && createPortal(<FlagPopup onClose={() => setShowFlagPopup(false)} />, document.body)}
 
       {/* Resource Detail Modal */}
-      {detailResource && (
+      {currentResourceDetail && createPortal(
         <ResourceDetailModal
-          res={detailResource}
-          authorName={detailResource.author_id === "admin" ? "Admin" : (displayCache[detailResource.author_id] || "Contributor")}
-          isLiked={!!savedResourceLikesMap[detailResource.id]}
-          isBookmarked={!!savedResourcesMap[detailResource.id]}
+          res={currentResourceDetail}
+          authorName={currentResourceDetail.author_id === "admin" ? "Admin" : (displayCache[currentResourceDetail.author_id] || "Contributor")}
+          isLiked={!!savedResourceLikesMap[currentResourceDetail.id]}
+          isBookmarked={!!savedResourcesMap[currentResourceDetail.id]}
           user={user}
-          onLike={() => handleResourceLikeToggle(detailResource.id, detailResource.author_id)}
-          onBookmark={() => handleBookmarkToggle(detailResource.id)}
-          onViewLink={() => handleIncrementViewCount(detailResource.id)}
+          activeTemplate={activeTemplate}
+          onLike={() => handleResourceLikeToggle(currentResourceDetail.id, currentResourceDetail.author_id)}
+          onBookmark={() => handleBookmarkToggle(currentResourceDetail.id)}
+          onViewLink={() => handleIncrementViewCount(currentResourceDetail.id)}
           onClose={() => setDetailResource(null)}
-        />
+        />,
+        document.body
       )}
 
       {/* ── Page Header ───────────────────────────────────────────────────────── */}
@@ -1571,7 +1670,7 @@ const Resources = () => {
       )}
 
       {/* ── CONTRIBUTE RESOURCE MODAL ─────────────────────────────────────────── */}
-      {showUploadModal && (
+      {showUploadModal && createPortal(
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className={`w-full max-w-lg p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
             <h2 className="text-lg font-bold mb-1">{editingResource ? "Edit Resource" : "Contribute Resource"}</h2>
@@ -1637,6 +1736,21 @@ const Resources = () => {
                       rows="2"
                       className={`${inputClass} resize-none`}
                     />
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Associated Meme Template (Optional)</label>
+                    <select
+                      value={uploadTemplateId}
+                      onChange={(e) => setUploadTemplateId(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">-- Select Template --</option>
+                      {templates.map((temp) => (
+                        <option key={temp.id} value={temp.id}>
+                          {temp.title} ({temp.format || "image"})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </>
               )}
@@ -1730,11 +1844,12 @@ const Resources = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── ADD EXTERNAL LINK MODAL ───────────────────────────────────────────── */}
-      {showExternalModal && (
+      {showExternalModal && createPortal(
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className={`w-full max-w-md p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
             <h2 className="text-lg font-bold mb-5">Add External Resource Link</h2>
@@ -1774,7 +1889,8 @@ const Resources = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

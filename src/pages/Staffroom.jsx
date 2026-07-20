@@ -281,17 +281,19 @@ const Staffroom = () => {
       const list = [];
       snapshot.forEach((d) => list.push({ id: d.id, ...d.data() }));
       list.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
-      setThreads(list);
+      // Exclude admin-hidden posts from the public Staffroom feed
+      const visibleList = list.filter((t) => t.visibility !== "admin_hidden");
+      setThreads(visibleList);
       setFeedLoading(false);
 
-      // Track unread
-      const newPosts = list.filter(
+      // Track unread (only from visible posts)
+      const newPosts = visibleList.filter(
         (t) => (t.created_at?.seconds || 0) * 1000 > lastVisitRef.current
       );
       setUnreadCount(newPosts.length);
 
-      // Subscribe to replies for each thread — clean up removed threads
-      const currentIds = new Set(list.map((t) => t.id));
+      // Subscribe to replies for each visible thread — clean up removed threads
+      const currentIds = new Set(visibleList.map((t) => t.id));
 
       // Remove subs for threads that no longer exist
       Object.keys(replyUnsubs).forEach((id) => {
@@ -302,7 +304,7 @@ const Staffroom = () => {
       });
 
       // Add subs for new threads
-      list.forEach((thread) => {
+      visibleList.forEach((thread) => {
         if (replyUnsubs[thread.id]) return; // already subscribed
         const rq = query(
           collection(db, "staffroom_replies"),
