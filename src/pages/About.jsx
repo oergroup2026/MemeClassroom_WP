@@ -5,11 +5,11 @@ const About = () => {
   const { highContrastMode } = useUdl();
 
   // UDL Styling classes
-  const glassPanelClass = "glass-panel bg-white/70 dark:bg-zinc-900/70 border border-gray-200/60 dark:border-zinc-800/60 p-6 rounded-xl shadow-sm transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md";
+  const glassPanelClass = "bg-white/45 dark:bg-zinc-900/45 backdrop-blur-md border border-gray-200/50 dark:border-zinc-800/40 p-6 rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/20 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-2xl hover:border-purple-500/30 dark:hover:border-purple-500/20";
 
-  const darkPaneClass = "bg-purple-50/50 dark:bg-zinc-900 border border-purple-100 dark:border-zinc-800 text-gray-800 dark:text-zinc-100 p-8 rounded-xl shadow-sm mt-12 transition-all";
+  const darkPaneClass = "bg-purple-50/20 dark:bg-zinc-900/30 backdrop-blur-md border border-purple-100/30 dark:border-zinc-800/40 text-gray-800 dark:text-zinc-100 p-8 rounded-2xl shadow-xl mt-12 transition-all duration-300";
 
-  const bannerClass = "bg-gradient-to-r from-purple-800/90 to-indigo-900/90 dark:from-zinc-800/90 dark:to-zinc-900/90 border border-purple-500/20 dark:border-zinc-700/20 text-white p-6 rounded-xl shadow-md col-span-1 md:col-span-2 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-lg";
+  const bannerClass = "bg-gradient-to-r from-purple-800/75 to-indigo-950/75 dark:from-zinc-900/60 dark:to-zinc-950/60 backdrop-blur-md border border-purple-500/20 dark:border-zinc-800/55 text-white p-8 rounded-2xl shadow-2xl col-span-1 md:col-span-2 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-purple-950/10";
 
   return (
     <div className="relative overflow-visible">

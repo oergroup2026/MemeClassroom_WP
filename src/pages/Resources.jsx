@@ -1067,9 +1067,7 @@ const Resources = () => {
   };
 
   // ─── UDL Styling ──────────────────────────────────────────────────────────────
-  const containerClass = highContrastMode
-    ? "bg-zinc-900 border border-zinc-800 text-white shadow-sm rounded-xl"
-    : "bg-white border border-gray-200 shadow-sm rounded-xl";
+  const containerClass = "bg-white/45 dark:bg-zinc-900/45 backdrop-blur-sm border border-gray-200/50 dark:border-zinc-800/40 shadow-md hover:shadow-xl rounded-xl transition-all duration-300";
 
   const btnClass = "bg-purple-600 hover:bg-purple-700 text-white font-medium text-xs px-3 py-1.5 rounded-lg transition shadow-sm";
 
