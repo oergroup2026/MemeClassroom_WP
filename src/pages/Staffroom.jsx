@@ -970,7 +970,7 @@ const Staffroom = () => {
 
     return (
       <div className="mt-3 space-y-3 bg-gray-50/50 dark:bg-zinc-950 p-4 rounded-xl border border-gray-150 dark:border-zinc-800">
-        <span className="block text-[10px] font-extrabold uppercase tracking-wide text-purple-655 dark:text-purple-400 mb-1">
+        <span className="block text-[10px] font-extrabold uppercase tracking-wide text-purple-600 dark:text-purple-400 mb-1">
           📊 Classroom Poll ({totalVotes} total {totalVotes === 1 ? "vote" : "votes"})
         </span>
         <div className="space-y-2.5 text-left">
@@ -982,7 +982,7 @@ const Staffroom = () => {
                 <button
                   key={idx}
                   onClick={() => handleVoteSubmit(thread.id, idx)}
-                  className="w-full text-left text-xs font-semibold px-4 py-2.5 rounded-lg border border-gray-205 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-purple-600 dark:hover:border-purple-500 transition duration-150 flex items-center justify-between"
+                  className="w-full text-left text-xs font-semibold px-4 py-2.5 rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-purple-600 dark:hover:border-purple-500 transition duration-150 flex items-center justify-between"
                 >
                   <span>{option}</span>
                   <span className="text-gray-400">🗳️</span>
@@ -1262,7 +1262,7 @@ const Staffroom = () => {
               <p className="text-xs text-gray-500 leading-relaxed font-semibold">
                 Join MemeClassroom's professional educator hub to post threads and upvote ideas.
               </p>
-              <button onClick={() => navigate("/auth")} className="w-full bg-purple-600 hover:bg-purple-755 text-white font-bold py-2 rounded-lg text-xs transition shadow-sm">
+              <button onClick={() => navigate("/auth")} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-lg text-xs transition shadow-sm">
                 Sign In / Register
               </button>
             </div>
@@ -1271,7 +1271,7 @@ const Staffroom = () => {
           {/* Quick Navigation */}
           <div className={`p-4 ${containerClass} hidden lg:block`}>
             <span className="block text-[10px] uppercase tracking-wider text-gray-400 font-extrabold mb-3">Quick Navigation</span>
-            <div className="space-y-2 text-xs font-bold text-gray-655 dark:text-gray-300">
+            <div className="space-y-2 text-xs font-bold text-gray-600 dark:text-gray-300">
               <button onClick={() => navigate("/lab")} className="block hover:text-purple-650 transition text-left">🎨 Design Workbench</button>
               <button onClick={() => navigate("/library")} className="block hover:text-purple-650 transition text-left">📚 Meme Gallery</button>
               <button onClick={() => navigate("/resources")} className="block hover:text-purple-650 transition text-left">📖 Lesson Plans</button>
@@ -1294,7 +1294,7 @@ const Staffroom = () => {
                 />
                 <button
                   onClick={() => openCompose("story")}
-                  className="flex-grow text-left text-xs bg-slate-50 hover:bg-slate-100 dark:bg-zinc-950 dark:hover:bg-zinc-805 text-gray-500 font-semibold px-4 py-2.5 rounded-full border border-gray-200 dark:border-zinc-800 transition"
+                  className="flex-grow text-left text-xs bg-slate-50 hover:bg-slate-100 dark:bg-zinc-950 dark:hover:bg-zinc-800 text-gray-500 font-semibold px-4 py-2.5 rounded-full border border-gray-200 dark:border-zinc-800 transition"
                 >
                   Share an experience, doubt, or poll… (Markdown enabled)
                 </button>
@@ -1346,7 +1346,7 @@ const Staffroom = () => {
               {/* Sort + active topic chip */}
               <div className="flex items-center gap-2 flex-wrap">
                 {topicFilter && (
-                  <div className="flex items-center gap-1 bg-purple-50 text-purple-750 dark:bg-purple-955/20 dark:text-purple-305 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-purple-200">
+                  <div className="flex items-center gap-1 bg-purple-50 text-purple-750 dark:bg-purple-950/20 dark:text-purple-300 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-purple-200">
                     <span>Topic: {topicFilter}</span>
                     <button onClick={() => setTopicFilter("")} className="hover:text-red-500 font-bold ml-1">✕</button>
                   </div>
@@ -1355,7 +1355,7 @@ const Staffroom = () => {
                   value={sortMode}
                   onChange={(e) => setSortMode(e.target.value)}
                   className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border focus:outline-none focus:ring-1 focus:ring-purple-500 ${
-                    highContrastMode ? "bg-zinc-955 border-zinc-800 text-white" : "bg-white border-gray-250 text-gray-700"
+                    "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-700 dark:text-zinc-300"
                   }`}
                   title="Sort feed"
                 >
@@ -1374,7 +1374,7 @@ const Staffroom = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`px-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                   highContrastMode
-                    ? "bg-zinc-955 border-zinc-800 text-white placeholder-zinc-600"
+                    ? "bg-zinc-950 border-zinc-800 text-white placeholder-zinc-600"
                     : "bg-white border-gray-250 text-gray-800 placeholder-gray-400"
                 }`}
               />
@@ -1382,7 +1382,7 @@ const Staffroom = () => {
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
                 className={`px-2.5 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  highContrastMode ? "bg-zinc-955 border-zinc-800 text-white" : "bg-white border-gray-250 text-gray-805"
+                  highContrastMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-250 text-gray-800"
                 }`}
               >
                 <option value="">All Subjects</option>
@@ -1392,7 +1392,7 @@ const Staffroom = () => {
                 value={gradeFilter}
                 onChange={(e) => setGradeFilter(e.target.value)}
                 className={`px-2.5 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  highContrastMode ? "bg-zinc-955 border-zinc-800 text-white" : "bg-white border-gray-250 text-gray-805"
+                  highContrastMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-250 text-gray-800"
                 }`}
               >
                 <option value="">All Grades</option>
@@ -1425,11 +1425,7 @@ const Staffroom = () => {
                   <div
                     key={thread.id}
                     className={`p-5 transition rounded-xl border ${
-                      isAnnouncement
-                        ? (highContrastMode ? "border-amber-600 bg-amber-955/20 text-white shadow-sm" : "border-amber-400 bg-amber-50/20 shadow-sm")
-                        : isSolved
-                          ? (highContrastMode ? "border-emerald-600 bg-emerald-955/20 text-white shadow-sm" : "border-emerald-450 bg-emerald-50/10 shadow-sm")
-                          : (highContrastMode ? "bg-zinc-900 border-zinc-800 text-white shadow-sm" : "bg-white border-gray-150 shadow-sm")
+                      isAnnouncement ? "border-amber-400 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/20 text-gray-800 dark:text-zinc-100 shadow-sm" : isSolved ? "border-emerald-400 dark:border-emerald-900/50 bg-emerald-50/10 dark:bg-emerald-950/20 text-gray-800 dark:text-zinc-100 shadow-sm" : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-800 dark:text-zinc-100 shadow-sm"
                     }`}
                   >
                     {/* Tags row */}
@@ -1442,15 +1438,15 @@ const Staffroom = () => {
                         )}
                         <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded tracking-wide ${
                           thread.post_type === "query"
-                            ? "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-955/30 dark:text-rose-300 dark:border-rose-800"
+                            ? "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800"
                             : thread.post_type === "poll"
-                              ? "bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-955/30 dark:text-purple-305 dark:border-purple-800"
-                              : "bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-955/30 dark:text-teal-303 dark:border-teal-800"
+                              ? "bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-800"
+                              : "bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-800"
                         }`}>
                           {thread.post_type === "query" ? "Doubt / Query" : thread.post_type === "poll" ? "Community Poll" : "Experience Story"}
                         </span>
                         {isSolved && (
-                          <span className="bg-emerald-100 text-emerald-808 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-emerald-250 flex items-center gap-1">
+                          <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
                             <span>✓</span><span>Solved</span>
                           </span>
                         )}
@@ -1460,7 +1456,7 @@ const Staffroom = () => {
                           </span>
                         )}
                         {thread.grade_group && (
-                          <span className="bg-amber-50 text-amber-705 dark:bg-amber-955/30 dark:text-amber-305 text-[10px] px-2 py-0.5 rounded font-bold border border-amber-150">
+                          <span className="bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 text-[10px] px-2 py-0.5 rounded font-bold border border-amber-200">
                             {thread.grade_group}
                           </span>
                         )}
@@ -1478,7 +1474,7 @@ const Staffroom = () => {
                           <div className="text-left">
                             <button
                               onClick={() => openUserModal(thread.author_id)}
-                              className="text-xs text-purple-755 font-black hover:underline block leading-tight"
+                              className="text-xs text-purple-700 font-black hover:underline block leading-tight"
                             >
                               {authorName}
                             </button>
@@ -1489,9 +1485,9 @@ const Staffroom = () => {
                               const author = userCache[thread.author_id];
                               if (!author) return null;
                               let badgeClass = "bg-gray-150 text-gray-700 dark:bg-zinc-850 dark:text-gray-300";
-                              if (author.role === "admin") badgeClass = "bg-rose-100 text-rose-700 dark:bg-rose-955/50 dark:text-rose-300";
-                              else if (author.role === "expert") badgeClass = "bg-indigo-100 text-indigo-700 dark:bg-indigo-955/50 dark:text-indigo-300";
-                              else if (author.role === "teacher") badgeClass = "bg-purple-100 text-purple-700 dark:bg-purple-955/50 dark:text-purple-305";
+                              if (author.role === "admin") badgeClass = "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300";
+                              else if (author.role === "expert") badgeClass = "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300";
+                              else if (author.role === "teacher") badgeClass = "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300";
                               return (
                                 <span className={`text-[8px] font-extrabold px-1 py-0.2 rounded tracking-wider uppercase ${badgeClass} inline-block mt-0.5`}>
                                   {author.role || "MEMBER"} {author.is_verified ? "🛡️" : ""}
@@ -1556,12 +1552,12 @@ const Staffroom = () => {
                           )}
                         </div>
                         <div className="flex-grow min-w-0 text-left">
-                          <span className="text-[10px] uppercase tracking-wider text-purple-655 dark:text-purple-400 font-bold block mb-0.5">Linked Meme (Click to view)</span>
+                          <span className="text-[10px] uppercase tracking-wider text-purple-600 dark:text-purple-400 font-bold block mb-0.5">Linked Meme (Click to view)</span>
                           <h4 className="font-extrabold text-sm text-gray-905 dark:text-white truncate">{linkedMeme.title}</h4>
                           <div className="flex flex-wrap gap-1.5 mt-2">
-                            <span className="bg-indigo-50 dark:bg-indigo-955/20 text-indigo-750 dark:text-indigo-300 text-[10px] px-2 py-0.5 rounded-full font-bold">{linkedMeme.subject}</span>
-                            <span className="bg-teal-50 dark:bg-teal-955/20 text-teal-750 dark:text-teal-300 text-[10px] px-2 py-0.5 rounded-full font-bold">{linkedMeme.age_group}</span>
-                            <span className="bg-gray-100 dark:bg-gray-700 text-gray-605 dark:text-gray-300 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">{linkedMeme.format}</span>
+                            <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 text-[10px] px-2 py-0.5 rounded-full font-bold">{linkedMeme.subject}</span>
+                            <span className="bg-teal-50 dark:bg-teal-950/20 text-teal-700 dark:text-teal-300 text-[10px] px-2 py-0.5 rounded-full font-bold">{linkedMeme.age_group}</span>
+                            <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">{linkedMeme.format}</span>
                           </div>
                         </div>
                       </div>
@@ -1599,11 +1595,11 @@ const Staffroom = () => {
                                     </span>
                                   ))}
                               </div>
-                              <span className="font-bold text-gray-655 dark:text-gray-300">{totalReactions}</span>
+                              <span className="font-bold text-gray-600 dark:text-gray-300">{totalReactions}</span>
                             </div>
                           )}
                         </div>
-                        <div className="text-gray-455 dark:text-gray-500 font-semibold">
+                        <div className="text-gray-400 dark:text-gray-500 font-semibold">
                           <span>{activeReplies.length} {activeReplies.length === 1 ? "reply" : "replies"}</span>
                         </div>
                       </div>
@@ -1692,7 +1688,7 @@ const Staffroom = () => {
                               className={`p-3 rounded-lg text-xs leading-relaxed ${
                                 isAccepted
                                   ? "bg-emerald-500/10 border border-emerald-300"
-                                  : "bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-805"
+                                  : "bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800"
                               }`}
                             >
                               <div className="flex justify-between items-center mb-1.5">
@@ -1727,7 +1723,7 @@ const Staffroom = () => {
                                   )
                                 )}
                               </div>
-                              <p className="text-gray-700 dark:text-gray-305 font-semibold text-left">{reply.body}</p>
+                              <p className="text-gray-700 dark:text-gray-300 font-semibold text-left">{reply.body}</p>
                             </div>
                           );
                         })}
@@ -2026,7 +2022,7 @@ const Staffroom = () => {
               )}
 
               <div className="flex justify-end space-x-2 pt-4">
-                <button type="button" onClick={closeComposeModal} className="bg-gray-200 dark:bg-gray-700 text-gray-755 px-4 py-2 rounded-lg font-bold text-xs">
+                <button type="button" onClick={closeComposeModal} className="bg-gray-200 dark:bg-gray-700 text-gray-700 px-4 py-2 rounded-lg font-bold text-xs">
                   Cancel
                 </button>
                 <button
@@ -2097,7 +2093,7 @@ const Staffroom = () => {
                 </button>
                 <button
                   onClick={() => navigate(`/lab?templateUrl=${encodeURIComponent(activeMeme.media_url)}&format=${activeMeme.format}&clearText=true`)}
-                  className="flex-1 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-750 dark:text-indigo-300 font-bold py-2 rounded-lg border border-indigo-200 dark:border-indigo-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-indigo-100 transition"
+                  className="flex-1 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 font-bold py-2 rounded-lg border border-indigo-200 dark:border-indigo-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-indigo-100 transition"
                 >
                   <span>🎨</span><span>Use as Template</span>
                 </button>

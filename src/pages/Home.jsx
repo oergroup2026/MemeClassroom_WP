@@ -87,7 +87,18 @@ const Home = () => {
   const fmt = (n) => (n === null ? "—" : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 
   return (
-    <div className="max-w-4xl mx-auto text-center py-10">
+    <div className="relative overflow-visible min-h-[80vh] flex flex-col justify-center py-6">
+      {/* Subtle Background Aura Lightings */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        {/* Glow Blob 1: Purple Top Left */}
+        <div className="absolute -top-[5%] left-[5%] w-[350px] sm:w-[500px] h-[350px] sm:h-[500px] rounded-full bg-purple-500/25 dark:bg-purple-600/30 blur-[70px] sm:blur-[90px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '8s' }}></div>
+        {/* Glow Blob 2: Fuchsia Middle Right */}
+        <div className="absolute top-[20%] right-[0%] w-[400px] sm:w-[550px] h-[400px] sm:h-[550px] rounded-full bg-fuchsia-500/20 dark:bg-fuchsia-600/25 blur-[80px] sm:blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '6s' }}></div>
+        {/* Glow Blob 3: Cyan Bottom Left */}
+        <div className="absolute bottom-[0%] left-[10%] w-[300px] sm:w-[450px] h-[300px] sm:h-[450px] rounded-full bg-cyan-400/20 dark:bg-cyan-600/25 blur-[70px] sm:blur-[90px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '10s' }}></div>
+      </div>
+
+      <div className="max-w-4xl mx-auto text-center w-full relative z-10">
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
       <div className="mb-6">
@@ -173,6 +184,7 @@ const Home = () => {
           );
         })}
       </div>
+    </div>
     </div>
   );
 };

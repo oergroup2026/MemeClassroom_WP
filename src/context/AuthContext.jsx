@@ -6,7 +6,9 @@ import {
   GoogleAuthProvider, 
   signOut as firebaseSignOut, 
   onAuthStateChanged,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  signInWithRedirect,
+  getRedirectResult
 } from "firebase/auth";
 import { 
   doc, 
@@ -117,27 +119,10 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const googleUser = result.user;
-
-      // Check if user has a document in Firestore
-      const userDocRef = doc(db, "users", googleUser.uid);
-      const userDocSnap = await getDoc(userDocRef);
-
-      if (userDocSnap.exists()) {
-        const profileData = userDocSnap.data();
-        if (profileData.banned) {
-          await firebaseSignOut(auth);
-          throw new Error("This account has been banned.");
-        }
-        setProfile(profileData);
-        setUser(googleUser);
-      } else {
-        // Intercept loading, set onboarding user so the UI renders the onboarding form
-        setOnboardingUser(googleUser);
-      }
-      setLoading(false);
-      return googleUser;
+      provider.setCustomParameters({ prompt: 'select_account' });
+      // Use signInWithRedirect due to Cross-Origin-Opener-Policy: same-origin
+      // security headers required by ffmpeg.wasm.
+      await signInWithRedirect(auth, provider);
     } catch (error) {
       setLoading(false);
       throw error;
@@ -185,6 +170,18 @@ export const AuthProvider = ({ children }) => {
   // Listen to Auth state changes
   useEffect(() => {
     if (DEV_MODE) return;
+
+    // Check redirect result to capture redirect sign-in errors
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log("Successfully authenticated via redirect:", result.user.email);
+        }
+      })
+      .catch((error) => {
+        console.error("Firebase redirect sign-in error:", error);
+      });
+
     let unsubProfile = null;
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (unsubProfile) {

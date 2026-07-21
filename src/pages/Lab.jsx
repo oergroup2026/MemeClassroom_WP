@@ -103,6 +103,8 @@ const Lab = () => {
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAvailableTemplates(list);
+    }, (error) => {
+      console.error("Templates subscription failed:", error);
     });
     return () => unsub();
   }, []);
@@ -145,6 +147,8 @@ const Lab = () => {
           setLanguages(loadedLangs);
         }
       }
+    }, (error) => {
+      console.error("Taxonomy configs subscription failed:", error);
     });
     return () => unsub();
   }, []);
@@ -1355,7 +1359,7 @@ const Lab = () => {
       </div>
 
       {alertMessage && (
-        <div className="mb-6 p-4 rounded-lg bg-red-100 dark:bg-red-955 border border-red-200 dark:border-red-800 text-red-750 font-medium text-sm">
+        <div className="mb-6 p-4 rounded-lg bg-red-100 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-750 font-medium text-sm">
           {alertMessage}
         </div>
       )}
@@ -1398,21 +1402,15 @@ const Lab = () => {
         }`}>
 
           {/* Format Tab Row — Image / Video / GIF / Audio */}
-          <div className={`px-3 pt-3 pb-2 border-b ${
-            highContrastMode ? "border-zinc-800" : "border-gray-100"
-          }`}>
-            <div className={`flex gap-1 p-1 rounded-lg ${
-              highContrastMode ? "bg-zinc-800" : "bg-gray-100"
-            }`}>
+          <div className={`px-3 pt-3 pb-2 border-b border-gray-100 dark:border-zinc-800`}>
+            <div className={`flex gap-1 p-1 rounded-lg bg-gray-100 dark:bg-zinc-800`}>
               {[("image"), ("video"), ("gif"), ("audio")].map((tab) => (
                 <button
                   type="button"
                   key={tab}
                   onClick={() => { setActiveTab(tab); setAlertMessage(""); }}
                   className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[11px] font-bold transition ${
-                    activeTab === tab
-                      ? (highContrastMode ? "bg-zinc-700 text-white shadow-sm" : "bg-white text-purple-700 shadow-sm")
-                      : "text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    activeTab === tab ? "bg-white dark:bg-zinc-700 text-purple-700 dark:text-zinc-200 shadow-sm" : "text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200"
                   }`}
                 >
                   {TAB_ICONS[tab]}
@@ -1423,9 +1421,7 @@ const Lab = () => {
           </div>
 
           {/* Tool Switcher — Media / Text */}
-          <div className={`px-3 py-2 border-b ${
-            highContrastMode ? "border-zinc-800" : "border-gray-100"
-          }`}>
+          <div className={`px-3 py-2 border-b border-gray-100 dark:border-zinc-800`}>
             <div className={`flex gap-1 ${
               highContrastMode ? "" : ""
             }`}>
@@ -1433,9 +1429,7 @@ const Lab = () => {
                 type="button"
                 onClick={() => setActiveControlTab("media")}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition border ${
-                  activeControlTab === "media"
-                    ? (highContrastMode ? "bg-zinc-700 text-white border-zinc-600" : "bg-purple-50 text-purple-700 border-purple-200")
-                    : (highContrastMode ? "text-zinc-400 border-transparent hover:text-zinc-200" : "text-gray-500 border-transparent hover:text-gray-800")
+                  activeControlTab === "media" ? "bg-purple-50 dark:bg-zinc-700 text-purple-700 dark:text-zinc-200 border-purple-200 dark:border-zinc-600" : "text-gray-500 dark:text-zinc-400 border-transparent hover:text-gray-800 dark:hover:text-zinc-200"
                 }`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -1445,9 +1439,7 @@ const Lab = () => {
                 type="button"
                 onClick={() => setActiveControlTab("text")}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition border ${
-                  activeControlTab === "text"
-                    ? (highContrastMode ? "bg-zinc-700 text-white border-zinc-600" : "bg-purple-50 text-purple-700 border-purple-200")
-                    : (highContrastMode ? "text-zinc-400 border-transparent hover:text-zinc-200" : "text-gray-500 border-transparent hover:text-gray-800")
+                  activeControlTab === "text" ? "bg-purple-50 dark:bg-zinc-700 text-purple-700 dark:text-zinc-200 border-purple-200 dark:border-zinc-600" : "text-gray-500 dark:text-zinc-400 border-transparent hover:text-gray-800 dark:hover:text-zinc-200"
                 }`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
@@ -1576,7 +1568,7 @@ const Lab = () => {
                       onDrop={handleDropzoneDrop}
                       className={`border-2 border-dashed rounded-xl text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[88px] ${
                         isDragOverDropzone
-                          ? "border-purple-500 bg-purple-50/50 dark:bg-purple-955/20"
+                          ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/20"
                           : (highContrastMode 
                               ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
                               : "border-gray-200 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/30")
@@ -1599,7 +1591,7 @@ const Lab = () => {
                     <button
                       type="button"
                       onClick={() => setShowLibraryPickerModal(true)}
-                      className="w-full border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-955/20 font-semibold py-1.5 rounded-lg text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
+                      className="w-full border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20 font-semibold py-1.5 rounded-lg text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>
                       Browse Library
@@ -1720,7 +1712,7 @@ const Lab = () => {
                     <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
                       <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Video Media Assets</h3>
                       {videoUrl && (
-                        <span className="text-[10px] bg-green-100 dark:bg-green-955/40 text-green-700 dark:text-green-300 font-bold px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300 font-bold px-2 py-0.5 rounded-full">
                           Loaded
                         </span>
                       )}
@@ -1770,7 +1762,7 @@ const Lab = () => {
                               key={sample.id}
                               type="button"
                               onClick={() => selectMediaPreset(sample.url, "video", 15)}
-                              className="text-[11px] bg-purple-50 dark:bg-purple-955/20 text-purple-755 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition active:scale-95"
+                              className="text-[11px] bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition active:scale-95"
                             >
                               Sample {idx + 1}
                             </button>
@@ -1919,7 +1911,7 @@ const Lab = () => {
                                 selectMediaPreset(sample.url, "gif");
                                 setGifFile(null);
                               }}
-                              className="text-[11px] bg-purple-50 dark:bg-purple-955/20 text-purple-755 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition active:scale-95"
+                              className="text-[11px] bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition active:scale-95"
                             >
                               Sample {idx + 1}
                             </button>
@@ -1935,7 +1927,7 @@ const Lab = () => {
                     <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
                       <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Audio Media Assets</h3>
                       {audioUrl && (
-                        <span className="text-[10px] bg-green-100 dark:bg-green-955/40 text-green-700 dark:text-green-300 font-bold px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300 font-bold px-2 py-0.5 rounded-full">
                           Loaded
                         </span>
                       )}
@@ -1949,7 +1941,7 @@ const Lab = () => {
                         onDrop={handleDropzoneDrop}
                         className={`border-2 border-dashed rounded-xl text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[88px] ${
                           isDragOverDropzone
-                            ? "border-purple-500 bg-purple-50/50 dark:bg-purple-955/20"
+                            ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/20"
                             : (highContrastMode 
                                 ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
                                 : "border-gray-200 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/30")
@@ -1981,7 +1973,7 @@ const Lab = () => {
                               key={sample.id}
                               type="button"
                               onClick={() => selectMediaPreset(sample.url, "audio", 45)}
-                              className="text-[11px] bg-purple-50 dark:bg-purple-955/20 text-purple-755 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition active:scale-95"
+                              className="text-[11px] bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition active:scale-95"
                             >
                               Sample {idx + 1}
                             </button>
@@ -2060,7 +2052,7 @@ const Lab = () => {
                 <button
                   type="button"
                   onClick={addTextLayer}
-                  className="w-full bg-purple-50 text-purple-700 dark:bg-purple-955/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 font-semibold py-2 px-4 rounded-lg text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
+                  className="w-full bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 font-semibold py-2 px-4 rounded-lg text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
                   Add Text Layer
@@ -2270,17 +2262,17 @@ const Lab = () => {
 
         {/* 2. RIGHT VIEWPORT WORKSPACE */}
         <div className={`flex-grow flex flex-col h-full min-w-0 overflow-hidden relative ${
-          highContrastMode ? "bg-zinc-950" : "bg-slate-50"
+          "bg-slate-50 dark:bg-zinc-950"
         }`}>
           
           {/* Canvas Controls Bar — aspect ratio + background colour */}
           <div className={`flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b shrink-0 ${
-            highContrastMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-gray-200"
+            "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800"
           }`}>
             {/* Active format label */}
             <div className="flex items-center gap-2">
               <span className={`flex items-center gap-1 text-[11px] font-bold capitalize ${
-                highContrastMode ? "text-zinc-300" : "text-gray-700"
+                "text-gray-700 dark:text-zinc-300"
               }`}>
                 {TAB_ICONS[activeTab]}
                 <span>{activeTab}</span>
@@ -2291,7 +2283,7 @@ const Lab = () => {
             {activeTab === "image" && (
               <div className="flex items-center gap-2 flex-wrap">
                 <div className={`flex p-0.5 rounded-lg gap-0.5 ${
-                  highContrastMode ? "bg-zinc-800" : "bg-gray-100"
+                  "bg-gray-100 dark:bg-zinc-800"
                 }`}>
                   {Object.keys(ASPECT_RATIOS).map(ratio => (
                     <button
@@ -2302,7 +2294,7 @@ const Lab = () => {
                       className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${
                         canvasAspect === ratio
                           ? "bg-purple-600 text-white"
-                          : (highContrastMode ? "text-zinc-400 hover:text-white" : "text-gray-500 hover:text-gray-800")
+                          : ("text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white")
                       }`}
                     >
                       {ratio}
@@ -2312,7 +2304,7 @@ const Lab = () => {
 
                 <label className="flex items-center gap-1.5 cursor-pointer" title="Canvas background color">
                   <span className={`text-[10px] font-bold uppercase ${
-                    highContrastMode ? "text-zinc-400" : "text-gray-500"
+                    "text-gray-500 dark:text-zinc-400"
                   }`}>BG</span>
                   <input
                     type="color"
@@ -2355,7 +2347,7 @@ const Lab = () => {
                 className={`relative w-full max-w-[480px] ${ASPECT_RATIOS[canvasAspect]?.css || "aspect-square"} flex items-center justify-center select-none shadow-xl border ${
                   highContrastMode 
                     ? "bg-zinc-900 border-zinc-800" 
-                    : "border-slate-955"
+                    : "border-slate-950"
                 } rounded-2xl overflow-hidden`}
                 style={{ backgroundColor: canvasBg }}
               >
@@ -2669,7 +2661,7 @@ const Lab = () => {
                         </div>
                       )
                     ) : (
-                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-955/10">
+                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-950/10">
                         {/* Premium "Start Creating" Empty State Illustration */}
                         <div className="mb-4 text-purple-400 animate-pulse">
                           <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -2695,7 +2687,7 @@ const Lab = () => {
                         className="w-full max-h-full object-contain" 
                       />
                     ) : (
-                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-955/10">
+                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-950/10">
                         <div className="mb-4 text-purple-400">
                           <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -2719,14 +2711,14 @@ const Lab = () => {
                         className="w-full max-h-full object-contain" 
                       />
                     ) : (
-                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-955/10">
+                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-950/10">
                         <div className="mb-4 text-purple-400">
                           <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                           </svg>
                         </div>
                         <p className="font-bold text-sm mb-1 text-gray-700 dark:text-gray-300">GIF Canvas Empty</p>
-                        <p className="text-xs text-gray-505 max-w-xs">
+                        <p className="text-xs text-gray-500 max-w-xs">
                           Paste a Giphy link or select a sample GIF preset to load your looping overlay context.
                         </p>
                       </div>
@@ -2781,7 +2773,7 @@ const Lab = () => {
                         </div>
                       </>
                     ) : (
-                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-955/10">
+                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-950/10">
                         <div className="mb-4 text-purple-400 animate-pulse">
                           <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
@@ -2854,7 +2846,7 @@ const Lab = () => {
             </div>
 
             {/* Quick Download Only / Local Export (Before the form) */}
-            <div className="mb-5 bg-purple-50/50 dark:bg-purple-955/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800/40 text-center">
+            <div className="mb-5 bg-purple-50/50 dark:bg-purple-950/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800/40 text-center">
               <span className="block text-[10px] text-purple-700 dark:text-purple-300 font-bold mb-2 uppercase tracking-wider">Just want the file locally?</span>
               <button
                 type="button"
@@ -2986,7 +2978,7 @@ const Lab = () => {
                   type="button"
                   onClick={() => handlePublishSubmit(true)}
                   disabled={loading}
-                  className="w-full bg-purple-650 hover:bg-purple-755 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
+                  className="w-full bg-purple-650 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
                 >
                   <span>🚀</span>
                   <span>Publish to Library & Download</span>
@@ -3010,7 +3002,7 @@ const Lab = () => {
                     setShowSaveModal(false);
                     navigate("/auth");
                   }}
-                  className="w-full bg-purple-605 hover:bg-purple-755 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
                 >
                   <span>🔑</span>
                   <span>Sign In to Publish</span>
@@ -3214,7 +3206,7 @@ const Lab = () => {
             </div>
             <form onSubmit={handleTemplateUploadSubmit} className="space-y-4 text-xs font-semibold">
               {templateSuccess && (
-                <div className="p-3 bg-purple-50 dark:bg-purple-955/25 text-purple-750 dark:text-purple-300 rounded-lg border">
+                <div className="p-3 bg-purple-50 dark:bg-purple-950/25 text-purple-750 dark:text-purple-300 rounded-lg border">
                   {templateSuccess}
                 </div>
               )}

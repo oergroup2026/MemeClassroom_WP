@@ -5,17 +5,11 @@ const About = () => {
   const { highContrastMode } = useUdl();
 
   // UDL Styling classes
-  const glassPanelClass = highContrastMode
-    ? "bg-zinc-900 border border-zinc-800 text-white p-6 rounded-xl shadow-sm"
-    : "glass-panel bg-white/70 border border-gray-200/60 p-6 rounded-xl shadow-sm transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md";
+  const glassPanelClass = "glass-panel bg-white/70 dark:bg-zinc-900/70 border border-gray-200/60 dark:border-zinc-800/60 p-6 rounded-xl shadow-sm transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md";
 
-  const darkPaneClass = highContrastMode
-    ? "bg-zinc-900 border border-zinc-800 text-white p-8 rounded-xl mt-12"
-    : "bg-purple-50/50 text-gray-800 border border-purple-100 p-8 rounded-xl shadow-sm mt-12 transition-all";
+  const darkPaneClass = "bg-purple-50/50 dark:bg-zinc-900 border border-purple-100 dark:border-zinc-800 text-gray-800 dark:text-zinc-100 p-8 rounded-xl shadow-sm mt-12 transition-all";
 
-  const bannerClass = highContrastMode
-    ? "bg-zinc-900 border border-zinc-800 text-white p-6 rounded-xl col-span-1 md:col-span-2"
-    : "bg-gradient-to-r from-purple-800/90 to-indigo-850/90 border border-purple-500/20 text-white p-6 rounded-xl shadow-md col-span-1 md:col-span-2 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-lg";
+  const bannerClass = "bg-gradient-to-r from-purple-800/90 to-indigo-900/90 dark:from-zinc-800/90 dark:to-zinc-900/90 border border-purple-500/20 dark:border-zinc-700/20 text-white p-6 rounded-xl shadow-md col-span-1 md:col-span-2 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-lg";
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 space-y-10">
@@ -35,7 +29,7 @@ const About = () => {
         </p>
 
         {/* Quote Box */}
-        <div className={`max-w-3xl mx-auto mt-6 text-left border-l-4 ${highContrastMode ? 'border-yellow-400 bg-black text-yellow-400' : 'border-purple-600 bg-purple-50/20 dark:bg-purple-950/10'} p-5 italic rounded-r-xl text-sm leading-relaxed`}>
+        <div className="max-w-3xl mx-auto mt-6 text-left border-l-4 border-purple-600 dark:border-purple-500 bg-purple-50/20 dark:bg-purple-950/10 p-5 italic rounded-r-xl text-sm leading-relaxed">
           "Grounded in open pedagogy, Meme Classroom values learner voice, co-creation, and cultural relevance. By connecting everyday internet culture with classroom practice, it supports inclusive, multimodal learning through collaboration rather than content consumption."
           <span className="block mt-2 not-italic text-xs text-gray-400 dark:text-gray-500">— MemeClassroom Pedagogical Framework, 2024</span>
         </div>
@@ -109,32 +103,32 @@ const About = () => {
       {/* 4. Pedagogical Foundation Section (Dark Pane Layout) */}
       <div className={darkPaneClass}>
         <div className="max-w-3xl mx-auto space-y-6">
-          <h2 className={`text-xl md:text-2xl font-black text-center ${highContrastMode ? 'text-white' : 'text-gray-900'}`}>
+          <h2 className="text-xl md:text-2xl font-black text-center text-gray-900 dark:text-white">
             Pedagogical Foundation
           </h2>
-          <p className={`text-xs md:text-sm text-center leading-relaxed max-w-2xl mx-auto ${highContrastMode ? 'text-gray-300' : 'text-gray-600'}`}>
+          <p className="text-xs md:text-sm text-center leading-relaxed max-w-2xl mx-auto text-gray-600 dark:text-zinc-300">
             Meme Classroom moves beyond viewing memes as mere "gimmicks," positioning them as legitimate tools for inclusive, multimodal learning.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
-            <div className={`p-5 rounded-xl border transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2 ${highContrastMode ? 'border-zinc-800 bg-zinc-950 text-white' : 'border-purple-100 bg-white text-gray-800'}`}>
+            <div className="p-5 rounded-xl border border-purple-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-100 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2">
               <span className="text-lg"><img src="collaborate.png" alt="Collaboration icon" className="w-10 h-10" /></span>
-              <h4 className={`font-extrabold text-xs ${highContrastMode ? 'text-white' : 'text-gray-900'}`}>Sociocultural Theory</h4>
-              <p className={`text-[11px] leading-relaxed ${highContrastMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <h4 className="font-extrabold text-xs text-gray-900 dark:text-white">Sociocultural Theory</h4>
+              <p className="text-[11px] leading-relaxed text-gray-500 dark:text-zinc-400">
                 Utilizing memes as "cultural tools" for collaborative knowledge construction.
               </p>
             </div>
-            <div className={`p-5 rounded-xl border transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2 ${highContrastMode ? 'border-zinc-800 bg-zinc-950 text-white' : 'border-purple-100 bg-white text-gray-800'}`}>
+            <div className="p-5 rounded-xl border border-purple-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-100 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2">
               <span className="text-lg"><img src="complexity.png" alt="Multiliteracies icon" className="w-10 h-10" /></span>
-              <h4 className={`font-extrabold text-xs ${highContrastMode ? 'text-white' : 'text-gray-900'}`}>Multiliteracies Framework</h4>
-              <p className={`text-[11px] leading-relaxed ${highContrastMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <h4 className="font-extrabold text-xs text-gray-900 dark:text-white">Multiliteracies Framework</h4>
+              <p className="text-[11px] leading-relaxed text-gray-500 dark:text-zinc-400">
                 Recognizing memes as hybrid texts that require specific design and interpretive skills.
               </p>
             </div>
-            <div className={`p-5 rounded-xl border transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2 ${highContrastMode ? 'border-zinc-800 bg-zinc-950 text-white' : 'border-purple-100 bg-white text-gray-800'}`}>
+            <div className="p-5 rounded-xl border border-purple-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-100 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-md space-y-2">
               <span className="text-lg"><img src="blub.png" alt="Open pedagogy icon" className="w-10 h-10" /></span>
-              <h4 className={`font-extrabold text-xs ${highContrastMode ? 'text-white' : 'text-gray-900'}`}>Open Pedagogy</h4>
-              <p className={`text-[11px] leading-relaxed ${highContrastMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <h4 className="font-extrabold text-xs text-gray-900 dark:text-white">Open Pedagogy</h4>
+              <p className="text-[11px] leading-relaxed text-gray-500 dark:text-zinc-400">
                 Fostering transparent, collaborative practices that position learners as co-creators.
               </p>
             </div>

@@ -23,13 +23,14 @@ service cloud.firestore {
     }
 
     // ─── Memes ──────────────────────────────────────────────────────────────
-    // Public memes are readable by all authenticated users.
+    // Public memes are readable by all users (including unauthenticated guests).
     // Private/draft memes are only readable by their creator or admin.
     match /memes/{memeId} {
-      allow read: if request.auth != null && (
-        resource.data.visibility == "public" ||
-        resource.data.creator_id == request.auth.uid ||
-        isAdmin()
+      allow read: if resource.data.visibility == "public" || (
+        request.auth != null && (
+          resource.data.creator_id == request.auth.uid ||
+          isAdmin()
+        )
       );
       allow create: if request.auth != null && request.resource.data.creator_id == request.auth.uid;
       allow update: if request.auth != null && (
@@ -43,14 +44,15 @@ service cloud.firestore {
     }
 
     // ─── Templates ──────────────────────────────────────────────────────────
-    // Only approved templates are publicly visible.
+    // Only approved templates are publicly visible (including to unauthenticated guests).
     // Any authenticated user can contribute (create) a template for approval.
     // Only admins can approve, update status, or delete templates.
     match /templates/{templateId} {
-      allow read: if request.auth != null && (
-        resource.data.status == "approved" ||
-        resource.data.creator_id == request.auth.uid ||
-        isAdmin()
+      allow read: if resource.data.status == "approved" || (
+        request.auth != null && (
+          resource.data.creator_id == request.auth.uid ||
+          isAdmin()
+        )
       );
       allow create: if request.auth != null;
       allow update, delete: if isAdmin();
@@ -65,7 +67,7 @@ service cloud.firestore {
 
     // ─── Shared Config (taxonomy, etc.) ─────────────────────────────────────
     match /configs/{configId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -83,7 +85,7 @@ service cloud.firestore {
 
     // ─── Comments ───────────────────────────────────────────────────────────
     match /comments/{commentId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow create, update: if request.auth != null && (
         !request.resource.data.keys().hasAll(['is_expert_comment']) ||
         request.resource.data.is_expert_comment != true ||
@@ -117,7 +119,7 @@ service cloud.firestore {
 
     // ─── Resources ───────────────────────────────────────────────────────────
     match /resources/{resourceId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && (resource.data.author_id == request.auth.uid || isAdmin());
     }
@@ -145,7 +147,7 @@ service cloud.firestore {
 
     // ─── Ratings ─────────────────────────────────────────────────────────────
     match /ratings/{ratingId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow create, update: if request.auth != null && request.resource.data.user_id == request.auth.uid;
       allow delete: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
     }

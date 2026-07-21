@@ -29,7 +29,7 @@ function App() {
 
   // UDL baseline styling options
   const themeClasses = highContrastMode 
-    ? 'high-contrast bg-black text-gray-100' 
+    ? 'bg-zinc-900 text-zinc-100' 
     : 'bg-white text-gray-800';
 
   // Legibility rules: normal baseline is 'text-base'

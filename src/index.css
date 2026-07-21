@@ -45,28 +45,8 @@ html, body {
 }
 
 html.dark, html.dark body {
-  background-color: #000000;
-  color: #f9fafb;
-}
-
-/* High contrast custom override classes for accessibility */
-.high-contrast {
-  background-color: #000000 !important;
-  color: #ffffff !important;
-}
-
-.high-contrast input,
-.high-contrast select,
-.high-contrast textarea {
-  background-color: #000000 !important;
-  color: #ffffff !important;
-  border-color: #374151 !important;
-}
-
-.high-contrast button {
-  background-color: #000000 !important;
-  color: #ffffff !important;
-  border-color: #374151 !important;
+  background-color: #18181b;
+  color: #f4f4f5;
 }
 
 /* Glassmorphism panel base rules */
@@ -80,18 +60,9 @@ html.dark, html.dark body {
 }
 
 .dark .glass-panel {
-  background: rgba(22, 23, 29, 0.65);
+  background: rgba(39, 39, 42, 0.65);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-}
-
-/* High Contrast adjustments for glass panels */
-.high-contrast .glass-panel {
-  background: #000000 !important;
-  border: 1px solid #374151 !important;
-  color: #ffffff !important;
-  backdrop-filter: none !important;
-  box-shadow: none !important;
 }
 
 /* ── Page-transition fade-in ─────────────────────────────────────────────── */

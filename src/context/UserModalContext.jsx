@@ -58,14 +58,10 @@ export const UserModalProvider = ({ children }) => {
     setUserBadges([]);
   };
 
-  // UI styles dynamically bound to global high contrast rules
-  const modalClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400"
-    : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-850 dark:text-gray-100 shadow-2xl rounded-xl";
+  // UI styles dynamically bound to dark mode
+  const modalClass = "bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-850 dark:text-zinc-100 shadow-2xl rounded-xl";
 
-  const closeBtnClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400 font-bold px-4 py-2 hover:bg-yellow-400 hover:text-black"
-    : "bg-purple-650 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg transition shadow";
+  const closeBtnClass = "bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg transition shadow";
 
   return (
     <UserModalContext.Provider value={{ openUserModal, closeUserModal }}>

@@ -521,6 +521,8 @@ const Resources = () => {
           setGradeGroups(hasOldGrades ? GRADE_GROUPS : data.grades);
         }
       }
+    }, (error) => {
+      console.error("Taxonomy configs subscription failed:", error);
     });
     return () => unsub();
   }, []);
@@ -1163,11 +1165,7 @@ const Resources = () => {
 
       {/* ── Hero Featured Carousel ────────────────────────────────────────────── */}
       {activeTab !== "external" && activeTab !== "saved" && activeTab !== "mine" && (
-        <div className={`p-6 rounded-xl border relative overflow-hidden flex flex-col justify-between min-h-[220px] ${
-          highContrastMode
-            ? "bg-black border-yellow-400 text-yellow-400"
-            : "bg-gradient-to-r from-purple-900 via-indigo-900 to-indigo-950 text-white border-transparent"
-        }`}>
+        <div className="p-6 rounded-xl border relative overflow-hidden flex flex-col justify-between min-h-[220px] bg-gradient-to-r from-purple-900 via-indigo-900 to-indigo-950 dark:from-zinc-900 dark:to-zinc-950 text-white border-transparent dark:border-zinc-800">
           {/* Dynamic type badge */}
           <div className="absolute top-4 right-4 bg-purple-500/20 text-purple-300 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border border-purple-500/30 capitalize">
             {activeFeat.type ? activeFeat.type.replace(/_/g, " ") : "Featured"}

@@ -99,9 +99,8 @@ const Navbar = () => {
 
   const renderNavLinks = (mobile = false) => {
     const links = [
-      { to: "/", label: "Home", end: true },
-      { to: "/library", label: "Meme Library" },
-      { to: "/lab", label: "Meme Lab" },
+      { to: "/library", label: "Library" },
+      { to: "/lab", label: "Lab" },
       { to: "/staffroom", label: "Staffroom" },
       { to: "/resources", label: "Meme Reads" },
       { to: "/about", label: "About" },
@@ -141,7 +140,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className={`border-b ${highContrastMode ? 'bg-black border-yellow-400 text-yellow-400' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800'} transition-all duration-200`}>
+    <nav className="border-b bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-850 dark:text-zinc-100 transition-all duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -160,9 +159,9 @@ const Navbar = () => {
             {/* Accessibility / High Contrast Toggle */}
             <button
               onClick={toggleHighContrast}
-              className={`p-1.5 rounded-full border transition ${highContrastMode ? 'border-yellow-400 bg-yellow-400 text-black' : 'border-gray-300 dark:border-gray-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-              title={highContrastMode ? "Disable High Contrast" : "Enable High Contrast Mode (Accessibility)"}
-              aria-label="Toggle High Contrast Mode"
+              className={`p-1.5 rounded-full border transition ${highContrastMode ? 'border-purple-500 bg-purple-600/10 text-purple-400 hover:bg-purple-600/20' : 'border-gray-300 dark:border-zinc-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+              title={highContrastMode ? "Disable Dark Theme" : "Enable Dark Theme"}
+              aria-label="Toggle Dark Theme"
             >
               <ContrastIcon />
             </button>

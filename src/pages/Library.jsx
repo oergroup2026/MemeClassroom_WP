@@ -297,7 +297,7 @@ const Library = () => {
             }
           } catch (e) {
             console.error("Error resolving user profile", e);
-            resolvedCreatorsRef.current[userId] = null; // reset so it can try again
+            resolvedCreatorsRef.current[userId] = "failed"; // set to failed to prevent infinite retry loop
           }
         }));
 
@@ -329,6 +329,8 @@ const Library = () => {
           setLanguages(loadedLangs);
         }
       }
+    }, (error) => {
+      console.error("Taxonomy configs subscription failed:", error);
     });
     return () => unsub();
   }, []);
@@ -345,6 +347,8 @@ const Library = () => {
         map[data.meme_id] = doc.id;
       });
       setUserLikesMap(map);
+    }, (error) => {
+      console.error("User likes subscription failed:", error);
     });
     return () => unsubscribe();
   }, [user]);
@@ -426,6 +430,8 @@ const Library = () => {
           commentList.push({ id: doc.id, ...doc.data() });
         });
         setExpertComments(commentList);
+      }, (error) => {
+        console.error("Expert comments subscription failed:", error);
       });
 
       // Listen to ratings
@@ -442,6 +448,8 @@ const Library = () => {
           const myRating = ratingList.find(r => r.user_id === user.uid);
           setUserSubmittedRating(myRating || null);
         }
+      }, (error) => {
+        console.error("Ratings subscription failed:", error);
       });
     }
 

@@ -1306,19 +1306,19 @@ const Admin = () => {
     : "border-b border-gray-150 p-3 text-gray-700 text-xs";
 
   const inputClass = highContrastMode
-    ? "w-full p-2 border border-zinc-800 bg-zinc-950 rounded-lg text-xs text-white placeholder-gray-500 outline-none"
-    : "w-full p-2 border border-gray-300 bg-gray-55 rounded-lg text-xs outline-none focus:ring-1 focus:ring-purple-500";
+    ? "w-full p-2 border border-zinc-800 bg-zinc-950 rounded-lg text-xs text-white placeholder-zinc-500 outline-none"
+    : "w-full p-2 border border-gray-300 bg-gray-50 rounded-lg text-xs outline-none focus:ring-1 focus:ring-purple-500";
 
   const btnClass = (customColor = "purple") => {
     const colorMap = {
-      purple: "bg-purple-600 hover:bg-purple-750 text-white",
-      red: "bg-red-650 hover:bg-red-700 text-white",
-      indigo: "bg-indigo-650 hover:bg-indigo-700 text-white",
+      purple: "bg-purple-600 hover:bg-purple-700 text-white",
+      red: "bg-red-600 hover:bg-red-700 text-white",
+      indigo: "bg-indigo-600 hover:bg-indigo-700 text-white",
       green: "bg-green-600 hover:bg-green-700 text-white",
       gray: "bg-gray-100 hover:bg-gray-200 text-gray-700"
     };
     if (highContrastMode) {
-      colorMap.gray = "bg-zinc-800 hover:bg-zinc-700 text-gray-300 border border-zinc-750";
+      colorMap.gray = "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700";
     }
     return `${colorMap[customColor]} font-bold px-3.5 py-1.5 rounded-lg text-xs transition shadow-sm`;
   };
@@ -1359,8 +1359,8 @@ const Admin = () => {
       {alertMsg && (
         <div className={`p-4 rounded-xl border flex items-center space-x-2 text-xs font-bold ${
           alertType === "error"
-            ? highContrastMode ? "bg-black border-yellow-400 text-yellow-400" : "bg-red-50 border-red-200 text-red-750 dark:bg-red-950/20 dark:border-red-900 dark:text-red-300"
-            : highContrastMode ? "bg-black border-yellow-400 text-yellow-400" : "bg-green-50 border-green-200 text-green-750 dark:bg-green-950/20 dark:border-green-900 dark:text-green-300"
+            ? "bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-300"
+            : "bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-300"
         }`}>
           <span>{alertType === "error" ? "⚠️" : "✅"}</span>
           <span>{alertMsg}</span>
@@ -2276,7 +2276,7 @@ const Admin = () => {
           {/* Add User Modal */}
           {showAddUserModal && (
             <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-              <div className={`w-full max-w-md p-6 overflow-y-auto max-h-[90vh] ${highContrastMode ? 'bg-black border-2 border-yellow-400 text-yellow-400' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-2xl'}`}>
+              <div className="w-full max-w-md p-6 overflow-y-auto max-h-[90vh] bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-2xl rounded-2xl">
                 <h3 className="text-base font-extrabold mb-4">Create User Profile</h3>
                 <form onSubmit={handleAddNewUser} className="space-y-4">
                   <div>
@@ -2362,7 +2362,7 @@ const Admin = () => {
                     <button 
                       type="button" 
                       onClick={() => setShowAddUserModal(false)}
-                      className={`px-4 py-2 font-semibold ${highContrastMode ? 'text-yellow-400 border border-yellow-400 bg-black' : 'text-gray-500 hover:bg-gray-100 rounded-lg'}`}
+                      className="px-4 py-2 font-semibold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg"
                     >
                       Cancel
                     </button>

@@ -197,17 +197,11 @@ const Auth = () => {
   };
 
   // UDL style classes
-  const boxBgClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400"
-    : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 shadow-xl";
+  const boxBgClass = "bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-800 dark:text-zinc-100 shadow-xl";
 
-  const buttonClass = highContrastMode
-    ? "bg-black text-yellow-400 border-2 border-yellow-400 hover:bg-yellow-400 hover:text-black font-extrabold w-full py-2.5 px-4 rounded-lg transition"
-    : "w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 px-4 rounded-lg shadow transition duration-200";
+  const buttonClass = "w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 px-4 rounded-lg shadow transition duration-200";
 
-  const inputClass = highContrastMode
-    ? "bg-black border-2 border-yellow-400 text-yellow-400 focus:ring-0 placeholder-yellow-600 w-full px-3 py-2 rounded-lg"
-    : "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500";
+  const inputClass = "w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-purple-500";
 
   const labelClass = "block text-xs font-semibold uppercase tracking-wider mb-1 text-gray-600 dark:text-gray-400";
 
@@ -482,10 +476,7 @@ const Auth = () => {
             <button
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className={`w-full flex items-center justify-center space-x-2 border py-2.5 rounded-lg transition duration-200 ${highContrastMode
-                ? 'border-yellow-400 bg-black text-yellow-400 hover:bg-yellow-400 hover:text-black font-bold'
-                : 'border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-850'
-                }`}
+              className="w-full flex items-center justify-center space-x-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700/50 py-2.5 rounded-lg transition duration-200"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.51 0-6.386-2.876-6.386-6.386 0-3.51 2.876-6.386 6.386-6.386 1.63 0 3.09.617 4.2 1.638l3.125-3.125C18.6 1.848 15.683 1 12.24 1 6.032 1 1 6.032 1 12.24s5.032 11.24 11.24 11.24c6.478 0 11.24-4.558 11.24-11.24 0-.79-.085-1.543-.243-1.954H12.24z" />
