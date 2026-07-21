@@ -1097,7 +1097,18 @@ const Resources = () => {
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 space-y-8">
+    <div className="relative overflow-visible">
+      {/* Subtle Background Aura Lightings (Blue Palette for Resources Page) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        {/* Glow Blob 1: Blue Top Left */}
+        <div className="absolute -top-[10%] left-[5%] w-[350px] sm:w-[500px] h-[350px] sm:h-[500px] rounded-full bg-blue-500/15 dark:bg-blue-600/20 blur-[75px] sm:blur-[95px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '8s' }}></div>
+        {/* Glow Blob 2: Indigo Middle Right */}
+        <div className="absolute top-[30%] right-[5%] w-[400px] sm:w-[550px] h-[400px] sm:h-[550px] rounded-full bg-indigo-500/15 dark:bg-indigo-600/20 blur-[80px] sm:blur-[105px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '10s' }}></div>
+        {/* Glow Blob 3: Sky Blue Bottom Left */}
+        <div className="absolute bottom-[10%] left-[10%] w-[300px] sm:w-[450px] h-[300px] sm:h-[450px] rounded-full bg-sky-400/20 dark:bg-sky-700/25 blur-[70px] sm:blur-[90px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '6s' }}></div>
+      </div>
+
+      <div className="max-w-7xl mx-auto py-8 px-4 space-y-8 relative z-10">
 
       {/* Toast */}
       {toast && (
@@ -1890,6 +1901,7 @@ const Resources = () => {
         </div>,
         document.body
       )}
+    </div>
     </div>
   );
 };

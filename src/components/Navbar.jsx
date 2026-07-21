@@ -13,6 +13,15 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import {
+  BookOpen,
+  FlaskConical,
+  MessageSquare,
+  BookOpenCheck,
+  Info,
+  User,
+  Settings
+} from "lucide-react";
 
 // Contrast/accessibility icon
 const ContrastIcon = () => (
@@ -92,24 +101,24 @@ const Navbar = () => {
   // Active link class helper
   const activeLink = ({ isActive }) =>
     isActive
-      ? "text-purple-600 dark:text-purple-400 font-bold border-b-2 border-purple-500 pb-0.5 transition duration-150"
-      : "text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium transition duration-150";
+      ? "flex flex-col items-center justify-center text-purple-600 dark:text-purple-400 font-bold border-b-2 border-purple-500 px-1 pt-1.5 transition duration-150 text-[10px] sm:text-xs h-full"
+      : "flex flex-col items-center justify-center text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium px-1 pt-1.5 transition duration-150 text-[10px] sm:text-xs h-full";
 
-  const mobileLinkClass = "block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-250 hover:bg-gray-100 dark:hover:bg-gray-800";
+  const mobileLinkClass = "flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-250 hover:bg-gray-100 dark:hover:bg-gray-800";
 
   const renderNavLinks = (mobile = false) => {
     const links = [
-      { to: "/library", label: "Library" },
-      { to: "/lab", label: "Lab" },
-      { to: "/staffroom", label: "Staffroom" },
-      { to: "/resources", label: "Meme Reads" },
-      { to: "/about", label: "About" },
+      { to: "/library", label: "Library", Icon: BookOpen },
+      { to: "/lab", label: "Lab", Icon: FlaskConical },
+      { to: "/staffroom", label: "Staffroom", Icon: MessageSquare },
+      { to: "/resources", label: "Meme Reads", Icon: BookOpenCheck },
+      { to: "/about", label: "About", Icon: Info },
     ];
 
     if (user && profile) {
-      links.push({ to: "/profile", label: "Profile" });
+      links.push({ to: "/profile", label: "Profile", Icon: User });
       if (profile.role === "admin" || profile.role === "manager") {
-        links.push({ to: "/admin", label: "Admin Panel" });
+        links.push({ to: "/admin", label: "Admin Panel", Icon: Settings });
       }
     }
 
@@ -124,7 +133,8 @@ const Navbar = () => {
             `${mobileLinkClass} ${isActive ? "bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 font-semibold" : ""}`
           }
         >
-          {link.label}
+          <link.Icon className="w-5 h-5" />
+          <span>{link.label}</span>
         </NavLink>
       ) : (
         <NavLink
@@ -133,7 +143,8 @@ const Navbar = () => {
           end={link.end}
           className={activeLink}
         >
-          {link.label}
+          <link.Icon className="w-5 h-5 mb-0.5" strokeWidth={2} />
+          <span>{link.label}</span>
         </NavLink>
       )
     );
@@ -142,17 +153,17 @@ const Navbar = () => {
   return (
     <nav className="border-b bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-850 dark:text-zinc-100 transition-all duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+        <div className="flex justify-between items-center h-16 relative">
           <div className="flex items-center">
             {/* Logo */}
             <Link to="/" className="flex-shrink-0 flex items-center font-extrabold text-xl text-purple-600 dark:text-purple-400 tracking-tight">
               MemeClassroom
             </Link>
+          </div>
 
-            {/* Desktop Navigation Links */}
-            <div className="hidden md:ml-8 md:flex md:space-x-6">
-              {renderNavLinks()}
-            </div>
+          {/* Desktop Navigation Links - Centered */}
+          <div className="hidden md:flex absolute left-1/2 transform -translate-x-1/2 md:space-x-6 md:items-stretch h-16">
+            {renderNavLinks()}
           </div>
 
           <div className="flex items-center space-x-3">

@@ -7,6 +7,11 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Manrope', 'sans-serif'],
+        serif: ['Instrument Serif', 'serif'],
+        accent: ['Instrument Serif', 'serif'],
+      },
       colors: {
         purple: {
           50: '#f0f5fc',

@@ -1,5 +1,5 @@
 /* ── Google Fonts for Meme Lab text overlays ─────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@700&family=Poppins:wght@700&family=Roboto+Slab:wght@700&family=Pacifico&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@700&family=Poppins:wght@700&family=Roboto+Slab:wght@700&family=Pacifico&family=Manrope:wght@300;400;500;600;700;800&family=Instrument+Serif:ital,wght@0,400;1,400&family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -18,8 +18,9 @@
   --shadow:
     rgba(0, 0, 0, 0.06) 0 4px 6px -1px, rgba(0, 0, 0, 0.04) 0 2px 4px -1px;
 
-  --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Manrope', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Manrope', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --accent-font: 'Instrument Serif', Georgia, serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);
@@ -92,4 +93,11 @@ html.dark, html.dark body {
   animation: pollFill 0.55s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
 }
 
-
+/* ── Global Typography Overrides ── */
+h1, h2 {
+  font-family: var(--sans);
+  font-weight: 850;
+}
+.font-accent {
+  font-family: var(--accent-font), serif;
+}

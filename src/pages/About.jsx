@@ -12,7 +12,18 @@ const About = () => {
   const bannerClass = "bg-gradient-to-r from-purple-800/90 to-indigo-900/90 dark:from-zinc-800/90 dark:to-zinc-900/90 border border-purple-500/20 dark:border-zinc-700/20 text-white p-6 rounded-xl shadow-md col-span-1 md:col-span-2 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-lg";
 
   return (
-    <div className="max-w-5xl mx-auto py-8 px-4 space-y-10">
+    <div className="relative overflow-visible">
+      {/* Subtle Background Aura Lightings (Teal Palette for About Page) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        {/* Glow Blob 1: Teal Top Left */}
+        <div className="absolute -top-[10%] left-[10%] w-[350px] sm:w-[500px] h-[350px] sm:h-[500px] rounded-full bg-teal-400/20 dark:bg-teal-600/25 blur-[70px] sm:blur-[95px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '9s' }}></div>
+        {/* Glow Blob 2: Cyan/Emerald Middle Right */}
+        <div className="absolute top-[35%] right-[5%] w-[400px] sm:w-[550px] h-[400px] sm:h-[550px] rounded-full bg-emerald-400/15 dark:bg-emerald-600/20 blur-[80px] sm:blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '7s' }}></div>
+        {/* Glow Blob 3: Mint/Teal Bottom Left */}
+        <div className="absolute bottom-[5%] left-[5%] w-[300px] sm:w-[450px] h-[300px] sm:h-[450px] rounded-full bg-teal-300/15 dark:bg-teal-900/20 blur-[70px] sm:blur-[90px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDuration: '11s' }}></div>
+      </div>
+
+      <div className="max-w-5xl mx-auto py-8 px-4 space-y-10 relative z-10">
       {/* 1. Intro Header block */}
       <div className="text-center space-y-4">
         <span className="bg-purple-100 dark:bg-purple-950/40 text-purple-750 dark:text-purple-300 text-xs font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-lg">
@@ -148,6 +159,7 @@ const About = () => {
           </a>
         </div>
       </div>
+    </div>
     </div>
   );
 };

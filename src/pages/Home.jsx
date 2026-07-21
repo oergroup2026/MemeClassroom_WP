@@ -108,7 +108,7 @@ const Home = () => {
         {/* bg-gradient-to-r from-purple-400 via-indigo-400 to-blue-400 */}
       </div>
 
-      <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-5 text-gray-900 dark:text-white leading-tight">
+      <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-5 text-gray-900 dark:text-white leading-tight">
         Meme<span className="text-purple-600 dark:text-purple-400">Classroom</span>
       </h1>
 
@@ -118,24 +118,24 @@ const Home = () => {
         pedagogical theory.
       </p>
 
-      <div className="flex flex-wrap justify-center gap-3 mb-14">
+      <div className="flex flex-wrap justify-center gap-4 mb-14">
         <Link
           to="/library"
-          className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-7 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold px-8 py-3.5 rounded-xl shadow-md shadow-purple-500/10 hover:shadow-purple-500/20 dark:shadow-none transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
         >
           Browse Library
         </Link>
         {user ? (
           <Link
             to="/lab"
-            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold px-7 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="bg-gradient-to-r from-zinc-50 to-zinc-150 dark:from-zinc-800 dark:to-zinc-850 border border-gray-200 dark:border-zinc-700/80 text-gray-800 dark:text-zinc-100 hover:from-zinc-100 hover:to-zinc-200 dark:hover:from-zinc-750 dark:hover:to-zinc-800 font-bold px-8 py-3.5 rounded-xl shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
           >
             Open Meme Lab
           </Link>
         ) : (
           <Link
             to="/auth?mode=register"
-            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 font-bold px-7 py-3 rounded-xl shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="bg-gradient-to-r from-zinc-50 to-zinc-150 dark:from-zinc-800 dark:to-zinc-850 border border-gray-200 dark:border-zinc-700/80 text-gray-800 dark:text-zinc-100 hover:from-zinc-100 hover:to-zinc-200 dark:hover:from-zinc-750 dark:hover:to-zinc-800 font-bold px-8 py-3.5 rounded-xl shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
           >
             Join Free →
           </Link>
@@ -143,7 +143,7 @@ const Home = () => {
       </div>
 
       {/* ── Live Stats Bar ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm mb-12">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-white/40 dark:bg-zinc-900/45 backdrop-blur-md p-6 rounded-2xl border border-gray-200/50 dark:border-zinc-800/40 shadow-xl shadow-black/5 dark:shadow-black/20 mb-12">
         <div>
           <div className="text-3xl font-extrabold text-purple-600 tabular-nums">{fmt(stats.memes)}</div>
           <div className="text-[10px] text-gray-400 uppercase tracking-widest mt-1 font-bold">Public Memes</div>
@@ -170,7 +170,7 @@ const Home = () => {
             <Link
               key={to}
               to={dest}
-              className="group border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 rounded-xl shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:border-purple-200 dark:hover:border-purple-900 block"
+              className="group border border-gray-200/50 dark:border-zinc-800/40 bg-white/45 dark:bg-zinc-900/45 backdrop-blur-sm p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 block hover:border-purple-500/30 dark:hover:border-purple-500/20"
             >
               <div className="mb-3 transition group-hover:scale-105">
                 <Icon />
