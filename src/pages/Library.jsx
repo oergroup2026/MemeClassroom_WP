@@ -40,7 +40,12 @@ import {
   Bookmark,
   Sparkles,
   Music,
-  X
+  X,
+  Camera,
+  Flag,
+  ShieldCheck,
+  AlertCircle,
+  Lock
 } from "lucide-react";
 
 const Library = () => {
@@ -916,7 +921,7 @@ const Library = () => {
       {showFlagPopup && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4" onClick={() => setShowFlagPopup(false)}>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl p-8 max-w-sm text-center space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="text-5xl">🏳️</div>
+            <div className="flex justify-center text-purple-650 dark:text-purple-400"><Flag className="w-12 h-12 animate-bounce" /></div>
             <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">Report Submitted</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
               Thank you for reporting. This content will only be removed upon admin review and approval.
@@ -1221,10 +1226,16 @@ const Library = () => {
               />
               <span className="text-gray-400 text-xs font-medium">Share a meme with the classroom...</span>
             </div>
-            <div className="flex items-center gap-3 text-gray-400">
-              <span title="Add Image">🖼️</span>
-              <span title="Add GIF">📹</span>
-              <span title="Add Emoji">😊</span>
+            <div className="flex items-center gap-3 text-gray-400 mr-2">
+              <span title="Add Image" className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg">
+                <Image className="w-5 h-5" />
+              </span>
+              <span title="Add GIF" className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg">
+                <Camera className="w-5 h-5" />
+              </span>
+              <span title="Add Emoji" className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg">
+                <Smile className="w-5 h-5" />
+              </span>
             </div>
           </div>
 
@@ -1232,6 +1243,7 @@ const Library = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredMemes.map((meme) => {
                 const isLiked = !!userLikesMap[meme.id];
+                const isSaved = !!userSavesMap[meme.id];
                 const creatorName = meme.creator_id === "admin" ? "Admin" : (userCache[meme.creator_id]?.name || "Creator");
                 const timeAgo = meme.created_at ? "2h ago" : "Just now";
 
@@ -1303,35 +1315,35 @@ const Library = () => {
                         <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold shadow-sm ${getSubjectTagClass(meme.subject)}`}>
                           {meme.subject}
                         </span>
-                        <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-750 dark:text-indigo-300 text-[8px] px-2 py-0.5 rounded-full font-bold">
+                        <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 text-[8px] px-2 py-0.5 rounded-full font-bold">
                           {meme.age_group}
                         </span>
                       </div>
                     </div>
 
-                    {/* Card Footer: Action bar & Hashtags */}
+                    {/* Card Footer: Action row */}
                     <div className="p-4 pt-0 mt-auto border-t border-gray-100/50 dark:border-zinc-800/40">
                       {/* Social Actions row */}
-                      <div className="flex items-center justify-between py-3 text-gray-450 dark:text-gray-550">
+                      <div className="flex items-center justify-between py-3 text-gray-400 dark:text-gray-400">
                         {/* 1. Like */}
                         <button
                           onClick={() => handleLikeToggle(meme.id, meme.creator_id)}
                           className={`flex items-center space-x-1.5 hover:scale-105 active:scale-95 transition-all text-xs ${isLiked ? 'text-red-500 font-bold' : 'hover:text-red-500'}`}
                           title="Like Meme"
                         >
-                          <span>{isLiked ? "❤️" : "🤍"}</span>
+                          <Heart className={`w-4 h-4 ${isLiked ? 'fill-current text-red-500' : 'text-gray-400'}`} />
                           <span className="text-[10px] font-bold">{meme.likes_count || 0}</span>
                         </button>
-
+ 
                         {/* 2. Remix */}
                         <button
                           onClick={() => navigate(`/lab?templateId=${meme.id}`)}
-                          className="hover:text-purple-650 hover:scale-105 active:scale-95 transition-all text-xs"
+                          className="hover:text-purple-600 hover:scale-105 active:scale-95 transition-all text-xs"
                           title={meme.template_id ? "Customise / Remix Meme" : "Use as Template"}
                         >
-                          💬
+                          <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                         </button>
-
+ 
                         {/* 3. Download */}
                         <button
                           onClick={() => {
@@ -1341,19 +1353,19 @@ const Library = () => {
                               handleMediaDownload(meme.media_url, meme.title);
                             }
                           }}
-                          className="hover:text-indigo-650 hover:scale-105 active:scale-95 transition-all text-xs"
+                          className="hover:text-indigo-600 hover:scale-105 active:scale-95 transition-all text-xs"
                           title="Download Meme (CC BY-NC-SA 4.0)"
                         >
-                          📤
+                          <Download className="w-4 h-4" />
                         </button>
-
+ 
                         {/* 4. Bookmark (Saves) */}
                         <button
                           onClick={() => handleSaveToggle(meme)}
                           className="hover:text-yellow-600 hover:scale-105 active:scale-95 transition-all text-xs"
                           title="Save Meme"
                         >
-                          🔖
+                          <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current text-amber-500' : 'text-gray-400'}`} />
                         </button>
                       </div>
 
@@ -1373,9 +1385,10 @@ const Library = () => {
               })}
             </div>
           ) : (
-            <div className="bg-white/40 dark:bg-zinc-900/40 backdrop-blur-sm border border-gray-200/50 dark:border-zinc-800/40 rounded-2xl p-12 text-center text-gray-500 shadow-md">
-              <p className="text-lg font-medium mb-1 text-gray-900 dark:text-white">No memes match these filters</p>
-              <p className="text-xs text-gray-450">Try broadening your subject, grade or format choices.</p>
+            <div className="bg-white/40 dark:bg-zinc-900/40 backdrop-blur-sm border border-gray-200/50 dark:border-zinc-800/40 rounded-2xl p-12 text-center text-gray-500 shadow-md flex flex-col items-center justify-center">
+              <div className="flex justify-center text-gray-400 mb-3"><Flag className="w-12 h-12" /></div>
+              <h3 className="text-lg font-extrabold text-gray-900 dark:text-white mb-2">No matching memes found</h3>
+              <p className="text-xs text-gray-400">Try broadening your subject, grade or format choices.</p>
             </div>
           )}
 
@@ -1534,7 +1547,7 @@ const Library = () => {
                     By {activeMeme.creator_id === "admin" ? "Admin" : (userCache[activeMeme.creator_id]?.name || "Creator")}
                   </button>
                   <span>•</span>
-                  <span>❤️ {activeMeme.likes_count || 0} Likes</span>
+                  <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-red-500 fill-current" /> {activeMeme.likes_count || 0} Likes</span>
                 </div>
                 {user && (activeMeme.creator_id === user.uid || profile?.role === "admin") && (
                   <button
@@ -1556,16 +1569,16 @@ const Library = () => {
                       handleMediaDownload(activeMeme.media_url, activeMeme.title);
                     }
                   }}
-                  className="flex-1 bg-purple-50 dark:bg-purple-950/20 text-purple-750 dark:text-purple-300 font-bold py-2 rounded-lg border border-purple-200 dark:border-purple-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-purple-100 transition"
+                  className="flex-1 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 font-bold py-2 rounded-lg border border-purple-200 dark:border-purple-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-purple-100 transition"
                 >
-                  <span>📥</span>
+                  <Download className="w-3.5 h-3.5" />
                   <span>Download</span>
                 </button>
                 <button
                   onClick={() => navigate(`/lab?templateUrl=${encodeURIComponent(activeMeme.media_url)}&format=${activeMeme.format}&clearText=true`)}
-                  className="flex-1 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-750 dark:text-indigo-300 font-bold py-2 rounded-lg border border-indigo-200 dark:border-indigo-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-indigo-100 transition"
+                  className="flex-1 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 font-bold py-2 rounded-lg border border-indigo-200 dark:border-indigo-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-indigo-100 transition"
                 >
-                  <span>🎨</span>
+                  <Sparkles className="w-3.5 h-3.5" />
                   <span>Use as Template</span>
                 </button>
               </div>
@@ -1645,7 +1658,7 @@ const Library = () => {
                   <h3 className="font-extrabold text-sm uppercase tracking-wider">Verified Reviews</h3>
                   {expertComments.length > 0 && (
                     <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 flex items-center space-x-1">
-                      <span>🛡️</span>
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                       <span>Verified</span>
                     </span>
                   )}
@@ -1682,7 +1695,7 @@ const Library = () => {
                       return (
                         <div key={comment.id} className="border-b border-gray-200 dark:border-gray-800 pb-3 last:border-b-0 text-xs">
                           <div className="flex justify-between items-center text-gray-500 mb-1">
-                            <span className="font-bold text-purple-750">🛡️ Verified Review ({commenterName})</span>
+                            <span className="font-bold text-purple-700 flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> Verified Review ({commenterName})</span>
                             <div className="flex items-center space-x-2">
                               <span>{comment.timestamp?.seconds ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString() : "Just now"}</span>
                               {isCommentAuthor && (
@@ -1710,7 +1723,7 @@ const Library = () => {
               {/* Expert & Verified User Submission Area */}
               {user && profile && (profile.role === "expert" || profile.role === "admin" || profile.is_verified === true) ? (
                 <form onSubmit={handleExpertCommentSubmit} className="space-y-3 border-t pt-4">
-                  <span className="block text-xs font-semibold text-purple-750 uppercase">🛡️ Add Verification Review</span>
+                  <span className="block text-xs font-semibold text-purple-700 uppercase flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-purple-650" /> Add Verification Review</span>
                   <textarea
                     placeholder="Write a verification review or academic comment on content validity..."
                     value={newExpertComment}
@@ -1724,81 +1737,88 @@ const Library = () => {
                   </button>
                 </form>
               ) : (
-                <div className="border-t pt-4 text-center text-xs text-gray-400">
-                  🔒 Comments are restricted to verified users and subject-matter experts.
+                <div className="border-t pt-4 text-center text-xs text-gray-400 flex items-center justify-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-gray-400" /> Comments are restricted to verified users and subject-matter experts.
                 </div>
               )}
             </div>
-
           </div>
         </div>
       )}
 
       {/* 3. DIRECT MEME UPLOAD MODAL */}
       {showDirectUploadModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className={`w-full max-w-md p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
-            <h2 className="text-lg font-bold mb-2">Direct Meme Upload</h2>
-            <p className="text-xs text-gray-500 mb-6">
+        <div 
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+          style={{ animation: 'modalBackdropFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+        >
+          <div 
+            className={`w-full max-w-lg p-6 rounded-2xl overflow-y-auto max-h-[95vh] shadow-2xl ${containerClass} border border-gray-200/80 dark:border-zinc-800/80`}
+            style={{ animation: 'modalContainerScaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+          >
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-xl font-extrabold tracking-tight text-gray-900 dark:text-white">Direct Meme Upload</h2>
+              <button 
+                type="button"
+                onClick={() => setShowDirectUploadModal(false)}
+                className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800"
+                aria-label="Close upload modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
               Skip the editor canvas and upload a finished image meme directly from your device storage.
             </p>
 
             {uploadError && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 text-red-650 rounded text-xs">
-                {uploadError}
+              <div className="mb-5 p-3.5 bg-rose-50 border border-rose-250 dark:bg-rose-950/20 dark:border-rose-900/50 text-rose-750 dark:text-rose-300 rounded-xl text-xs font-semibold leading-relaxed">
+                ⚠️ {uploadError}
               </div>
             )}
 
-            <form onSubmit={handleDirectUploadSubmit} className="space-y-4 text-xs font-semibold">
+            <form onSubmit={handleDirectUploadSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block text-gray-500 uppercase mb-1">Meme Title</label>
+                <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Meme Title</label>
                 <input
                   type="text"
                   placeholder="e.g. Mitosis vs Meiosis"
                   value={uploadTitle}
                   onChange={(e) => setUploadTitle(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                  className="w-full px-3.5 py-2.5 border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-650 dark:focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200 placeholder-gray-400"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-500 uppercase mb-1">Subject</label>
-                  <input
-                    type="text"
-                    placeholder="Search subject..."
-                    value={formSubjectSearch}
-                    onChange={(e) => setFormSubjectSearch(e.target.value)}
-                    className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
-                  />
+                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Subject</label>
                   <select
                     value={uploadSubject}
                     onChange={(e) => setUploadSubject(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                    className="w-full px-3 py-2.5 border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-650 dark:focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200"
                   >
-                    {subjects
-                      .filter(s => s.toLowerCase().includes(formSubjectSearch.toLowerCase()))
-                      .map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
+                    {subjects.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
                   </select>
                   {uploadSubject === "Other" && (
                     <input
                       type="text"
                       placeholder="Type your subject..."
-                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2 text-xs"
+                      className="w-full px-3 py-2.5 border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-650 dark:focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200 mt-2 placeholder-gray-400"
                       value={uploadCustomSubject || ""}
                       onChange={(e) => setUploadCustomSubject(e.target.value)}
+                      required
                     />
                   )}
                 </div>
                 <div>
-                  <label className="block text-gray-500 uppercase mb-1">Grade</label>
+                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Grade</label>
                   <select
                     value={uploadGrade}
                     onChange={(e) => setUploadGrade(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                    className="w-full px-3 py-2.5 border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-650 dark:focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200"
                   >
                     {gradeGroups.map(g => (
                       <option key={g} value={g}>{g}</option>
@@ -1807,32 +1827,23 @@ const Library = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-500 uppercase mb-1">Language</label>
-                  <input
-                    type="text"
-                    placeholder="Search language..."
-                    value={formLanguageSearch}
-                    onChange={(e) => setFormLanguageSearch(e.target.value)}
-                    className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
-                  />
+                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Language</label>
                   <select
                     value={uploadLanguage}
                     onChange={(e) => setUploadLanguage(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                    className="w-full px-3 py-2.5 border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-650 dark:focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200"
                   >
-                    {languages
-                      .filter(lang => lang.toLowerCase().includes(formLanguageSearch.toLowerCase()))
-                      .map(lang => (
-                        <option key={lang} value={lang}>{lang}</option>
-                      ))}
+                    {languages.map(lang => (
+                      <option key={lang} value={lang}>{lang}</option>
+                    ))}
                   </select>
                   {uploadLanguage === "Other" && (
                     <input
                       type="text"
                       placeholder="Type custom language..."
-                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2 text-xs"
+                      className="w-full px-3 py-2.5 border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-650 dark:focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200 mt-2 placeholder-gray-400"
                       value={uploadCustomLanguage}
                       onChange={(e) => setUploadCustomLanguage(e.target.value)}
                       required
@@ -1840,11 +1851,11 @@ const Library = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-gray-500 uppercase mb-1">Format Type</label>
+                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Format Type</label>
                   <select
                     value={uploadFormat}
                     onChange={(e) => setUploadFormat(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                    className="w-full px-3 py-2.5 border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-650 dark:focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200"
                   >
                     <option value="image">Image</option>
                     <option value="video">Video</option>
@@ -1855,41 +1866,54 @@ const Library = () => {
               </div>
 
               <div>
-                <label className="block text-gray-500 uppercase mb-1">Topic / Keywords (Separate with comma)</label>
+                <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Topic / Keywords</label>
                 <input
                   type="text"
                   placeholder="e.g. cell division, mitosis, biology meme"
                   value={uploadKeywords}
                   onChange={(e) => setUploadKeywords(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded placeholder-gray-400"
+                  className="w-full px-3.5 py-2.5 border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-650 dark:focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200 placeholder-gray-400"
                 />
-                <span className="text-[10px] text-gray-400 block mt-1 font-normal">
-                  Note: Instruct users to separate keywords with comma. These keywords will be indexed to enable a smooth search and filtering.
+                <span className="text-[10px] text-gray-400 dark:text-gray-500 block mt-1.5 font-normal leading-normal">
+                  💡 Separate keywords with commas to help others find and filter your meme.
                 </span>
               </div>
 
               <div>
-                <label className="block text-gray-500 uppercase mb-1">Attach Meme File</label>
-                <input
-                  type="file"
-                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                  className="block w-full text-xs"
-                  required
-                />
+                <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Attach Meme File</label>
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-zinc-800 rounded-2xl p-6 cursor-pointer hover:bg-purple-50/10 dark:hover:bg-purple-950/5 hover:border-purple-500 dark:hover:border-purple-500/50 transition duration-200">
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <div className="p-3 bg-purple-50 dark:bg-zinc-950 rounded-full text-purple-600 dark:text-purple-400">
+                      <Image className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-650 dark:text-gray-300 text-center">
+                      {uploadFile ? uploadFile.name : "Click to select a file"}
+                    </span>
+                    <span className="text-[10px] text-gray-450 dark:text-gray-500 font-normal">
+                      PNG, JPG, GIF, MP4, or MP3 (Max 100MB)
+                    </span>
+                  </div>
+                  <input
+                    type="file"
+                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                    className="hidden"
+                    required
+                  />
+                </label>
               </div>
 
-              <div className="flex justify-end space-x-2 pt-4">
+              <div className="flex justify-end space-x-2 pt-4 border-t border-gray-100 dark:border-zinc-800/80">
                 <button
                   type="button"
                   onClick={() => setShowDirectUploadModal(false)}
-                  className="bg-gray-200 dark:bg-gray-700 text-gray-750 dark:text-gray-200 px-4 py-2 rounded-lg font-bold"
+                  className="bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-200 px-4 py-2.5 rounded-xl font-bold transition text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={uploadLoading}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-purple-750"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-bold transition text-xs shadow-sm hover:shadow-purple-500/10 disabled:opacity-60"
                 >
                   {uploadLoading ? "Uploading..." : "Publish Meme"}
                 </button>
@@ -1899,6 +1923,16 @@ const Library = () => {
         </div>
       )}
 
+      <style>{`
+        @keyframes modalBackdropFadeIn {
+          from { opacity: 0; backdrop-filter: blur(0px); }
+          to { opacity: 1; backdrop-filter: blur(4px); }
+        }
+        @keyframes modalContainerScaleIn {
+          from { opacity: 0; transform: scale(0.96) translateY(8px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+      `}</style>
     </div>
   );
 };

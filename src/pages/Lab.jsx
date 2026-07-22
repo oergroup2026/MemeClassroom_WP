@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { HelpCircle } from "lucide-react";
 import { 
   collection, 
   addDoc, 
@@ -1773,7 +1774,7 @@ const Lab = () => {
 
                     {videoUrl && (
                       <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-3 text-gray-550">Crop / Trim Playback Window</span>
+                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-3 text-gray-500">Crop / Trim Playback Window</span>
                         <div className="space-y-3 text-xs font-semibold">
                           <div>
                             <label className="flex justify-between">
@@ -1787,7 +1788,7 @@ const Lab = () => {
                               step="0.1"
                               value={videoTrimStart}
                               onChange={(e) => setVideoTrimStart(parseFloat(e.target.value))}
-                              className="w-full accent-purple-650 h-1 bg-gray-250 rounded-lg cursor-pointer mt-1"
+                              className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer mt-1"
                             />
                           </div>
                           <div>
@@ -1802,14 +1803,14 @@ const Lab = () => {
                               step="0.1"
                               value={videoTrimEnd}
                               onChange={(e) => setVideoTrimEnd(parseFloat(e.target.value))}
-                              className="w-full accent-purple-650 h-1 bg-gray-250 rounded-lg cursor-pointer mt-1"
+                              className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer mt-1"
                             />
                           </div>
                         </div>
 
                         {/* Phase 2E: Video Captions textarea */}
                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                          <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5 text-gray-550">
+                          <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5 text-gray-500">
                             Timed Captions
                           </label>
                           <p className="text-[10px] text-gray-400 mb-2 leading-relaxed">
@@ -1901,7 +1902,7 @@ const Lab = () => {
                       </details>
 
                       <div>
-                        <span className="block text-[11px] font-bold uppercase tracking-wider mb-2 text-gray-550">Or Load Mock Sample</span>
+                        <span className="block text-[11px] font-bold uppercase tracking-wider mb-2 text-gray-500">Or Load Mock Sample</span>
                         <div className="flex flex-wrap gap-2">
                           {MEDIA_SAMPLES.gif.map((sample, idx) => (
                             <button
@@ -1984,7 +1985,7 @@ const Lab = () => {
 
                     {audioUrl && (
                       <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-3 text-gray-550">Crop / Trim Playback Window</span>
+                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-3 text-gray-500">Crop / Trim Playback Window</span>
                         <div className="space-y-3 text-xs font-semibold">
                           <div>
                             <label className="flex justify-between">
@@ -1998,7 +1999,7 @@ const Lab = () => {
                               step="0.1"
                               value={audioTrimStart}
                               onChange={(e) => setAudioTrimStart(parseFloat(e.target.value))}
-                              className="w-full accent-purple-650 h-1 bg-gray-250 rounded-lg cursor-pointer mt-1"
+                              className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer mt-1"
                             />
                           </div>
                           <div>
@@ -2013,7 +2014,7 @@ const Lab = () => {
                               step="0.1"
                               value={audioTrimEnd}
                               onChange={(e) => setAudioTrimEnd(parseFloat(e.target.value))}
-                              className="w-full accent-purple-650 h-1 bg-gray-250 rounded-lg cursor-pointer mt-1"
+                              className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer mt-1"
                             />
                           </div>
                         </div>
@@ -2807,9 +2808,9 @@ const Lab = () => {
             </p>
 
             {/* Visual Draft Preview */}
-            <div className="mb-5 bg-gray-55 dark:bg-zinc-950/60 rounded-xl p-3 border border-gray-150 dark:border-zinc-800 flex flex-col items-center justify-center">
+            <div className="mb-5 bg-gray-50 dark:bg-zinc-950/60 rounded-xl p-3 border border-gray-150 dark:border-zinc-800 flex flex-col items-center justify-center">
               <span className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Meme Composition Draft</span>
-              <div className="w-56 aspect-video rounded-lg overflow-hidden border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center relative shadow-sm">
+              <div className="w-56 aspect-video rounded-lg overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center relative shadow-sm">
                 {activeTab === "image" && images.length > 0 ? (
                   <div className="w-full h-full flex flex-wrap">
                     {images.map((src, idx) => (
@@ -3026,14 +3027,14 @@ const Lab = () => {
           <div className={`w-full max-w-xl p-6 rounded-xl ${containerClass} overflow-y-auto max-h-[85vh]`}>
             <div className="flex justify-between items-center border-b pb-3 mb-4">
               <h2 className="text-lg font-bold">Meme Studio Guidelines & Tutorial</h2>
-              <button onClick={() => setShowTutorialModal(false)} className="text-gray-400 hover:text-gray-550 font-bold text-lg">
+              <button onClick={() => setShowTutorialModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 font-bold text-lg">
                 ✕
               </button>
             </div>
 
-            <div className="space-y-4 text-xs text-gray-650 dark:text-gray-300">
+            <div className="space-y-4 text-xs text-gray-700 dark:text-gray-300">
               <div className="bg-purple-50 dark:bg-purple-950/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800/40">
-                <h3 className="font-bold text-purple-750 dark:text-purple-300 mb-1 text-sm">💡 Quick Studio Tutorial</h3>
+                <h3 className="font-bold text-purple-750 dark:text-purple-300 mb-1 text-sm flex items-center gap-1.5"><HelpCircle className="w-4 h-4 text-purple-600 dark:text-purple-400" /> Quick Studio Tutorial</h3>
                 <ol className="list-decimal list-inside space-y-2 mt-2">
                   <li><strong>Choose Workspace Tab:</strong> Select <strong>Image</strong> (supports collages), <strong>Video</strong>, <strong>GIF</strong>, or <strong>Audio</strong> at the top of the canvas workbench.</li>
                   <li><strong>Add Media Assets:</strong> Browse the <strong>Library Templates</strong>, upload custom files via the drag-and-drop dropzone, or click <strong>Remix from Library</strong> to import public memes.</li>

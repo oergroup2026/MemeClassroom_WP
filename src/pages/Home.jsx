@@ -128,14 +128,14 @@ const Home = () => {
         {user ? (
           <Link
             to="/lab"
-            className="bg-gradient-to-r from-zinc-50 to-zinc-150 dark:from-zinc-800 dark:to-zinc-850 border border-gray-200 dark:border-zinc-700/80 text-gray-800 dark:text-zinc-100 hover:from-zinc-100 hover:to-zinc-200 dark:hover:from-zinc-750 dark:hover:to-zinc-800 font-bold px-8 py-3.5 rounded-xl shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
+            className="bg-gradient-to-r from-zinc-50 to-zinc-200 dark:from-zinc-800 dark:to-zinc-900 border border-gray-200 dark:border-zinc-700/80 text-gray-800 dark:text-zinc-100 hover:from-zinc-100 hover:to-zinc-200 dark:hover:from-zinc-700 dark:hover:to-zinc-800 font-bold px-8 py-3.5 rounded-xl shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
           >
             Open Meme Lab
           </Link>
         ) : (
           <Link
             to="/auth?mode=register"
-            className="bg-gradient-to-r from-zinc-50 to-zinc-150 dark:from-zinc-800 dark:to-zinc-850 border border-gray-200 dark:border-zinc-700/80 text-gray-800 dark:text-zinc-100 hover:from-zinc-100 hover:to-zinc-200 dark:hover:from-zinc-750 dark:hover:to-zinc-800 font-bold px-8 py-3.5 rounded-xl shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
+            className="bg-gradient-to-r from-zinc-50 to-zinc-200 dark:from-zinc-800 dark:to-zinc-900 border border-gray-200 dark:border-zinc-700/80 text-gray-800 dark:text-zinc-100 hover:from-zinc-100 hover:to-zinc-200 dark:hover:from-zinc-700 dark:hover:to-zinc-800 font-bold px-8 py-3.5 rounded-xl shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
           >
             Join Free →
           </Link>

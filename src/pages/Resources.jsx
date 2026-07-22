@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { Clock, Search, BookOpen, Image } from "lucide-react";
 import {
   collection,
   query,
@@ -166,7 +167,7 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, act
         <div className="px-6 py-5 space-y-5">
           {/* Thumbnail */}
           {res.thumbnail_url && (
-            <div className="w-full aspect-[16/9] rounded-xl overflow-hidden border border-gray-150 dark:border-gray-700">
+            <div className="w-full aspect-[16/9] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
               <img src={res.thumbnail_url} alt={res.title} className="w-full h-full object-cover" />
             </div>
           )}
@@ -282,7 +283,7 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, act
           {/* Admin Approval Badge */}
           {!res.admin_approved && (
             <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-xl text-xs text-yellow-700 dark:text-yellow-300 font-medium">
-              ⏳ Pending Admin Approval — this resource is visible but awaiting review.
+              <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" /> Pending Admin Approval — this resource is visible but awaiting review.
             </div>
           )}
 
@@ -1223,8 +1224,8 @@ const Resources = () => {
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-1.5 text-xs font-bold rounded-lg transition ${
               activeTab === tab.id
-                ? "bg-purple-600 text-white shadow-sm"
-                : "text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-850"
+                ? "bg-purple-650 text-white shadow-sm"
+                : "text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
             }`}
           >
             {tab.label}
@@ -1244,7 +1245,7 @@ const Resources = () => {
                     <div>
                       {!link.admin_approved && (
                         <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 px-2 py-1 rounded-lg">
-                          ⏳ Pending Admin Approval
+                          <Clock className="w-3 h-3" /> Pending Admin Approval
                         </div>
                       )}
                       <div className="w-full aspect-video rounded-lg overflow-hidden mb-4 border border-gray-200 dark:border-gray-700 bg-gray-100">
@@ -1308,7 +1309,7 @@ const Resources = () => {
           {/* Search + Sort bar */}
           <div className={`p-4 ${containerClass} flex flex-wrap items-center gap-3 mb-6`}>
             <div className="relative flex-grow min-w-0">
-              <span className="absolute left-3.5 top-2.5 text-gray-400">🔍</span>
+              <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search by title, keywords, subject, publisher..."
@@ -1345,7 +1346,7 @@ const Resources = () => {
                   <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Subject</label>
                   <input
                     type="text"
-                    placeholder="🔍 Search subject..."
+                    placeholder="Search subject..."
                     value={filterSubjectSearch}
                     onChange={(e) => setFilterSubjectSearch(e.target.value)}
                     className="w-full px-2.5 py-1 mb-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-lg text-xs"
@@ -1401,7 +1402,7 @@ const Resources = () => {
                             {/* Pending Admin Approval Badge */}
                             {!res.admin_approved && (
                               <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 px-2 py-1 rounded-lg">
-                                ⏳ Pending Admin Approval
+                                <Clock className="w-3 h-3" /> Pending Admin Approval
                               </div>
                             )}
 
@@ -1413,7 +1414,7 @@ const Resources = () => {
                                     ? "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
                                     : "bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300"
                                 }`}>
-                                  {res.type === "stories" ? "📖" : (authorName ? authorName.charAt(0).toUpperCase() : "C")}
+                                  {res.type === "stories" ? <BookOpen className="w-4 h-4 text-amber-700 dark:text-amber-300" /> : (authorName ? authorName.charAt(0).toUpperCase() : "C")}
                                 </div>
                                 <div className="flex-grow min-w-0">
                                   <button
@@ -1430,13 +1431,13 @@ const Resources = () => {
                                   ? "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
                                   : "bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300"
                               }`}>
-                                {res.type === "stories" ? "📜 Meme Story" : (res.type?.replace(/_/g, " ") || "resource")}
+                                {res.type === "stories" ? "Story" : (res.type?.replace(/_/g, " ") || "resource")}
                               </span>
                             </div>
 
                             {/* Thumbnail */}
                             {res.thumbnail_url && (
-                              <div className="w-full aspect-[16/9] mb-3 rounded-lg overflow-hidden border border-gray-150 dark:border-zinc-800 bg-gray-50">
+                              <div className="w-full aspect-[16/9] mb-3 rounded-lg overflow-hidden border border-gray-200 dark:border-zinc-800 bg-gray-50">
                                 <img src={res.thumbnail_url} alt={res.title} className="w-full h-full object-cover" />
                               </div>
                             )}
@@ -1456,7 +1457,7 @@ const Resources = () => {
                               <>
                                 {res.meme_name && (
                                   <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full mb-2 border border-amber-200 dark:border-amber-700/50">
-                                    🎭 {res.meme_name}
+                                    <Image className="w-3.5 h-3.5 mr-0.5 text-amber-600 dark:text-amber-400" /> {res.meme_name}
                                   </span>
                                 )}
                               </>
@@ -1480,7 +1481,7 @@ const Resources = () => {
                             {/* Publication info for articles */}
                             {(res.type === "article" || res.type === "research_paper") && (res.publication_year || res.publisher_name) && (
                               <div className="mb-3 p-2 bg-purple-50/50 dark:bg-purple-950/10 border border-purple-100 dark:border-purple-900/50 rounded-lg text-[10px] text-purple-900 dark:text-purple-300 flex items-center space-x-1.5">
-                                <span>📖</span>
+                                <BookOpen className="w-3.5 h-3.5 text-purple-600" />
                                 <span className="font-semibold">
                                   {res.publisher_name}{res.publication_year && ` (${res.publication_year})`}
                                 </span>

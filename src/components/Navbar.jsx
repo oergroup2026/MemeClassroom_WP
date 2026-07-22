@@ -104,7 +104,7 @@ const Navbar = () => {
       ? "flex flex-col items-center justify-center text-purple-600 dark:text-purple-400 font-bold border-b-2 border-purple-500 px-1 pt-1.5 transition duration-150 text-[10px] sm:text-xs h-full"
       : "flex flex-col items-center justify-center text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium px-1 pt-1.5 transition duration-150 text-[10px] sm:text-xs h-full";
 
-  const mobileLinkClass = "flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-250 hover:bg-gray-100 dark:hover:bg-gray-800";
+  const mobileLinkClass = "flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800";
 
   const renderNavLinks = (mobile = false) => {
     const links = [
@@ -156,7 +156,7 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16 relative">
           <div className="flex items-center">
             {/* Logo */}
-            <Link to="/" className="flex-shrink-0 flex items-center font-extrabold text-xl text-purple-600 dark:text-purple-400 tracking-tight">
+            <Link to="/" style={{ fontFamily: "'Pacifico', cursive" }} className="flex-shrink-0 flex items-center text-xl text-purple-600 dark:text-purple-400">
               MemeClassroom
             </Link>
           </div>
@@ -207,7 +207,7 @@ const Navbar = () => {
                         </button>
                       )}
                     </div>
-                    <div className="max-h-64 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-750">
+                    <div className="max-h-64 overflow-y-auto divide-y divide-gray-50 dark:divide-zinc-800">
                       {notifications.length === 0 ? (
                         <div className="px-4 py-8 text-center">
                           <p className="text-sm text-gray-400">No notifications yet.</p>
@@ -217,7 +217,7 @@ const Navbar = () => {
                         notifications.map((notif) => (
                           <div
                             key={notif.id}
-                            className={`px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition ${notif.read ? 'opacity-60' : 'bg-purple-50/30 dark:bg-purple-950/10'}`}
+                            className={`px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 transition ${notif.read ? 'opacity-60' : 'bg-purple-50/30 dark:bg-purple-950/10'}`}
                           >
                             <p className="text-xs text-gray-800 dark:text-gray-200 leading-normal">{notif.message || notif.text}</p>
                             <span className="block text-[9px] text-gray-400 mt-1">
@@ -318,7 +318,7 @@ const Navbar = () => {
               <Link
                 to="/auth"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-center w-full block py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-750 dark:text-gray-250 hover:bg-gray-50 dark:hover:bg-gray-800"
+                className="text-center w-full block py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 Sign In
               </Link>

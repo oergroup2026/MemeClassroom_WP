@@ -18,6 +18,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { sendPasswordResetEmail } from "firebase/auth";
 import { db, storage, auth } from "../firebase";
 import { useAuth } from "../context/AuthContext";
+import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star } from "lucide-react";
 import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -1299,7 +1300,7 @@ const Admin = () => {
 
   const headerCellClass = highContrastMode
     ? "bg-zinc-950 border-b border-zinc-800 text-zinc-400 font-extrabold uppercase text-[10px] p-3 text-left"
-    : "bg-gray-100 border-b border-gray-250 text-gray-500 font-bold uppercase text-[10px] p-3 text-left";
+    : "bg-gray-100 border-b border-gray-200 text-gray-500 font-bold uppercase text-[10px] p-3 text-left";
 
   const rowCellClass = highContrastMode
     ? "border-b border-zinc-800 p-3 text-white bg-zinc-900 text-xs font-medium"
@@ -1344,7 +1345,7 @@ const Admin = () => {
         onCancel={closeConfirm}
       />
       {/* 1. Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-gray-850 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-zinc-800 pb-5">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-purple-650 dark:text-purple-400">
             Administrative Operations HQ
@@ -1362,7 +1363,7 @@ const Admin = () => {
             ? "bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-300"
             : "bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-300"
         }`}>
-          <span>{alertType === "error" ? "⚠️" : "✅"}</span>
+          {alertType === "error" ? <AlertCircle className="w-4 h-4 text-red-500" /> : <CheckCircle2 className="w-4 h-4 text-green-500" />}
           <span>{alertMsg}</span>
         </div>
       )}
@@ -1374,7 +1375,7 @@ const Admin = () => {
           { id: "moderation", label: "Moderation Queue", roles: ["admin", "manager"] },
           { id: "archivist", label: "Content Archivist", roles: ["admin", "manager"] },
           { id: "users", label: "User Directory", roles: ["admin", "manager"] },
-          { id: "content", label: "🛡️ Content Manager", roles: ["admin"] },
+          { id: "content", label: "Content Manager", roles: ["admin"] },
           { id: "marketing", label: "Monetization & Ads", roles: ["admin"] },
           { id: "taxonomy", label: "System Taxonomy", roles: ["admin"] }
         ]
@@ -1386,7 +1387,7 @@ const Admin = () => {
               className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
                 activeTab === tab.id
                   ? "bg-purple-650 text-white shadow-sm"
-                  : "text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-850"
+                  : "text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
               }`}
             >
               {tab.label}
@@ -1458,8 +1459,8 @@ const Admin = () => {
             const pendingResources = resources.filter(r => !r.admin_approved);
             return (
               <div className={`p-6 ${containerClass}`}>
-                <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-yellow-600 dark:text-yellow-400">
-                  ⏳ Resources Pending Approval ({pendingResources.length})
+                <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-450" /> Resources Pending Approval ({pendingResources.length})
                 </h3>
                 <p className="text-xs text-gray-400 mb-4">These resources are live on the platform but need your review. Approve to remove the 'Pending Admin Approval' badge, or delete if inappropriate.</p>
                 {pendingResources.length > 0 ? (
@@ -2756,7 +2757,7 @@ const Admin = () => {
                 <h3 className="text-sm font-extrabold border-b pb-2 uppercase text-gray-400">
                   Developer Sandbox Testing Utilities
                 </h3>
-                <p className="text-xs text-gray-550 mt-2 leading-relaxed">
+                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
                   Use these staging controls to seed or wipe highly realistic placeholder documents (`is_placeholder: true`) across `/memes`, `/templates`, and `/external_links` database paths to quickly evaluate UI bindings.
                 </p>
               </div>
@@ -3059,10 +3060,10 @@ const Admin = () => {
                 <div className="flex flex-wrap gap-2 mb-4 items-center">
                   <select value={cmResStatus} onChange={e => setCmResStatus(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
                     <option value="all">All Statuses</option>
-                    <option value="approved">✅ Approved</option>
-                    <option value="pending">⏳ Pending</option>
-                    <option value="admin_hidden">🚫 Admin Hidden</option>
-                    <option value="hidden_moderation">🏳️ Moderation</option>
+                    <option value="approved">Approved</option>
+                    <option value="pending">Pending</option>
+                    <option value="admin_hidden">Admin Hidden</option>
+                    <option value="hidden_moderation">Moderation Queue</option>
                   </select>
                   <select value={cmResType} onChange={e => setCmResType(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
                     <option value="all">All Types</option>
@@ -3153,13 +3154,13 @@ const Admin = () => {
                           </td>
                           <td className={rowCellClass}>
                             {res.status === "admin_hidden" ? (
-                              <span className="bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 px-2 py-0.5 rounded text-[10px] font-bold">🚫 Admin Hidden</span>
+                              <span className="bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1"><EyeOff className="w-3 h-3 text-red-500" /> Admin Hidden</span>
                             ) : res.status === "hidden_moderation" ? (
-                              <span className="bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded text-[10px] font-bold">🏳️ Moderation</span>
+                              <span className="bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1"><AlertCircle className="w-3 h-3 text-orange-500" /> Moderation</span>
                             ) : res.admin_approved ? (
-                              <span className="bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-bold">✅ Approved</span>
+                              <span className="bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500" /> Approved</span>
                             ) : (
-                              <span className="bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded text-[10px] font-bold">⏳ Pending</span>
+                              <span className="bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1"><Clock className="w-3 h-3 text-yellow-600" /> Pending</span>
                             )}
                           </td>
                           <td className={rowCellClass}>
@@ -3430,9 +3431,9 @@ const Admin = () => {
                 <div className="flex flex-wrap gap-2 mb-4 items-center">
                   <select value={cmTplStatus} onChange={e => setCmTplStatus(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
                     <option value="all">All Statuses</option>
-                    <option value="approved">✅ Approved</option>
-                    <option value="pending">⏳ Pending</option>
-                    <option value="rejected">❌ Rejected</option>
+                    <option value="approved">Approved</option>
+                    <option value="pending">Pending</option>
+                    <option value="rejected">Rejected</option>
                   </select>
                   <select value={cmTplFormat} onChange={e => setCmTplFormat(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
                     <option value="all">All Formats</option>
@@ -3442,8 +3443,8 @@ const Admin = () => {
                   </select>
                   <select value={cmTplCreator} onChange={e => setCmTplCreator(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
                     <option value="all">All Creators</option>
-                    <option value="admin">🔐 Admin-seeded</option>
-                    <option value="user">👤 User-submitted</option>
+                    <option value="admin">Admin-seeded</option>
+                    <option value="user">User-submitted</option>
                   </select>
                   {anyTplFilter && (
                     <button
@@ -3529,13 +3530,13 @@ const Admin = () => {
                           <td className={rowCellClass}>
                             <div className="flex items-center gap-1 flex-wrap">
                               {temp.status === "approved" ? (
-                                <span className="bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-bold">✅ Approved</span>
+                                <span className="bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500" /> Approved</span>
                               ) : temp.status === "rejected" ? (
-                                <span className="bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 px-2 py-0.5 rounded text-[10px] font-bold">❌ Rejected</span>
+                                <span className="bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1"><AlertCircle className="w-3 h-3 text-red-500" /> Rejected</span>
                               ) : (
-                                <span className="bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded text-[10px] font-bold">⏳ Pending</span>
+                                <span className="bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1"><Clock className="w-3 h-3 text-yellow-600" /> Pending</span>
                               )}
-                              {temp.is_featured && <span className="text-yellow-500 text-xs">⭐</span>}
+                              {temp.is_featured && <Star className="w-3 h-3 text-amber-500 fill-current" />}
                             </div>
                           </td>
                           <td className={rowCellClass}>

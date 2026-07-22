@@ -19,22 +19,28 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
-import { 
-  Pencil, 
-  CheckCircle2, 
-  MapPin, 
-  Eye, 
-  FileText, 
-  Folder, 
-  MessageSquare, 
-  Star, 
-  Heart, 
-  Shield, 
-  Lock, 
-  Award, 
-  Trophy, 
+import {
+  Pencil,
+  CheckCircle2,
+  MapPin,
+  Eye,
+  FileText,
+  Folder,
+  MessageSquare,
+  Star,
+  Heart,
+  Shield,
+  Lock,
+  Award,
+  Trophy,
   Gem,
-  Plus
+  Plus,
+  Send,
+  Clock,
+  Search,
+  Volume2,
+  Sparkles,
+  FolderOpen
 } from "lucide-react";
 
 const MILESTONES = [0, 1, 5, 10, 25, 50];
@@ -543,7 +549,7 @@ const Profile = () => {
               <path d="M12 30 L50 48 L88 30" />
               <path d="M50 48 V85" />
             </svg>
-            <span className="absolute top-1 right-2 text-xl animate-bounce">✈️</span>
+            <Send className="absolute top-1 right-2 text-indigo-500 dark:text-indigo-400 w-5 h-5 animate-bounce" />
           </div>
         );
       } else if (activeTab === "my-drafts") {
@@ -559,7 +565,7 @@ const Profile = () => {
               <line x1="38" y1="50" x2="62" y2="50" />
               <line x1="38" y1="65" x2="52" y2="65" />
             </svg>
-            <span className="absolute bottom-2 right-2 text-lg">⏳</span>
+            <Clock className="absolute bottom-2 right-2 text-purple-500 dark:text-purple-400 w-5 h-5" />
           </div>
         );
       } else {
@@ -572,7 +578,7 @@ const Profile = () => {
             <svg viewBox="0 0 100 100" className="w-16 h-16 text-rose-500 dark:text-rose-400 relative z-10" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M30 15 H70 V85 L50 70 L30 85 Z" fill="currentColor" fillOpacity="0.1" />
             </svg>
-            <span className="absolute top-2 right-2 text-lg">🔍</span>
+            <Search className="absolute top-2 right-2 text-rose-500 dark:text-rose-400 w-5 h-5" />
           </div>
         );
       }
@@ -611,7 +617,7 @@ const Profile = () => {
                   <img src={meme.media_url} alt={meme.title} className="w-full h-full object-cover" />
                 )}
                 {meme.format === "audio" && (
-                  <div className="text-3xl">🔊</div>
+                  <div className="text-3xl"><Volume2 className="w-8 h-8 text-purple-650 dark:text-purple-400 mx-auto" /></div>
                 )}
                 <div className="absolute top-2 left-2 z-10">
                   <span className="bg-gray-950/70 text-white text-[10px] px-2 py-0.5 rounded">
@@ -701,9 +707,9 @@ const Profile = () => {
                     meme.template_id && (
                       <button
                         onClick={() => navigate(`/lab?templateId=${meme.template_id}&templateUrl=${meme.media_url}&format=${meme.format}`)}
-                        className="text-purple-650 hover:underline"
+                        className="text-purple-650 hover:underline flex items-center gap-1"
                       >
-                        🌀 Remix
+                        <Sparkles className="w-3.5 h-3.5" /> Remix
                       </button>
                     )
                   )}
@@ -789,7 +795,7 @@ const Profile = () => {
             <div className="flex flex-col sm:flex-row md:flex-col items-center sm:justify-center md:items-end gap-3 flex-shrink-0">
               <button
                 onClick={openEditModal}
-                className="bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-850 border border-gray-200 dark:border-zinc-800 text-gray-700 dark:text-gray-300 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+                className="bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-800 text-gray-700 dark:text-gray-300 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-sm"
               >
                 <Pencil className="w-3.5 h-3.5 text-gray-500" />
                 Edit Profile
@@ -868,7 +874,7 @@ const Profile = () => {
 
       {/* 3. Automatic 5-Category Badge progression matrix */}
       <div className={`p-6 ${containerClass}`}>
-        <h3 className="text-sm font-bold uppercase tracking-wider border-b border-gray-100 dark:border-gray-800 pb-2 mb-6 text-gray-905 dark:text-white">
+        <h3 className="text-sm font-bold uppercase tracking-wider border-b border-gray-100 dark:border-gray-800 pb-2 mb-6 text-gray-900 dark:text-white">
           Milestone Progression Badges
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 text-xs font-semibold">
@@ -885,16 +891,15 @@ const Profile = () => {
                 <div className="mb-3">
                   <BadgeIcon level={progress.currentLevel} />
                 </div>
-                
+
                 {/* Label */}
                 <span className="block text-gray-850 dark:text-gray-100 font-extrabold text-xs leading-tight mb-1 text-center">
                   {config.label}
                 </span>
 
                 {/* Level / Status */}
-                <span className={`block text-[10px] uppercase font-bold tracking-wider mb-3 text-center ${
-                  progress.currentLevel > 0 ? "text-indigo-650 dark:text-indigo-400" : "text-gray-400 dark:text-gray-500"
-                }`}>
+                <span className={`block text-[10px] uppercase font-bold tracking-wider mb-3 text-center ${progress.currentLevel > 0 ? "text-indigo-650 dark:text-indigo-400" : "text-gray-400 dark:text-gray-500"
+                  }`}>
                   {progress.currentLevel > 0 ? LEVEL_NAMES[progress.currentLevel] : "Locked"}
                 </span>
 
@@ -957,7 +962,7 @@ const Profile = () => {
       {/* Avatar Picker Modal */}
       {showAvatarModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-gray-850 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-800 transform transition-all scale-100 overflow-y-auto max-h-[90vh]">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-zinc-800 transform transition-all scale-100 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Choose Profile Avatar</h3>
               <button
@@ -1019,9 +1024,9 @@ const Profile = () => {
                 />
                 <label
                   htmlFor="custom-avatar-upload-input"
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-250 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 text-xs font-bold rounded-lg cursor-pointer transition shadow-sm inline-flex items-center gap-1.5"
+                  className="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 text-xs font-bold rounded-lg cursor-pointer transition shadow-sm inline-flex items-center gap-1.5"
                 >
-                  📁 Browse Image
+                  <FolderOpen className="w-3.5 h-3.5" /> Browse Image
                 </label>
                 {avatarLoading && (
                   <span className="text-[10px] text-gray-400 animate-pulse font-semibold">
@@ -1046,10 +1051,10 @@ const Profile = () => {
       {/* Edit Profile Details Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-gray-850 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-800 transform transition-all scale-100 overflow-y-auto max-h-[90vh]">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-zinc-800 transform transition-all scale-100 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Edit Profile Details</h3>
-              <button 
+              <button
                 onClick={() => setShowEditModal(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition text-lg"
               >

@@ -39,7 +39,18 @@ import {
   BarChart3, 
   Vote, 
   Send,
-  Music
+  Music,
+  Pencil,
+  Bell,
+  Megaphone,
+  Download,
+  Sparkles,
+  Lock,
+  School,
+  Heart,
+  Lightbulb,
+  Flame,
+  Smile
 } from "lucide-react";
 
 // ── Static admin cache entry ──────────────────────────────────────────────────
@@ -53,6 +64,18 @@ const ADMIN_CACHE_ENTRY = {
 
 // ── Emoji reactions config ────────────────────────────────────────────────────
 const REACTION_EMOJIS = ["👍", "❤️", "💡", "👏", "🔥", "😮"];
+
+const renderReactionIcon = (emoji, sizeClass = "w-4 h-4") => {
+  switch (emoji) {
+    case "👍": return <ThumbsUp className={`${sizeClass} text-blue-600 dark:text-blue-400`} />;
+    case "❤️": return <Heart className={`${sizeClass} text-red-500 dark:text-red-400 fill-current`} />;
+    case "💡": return <Lightbulb className={`${sizeClass} text-amber-500 dark:text-amber-400 fill-current`} />;
+    case "👏": return <Sparkles className={`${sizeClass} text-green-600 dark:text-green-400`} />;
+    case "🔥": return <Flame className={`${sizeClass} text-orange-500 dark:text-orange-400 fill-current`} />;
+    case "😮": return <Smile className={`${sizeClass} text-purple-500 dark:text-purple-450`} />;
+    default: return <ThumbsUp className={sizeClass} />;
+  }
+};
 
 const getReactionStyle = (emoji) => {
   switch (emoji) {
@@ -68,7 +91,7 @@ const getReactionStyle = (emoji) => {
 
 // ── Skeleton card placeholder ─────────────────────────────────────────────────
 const SkeletonCard = () => (
-  <div className="p-5 rounded-xl border border-gray-150 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm animate-pulse space-y-3">
+  <div className="p-5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm animate-pulse space-y-3">
     <div className="flex justify-between items-center">
       <div className="h-4 bg-gray-200 dark:bg-zinc-700 rounded w-24" />
       <div className="h-4 bg-gray-200 dark:bg-zinc-700 rounded w-32" />
@@ -958,7 +981,7 @@ const Staffroom = () => {
       if (part.startsWith("*") && part.endsWith("*"))
         return <em key={i} className="italic text-gray-600 dark:text-gray-300">{part.slice(1, -1)}</em>;
       if (part.startsWith("`") && part.endsWith("`"))
-        return <code key={i} className="bg-gray-150 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono text-[10px]">{part.slice(1, -1)}</code>;
+        return <code key={i} className="bg-gray-200 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono text-[10px]">{part.slice(1, -1)}</code>;
       return part;
     });
   };
@@ -984,7 +1007,7 @@ const Staffroom = () => {
     const hasVoted = user && votedUsers.includes(user.uid);
 
     return (
-      <div className="mt-3 space-y-3 bg-gray-50/50 dark:bg-zinc-950 p-4 rounded-xl border border-gray-150 dark:border-zinc-800">
+      <div className="mt-3 space-y-3 bg-gray-50/50 dark:bg-zinc-950 p-4 rounded-xl border border-gray-200 dark:border-zinc-800">
         <span className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wide text-purple-600 dark:text-purple-400 mb-2">
           <BarChart3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
           Classroom Poll ({totalVotes} total {totalVotes === 1 ? "vote" : "votes"})
@@ -1142,7 +1165,7 @@ const Staffroom = () => {
 
   const inputClass = highContrastMode
     ? "w-full px-3 py-2 border border-zinc-800 bg-zinc-950 rounded-lg text-sm text-white placeholder-gray-500"
-    : "w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg text-sm text-gray-850";
+    : "w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg text-sm text-gray-800";
 
   // ──────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -1177,13 +1200,13 @@ const Staffroom = () => {
       {/* Unread banner */}
       {unreadCount > 0 && (
         <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-xl px-4 py-3 flex items-center justify-between text-xs font-semibold text-purple-700 dark:text-purple-300">
-          <span>🔔 {unreadCount} new {unreadCount === 1 ? "post" : "posts"} since your last visit</span>
+          <span className="flex items-center gap-1.5"><Bell className="w-3.5 h-3.5 text-purple-650 dark:text-purple-400" /> {unreadCount} new {unreadCount === 1 ? "post" : "posts"} since your last visit</span>
           <button onClick={() => setUnreadCount(0)} className="ml-4 opacity-60 hover:opacity-100 font-bold">✕</button>
         </div>
       )}
 
       {/* Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-gray-850 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-zinc-800 pb-5">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Staffroom Forum</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -1201,7 +1224,7 @@ const Staffroom = () => {
             }}
             className={btnClass}
           >
-            📝 Compose Thread
+            <span className="flex items-center gap-1.5"><Pencil className="w-3.5 h-3.5" /> Compose Thread</span>
           </button>
         </div>
       </div>
@@ -1226,7 +1249,7 @@ const Staffroom = () => {
                   />
                 </div>
                 <div className="pt-8">
-                  <h3 className="font-extrabold text-sm text-gray-905 dark:text-white hover:underline leading-tight">
+                  <h3 className="font-extrabold text-sm text-gray-900 dark:text-white hover:underline leading-tight">
                     {profile?.name || "Educator"}
                   </h3>
                   <p className="text-[10px] text-gray-500 font-semibold mt-1 uppercase tracking-wider">
@@ -1237,7 +1260,7 @@ const Staffroom = () => {
                   )}
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-gray-150 dark:border-zinc-800 text-left space-y-2.5 text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-zinc-800 text-left space-y-2.5 text-[11px] font-bold text-gray-500 dark:text-gray-400">
                   <div className="flex justify-between items-center">
                     <span>Contribution Points</span>
                     <span className="text-purple-650 dark:text-purple-400">
@@ -1262,9 +1285,9 @@ const Staffroom = () => {
                         <span
                           key={badge.id}
                           title={badge.badge_name}
-                          className="text-[9px] bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-300 font-extrabold px-2 py-0.5 rounded border border-amber-200 dark:border-amber-850"
+                          className="text-[9px] bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-300 font-extrabold px-2 py-0.5 rounded border border-amber-200 dark:border-amber-850 flex items-center gap-1"
                         >
-                          🎖️ {badge.badge_name.split(" ")[0]}
+                          <Trophy className="w-2.5 h-2.5 text-amber-500" /> {badge.badge_name.split(" ")[0]}
                         </span>
                       ))}
                     </div>
@@ -1274,7 +1297,7 @@ const Staffroom = () => {
             </div>
           ) : (
             <div className={`p-4 text-center space-y-3 ${containerClass}`}>
-              <span className="block text-2xl">🏫</span>
+              <School className="w-8 h-8 text-purple-650 dark:text-purple-400 mx-auto" />
               <p className="text-xs text-gray-500 leading-relaxed font-semibold">
                 Join MemeClassroom's professional educator hub to post threads and upvote ideas.
               </p>
@@ -1300,7 +1323,7 @@ const Staffroom = () => {
 
           {/* Composer shortcut bar */}
           {user && (
-            <div className="p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_30px_-6px_rgba(0,0,0,0.1)] border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl transition-all duration-300">
+            <div className="p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_30px_-6px_rgba(0,0,0,0.1)] border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl transition-all duration-300">
               <div className="flex items-center gap-3">
                 <img
                   src={profile?.avatar_url || `/avatar${(user.uid.length % 5) + 1}.png`}
@@ -1310,12 +1333,12 @@ const Staffroom = () => {
                 />
                 <button
                   onClick={() => openCompose("story")}
-                  className="flex-grow text-left text-xs bg-slate-50 hover:bg-slate-100 dark:bg-zinc-950 dark:hover:bg-zinc-800 text-gray-550 font-semibold px-4 py-2.5 rounded-full border border-gray-200 dark:border-zinc-800 transition"
+                  className="flex-grow text-left text-xs bg-slate-50 hover:bg-slate-100 dark:bg-zinc-950 dark:hover:bg-zinc-800 text-gray-500 font-semibold px-4 py-2.5 rounded-full border border-gray-200 dark:border-zinc-800 transition"
                 >
                   Share an experience, doubt, or poll… (Markdown enabled)
                 </button>
               </div>
-              <div className="flex justify-around items-center border-t border-gray-100 dark:border-zinc-800 mt-3 pt-2 text-[10px] font-bold text-gray-550 dark:text-gray-400">
+              <div className="flex justify-around items-center border-t border-gray-100 dark:border-zinc-800 mt-3 pt-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">
                 {[
                   { type: "story", icon: <BookOpen className="w-4 h-4 text-purple-600 dark:text-purple-400" />, label: "Write Story" },
                   { type: "query", icon: <HelpCircle className="w-4 h-4 text-purple-600 dark:text-purple-400" />, label: "Ask Doubt" },
@@ -1324,7 +1347,7 @@ const Staffroom = () => {
                   <button
                     key={type}
                     onClick={() => openCompose(type)}
-                    className="flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-zinc-850 px-3 py-1.5 rounded-lg transition"
+                    className="flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-zinc-800 px-3 py-1.5 rounded-lg transition"
                   >
                     {icon}
                     <span>{label}</span>
@@ -1392,14 +1415,14 @@ const Staffroom = () => {
                 className={`px-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                   highContrastMode
                     ? "bg-zinc-950 border-zinc-800 text-white placeholder-zinc-600"
-                    : "bg-white border-gray-250 text-gray-800 placeholder-gray-400"
+                    : "bg-white border-gray-200 text-gray-800 placeholder-gray-400"
                 }`}
               />
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
                 className={`px-2.5 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  highContrastMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-250 text-gray-800"
+                  highContrastMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-200 text-gray-800"
                 }`}
               >
                 <option value="">All Subjects</option>
@@ -1409,7 +1432,7 @@ const Staffroom = () => {
                 value={gradeFilter}
                 onChange={(e) => setGradeFilter(e.target.value)}
                 className={`px-2.5 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  highContrastMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-250 text-gray-800"
+                  highContrastMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-200 text-gray-800"
                 }`}
               >
                 <option value="">All Grades</option>
@@ -1501,7 +1524,7 @@ const Staffroom = () => {
                             {(() => {
                               const author = userCache[thread.author_id];
                               if (!author) return null;
-                              let badgeClass = "bg-gray-150 text-gray-700 dark:bg-zinc-850 dark:text-gray-300";
+                              let badgeClass = "bg-gray-200 text-gray-700 dark:bg-zinc-800 dark:text-gray-300";
                               if (author.role === "admin") badgeClass = "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300";
                               else if (author.role === "expert") badgeClass = "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300";
                               else if (author.role === "teacher") badgeClass = "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300";
@@ -1518,7 +1541,7 @@ const Staffroom = () => {
                         <button
                           onClick={() => toggleBookmark(thread.id)}
                           title={isBookmarked ? "Remove bookmark" : "Save for later"}
-                          className={`transition p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-850 ${isBookmarked ? "text-amber-500" : "text-gray-300 dark:text-zinc-650 hover:text-amber-400"}`}
+                          className={`transition p-1 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 ${isBookmarked ? "text-amber-500" : "text-gray-300 dark:text-zinc-500 hover:text-amber-400"}`}
                         >
                           <Bookmark className="w-4 h-4" fill={isBookmarked ? "currentColor" : "none"} />
                         </button>
@@ -1552,7 +1575,7 @@ const Staffroom = () => {
                     {linkedMeme && (
                       <div
                         onClick={() => setActiveMeme(linkedMeme)}
-                        className="my-4 border border-gray-150 dark:border-zinc-850 rounded-xl overflow-hidden bg-gray-50 dark:bg-zinc-950 flex flex-col sm:flex-row items-center p-3 gap-4 cursor-pointer hover:shadow-md hover:ring-2 hover:ring-purple-500/20 transition"
+                        className="my-4 border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-gray-50 dark:bg-zinc-950 flex flex-col sm:flex-row items-center p-3 gap-4 cursor-pointer hover:shadow-md hover:ring-2 hover:ring-purple-500/20 transition"
                       >
                         <div className="w-full sm:w-32 aspect-[4/3] relative flex items-center justify-center bg-white dark:bg-zinc-900 rounded-lg border border-gray-100 dark:border-zinc-800 overflow-hidden flex-shrink-0">
                           {(linkedMeme.format === "image" || linkedMeme.format === "gif") && (
@@ -1570,7 +1593,7 @@ const Staffroom = () => {
                         </div>
                         <div className="flex-grow min-w-0 text-left">
                           <span className="text-[10px] uppercase tracking-wider text-purple-600 dark:text-purple-400 font-bold block mb-0.5">Linked Meme (Click to view)</span>
-                          <h4 className="font-extrabold text-sm text-gray-905 dark:text-white truncate">{linkedMeme.title}</h4>
+                          <h4 className="font-extrabold text-sm text-gray-900 dark:text-white truncate">{linkedMeme.title}</h4>
                           <div className="flex flex-wrap gap-1.5 mt-2">
                             <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 text-[10px] px-2 py-0.5 rounded-full font-bold">{linkedMeme.subject}</span>
                             <span className="bg-teal-50 dark:bg-teal-950/20 text-teal-700 dark:text-teal-300 text-[10px] px-2 py-0.5 rounded-full font-bold">{linkedMeme.age_group}</span>
@@ -1582,8 +1605,8 @@ const Staffroom = () => {
 
                     {/* Attachment */}
                     {thread.attachment_url ? (
-                      <div className="my-3 p-3 border border-gray-150 dark:border-zinc-800 rounded-xl bg-gray-55/40 dark:bg-zinc-950/40 text-left space-y-2.5">
-                        <div className="flex items-center space-x-2 text-xs font-semibold text-gray-550 dark:text-gray-400">
+                      <div className="my-3 p-3 border border-gray-200 dark:border-zinc-800 rounded-xl bg-gray-50/40 dark:bg-zinc-950/40 text-left space-y-2.5">
+                        <div className="flex items-center space-x-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
                           <Paperclip className="w-3.5 h-3.5 text-gray-400" />
                           <a 
                             href={thread.attachment_url} 
@@ -1611,7 +1634,7 @@ const Staffroom = () => {
                         )}
                       </div>
                     ) : thread.attachment_name ? (
-                      <div className="my-3 p-3 border border-dashed rounded-xl text-xs text-gray-400 dark:text-gray-555 flex items-center space-x-2 bg-gray-50/30 dark:bg-zinc-950/20 italic text-left">
+                      <div className="my-3 p-3 border border-dashed rounded-xl text-xs text-gray-400 dark:text-zinc-700 flex items-center space-x-2 bg-gray-50/30 dark:bg-zinc-950/20 italic text-left">
                         <Paperclip className="w-3.5 h-3.5 text-gray-400" />
                         <span>{thread.attachment_name} (file expired or unavailable)</span>
                       </div>
@@ -1630,11 +1653,11 @@ const Staffroom = () => {
                                   .slice(0, 3)
                                   .map(([emoji]) => (
                                     <span key={emoji} className="inline-flex items-center justify-center text-[10px] w-5 h-5 rounded-full bg-white dark:bg-zinc-900 shadow-sm border border-gray-100 dark:border-zinc-800">
-                                      {emoji}
+                                      {renderReactionIcon(emoji, "w-3 h-3")}
                                     </span>
                                   ))}
                               </div>
-                              <span className="font-bold text-gray-650 dark:text-gray-300">{totalReactions}</span>
+                              <span className="font-bold text-gray-600 dark:text-gray-300">{totalReactions}</span>
                             </div>
                           )}
                         </div>
@@ -1665,7 +1688,7 @@ const Staffroom = () => {
                                 handleReaction(thread.id, "👍");
                               }
                             }}
-                            className={`flex items-center space-x-1.5 transition px-2.5 py-1 rounded-lg hover:bg-gray-150 dark:hover:bg-zinc-850 ${
+                            className={`flex items-center space-x-1.5 transition px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 ${
                               getReactionStyle(myReaction).className
                             }`}
                           >
@@ -1691,17 +1714,17 @@ const Staffroom = () => {
                                 <button
                                   key={emoji}
                                   onClick={() => handleReaction(thread.id, emoji)}
-                                  className="text-lg hover:scale-130 active:scale-95 transition-transform p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800"
+                                  className="hover:scale-135 active:scale-95 transition-transform p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center justify-center"
                                   title={getReactionStyle(emoji).label}
                                 >
-                                  {emoji}
+                                  {renderReactionIcon(emoji, "w-5 h-5")}
                                 </button>
                               ))}
                             </div>
                           )}
                         </div>
 
-                        <span className="text-gray-400 dark:text-gray-550 flex items-center space-x-1.5">
+                        <span className="text-gray-400 dark:text-gray-400 flex items-center space-x-1.5">
                           <MessageSquare className="w-4 h-4" />
                           <span>Reply</span>
                         </span>
@@ -1711,7 +1734,7 @@ const Staffroom = () => {
                       <button
                         onClick={() => handleFlagContent(thread.id, "post")}
                         className={`text-xs flex items-center gap-1 transition ${
-                          flaggedByUser[thread.id] ? "text-red-500 font-bold" : "text-gray-400 dark:text-gray-550 hover:text-red-500"
+                          flaggedByUser[thread.id] ? "text-red-500 font-bold" : "text-gray-400 dark:text-gray-400 hover:text-red-500"
                         }`}
                         title="Report Inappropriate Thread"
                       >
@@ -1725,7 +1748,7 @@ const Staffroom = () => {
 
                     {/* Replies list */}
                     {activeReplies.length > 0 && (
-                      <div className="mt-4 pl-4 border-l border-gray-200 dark:border-gray-750 space-y-3.5">
+                      <div className="mt-4 pl-4 border-l border-gray-200 dark:border-zinc-800 space-y-3.5">
                         {activeReplies.map((reply) => {
                           const rAuthorName = userCache[reply.author_id]?.name || "Peer";
                           const isAccepted = reply.is_accepted_solution;
@@ -1780,7 +1803,7 @@ const Staffroom = () => {
 
                     {/* Reply compose */}
                     {user ? (
-                      <div className="mt-4 pt-3 border-t border-gray-150 dark:border-gray-800/40 space-y-1">
+                      <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-800/40 space-y-1">
                         <textarea
                           placeholder="Write a peer response… (min 10 characters)"
                           value={replyInputMap[thread.id] || ""}
@@ -1801,7 +1824,7 @@ const Staffroom = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="mt-4 pt-3 border-t border-gray-150 dark:border-gray-800/40 text-center py-2">
+                      <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-800/40 text-center py-2">
                         <button
                           onClick={() => navigate("/auth")}
                           className="text-xs font-bold text-purple-650 hover:underline transition"
@@ -1814,7 +1837,7 @@ const Staffroom = () => {
                 );
               })
             ) : (
-              <div className="bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-800 rounded-xl p-12 text-center text-gray-550 shadow-sm">
+              <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-800 rounded-xl p-12 text-center text-gray-500 shadow-sm">
                 <p className="text-sm font-semibold mb-1">No threads match these filters.</p>
                 <p className="text-xs text-gray-400">Try broadening your subject, grade, or keywords.</p>
               </div>
@@ -1845,7 +1868,7 @@ const Staffroom = () => {
                 ))}
               </div>
             ) : (
-              <span className="block text-xs text-gray-450 italic">No topics tagged yet. Add #Hashtags to your posts!</span>
+              <span className="block text-xs text-gray-400 italic">No topics tagged yet. Add #Hashtags to your posts!</span>
             )}
           </div>
 
@@ -1964,8 +1987,8 @@ const Staffroom = () => {
                       required
                     />
                     {showWritingHint && WRITING_HINTS[composeType] && (
-                      <div className="mt-1.5 p-2.5 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg text-[10px] text-purple-700 dark:text-purple-300 leading-relaxed" style={{ animation: "fadeIn 0.3s ease-out" }}>
-                        💡 <em>{WRITING_HINTS[composeType]}</em>
+                      <div className="mt-1.5 p-2.5 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg text-[10px] text-purple-700 dark:text-purple-300 leading-relaxed flex items-start gap-1.5" style={{ animation: "fadeIn 0.3s ease-out" }}>
+                        <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" /> <em>{WRITING_HINTS[composeType]}</em>
                       </div>
                     )}
                   </div>
@@ -1974,13 +1997,13 @@ const Staffroom = () => {
                     {composeBody ? renderMarkdown(composeBody) : <span className="text-gray-400 italic">Nothing written yet.</span>}
                   </div>
                 )}
-                <p className="text-[10px] text-gray-450 mt-1">{composeBody.length} characters</p>
+                <p className="text-[10px] text-gray-400 mt-1">{composeBody.length} characters</p>
               </div>
 
               {/* Poll options — dynamic */}
               {composeType === "poll" && (
                 <div className="space-y-2 border-t pt-3 border-gray-100 dark:border-gray-800">
-                  <span className="block text-[10px] text-gray-550 uppercase tracking-wider mb-1">Poll Options (min 2 required)</span>
+                  <span className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Poll Options (min 2 required)</span>
                   {pollOptions.map((opt, idx) => (
                     <div key={idx} className="flex gap-2 items-center">
                       <input
@@ -2117,7 +2140,7 @@ const Staffroom = () => {
                     By {activeMeme.creator_id === "admin" ? "MemeClassroom Team" : (userCache[activeMeme.creator_id]?.name || "Creator")}
                   </button>
                   <span>•</span>
-                  <span>❤️ {activeMeme.likes_count || 0} Likes</span>
+                  <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-red-500 fill-current" /> {activeMeme.likes_count || 0} Likes</span>
                 </div>
                 {user && (activeMeme.creator_id === user.uid || profile?.role === "admin") && (
                   <button onClick={() => handleDeleteMeme(activeMeme.id)} className="text-red-500 hover:text-red-750 hover:underline transition">
@@ -2135,15 +2158,15 @@ const Staffroom = () => {
                       handleMediaDownload(activeMeme.media_url, activeMeme.title);
                     }
                   }}
-                  className="flex-1 bg-purple-50 dark:bg-purple-950/20 text-purple-750 dark:text-purple-300 font-bold py-2 rounded-lg border border-purple-200 dark:border-purple-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-purple-100 transition"
+                  className="flex-1 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 font-bold py-2 rounded-lg border border-purple-200 dark:border-purple-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-purple-100 transition"
                 >
-                  <span>📥</span><span>Download</span>
+                  <Download className="w-3.5 h-3.5 mr-1" /><span>Download</span>
                 </button>
                 <button
                   onClick={() => navigate(`/lab?templateUrl=${encodeURIComponent(activeMeme.media_url)}&format=${activeMeme.format}&clearText=true`)}
                   className="flex-1 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 font-bold py-2 rounded-lg border border-indigo-200 dark:border-indigo-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-indigo-100 transition"
                 >
-                  <span>🎨</span><span>Use as Template</span>
+                  <Sparkles className="w-3.5 h-3.5 mr-1" /><span>Use as Template</span>
                 </button>
               </div>
 
@@ -2205,20 +2228,20 @@ const Staffroom = () => {
                   <h3 className="font-extrabold text-sm uppercase tracking-wider">Verified Reviews</h3>
                   {expertComments.length > 0 && (
                     <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 flex items-center space-x-1">
-                      <span>🛡️</span><span>Verified</span>
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /><span>Verified</span>
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="flex-grow space-y-4 overflow-y-auto mb-6 max-h-[40vh] border border-gray-150 dark:border-gray-750 rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
+              <div className="flex-grow space-y-4 overflow-y-auto mb-6 max-h-[40vh] border border-gray-200 dark:border-zinc-800 rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
                 {expertComments.length > 0 ? (() => {
                   const verified = expertComments.filter((c) => {
                     const commenter = userCache[c.user_id];
                     return commenter?.role === "expert" || commenter?.role === "admin" || commenter?.is_verified || c.user_id === "admin";
                   });
                   if (verified.length === 0) {
-                    return <p className="text-center text-gray-450 dark:text-gray-500 text-xs py-8">No verified reviews yet.</p>;
+                    return <p className="text-center text-gray-400 dark:text-gray-500 text-xs py-8">No verified reviews yet.</p>;
                   }
                   return verified.map((comment) => {
                     const commenter = userCache[comment.user_id];
@@ -2227,7 +2250,7 @@ const Staffroom = () => {
                     return (
                       <div key={comment.id} className="border-b border-gray-200 dark:border-gray-800 pb-3 last:border-b-0 text-xs text-left">
                         <div className="flex justify-between items-center text-gray-500 mb-1">
-                          <span className="font-bold text-purple-750">🛡️ Verified Review ({commenterName})</span>
+                          <span className="font-bold text-purple-700 flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-purple-650" /> Verified Review ({commenterName})</span>
                           <div className="flex items-center space-x-2">
                             <span>{comment.timestamp?.seconds ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString() : "Just now"}</span>
                             {isAuthor && (
@@ -2240,26 +2263,26 @@ const Staffroom = () => {
                     );
                   });
                 })() : (
-                  <p className="text-center text-gray-450 dark:text-gray-500 text-xs py-8">No verified reviews logged yet.</p>
+                  <p className="text-center text-gray-400 dark:text-gray-500 text-xs py-8">No verified reviews logged yet.</p>
                 )}
               </div>
 
               {user && profile && (profile.role === "expert" || profile.role === "admin" || profile.is_verified) ? (
                 <form onSubmit={handleExpertCommentSubmit} className="space-y-3 border-t pt-4 text-left">
-                  <span className="block text-xs font-semibold text-purple-750 uppercase">🛡️ Add Verification Review</span>
+                  <span className="block text-xs font-semibold text-purple-700 uppercase flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-purple-650" /> Add Verification Review</span>
                   <textarea
                     placeholder="Write a verification review or academic comment…"
                     value={newExpertComment}
                     onChange={(e) => setNewExpertComment(e.target.value)}
                     rows={3}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-xs rounded text-gray-850"
+                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-xs rounded text-gray-800"
                     required
                   />
                   <button type="submit" className={btnClass}>Submit Verified Review</button>
                 </form>
               ) : (
-                <div className="border-t pt-4 text-center text-xs text-gray-400">
-                  🔒 Comments are restricted to verified users and subject-matter experts.
+                <div className="border-t pt-4 text-center text-xs text-gray-400 flex items-center justify-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-gray-400" /> Comments are restricted to verified users and subject-matter experts.
                 </div>
               )}
             </div>

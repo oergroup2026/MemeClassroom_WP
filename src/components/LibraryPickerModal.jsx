@@ -91,7 +91,7 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect }) => {
 
         {/* Grid Area */}
         {loading ? (
-          <div className="text-center py-12 text-gray-550 dark:text-gray-400 font-semibold text-xs">
+          <div className="text-center py-12 text-gray-500 dark:text-gray-400 font-semibold text-xs">
             Loading library memes...
           </div>
         ) : filteredMemes.length > 0 ? (
@@ -104,7 +104,7 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect }) => {
                   onSelect(meme.media_url);
                   onClose();
                 }}
-                className="flex flex-col items-center p-2 border border-gray-250 dark:border-zinc-800 rounded-xl hover:border-purple-500 hover:bg-purple-50/10 transition text-left w-full bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+                className="flex flex-col items-center p-2 border border-gray-200 dark:border-zinc-800 rounded-xl hover:border-purple-500 hover:bg-purple-50/10 transition text-left w-full bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
               >
                 <div className="w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center mb-1">
                   <img src={meme.media_url} alt={meme.title} className="w-full h-full object-cover" />
@@ -121,7 +121,7 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect }) => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 text-gray-450 dark:text-gray-550 italic text-xs">
+          <div className="text-center py-12 text-gray-400 dark:text-zinc-500 italic text-xs">
             No public image memes match the criteria.
           </div>
         )}
