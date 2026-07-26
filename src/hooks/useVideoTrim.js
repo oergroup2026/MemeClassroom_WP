@@ -1,15 +1,15 @@
 /**
  * useVideoTrim — Lazy-loads ffmpeg.wasm and exposes a trimVideo() function.
  *
- * IMPORTANT: The page must be served with Cross-Origin Isolation headers
- * (COOP: same-origin + COEP: require-corp) for SharedArrayBuffer to work.
- * Those headers are configured in vite.config.js.
+ * NOTE: Switched to single-threaded build of @ffmpeg/core to avoid the need
+ * for Cross-Origin Isolation headers (COOP/COEP), which block Firebase Auth
+ * redirect and popup flows.
  *
  * Compatible with @ffmpeg/ffmpeg ^0.12.x and @ffmpeg/util ^0.12.x
  */
 
 import { useRef, useCallback } from "react";
-import { fetchFile } from "@ffmpeg/util";
+import { fetchFile, toBlobURL } from "@ffmpeg/util";
 
 export function useVideoTrim() {
   const ffmpegRef = useRef(null);
@@ -23,9 +23,15 @@ export function useVideoTrim() {
     const { FFmpeg } = await import("@ffmpeg/ffmpeg");
     const ffmpeg = new FFmpeg();
 
-    // Wire up progress events so callers can show a spinner
     ffmpegRef.current = ffmpeg;
-    await ffmpeg.load();
+
+    // Load single-threaded core from CDN to bypass COOP/COEP requirement
+    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm";
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+    });
+
     loadedRef.current = true;
   }, []);
 

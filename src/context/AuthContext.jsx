@@ -1,27 +1,27 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  signOut as firebaseSignOut, 
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut as firebaseSignOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithRedirect,
   getRedirectResult
 } from "firebase/auth";
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
+import {
+  doc,
+  getDoc,
+  setDoc,
   serverTimestamp,
   runTransaction,
   onSnapshot
 } from "firebase/firestore";
-import { 
-  ref, 
-  uploadBytes, 
-  getDownloadURL 
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL
 } from "firebase/storage";
 import { auth, db, storage } from "../firebase";
 
@@ -120,9 +120,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      // Use signInWithRedirect due to Cross-Origin-Opener-Policy: same-origin
-      // security headers required by ffmpeg.wasm.
-      await signInWithRedirect(auth, provider);
+      // Switch back to signInWithPopup since COOP/COEP are no longer needed
+      const result = await signInWithPopup(auth, provider);
+      return result.user;
     } catch (error) {
       setLoading(false);
       throw error;
@@ -202,19 +202,18 @@ export const AuthProvider = ({ children }) => {
                 firebaseSignOut(auth).then(() => {
                   setProfile(null);
                   setUser(null);
+                  setOnboardingUser(null);
                 });
               } else {
                 setProfile(profileData);
                 setUser(currentUser);
+                setOnboardingUser(null);
               }
             } else {
-              // Google user who hasn't finished onboarding yet
-              const isGoogle = currentUser.providerData.some(p => p.providerId === "google.com");
-              if (isGoogle) {
-                setOnboardingUser(currentUser);
-                setUser(null);
-                setProfile(null);
-              }
+              // User profile doesn't exist in Firestore; trigger onboarding
+              setOnboardingUser(currentUser);
+              setUser(null);
+              setProfile(null);
             }
             setLoading(false);
           }, (err) => {
