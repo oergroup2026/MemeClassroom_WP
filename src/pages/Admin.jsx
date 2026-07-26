@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  doc, 
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
   getDoc,
   getDocs,
   setDoc,
-  addDoc, 
-  updateDoc, 
+  addDoc,
+  updateDoc,
   deleteDoc,
-  serverTimestamp, 
+  serverTimestamp,
   runTransaction
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
@@ -69,13 +69,13 @@ const Admin = () => {
 
   // Direct Archivist Form States
   const [archivistMode, setArchivistMode] = useState("template"); // "template" | "meme" | "resource"
-  
+
   // Template Form
   const [tempTitle, setTempTitle] = useState("");
   const [tempFormat, setTempFormat] = useState("image");
   const [tempUrl, setTempUrl] = useState("");
   const [tempFile, setTempFile] = useState(null);
-  
+
   // Meme Form
   const [memeTitle, setMemeTitle] = useState("");
   const [memeFormat, setMemeFormat] = useState("image");
@@ -84,7 +84,7 @@ const Admin = () => {
   const [memeSubject, setMemeSubject] = useState("Biology");
   const [memeGrade, setMemeGrade] = useState("High School (9–10)");
   const [memeLang, setMemeLang] = useState("English");
-  
+
   // Resource Form
   const [resTitle, setResTitle] = useState("");
   const [resType, setResType] = useState("article");
@@ -239,7 +239,7 @@ const Admin = () => {
         const data = snap.data();
         const hasOldGrades = data.grades?.some(g => ["10-12", "13-15", "16-18", "University", "Adult / Lifelong Learning"].includes(g));
         const missingLanguages = !data.languages || data.languages.length === 0;
-        
+
         if (hasOldGrades || missingLanguages) {
           const updates = {};
           if (hasOldGrades) {
@@ -345,7 +345,7 @@ const Admin = () => {
   const handleConfirmDeleteFlag = async (flagId, contentType, contentId) => {
     try {
       await updateDoc(doc(db, "flags", flagId), { status: "deleted" });
-      
+
       if (contentType === "resource") {
         await deleteDoc(doc(db, "resources", contentId));
       } else if (contentType === "meme") {
@@ -509,7 +509,7 @@ const Admin = () => {
         const parsedKeywords = resKeywords
           ? resKeywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean)
           : [];
-        
+
         const resourceData = {
           title: resTitle.trim(),
           type: resType,
@@ -1259,7 +1259,7 @@ const Admin = () => {
     setIsWiping(true);
     try {
       let count = 0;
-      
+
       // Wipe templates
       const templatesSnap = await getDocs(query(collection(db, "templates"), where("is_placeholder", "==", true)));
       for (const d of templatesSnap.docs) {
@@ -1326,8 +1326,8 @@ const Admin = () => {
 
   // Filter users list based on search/role
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.name?.toLowerCase().includes(userSearch.toLowerCase()) || 
-                          u.email?.toLowerCase().includes(userSearch.toLowerCase());
+    const matchesSearch = u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.email?.toLowerCase().includes(userSearch.toLowerCase());
     const matchesRole = userRoleFilter ? u.role === userRoleFilter : true;
     return matchesSearch && matchesRole;
   });
@@ -1358,11 +1358,10 @@ const Admin = () => {
 
       {/* Alert Notifications */}
       {alertMsg && (
-        <div className={`p-4 rounded-xl border flex items-center space-x-2 text-xs font-bold ${
-          alertType === "error"
+        <div className={`p-4 rounded-xl border flex items-center space-x-2 text-xs font-bold ${alertType === "error"
             ? "bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-300"
             : "bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-300"
-        }`}>
+          }`}>
           {alertType === "error" ? <AlertCircle className="w-4 h-4 text-red-500" /> : <CheckCircle2 className="w-4 h-4 text-green-500" />}
           <span>{alertMsg}</span>
         </div>
@@ -1384,11 +1383,10 @@ const Admin = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
-                activeTab === tab.id
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition ${activeTab === tab.id
                   ? "bg-purple-650 text-white shadow-sm"
                   : "text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -1598,10 +1596,10 @@ const Admin = () => {
                         <td className={rowCellClass}>{app.institution}</td>
                         <td className={rowCellClass}>
                           {app.id_card_url ? (
-                            <a 
-                              href={app.id_card_url} 
-                              target="_blank" 
-                              rel="noreferrer" 
+                            <a
+                              href={app.id_card_url}
+                              target="_blank"
+                              rel="noreferrer"
                               className="text-purple-650 hover:underline font-bold"
                             >
                               View ID Card File 📄
@@ -1668,10 +1666,10 @@ const Admin = () => {
                             )}
                           </td>
                           <td className={rowCellClass}>
-                            <a 
-                              href={temp.media_url} 
-                              target="_blank" 
-                              rel="noreferrer" 
+                            <a
+                              href={temp.media_url}
+                              target="_blank"
+                              rel="noreferrer"
                               className="text-indigo-600 hover:underline font-bold truncate max-w-xs block"
                             >
                               {temp.media_url}
@@ -1834,11 +1832,10 @@ const Admin = () => {
               <button
                 key={modeOpt}
                 onClick={() => setArchivistMode(modeOpt)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition capitalize ${
-                  archivistMode === modeOpt 
-                    ? "bg-indigo-650 text-white" 
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition capitalize ${archivistMode === modeOpt
+                    ? "bg-indigo-650 text-white"
                     : "bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-gray-500"
-                }`}
+                  }`}
               >
                 {modeOpt}
               </button>
@@ -1850,10 +1847,10 @@ const Admin = () => {
               <>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Template Title *</label>
-                  <input 
-                    type="text" 
-                    value={tempTitle} 
-                    onChange={e => setTempTitle(e.target.value)} 
+                  <input
+                    type="text"
+                    value={tempTitle}
+                    onChange={e => setTempTitle(e.target.value)}
                     className={inputClass}
                     placeholder="e.g. Surprised Pikachu"
                     required
@@ -1861,9 +1858,9 @@ const Admin = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Format *</label>
-                  <select 
-                    value={tempFormat} 
-                    onChange={e => setTempFormat(e.target.value)} 
+                  <select
+                    value={tempFormat}
+                    onChange={e => setTempFormat(e.target.value)}
                     className={inputClass}
                   >
                     <option value="image">Image</option>
@@ -1874,10 +1871,10 @@ const Admin = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Image/Media Source URL *</label>
-                  <input 
-                    type="url" 
-                    value={tempUrl} 
-                    onChange={e => setTempUrl(e.target.value)} 
+                  <input
+                    type="url"
+                    value={tempUrl}
+                    onChange={e => setTempUrl(e.target.value)}
                     className={inputClass}
                     placeholder="https://example.com/image.png"
                     required={!tempFile}
@@ -1885,9 +1882,9 @@ const Admin = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Or Upload Media File</label>
-                  <input 
-                    type="file" 
-                    onChange={e => setTempFile(e.target.files?.[0] || null)} 
+                  <input
+                    type="file"
+                    onChange={e => setTempFile(e.target.files?.[0] || null)}
                     className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
                   />
                 </div>
@@ -1898,10 +1895,10 @@ const Admin = () => {
               <>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Meme Title *</label>
-                  <input 
-                    type="text" 
-                    value={memeTitle} 
-                    onChange={e => setMemeTitle(e.target.value)} 
+                  <input
+                    type="text"
+                    value={memeTitle}
+                    onChange={e => setMemeTitle(e.target.value)}
                     className={inputClass}
                     placeholder="e.g. Physics Gravity Joke"
                     required
@@ -1909,9 +1906,9 @@ const Admin = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Format *</label>
-                  <select 
-                    value={memeFormat} 
-                    onChange={e => setMemeFormat(e.target.value)} 
+                  <select
+                    value={memeFormat}
+                    onChange={e => setMemeFormat(e.target.value)}
                     className={inputClass}
                   >
                     <option value="image">Image</option>
@@ -1922,9 +1919,9 @@ const Admin = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Subject *</label>
-                  <select 
-                    value={memeSubject} 
-                    onChange={e => setMemeSubject(e.target.value)} 
+                  <select
+                    value={memeSubject}
+                    onChange={e => setMemeSubject(e.target.value)}
                     className={inputClass}
                   >
                     {taxonomy.subjects.map(s => <option key={s} value={s}>{s}</option>)}
@@ -1932,9 +1929,9 @@ const Admin = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Age Group *</label>
-                  <select 
-                    value={memeGrade} 
-                    onChange={e => setMemeGrade(e.target.value)} 
+                  <select
+                    value={memeGrade}
+                    onChange={e => setMemeGrade(e.target.value)}
                     className={inputClass}
                   >
                     {taxonomy.grades.map(g => <option key={g} value={g}>{g}</option>)}
@@ -1942,20 +1939,20 @@ const Admin = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Language *</label>
-                  <input 
-                    type="text" 
-                    value={memeLang} 
-                    onChange={e => setMemeLang(e.target.value)} 
+                  <input
+                    type="text"
+                    value={memeLang}
+                    onChange={e => setMemeLang(e.target.value)}
                     className={inputClass}
                     placeholder="e.g. English"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Media Source URL *</label>
-                  <input 
-                    type="url" 
-                    value={memeUrl} 
-                    onChange={e => setMemeUrl(e.target.value)} 
+                  <input
+                    type="url"
+                    value={memeUrl}
+                    onChange={e => setMemeUrl(e.target.value)}
                     className={inputClass}
                     placeholder="https://example.com/meme.png"
                     required={!memeFile}
@@ -1963,9 +1960,9 @@ const Admin = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Or Upload Media File</label>
-                  <input 
-                    type="file" 
-                    onChange={e => setMemeFile(e.target.files?.[0] || null)} 
+                  <input
+                    type="file"
+                    onChange={e => setMemeFile(e.target.files?.[0] || null)}
                     className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
                   />
                 </div>
@@ -1976,9 +1973,9 @@ const Admin = () => {
               <>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Resource Type *</label>
-                  <select 
-                    value={resType} 
-                    onChange={e => setResType(e.target.value)} 
+                  <select
+                    value={resType}
+                    onChange={e => setResType(e.target.value)}
                     className={inputClass}
                   >
                     <option value="article">Article</option>
@@ -1993,10 +1990,10 @@ const Admin = () => {
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">
                     {resType === "stories" ? "Template/Meme Name *" : "Resource Title *"}
                   </label>
-                  <input 
-                    type="text" 
-                    value={resTitle} 
-                    onChange={e => setResTitle(e.target.value)} 
+                  <input
+                    type="text"
+                    value={resTitle}
+                    onChange={e => setResTitle(e.target.value)}
                     className={inputClass}
                     placeholder={resType === "stories" ? "e.g. Winnie the Pooh Reading a Paper" : "e.g. Gamification in Maths Pedagogy"}
                     required
@@ -2006,9 +2003,9 @@ const Admin = () => {
                   <>
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Subject *</label>
-                      <select 
-                        value={resSubject} 
-                        onChange={e => setResSubject(e.target.value)} 
+                      <select
+                        value={resSubject}
+                        onChange={e => setResSubject(e.target.value)}
                         className={inputClass}
                       >
                         {taxonomy.subjects.map(s => <option key={s} value={s}>{s}</option>)}
@@ -2016,9 +2013,9 @@ const Admin = () => {
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Age Group *</label>
-                      <select 
-                        value={resGrade} 
-                        onChange={e => setResGrade(e.target.value)} 
+                      <select
+                        value={resGrade}
+                        onChange={e => setResGrade(e.target.value)}
                         className={inputClass}
                       >
                         {taxonomy.grades.map(g => <option key={g} value={g}>{g}</option>)}
@@ -2030,10 +2027,10 @@ const Admin = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Year of Publication *</label>
-                      <input 
-                        type="text" 
-                        value={resPublicationYear} 
-                        onChange={e => setResPublicationYear(e.target.value)} 
+                      <input
+                        type="text"
+                        value={resPublicationYear}
+                        onChange={e => setResPublicationYear(e.target.value)}
                         className={inputClass}
                         placeholder="e.g. 2024"
                         required={resType === "article" || resType === "research_paper"}
@@ -2041,10 +2038,10 @@ const Admin = () => {
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Journal/Magazine/Website *</label>
-                      <input 
-                        type="text" 
-                        value={resPublisherName} 
-                        onChange={e => setResPublisherName(e.target.value)} 
+                      <input
+                        type="text"
+                        value={resPublisherName}
+                        onChange={e => setResPublisherName(e.target.value)}
                         className={inputClass}
                         placeholder="e.g. Nature Science"
                         required={resType === "article" || resType === "research_paper"}
@@ -2056,9 +2053,9 @@ const Admin = () => {
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">
                     {resType === "stories" ? "Background *" : "Summary / Body *"}
                   </label>
-                  <textarea 
-                    value={resBody} 
-                    onChange={e => setResBody(e.target.value)} 
+                  <textarea
+                    value={resBody}
+                    onChange={e => setResBody(e.target.value)}
                     className={`${inputClass} h-20`}
                     placeholder={resType === "stories" ? "Where did this template originate? Mention the source (movie, TV show, game, etc.) and how it became popular." : "Provide a quick summary or layout description..."}
                     required
@@ -2070,28 +2067,28 @@ const Admin = () => {
                   <>
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Typical Meaning & Usage</label>
-                      <textarea 
-                        value={resUsageContext} 
-                        onChange={e => setResUsageContext(e.target.value)} 
+                      <textarea
+                        value={resUsageContext}
+                        onChange={e => setResUsageContext(e.target.value)}
                         className={`${inputClass} h-16`}
                         placeholder="Used to express confusion while reading something complicated or reacting to unexpected information."
                       />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Educational Use</label>
-                      <textarea 
-                        value={resEducationalUse} 
-                        onChange={e => setResEducationalUse(e.target.value)} 
+                      <textarea
+                        value={resEducationalUse}
+                        onChange={e => setResEducationalUse(e.target.value)}
                         className={`${inputClass} h-16`}
                         placeholder="Suggest classroom situations where this template can be used. E.g. Assignment instructions"
                       />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Linked Template ID (optional)</label>
-                      <input 
-                        type="text" 
-                        value={resTemplateId} 
-                        onChange={e => setResTemplateId(e.target.value)} 
+                      <input
+                        type="text"
+                        value={resTemplateId}
+                        onChange={e => setResTemplateId(e.target.value)}
                         className={inputClass}
                         placeholder="Paste Firestore template document ID"
                       />
@@ -2100,49 +2097,49 @@ const Admin = () => {
                 )}
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Attachment File/Source URL</label>
-                  <input 
-                    type="url" 
-                    value={resUrl} 
-                    onChange={e => setResUrl(e.target.value)} 
+                  <input
+                    type="url"
+                    value={resUrl}
+                    onChange={e => setResUrl(e.target.value)}
                     className={inputClass}
                     placeholder="https://example.com/document.pdf"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Or Upload PDF/Attachment File</label>
-                  <input 
-                    type="file" 
-                    onChange={e => setResFile(e.target.files?.[0] || null)} 
+                  <input
+                    type="file"
+                    onChange={e => setResFile(e.target.files?.[0] || null)}
                     className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Thumbnail Image URL</label>
-                    <input 
-                      type="url" 
-                      value={resThumbnailUrl} 
-                      onChange={e => setResThumbnailUrl(e.target.value)} 
+                    <input
+                      type="url"
+                      value={resThumbnailUrl}
+                      onChange={e => setResThumbnailUrl(e.target.value)}
                       className={inputClass}
                       placeholder="https://example.com/thumbnail.png"
                     />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Or Upload Thumbnail Image</label>
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       accept="image/*"
-                      onChange={e => setResThumbnailFile(e.target.files?.[0] || null)} 
+                      onChange={e => setResThumbnailFile(e.target.files?.[0] || null)}
                       className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
                     />
                   </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Keywords (comma-separated)</label>
-                  <input 
-                    type="text" 
-                    value={resKeywords} 
-                    onChange={e => setResKeywords(e.target.value)} 
+                  <input
+                    type="text"
+                    value={resKeywords}
+                    onChange={e => setResKeywords(e.target.value)}
                     className={inputClass}
                     placeholder="e.g. biology, cell, science"
                   />
@@ -2150,8 +2147,8 @@ const Admin = () => {
               </>
             )}
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loadingAction}
               className={btnClass("purple") + " w-full mt-4"}
             >
@@ -2166,16 +2163,16 @@ const Admin = () => {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-gray-50 dark:bg-gray-900 p-4 rounded-xl border border-gray-200 dark:border-gray-800">
             <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
-              <input 
-                type="text" 
-                value={userSearch} 
-                onChange={e => setUserSearch(e.target.value)} 
-                className={`${inputClass} sm:w-60`} 
+              <input
+                type="text"
+                value={userSearch}
+                onChange={e => setUserSearch(e.target.value)}
+                className={`${inputClass} sm:w-60`}
                 placeholder="Search user name or email..."
               />
-              <select 
-                value={userRoleFilter} 
-                onChange={e => setUserRoleFilter(e.target.value)} 
+              <select
+                value={userRoleFilter}
+                onChange={e => setUserRoleFilter(e.target.value)}
                 className={`${inputClass} sm:w-40`}
               >
                 <option value="">All Roles</option>
@@ -2187,8 +2184,8 @@ const Admin = () => {
               </select>
             </div>
             {profile.role === "admin" && (
-              <button 
-                onClick={() => setShowAddUserModal(true)} 
+              <button
+                onClick={() => setShowAddUserModal(true)}
                 className={btnClass("purple")}
               >
                 ➕ Create User Profile
@@ -2205,7 +2202,7 @@ const Admin = () => {
                     <th className={headerCellClass}>Email Address</th>
                     <th className={headerCellClass}>Role</th>
                     <th className={headerCellClass}>Institution</th>
-                    <th className={headerCellClass}>Banned Status</th>
+                    <th className={headerCellClass}>Account Status</th>
                     <th className={headerCellClass}>Actions</th>
                   </tr>
                 </thead>
@@ -2282,10 +2279,10 @@ const Admin = () => {
                 <form onSubmit={handleAddNewUser} className="space-y-4">
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Display Name *</label>
-                    <input 
-                      type="text" 
-                      value={newUserName} 
-                      onChange={e => setNewUserName(e.target.value)} 
+                    <input
+                      type="text"
+                      value={newUserName}
+                      onChange={e => setNewUserName(e.target.value)}
                       className={inputClass}
                       placeholder="Jane Doe"
                       required
@@ -2293,10 +2290,10 @@ const Admin = () => {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Email Address *</label>
-                    <input 
-                      type="email" 
-                      value={newUserEmail} 
-                      onChange={e => setNewUserEmail(e.target.value)} 
+                    <input
+                      type="email"
+                      value={newUserEmail}
+                      onChange={e => setNewUserEmail(e.target.value)}
                       className={inputClass}
                       placeholder="jane.doe@school.edu"
                       required
@@ -2304,9 +2301,9 @@ const Admin = () => {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Default Role *</label>
-                    <select 
-                      value={newUserRole} 
-                      onChange={e => setNewUserRole(e.target.value)} 
+                    <select
+                      value={newUserRole}
+                      onChange={e => setNewUserRole(e.target.value)}
                       className={inputClass}
                     >
                       <option value="student">Student</option>
@@ -2318,10 +2315,10 @@ const Admin = () => {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Institution</label>
-                    <input 
-                      type="text" 
-                      value={newUserInstitution} 
-                      onChange={e => setNewUserInstitution(e.target.value)} 
+                    <input
+                      type="text"
+                      value={newUserInstitution}
+                      onChange={e => setNewUserInstitution(e.target.value)}
                       className={inputClass}
                       placeholder="Oakridge High School"
                     />
@@ -2329,30 +2326,30 @@ const Admin = () => {
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">City</label>
-                      <input 
-                        type="text" 
-                        value={newUserPlace} 
-                        onChange={e => setNewUserPlace(e.target.value)} 
+                      <input
+                        type="text"
+                        value={newUserPlace}
+                        onChange={e => setNewUserPlace(e.target.value)}
                         className={inputClass}
                         placeholder="Paris"
                       />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">State</label>
-                      <input 
-                        type="text" 
-                        value={newUserState} 
-                        onChange={e => setNewUserState(e.target.value)} 
+                      <input
+                        type="text"
+                        value={newUserState}
+                        onChange={e => setNewUserState(e.target.value)}
                         className={inputClass}
                         placeholder="IDF"
                       />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Country</label>
-                      <input 
-                        type="text" 
-                        value={newUserCountry} 
-                        onChange={e => setNewUserCountry(e.target.value)} 
+                      <input
+                        type="text"
+                        value={newUserCountry}
+                        onChange={e => setNewUserCountry(e.target.value)}
                         className={inputClass}
                         placeholder="France"
                       />
@@ -2360,15 +2357,15 @@ const Admin = () => {
                   </div>
 
                   <div className="flex justify-end space-x-2 pt-2 text-xs">
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setShowAddUserModal(false)}
                       className="px-4 py-2 font-semibold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg"
                     >
                       Cancel
                     </button>
-                    <button 
-                      type="submit" 
+                    <button
+                      type="submit"
                       disabled={loadingAction}
                       className={btnClass("purple")}
                     >
@@ -2390,60 +2387,60 @@ const Admin = () => {
             <h3 className="text-sm font-extrabold mb-4 border-b pb-2 uppercase text-gray-400">
               Sponsored Ads placements ({sponsoredAds.length})
             </h3>
-            
+
             <form onSubmit={handleAddAd} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Ad Label / Title *</label>
-                <input 
-                  type="text" 
-                  value={adTitle} 
-                  onChange={e => setAdTitle(e.target.value)} 
-                  className={inputClass} 
+                <input
+                  type="text"
+                  value={adTitle}
+                  onChange={e => setAdTitle(e.target.value)}
+                  className={inputClass}
                   placeholder="e.g. Back to School Discounts"
                   required
                 />
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Target Outbound Link *</label>
-                <input 
-                  type="url" 
-                  value={adDestUrl} 
-                  onChange={e => setAdDestUrl(e.target.value)} 
-                  className={inputClass} 
+                <input
+                  type="url"
+                  value={adDestUrl}
+                  onChange={e => setAdDestUrl(e.target.value)}
+                  className={inputClass}
                   placeholder="https://sponsor.com/sale"
                   required
                 />
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Ad Image Banner URL</label>
-                <input 
-                  type="url" 
-                  value={adImageUrl} 
-                  onChange={e => setAdImageUrl(e.target.value)} 
-                  className={inputClass} 
+                <input
+                  type="url"
+                  value={adImageUrl}
+                  onChange={e => setAdImageUrl(e.target.value)}
+                  className={inputClass}
                   placeholder="https://sponsor.com/banner.png"
                   required={!adImageFile}
                 />
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Or Upload Banner Image File</label>
-                <input 
-                  type="file" 
-                  onChange={e => setAdImageFile(e.target.files?.[0] || null)} 
+                <input
+                  type="file"
+                  onChange={e => setAdImageFile(e.target.files?.[0] || null)}
                   className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
                 />
               </div>
               <div className="flex items-center space-x-2">
-                <input 
-                  type="checkbox" 
-                  id="adActiveCheck" 
-                  checked={adIsActive} 
-                  onChange={e => setAdIsActive(e.target.checked)} 
+                <input
+                  type="checkbox"
+                  id="adActiveCheck"
+                  checked={adIsActive}
+                  onChange={e => setAdIsActive(e.target.checked)}
                 />
                 <label htmlFor="adActiveCheck" className="text-xs font-semibold">Render Sponsored Banner on Home page</label>
               </div>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={loadingAction}
                 className={btnClass("purple") + " w-full"}
               >
@@ -2481,66 +2478,66 @@ const Admin = () => {
             <form onSubmit={handleAddTestimonial} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Author Name *</label>
-                <input 
-                  type="text" 
-                  value={testAuthor} 
-                  onChange={e => setTestAuthor(e.target.value)} 
-                  className={inputClass} 
+                <input
+                  type="text"
+                  value={testAuthor}
+                  onChange={e => setTestAuthor(e.target.value)}
+                  className={inputClass}
                   placeholder="Dr. Sarah Jenkins"
                   required
                 />
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Institution *</label>
-                <input 
-                  type="text" 
-                  value={testInst} 
-                  onChange={e => setTestInst(e.target.value)} 
-                  className={inputClass} 
+                <input
+                  type="text"
+                  value={testInst}
+                  onChange={e => setTestInst(e.target.value)}
+                  className={inputClass}
                   placeholder="Vanderbilt University"
                   required
                 />
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Review Body Text *</label>
-                <textarea 
-                  value={testBody} 
-                  onChange={e => setTestBody(e.target.value)} 
-                  className={`${inputClass} h-16`} 
+                <textarea
+                  value={testBody}
+                  onChange={e => setTestBody(e.target.value)}
+                  className={`${inputClass} h-16`}
                   placeholder="Testimonial details..."
                   required
                 />
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Inline Image URL</label>
-                <input 
-                  type="url" 
-                  value={testImageUrl} 
-                  onChange={e => setTestImageUrl(e.target.value)} 
-                  className={inputClass} 
+                <input
+                  type="url"
+                  value={testImageUrl}
+                  onChange={e => setTestImageUrl(e.target.value)}
+                  className={inputClass}
                   placeholder="https://domain.com/photo.png"
                   required={!testImageFile}
                 />
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Or Upload Photo / Video Attachment</label>
-                <input 
-                  type="file" 
-                  onChange={e => setTestImageFile(e.target.files?.[0] || null)} 
+                <input
+                  type="file"
+                  onChange={e => setTestImageFile(e.target.files?.[0] || null)}
                   className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
                 />
               </div>
               <div className="flex items-center space-x-2">
-                <input 
-                  type="checkbox" 
-                  id="testFeaturedCheck" 
-                  checked={testIsFeatured} 
-                  onChange={e => setTestIsFeatured(e.target.checked)} 
+                <input
+                  type="checkbox"
+                  id="testFeaturedCheck"
+                  checked={testIsFeatured}
+                  onChange={e => setTestIsFeatured(e.target.checked)}
                 />
                 <label htmlFor="testFeaturedCheck" className="text-xs font-semibold">Highlight Review as Featured testimonial</label>
               </div>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={loadingAction}
                 className={btnClass("purple") + " w-full"}
               >
@@ -2570,19 +2567,19 @@ const Admin = () => {
       {activeTab === "taxonomy" && profile.role === "admin" && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
+
             {/* Subjects configuration list */}
             <div className={`p-6 ${containerClass} space-y-4`}>
               <h3 className="text-sm font-extrabold mb-2 border-b pb-2 uppercase text-gray-400">
                 Curricular Subjects Config
               </h3>
-              
+
               <form onSubmit={handleAddSubject} className="flex space-x-2">
-                <input 
-                  type="text" 
-                  value={newTaxSubject} 
-                  onChange={e => setNewTaxSubject(e.target.value)} 
-                  className={inputClass} 
+                <input
+                  type="text"
+                  value={newTaxSubject}
+                  onChange={e => setNewTaxSubject(e.target.value)}
+                  className={inputClass}
                   placeholder="Add subject..."
                 />
                 <button type="submit" className={btnClass("purple")}>
@@ -2605,7 +2602,7 @@ const Admin = () => {
                   .map(sub => (
                     <div key={sub} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-150 dark:border-gray-800 text-xs">
                       <span>{sub}</span>
-                      <button 
+                      <button
                         onClick={() => handleRemoveSubject(sub)}
                         className="text-red-500 hover:text-red-700 font-bold"
                       >
@@ -2623,11 +2620,11 @@ const Admin = () => {
               </h3>
 
               <form onSubmit={handleAddGrade} className="flex space-x-2">
-                <input 
-                  type="text" 
-                  value={newTaxGrade} 
-                  onChange={e => setNewTaxGrade(e.target.value)} 
-                  className={inputClass} 
+                <input
+                  type="text"
+                  value={newTaxGrade}
+                  onChange={e => setNewTaxGrade(e.target.value)}
+                  className={inputClass}
                   placeholder="Add grade..."
                 />
                 <button type="submit" className={btnClass("purple")}>
@@ -2650,7 +2647,7 @@ const Admin = () => {
                   .map(gr => (
                     <div key={gr} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-150 dark:border-gray-800 text-xs">
                       <span>{gr}</span>
-                      <button 
+                      <button
                         onClick={() => handleRemoveGrade(gr)}
                         className="text-red-500 hover:text-red-700 font-bold"
                       >
@@ -2668,11 +2665,11 @@ const Admin = () => {
               </h3>
 
               <form onSubmit={handleAddLanguage} className="flex space-x-2">
-                <input 
-                  type="text" 
-                  value={newTaxLanguage} 
-                  onChange={e => setNewTaxLanguage(e.target.value)} 
-                  className={inputClass} 
+                <input
+                  type="text"
+                  value={newTaxLanguage}
+                  onChange={e => setNewTaxLanguage(e.target.value)}
+                  className={inputClass}
                   placeholder="Add language..."
                 />
                 <button type="submit" className={btnClass("purple")}>
@@ -2696,7 +2693,7 @@ const Admin = () => {
                     <div key={lang} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-150 dark:border-gray-800 text-xs">
                       <span>{lang}</span>
                       {lang !== "Other" && (
-                        <button 
+                        <button
                           onClick={() => handleRemoveLanguage(lang)}
                           className="text-red-500 hover:text-red-700 font-bold"
                         >
@@ -2716,7 +2713,7 @@ const Admin = () => {
                 <h3 className="text-sm font-extrabold mb-4 border-b pb-2 uppercase text-gray-400">
                   Staffroom Pruning Controls
                 </h3>
-                
+
                 <div className={bannerClass}>
                   <span className="text-base mr-2 block mb-1">🧼 Data Storage Policies</span>
                   To maintain database optimization guidelines, temporary media attachments contributed to Staffroom forum responses are archived and pruned automatically after 30 days. Text discussions remain completely intact.
@@ -2734,15 +2731,15 @@ const Admin = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-400">Last Cleanup Run:</span>
                     <span className="font-bold">
-                      {pruningLog.last_pruned_at 
-                        ? new Date(pruningLog.last_pruned_at.seconds * 1000).toLocaleString() 
+                      {pruningLog.last_pruned_at
+                        ? new Date(pruningLog.last_pruned_at.seconds * 1000).toLocaleString()
                         : "Never"}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <button 
+              <button
                 onClick={handleManualPruningOverride}
                 disabled={loadingAction}
                 className={btnClass("indigo") + " w-full mt-6"}
@@ -2806,13 +2803,12 @@ const Admin = () => {
                     setCmPostVisibility("all"); setCmPostType("all"); setCmPostCreator("all"); setCmPostSelected(new Set());
                     setCmTplStatus("all"); setCmTplFormat("all"); setCmTplCreator("all"); setCmTplSelected(new Set());
                   }}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
-                    contentManagerTab === st.id
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${contentManagerTab === st.id
                       ? "bg-indigo-600 text-white shadow-sm"
                       : highContrastMode
                         ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                         : "bg-gray-100 text-gray-500 hover:text-gray-700 hover:bg-gray-200"
-                  }`}
+                    }`}
                 >
                   {st.label} <span className="opacity-60 font-normal">({st.count})</span>
                 </button>
@@ -3030,7 +3026,7 @@ const Admin = () => {
               if (cmResStatus !== "all") {
                 const resStatus = r.status === "admin_hidden" ? "admin_hidden"
                   : r.status === "hidden_moderation" ? "hidden_moderation"
-                  : r.admin_approved ? "approved" : "pending";
+                    : r.admin_approved ? "approved" : "pending";
                 if (resStatus !== cmResStatus) return false;
               }
               if (cmResType !== "all" && r.type !== cmResType) return false;
@@ -3303,14 +3299,14 @@ const Admin = () => {
                         const postLabel = post.title || post.body?.slice(0, 50) || "Untitled";
                         return (
                           <tr key={post.id} className={`align-top ${cmPostSelected.has(post.id) ? "bg-indigo-50/50 dark:bg-indigo-950/20" : ""}`}>
-                          <td className={rowCellClass}>
-                            <input
-                              type="checkbox"
-                              checked={cmPostSelected.has(post.id)}
-                              onChange={() => togglePost(post.id)}
-                              className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
-                            />
-                          </td>
+                            <td className={rowCellClass}>
+                              <input
+                                type="checkbox"
+                                checked={cmPostSelected.has(post.id)}
+                                onChange={() => togglePost(post.id)}
+                                className="w-3.5 h-3.5 cursor-pointer accent-indigo-600"
+                              />
+                            </td>
                             <td className={rowCellClass}>
                               <span className="font-semibold block max-w-[200px] truncate">{postLabel}</span>
                               {post.attachment_name && (
