@@ -45,7 +45,9 @@ import {
   Flag,
   ShieldCheck,
   AlertCircle,
-  Lock
+  Lock,
+  Share2,
+  Shuffle
 } from "lucide-react";
 
 const Library = () => {
@@ -73,8 +75,12 @@ const Library = () => {
 
   // Modals & Details Overlay
   const [activeMeme, setActiveMeme] = useState(null);
-  const [expertComments, setExpertComments] = useState([]);
+  const [allComments, setAllComments] = useState([]);        // all comments for active meme
+  const [expertComments, setExpertComments] = useState([]);  // filtered: is_expert_comment === true
+  const [userComments, setUserComments] = useState([]);      // filtered: is_expert_comment !== true
   const [newExpertComment, setNewExpertComment] = useState("");
+  const [newUserComment, setNewUserComment] = useState("");
+  const [activeModalTab, setActiveModalTab] = useState("comments"); // "comments" | "expert" | "ratings"
   const [showDirectUploadModal, setShowDirectUploadModal] = useState(false);
 
   // Ratings for current active meme
@@ -447,33 +453,34 @@ const Library = () => {
     setFilteredMemes(result);
   }, [appliedSearchQuery, subjectFilter, gradeFilter, languageFilter, formatFilter, sortBy, memes, allRatings]);
 
-  // Load Expert Comments & Ratings for the Active Expanded Meme
+  // Load All Comments & Ratings for the Active Expanded Meme
   useEffect(() => {
     let unsubscribeComments = () => { };
     let unsubscribeRatings = () => { };
 
-    // Clear stale ratings and comments immediately on activeMeme changes to prevent UI flickering
+    // Clear stale data immediately on activeMeme change
     setCurrentMemeRatings([]);
     setUserSubmittedRating(null);
+    setAllComments([]);
     setExpertComments([]);
+    setUserComments([]);
 
     if (activeMeme) {
-      // Listen to expert comments
+      // Listen to ALL comments for this meme (separate expert vs user client-side)
       const commentsCol = collection(db, "comments");
       const commentsQuery = query(
         commentsCol,
-        where("meme_id", "==", activeMeme.id),
-        where("is_expert_comment", "==", true)
+        where("meme_id", "==", activeMeme.id)
       );
 
       unsubscribeComments = onSnapshot(commentsQuery, (snapshot) => {
-        const commentList = [];
-        snapshot.forEach((doc) => {
-          commentList.push({ id: doc.id, ...doc.data() });
-        });
-        setExpertComments(commentList);
+        const all = [];
+        snapshot.forEach((doc) => { all.push({ id: doc.id, ...doc.data() }); });
+        setAllComments(all);
+        setExpertComments(all.filter(c => c.is_expert_comment === true));
+        setUserComments(all.filter(c => !c.is_expert_comment));
       }, (error) => {
-        console.error("Expert comments subscription failed:", error);
+        console.error("Comments subscription failed:", error);
       });
 
       // Listen to ratings
@@ -481,11 +488,8 @@ const Library = () => {
       const ratingsQuery = query(ratingsCol, where("meme_id", "==", activeMeme.id));
       unsubscribeRatings = onSnapshot(ratingsQuery, (snapshot) => {
         const ratingList = [];
-        snapshot.forEach((doc) => {
-          ratingList.push({ id: doc.id, ...doc.data() });
-        });
+        snapshot.forEach((doc) => { ratingList.push({ id: doc.id, ...doc.data() }); });
         setCurrentMemeRatings(ratingList);
-
         if (user) {
           const myRating = ratingList.find(r => r.user_id === user.uid);
           setUserSubmittedRating(myRating || null);
@@ -724,6 +728,22 @@ const Library = () => {
     }
   };
 
+  // Share handler: Web Share API with clipboard fallback
+  const handleShare = async (meme) => {
+    const url = `${window.location.origin}/library`;
+    const shareData = { title: meme.title || "Check out this meme on MemeClassroom!", url };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch (_) {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        showLibToast("Link copied to clipboard!", "success");
+      } catch (_) {
+        showLibToast("Could not copy link.", "error");
+      }
+    }
+  };
+
   // 6. Ratings Tracker: Submit 1-to-5 star evaluation on 4 criteria
   const handleRateSubmit = async (criteria, score) => {
     if (!user || !activeMeme) return;
@@ -766,7 +786,27 @@ const Library = () => {
     }
   };
 
-  // 7. Expert Review submission
+  // 7. User Comment submission (any logged-in user)
+  const handleUserCommentSubmit = async (e) => {
+    e.preventDefault();
+    if (!user || !activeMeme || !newUserComment.trim()) return;
+    try {
+      await addDoc(collection(db, "comments"), {
+        meme_id: activeMeme.id,
+        user_id: user.uid,
+        body: newUserComment.trim(),
+        timestamp: serverTimestamp(),
+        parent_id: null,
+        is_expert_comment: false
+      });
+      setNewUserComment("");
+    } catch (e) {
+      console.error("User comment save failed", e);
+      showLibToast("Failed to post comment. Please try again.", "error");
+    }
+  };
+
+  // 8. Expert Review submission
   const handleExpertCommentSubmit = async (e) => {
     e.preventDefault();
     if (!user || !profile || !activeMeme || !newExpertComment) return;
@@ -1088,9 +1128,9 @@ const Library = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_200px] gap-5 items-start">
         {/* Left Column: Sorting & Filtering (lg:col-span-1) */}
-        <div className={`p-6 h-fit ${containerClass} lg:col-span-1`}>
+        <div className={`p-3 h-fit ${containerClass}`}>
           <div className="mb-6">
             <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2">SORT BY</label>
             <select
@@ -1211,8 +1251,8 @@ const Library = () => {
           )}
         </div>
 
-        {/* Center Column: Feed (lg:col-span-2) */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Center Column: Feed */}
+        <div className="space-y-5 min-w-0">
           {/* Share a meme with the classroom container */}
           <div
             onClick={() => user ? setShowDirectUploadModal(true) : navigate("/auth")}
@@ -1240,7 +1280,7 @@ const Library = () => {
           </div>
 
           {filteredMemes.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredMemes.map((meme) => {
                 const isLiked = !!userLikesMap[meme.id];
                 const isSaved = !!userSavesMap[meme.id];
@@ -1279,8 +1319,8 @@ const Library = () => {
                         </p>
                       )}
 
-                      {/* Media Image/Video Box */}
-                      <div className="relative aspect-video w-full bg-zinc-950 flex items-center justify-center overflow-hidden rounded-xl border border-gray-200/10 shadow-inner group">
+                      {/* Media Image/Video Box — adaptive height, portrait & landscape friendly */}
+                      <div className="relative w-full bg-zinc-950 flex items-center justify-center overflow-hidden rounded-xl border border-gray-200/10 shadow-inner group" style={{ height: '210px' }}>
                         {/* Hover View Details Overlay */}
                         <div
                           onClick={() => setActiveMeme(meme)}
@@ -1310,41 +1350,72 @@ const Library = () => {
                         )}
                       </div>
 
-                      {/* Subject & Age Tag Pill Line */}
-                      <div className="flex flex-wrap gap-1.5 mt-3.5">
-                        <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold shadow-sm ${getSubjectTagClass(meme.subject)}`}>
-                          {meme.subject}
-                        </span>
-                        <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 text-[8px] px-2 py-0.5 rounded-full font-bold">
-                          {meme.age_group}
-                        </span>
+                      {/* Subject, Grade & Rating pill row */}
+                      <div className="flex items-start justify-between gap-1.5 mt-3.5">
+                        <div className="flex flex-wrap items-center gap-1 min-w-0 flex-1">
+                          <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold shadow-sm ${getSubjectTagClass(meme.subject)}`}>
+                            {meme.subject}
+                          </span>
+                          <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 text-[8px] px-2 py-0.5 rounded-full font-bold">
+                            {meme.age_group}
+                          </span>
+                        </div>
+                        {/* Rating — anchored top right */}
+                        <button
+                          onClick={() => setActiveMeme(meme)}
+                          className="shrink-0 flex items-center gap-1 text-yellow-500 hover:text-yellow-600 hover:scale-110 active:scale-95 transition-all bg-yellow-50/50 dark:bg-yellow-950/20 px-1.5 py-0.5 rounded-full border border-yellow-200/50 dark:border-yellow-800/40"
+                          title={getOverallAverageRating(meme.id) > 0
+                            ? `Rating: ${getOverallAverageRating(meme.id).toFixed(1)}/5 — click to rate`
+                            : 'Not yet rated — click to rate'}
+                        >
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-yellow-500" strokeWidth={1.5} />
+                          <span className="text-[10px] font-extrabold tabular-nums text-yellow-700 dark:text-yellow-400">
+                            {getOverallAverageRating(meme.id) > 0
+                              ? getOverallAverageRating(meme.id).toFixed(1)
+                              : '—'}
+                          </span>
+                        </button>
                       </div>
                     </div>
 
-                    {/* Card Footer: Action row */}
-                    <div className="p-4 pt-0 mt-auto border-t border-gray-100/50 dark:border-zinc-800/40">
-                      {/* Social Actions row */}
-                      <div className="flex items-center justify-between py-3 text-gray-400 dark:text-gray-400">
+                    {/* Card Footer: 7-icon action row — outline/minimalistic style */}
+                    <div className="px-3 pb-3 pt-2 border-t border-gray-100/50 dark:border-zinc-800/40">
+                      <div className="flex items-center justify-between text-gray-400 dark:text-gray-500">
+
                         {/* 1. Like */}
                         <button
-                          onClick={() => handleLikeToggle(meme.id, meme.creator_id)}
-                          className={`flex items-center space-x-1.5 hover:scale-105 active:scale-95 transition-all text-xs ${isLiked ? 'text-red-500 font-bold' : 'hover:text-red-500'}`}
-                          title="Like Meme"
+                          onClick={() => user
+                            ? handleLikeToggle(meme.id, meme.creator_id)
+                            : showLibToast("Sign in to like memes.", "info")}
+                          className={`flex items-center gap-0.5 hover:scale-110 active:scale-95 transition-all ${isLiked ? 'text-red-500' : 'hover:text-red-500'}`}
+                          title="Like"
                         >
-                          <Heart className={`w-4 h-4 ${isLiked ? 'fill-current text-red-500' : 'text-gray-400'}`} />
-                          <span className="text-[10px] font-bold">{meme.likes_count || 0}</span>
+                          <Heart
+                            className={`w-[15px] h-[15px] ${isLiked ? 'fill-current' : ''} ${animatingHeartMemeId === meme.id ? 'heart-pop-active' : ''}`}
+                            strokeWidth={1.5}
+                          />
+                          <span className="text-[9px] font-bold tabular-nums">{meme.likes_count || 0}</span>
                         </button>
- 
-                        {/* 2. Remix */}
+
+                        {/* 2. Comment */}
                         <button
-                          onClick={() => navigate(`/lab?templateId=${meme.id}`)}
-                          className="hover:text-purple-600 hover:scale-105 active:scale-95 transition-all text-xs"
-                          title={meme.template_id ? "Customise / Remix Meme" : "Use as Template"}
+                          onClick={() => setActiveMeme(meme)}
+                          className="hover:text-blue-500 hover:scale-110 active:scale-95 transition-all"
+                          title="Comment"
                         >
-                          <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                          <MessageSquare className="w-[15px] h-[15px]" strokeWidth={1.5} />
                         </button>
- 
-                        {/* 3. Download */}
+
+                        {/* 3. Share */}
+                        <button
+                          onClick={() => handleShare(meme)}
+                          className="hover:text-green-500 hover:scale-110 active:scale-95 transition-all"
+                          title="Share"
+                        >
+                          <Share2 className="w-[15px] h-[15px]" strokeWidth={1.5} />
+                        </button>
+
+                        {/* 4. Download */}
                         <button
                           onClick={() => {
                             if (meme.format === "image" || meme.format === "gif") {
@@ -1353,32 +1424,34 @@ const Library = () => {
                               handleMediaDownload(meme.media_url, meme.title);
                             }
                           }}
-                          className="hover:text-indigo-600 hover:scale-105 active:scale-95 transition-all text-xs"
-                          title="Download Meme (CC BY-NC-SA 4.0)"
+                          className="hover:text-indigo-500 hover:scale-110 active:scale-95 transition-all"
+                          title="Download"
                         >
-                          <Download className="w-4 h-4" />
+                          <Download className="w-[15px] h-[15px]" strokeWidth={1.5} />
                         </button>
- 
-                        {/* 4. Bookmark (Saves) */}
+
+                        {/* 5. Remix / Customise */}
+                        <button
+                          onClick={() => navigate(`/lab?templateId=${meme.id}`)}
+                          className="hover:text-purple-500 hover:scale-110 active:scale-95 transition-all"
+                          title="Remix"
+                        >
+                          <Shuffle className="w-[15px] h-[15px]" strokeWidth={1.5} />
+                        </button>
+
+                        {/* 6. Bookmark */}
                         <button
                           onClick={() => handleSaveToggle(meme)}
-                          className="hover:text-yellow-600 hover:scale-105 active:scale-95 transition-all text-xs"
-                          title="Save Meme"
+                          className={`hover:scale-110 active:scale-95 transition-all ${isSaved ? 'text-amber-500' : 'hover:text-amber-500'}`}
+                          title="Bookmark"
                         >
-                          <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current text-amber-500' : 'text-gray-400'}`} />
+                          <Bookmark
+                            className={`w-[15px] h-[15px] ${isSaved ? 'fill-current' : ''}`}
+                            strokeWidth={1.5}
+                          />
                         </button>
-                      </div>
 
-                      {/* Hashtags row */}
-                      {meme.keywords && meme.keywords.length > 0 && (
-                        <div className="flex flex-wrap gap-1 border-t border-gray-100/50 dark:border-zinc-800/40 pt-2.5">
-                          {meme.keywords.slice(0, 3).map((keyword, i) => (
-                            <span key={i} className="text-[9px] text-purple-600 dark:text-purple-400 font-medium">
-                              #{keyword}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -1412,8 +1485,8 @@ const Library = () => {
           </div>
         </div>
 
-        {/* Right Sidebar: Trending & Top Creators (lg:col-span-1) */}
-        <div className="lg:col-span-1 space-y-6">
+        {/* Right Sidebar: Trending & Top Creators */}
+        <div className="space-y-5">
           {/* Trending Now Card */}
           <div className="bg-white/40 dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl border border-gray-200/50 dark:border-zinc-800/40 shadow-md dark:shadow-black/25 hover:shadow-lg transition-all duration-300 space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
@@ -1506,8 +1579,8 @@ const Library = () => {
 
       {/* 2. MEME DETAIL OVERLAY EXPANSION MODAL */}
       {activeMeme && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className={`w-full max-w-4xl p-6 rounded-xl overflow-y-auto max-h-[90vh] grid grid-cols-1 md:grid-cols-2 gap-6 ${containerClass}`}>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="w-full max-w-4xl p-6 rounded-2xl overflow-y-auto max-h-[90vh] grid grid-cols-1 md:grid-cols-2 gap-6 bg-white dark:bg-zinc-900 shadow-2xl border border-gray-200 dark:border-zinc-700">
 
             {/* Left Column: Visual Asset & Title */}
             <div>
@@ -1521,8 +1594,8 @@ const Library = () => {
                 </button>
               </div>
 
-              {/* Detail Preview Area */}
-              <div className="bg-black aspect-square rounded-xl overflow-hidden flex items-center justify-center mb-4">
+              {/* Detail Preview Area — adaptive aspect ratio for landscape & portrait */}
+              <div className="bg-black rounded-xl overflow-hidden flex items-center justify-center mb-3 w-full" style={{ maxHeight: '55vh', minHeight: '200px' }}>
                 {activeMeme.format === "image" && (
                   <img src={activeMeme.media_url} alt={activeMeme.title} className="max-w-full max-h-full object-contain" />
                 )}
@@ -1537,8 +1610,106 @@ const Library = () => {
                 )}
               </div>
 
+              {/* Modal Icon Action Row — outline minimalistic style, visible contrast */}
+              <div className="flex items-center justify-between mb-3 px-1 pb-3 border-b border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400">
+                {/* Like */}
+                <button
+                  onClick={() => user
+                    ? handleLikeToggle(activeMeme.id, activeMeme.creator_id)
+                    : showLibToast("Sign in to like memes.", "info")}
+                  className={`flex items-center gap-1 hover:scale-110 transition-all ${
+                    userLikesMap[activeMeme.id] ? 'text-red-500' : 'hover:text-red-500'
+                  }`}
+                  title="Like"
+                >
+                  <Heart
+                    className={`w-4 h-4 ${userLikesMap[activeMeme.id] ? 'fill-current' : ''}`}
+                    strokeWidth={1.5}
+                  />
+                  <span className="text-[10px] font-bold tabular-nums">{activeMeme.likes_count || 0}</span>
+                </button>
+
+                {/* Comment */}
+                <button
+                  className="hover:text-blue-500 hover:scale-110 transition-all"
+                  title={user ? "Comments" : "Sign in to comment"}
+                  onClick={() => setActiveModalTab("comments")}
+                >
+                  <MessageSquare className="w-4 h-4" strokeWidth={1.5} />
+                </button>
+
+                {/* Share */}
+                <button
+                  onClick={() => handleShare(activeMeme)}
+                  className="hover:text-green-500 hover:scale-110 transition-all"
+                  title="Share"
+                >
+                  <Share2 className="w-4 h-4" strokeWidth={1.5} />
+                </button>
+
+                {/* Download */}
+                <button
+                  onClick={() => {
+                    if (activeMeme.format === "image" || activeMeme.format === "gif") {
+                      downloadMemeWithWatermark(activeMeme.media_url, activeMeme.title);
+                    } else {
+                      handleMediaDownload(activeMeme.media_url, activeMeme.title);
+                    }
+                  }}
+                  className="hover:text-indigo-500 hover:scale-110 transition-all"
+                  title="Download (CC BY-NC-SA 4.0)"
+                >
+                  <Download className="w-4 h-4" strokeWidth={1.5} />
+                </button>
+
+                {/* Rating — switches to ratings tab */}
+                <button
+                  onClick={() => setActiveModalTab("ratings")}
+                  className="flex items-center gap-1 text-yellow-500 hover:text-yellow-600 hover:scale-110 transition-all"
+                  title="Rating"
+                >
+                  <Star className="w-4 h-4 fill-amber-400 text-yellow-500" strokeWidth={1.5} />
+                  <span className="text-xs font-extrabold tabular-nums">
+                    {(() => { const o = getOverallAverageRating(activeMeme.id); return o > 0 ? o.toFixed(1) : '—'; })()}
+                  </span>
+                </button>
+
+                {/* Remix */}
+                <button
+                  onClick={() => navigate(`/lab?templateUrl=${encodeURIComponent(activeMeme.media_url)}&format=${activeMeme.format}&clearText=true`)}
+                  className="hover:text-purple-500 hover:scale-110 transition-all"
+                  title="Remix"
+                >
+                  <Shuffle className="w-4 h-4" strokeWidth={1.5} />
+                </button>
+
+                {/* Bookmark — login required */}
+                <button
+                  onClick={() => handleSaveToggle(activeMeme)}
+                  className={`hover:scale-110 transition-all ${
+                    userSavesMap[activeMeme.id] ? 'text-amber-500' : 'hover:text-amber-500'
+                  }`}
+                  title={user ? "Bookmark" : "Sign in to bookmark"}
+                >
+                  <Bookmark
+                    className={`w-4 h-4 ${userSavesMap[activeMeme.id] ? 'fill-current' : ''}`}
+                    strokeWidth={1.5}
+                  />
+                </button>
+
+                {/* Flag */}
+                <button
+                  onClick={() => handleFlagContent(activeMeme.id)}
+                  className="hover:text-red-500 hover:scale-110 transition-all"
+                  title="Report"
+                >
+                  <Flag className="w-4 h-4" strokeWidth={1.5} />
+                </button>
+              </div>
+
               {/* Creator details and potential Delete option */}
-              <div className="flex justify-between items-center mb-4 text-xs font-semibold text-gray-500">
+
+              <div className="flex justify-between items-center text-xs font-semibold text-gray-500">
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => openUserModal(activeMeme.creator_id)}
@@ -1558,189 +1729,266 @@ const Library = () => {
                   </button>
                 )}
               </div>
-
-              {/* Download & Use as Template Action Triggers */}
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => {
-                    if (activeMeme.format === "image" || activeMeme.format === "gif") {
-                      downloadMemeWithWatermark(activeMeme.media_url, activeMeme.title);
-                    } else {
-                      handleMediaDownload(activeMeme.media_url, activeMeme.title);
-                    }
-                  }}
-                  className="flex-1 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 font-bold py-2 rounded-lg border border-purple-200 dark:border-purple-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-purple-100 transition"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download</span>
-                </button>
-                <button
-                  onClick={() => navigate(`/lab?templateUrl=${encodeURIComponent(activeMeme.media_url)}&format=${activeMeme.format}&clearText=true`)}
-                  className="flex-1 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 font-bold py-2 rounded-lg border border-indigo-200 dark:border-indigo-800 text-xs flex items-center justify-center space-x-1.5 hover:bg-indigo-100 transition"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Use as Template</span>
-                </button>
-              </div>
-
-              {/* Criteria Progress evaluation bars */}
-              <div className="space-y-3 bg-gray-50 dark:bg-gray-900 p-4 rounded-xl text-xs font-semibold">
-                <div className="flex justify-between items-center pb-2 border-b border-gray-200 dark:border-gray-800 mb-2">
-                  <span className="uppercase tracking-wider text-gray-400 text-[10px]">Pedagogical Evaluation Grades</span>
-                  {(() => {
-                    const ageAvg = getAverageScore("age_appropriateness");
-                    const langAvg = getAverageScore("language_appropriateness");
-                    const valAvg = getAverageScore("content_validity");
-                    const creatAvg = getAverageScore("creativity");
-                    const activeAverages = [ageAvg, langAvg, valAvg, creatAvg].filter(a => a > 0);
-                    const overallAverage = activeAverages.length > 0
-                      ? activeAverages.reduce((a, b) => a + b, 0) / activeAverages.length
-                      : 0;
-                    return (
-                      <span className="text-purple-650 font-bold text-xs bg-purple-50 dark:bg-purple-950/20 px-2 py-0.5 rounded">
-                        Avg: {overallAverage > 0 ? `${overallAverage.toFixed(1)}/5` : "—"}
-                      </span>
-                    );
-                  })()}
-                </div>
-
-                {[
-                  { label: "Age Appropriateness", key: "age_appropriateness" },
-                  { label: "Language Appropriateness", key: "language_appropriateness" },
-                  { label: "Content Validity", key: "content_validity" },
-                  { label: "Creativity", key: "creativity" }
-                ].map((crit) => {
-                  const avg = getAverageScore(crit.key);
-                  const myVal = userSubmittedRating?.[crit.key] || 0;
-
-                  return (
-                    <div key={crit.key} className="space-y-1 min-h-[70px]">
-                      <div className="flex justify-between text-[11px]">
-                        <span>{crit.label}</span>
-                        <span className="text-purple-650 font-bold">
-                          {avg > 0 ? `${avg.toFixed(1)}/5 (${getScoreCount(crit.key)} ${getScoreCount(crit.key) === 1 ? 'rating' : 'ratings'})` : "—/5 (0 ratings)"}
-                        </span>
-                      </div>
-
-                      {/* Progress Bar representing average */}
-                      <div className="w-full bg-gray-200 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
-                        <div
-                          className="bg-purple-600 h-full transition-all duration-300"
-                          style={{ width: `${(avg / 5) * 100}%` }}
-                        ></div>
-                      </div>
-
-                      {/* Active Star Selector submission */}
-                      {user && (
-                        <div className="flex space-x-1.5 pt-0.5 justify-end h-5">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button
-                              key={star}
-                              type="button"
-                              onClick={() => handleRateSubmit(crit.key, star)}
-                              className={`text-xs ${star <= myVal ? 'text-yellow-500' : 'text-gray-300'}`}
-                            >
-                              ★
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
             </div>
 
-            {/* Right Column: Verified reviews & comments */}
-            <div className="flex flex-col justify-between h-full">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center space-x-2">
-                  <h3 className="font-extrabold text-sm uppercase tracking-wider">Verified Reviews</h3>
-                  {expertComments.length > 0 && (
-                    <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 flex items-center space-x-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Verified</span>
-                    </span>
-                  )}
+            {/* Right Column: Tabbed — Comments | Expert Comments | Ratings */}
+            <div className="flex flex-col h-full min-h-0">
+
+              {/* Tab bar + close button */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex gap-0.5 bg-gray-100 dark:bg-zinc-800 rounded-lg p-0.5">
+                  {[
+                    { key: "comments", label: "Comments", count: userComments.length },
+                    { key: "expert",   label: "Expert",   count: expertComments.length },
+                    { key: "ratings",  label: "Ratings",  count: currentMemeRatings.length }
+                  ].map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveModalTab(tab.key)}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 ${
+                        activeModalTab === tab.key
+                          ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
+                          : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                      }`}
+                    >
+                      {tab.label}
+                      {tab.count > 0 && (
+                        <span className="bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-[9px] font-bold px-1.5 rounded-full">
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
                 </div>
                 <button
                   onClick={() => setActiveMeme(null)}
-                  className="hidden md:block text-gray-400 hover:text-gray-500 font-bold text-lg"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 font-bold text-lg leading-none p-1"
                 >
                   ✕
                 </button>
               </div>
 
-              {/* Expert scholarly Comments block */}
-              <div className="flex-grow space-y-4 overflow-y-auto mb-6 max-h-[40vh] border border-gray-150 dark:border-gray-750 rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
-                {expertComments.length > 0 ? (
-                  (() => {
-                    const verifiedComments = expertComments.filter(comment => {
-                      const commenter = userCache[comment.user_id];
-                      return commenter?.role === "expert" || commenter?.role === "admin" || commenter?.is_verified === true || comment.user_id === "admin";
-                    });
-
-                    if (verifiedComments.length === 0) {
-                      return (
-                        <p className="text-center text-gray-450 dark:text-gray-500 text-xs py-8">
-                          No verified reviews have been logged for this meme's subject area yet.
-                        </p>
-                      );
-                    }
-
-                    return verifiedComments.map((comment) => {
-                      const commenter = userCache[comment.user_id];
-                      const commenterName = commenter?.name || "Verified Reviewer";
-                      const isCommentAuthor = user && (comment.user_id === user.uid || profile?.role === "admin");
-                      return (
-                        <div key={comment.id} className="border-b border-gray-200 dark:border-gray-800 pb-3 last:border-b-0 text-xs">
-                          <div className="flex justify-between items-center text-gray-500 mb-1">
-                            <span className="font-bold text-purple-700 flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> Verified Review ({commenterName})</span>
-                            <div className="flex items-center space-x-2">
-                              <span>{comment.timestamp?.seconds ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString() : "Just now"}</span>
-                              {isCommentAuthor && (
-                                <button
-                                  onClick={() => handleDeleteComment(comment.id)}
-                                  className="text-red-500 hover:text-red-700 font-bold transition ml-2"
-                                >
-                                  Delete
-                                </button>
-                              )}
+              {/* ── TAB: Comments (any user) ── */}
+              {activeModalTab === "comments" && (
+                <div className="flex flex-col flex-1 min-h-0">
+                  <div id="modal-comment-section" className="flex-1 overflow-y-auto space-y-3 mb-3 max-h-[42vh] pr-1">
+                    {userComments.length === 0 ? (
+                      <p className="text-center text-gray-400 dark:text-gray-500 text-xs py-10 italic">
+                        No comments yet. Be the first to share your thoughts!
+                      </p>
+                    ) : (
+                      userComments
+                        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))
+                        .map(comment => {
+                          const commenter = userCache[comment.user_id];
+                          const commenterName = commenter?.name || "Anonymous";
+                          const isAuthor = user && (comment.user_id === user.uid || profile?.role === "admin");
+                          return (
+                            <div key={comment.id} className="flex gap-2.5 text-xs">
+                              <img
+                                src={commenter?.avatar_url || "/avatar1.png"}
+                                alt={commenterName}
+                                className="w-7 h-7 rounded-full object-cover border border-purple-100 shrink-0 mt-0.5"
+                              />
+                              <div className="flex-1 bg-gray-50 dark:bg-zinc-800/60 rounded-xl px-3 py-2">
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="font-bold text-gray-800 dark:text-zinc-200">{commenterName}</span>
+                                  <div className="flex items-center gap-2 text-gray-400">
+                                    <span className="text-[9px]">
+                                      {comment.timestamp?.seconds
+                                        ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString()
+                                        : "Just now"}
+                                    </span>
+                                    {isAuthor && (
+                                      <button
+                                        onClick={() => handleDeleteComment(comment.id)}
+                                        className="text-red-400 hover:text-red-600 font-bold transition"
+                                      >×</button>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="text-gray-700 dark:text-zinc-300 leading-relaxed">{comment.body}</p>
+                              </div>
                             </div>
-                          </div>
-                          <p className="text-gray-800 dark:text-gray-200 font-medium leading-relaxed">{comment.body}</p>
-                        </div>
-                      );
-                    });
-                  })()
-                ) : (
-                  <p className="text-center text-gray-450 dark:text-gray-500 text-xs py-8">
-                    No verified reviews have been logged for this meme's subject area yet.
-                  </p>
-                )}
-              </div>
-
-              {/* Expert & Verified User Submission Area */}
-              {user && profile && (profile.role === "expert" || profile.role === "admin" || profile.is_verified === true) ? (
-                <form onSubmit={handleExpertCommentSubmit} className="space-y-3 border-t pt-4">
-                  <span className="block text-xs font-semibold text-purple-700 uppercase flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-purple-650" /> Add Verification Review</span>
-                  <textarea
-                    placeholder="Write a verification review or academic comment on content validity..."
-                    value={newExpertComment}
-                    onChange={(e) => setNewExpertComment(e.target.value)}
-                    rows="3"
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-xs rounded"
-                    required
-                  />
-                  <button type="submit" className={btnClass}>
-                    Submit Verified Review
-                  </button>
-                </form>
-              ) : (
-                <div className="border-t pt-4 text-center text-xs text-gray-400 flex items-center justify-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-gray-400" /> Comments are restricted to verified users and subject-matter experts.
+                          );
+                        })
+                    )}
+                  </div>
+                  {/* Comment input */}
+                  {user ? (
+                    <form onSubmit={handleUserCommentSubmit} className="flex gap-2 border-t border-gray-100 dark:border-zinc-800 pt-3">
+                      <img
+                        src={profile?.avatar_url || user?.photoURL || "/avatar1.png"}
+                        alt="You"
+                        className="w-7 h-7 rounded-full object-cover border border-purple-100 shrink-0"
+                      />
+                      <div className="flex-1 flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Write a comment…"
+                          value={newUserComment}
+                          onChange={(e) => setNewUserComment(e.target.value)}
+                          className="flex-1 px-3 py-1.5 border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400/30"
+                          required
+                        />
+                        <button
+                          type="submit"
+                          className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition"
+                        >
+                          Post
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="border-t border-gray-100 dark:border-zinc-800 pt-3 text-center text-xs text-gray-400 flex items-center justify-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5" /> Sign in to leave a comment.
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* ── TAB: Expert Comments ── */}
+              {activeModalTab === "expert" && (
+                <div className="flex flex-col flex-1 min-h-0">
+                  <div className="flex-1 overflow-y-auto space-y-3 mb-3 max-h-[42vh] pr-1">
+                    {expertComments.length === 0 ? (
+                      <p className="text-center text-gray-400 dark:text-gray-500 text-xs py-10 italic">
+                        No expert comments for this meme yet.
+                      </p>
+                    ) : (
+                      expertComments
+                        .filter(comment => {
+                          const commenter = userCache[comment.user_id];
+                          return commenter?.role === "expert" || commenter?.role === "admin" || commenter?.is_verified === true || comment.user_id === "admin";
+                        })
+                        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))
+                        .map(comment => {
+                          const commenter = userCache[comment.user_id];
+                          const commenterName = commenter?.name || "Expert Reviewer";
+                          const isAuthor = user && (comment.user_id === user.uid || profile?.role === "admin");
+                          return (
+                            <div key={comment.id} className="flex gap-2.5 text-xs">
+                              <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0 mt-0.5">
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                              </div>
+                              <div className="flex-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-xl px-3 py-2">
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="font-bold text-emerald-700 dark:text-emerald-400">{commenterName}</span>
+                                  <div className="flex items-center gap-2 text-gray-400">
+                                    <span className="text-[9px]">
+                                      {comment.timestamp?.seconds
+                                        ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString()
+                                        : "Just now"}
+                                    </span>
+                                    {isAuthor && (
+                                      <button
+                                        onClick={() => handleDeleteComment(comment.id)}
+                                        className="text-red-400 hover:text-red-600 font-bold transition"
+                                      >×</button>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="text-gray-700 dark:text-zinc-300 leading-relaxed">{comment.body}</p>
+                              </div>
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                  {/* Expert input — role-gated */}
+                  {user && profile && (profile.role === "expert" || profile.role === "admin" || profile.is_verified === true) ? (
+                    <form onSubmit={handleExpertCommentSubmit} className="space-y-2 border-t border-gray-100 dark:border-zinc-800 pt-3">
+                      <span className="block text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" /> Add Expert Comment
+                      </span>
+                      <textarea
+                        placeholder="Write an expert or academic comment on this meme…"
+                        value={newExpertComment}
+                        onChange={(e) => setNewExpertComment(e.target.value)}
+                        rows="2"
+                        className="w-full px-3 py-2 border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                        required
+                      />
+                      <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-1.5 rounded-xl transition">
+                        Submit Expert Comment
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="border-t border-gray-100 dark:border-zinc-800 pt-3 text-center text-xs text-gray-400 flex items-center justify-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5" /> Expert comments are restricted to verified users and subject-matter experts.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── TAB: Ratings ── */}
+              {activeModalTab === "ratings" && (
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[55vh]">
+                  {/* Overall badge */}
+                  <div className="flex justify-between items-center pb-2 border-b border-gray-200 dark:border-gray-800">
+                    <span className="uppercase tracking-wider text-gray-400 text-[10px] font-bold">Pedagogical Evaluation</span>
+                    {(() => {
+                      const avgs = [
+                        getAverageScore("age_appropriateness"),
+                        getAverageScore("language_appropriateness"),
+                        getAverageScore("content_validity"),
+                        getAverageScore("creativity")
+                      ].filter(a => a > 0);
+                      const overall = avgs.length > 0 ? avgs.reduce((a, b) => a + b, 0) / avgs.length : 0;
+                      return (
+                        <span className="text-purple-600 font-bold text-xs bg-purple-50 dark:bg-purple-950/20 px-2 py-0.5 rounded">
+                          Overall: {overall > 0 ? `${overall.toFixed(1)}/5` : "—"}
+                        </span>
+                      );
+                    })()}
+                  </div>
+
+                  {[
+                    { label: "Age Appropriateness",    key: "age_appropriateness" },
+                    { label: "Language Appropriateness", key: "language_appropriateness" },
+                    { label: "Content Validity",        key: "content_validity" },
+                    { label: "Creativity",              key: "creativity" }
+                  ].map((crit) => {
+                    const avg = getAverageScore(crit.key);
+                    const myVal = userSubmittedRating?.[crit.key] || 0;
+                    return (
+                      <div key={crit.key} className="space-y-1.5">
+                        <div className="flex justify-between text-xs">
+                          <span className="font-semibold text-gray-700 dark:text-zinc-300">{crit.label}</span>
+                          <span className="text-purple-600 font-bold">
+                            {avg > 0 ? `${avg.toFixed(1)}/5 (${getScoreCount(crit.key)})` : "—"}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                          <div
+                            className="bg-purple-500 h-full transition-all duration-500"
+                            style={{ width: `${(avg / 5) * 100}%` }}
+                          />
+                        </div>
+                        {/* Star selector */}
+                        {user ? (
+                          <div className="flex items-center gap-1 justify-end">
+                            <span className="text-[9px] text-gray-400 mr-1">Your rating:</span>
+                            {[1, 2, 3, 4, 5].map(star => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => handleRateSubmit(crit.key, star)}
+                                className={`text-sm transition-transform hover:scale-110 ${
+                                  star <= myVal ? 'text-yellow-500' : 'text-gray-300 dark:text-zinc-600'
+                                }`}
+                              >★</button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[9px] text-gray-400 text-right">Sign in to rate</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
             </div>
           </div>
         </div>
