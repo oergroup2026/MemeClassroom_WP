@@ -368,6 +368,7 @@ const Lab = () => {
   const [templateSuccess, setTemplateSuccess] = useState("");
   const [availableTemplates, setAvailableTemplates] = useState([]);
   const [showContributeModal, setShowContributeModal] = useState(false);
+  const [templateSearchQuery, setTemplateSearchQuery] = useState("");
 
   // --- Meme Story State ---
   const [memeStoryModal, setMemeStoryModal] = useState({ open: false, story: null, template: null, loading: false });
@@ -1469,10 +1470,17 @@ const Lab = () => {
                     return temp.format === activeTab;
                   });
 
-                  const templatesToDisplay = [
+                  let templatesToDisplay = [
                     ...dbFormatTemplates,
                     ...(activeTab === "image" ? DEFAULT_IMAGE_TEMPLATES : [])
                   ];
+
+                  if (templateSearchQuery.trim()) {
+                    const query = templateSearchQuery.toLowerCase();
+                    templatesToDisplay = templatesToDisplay.filter(temp =>
+                      temp.title.toLowerCase().includes(query)
+                    );
+                  }
 
                   templatesToDisplay.sort((a, b) => {
                     const aFeat = !!a.is_featured;
@@ -1484,7 +1492,39 @@ const Lab = () => {
 
                   return (
                     <div className="space-y-2">
-                      <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">Templates</span>
+                      <div className="flex items-center justify-between">
+                        <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">Templates</span>
+                        {templateSearchQuery && (
+                          <button
+                            onClick={() => setTemplateSearchQuery("")}
+                            className="text-[9px] text-purple-650 dark:text-purple-400 hover:underline font-bold uppercase tracking-wide"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search templates..."
+                          value={templateSearchQuery}
+                          onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                          className="w-full pl-7 pr-3 py-1 bg-gray-50 dark:bg-zinc-800 border border-gray-255 dark:border-zinc-700 rounded-lg text-[11px] text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        />
+                        <svg
+                          className="w-3.5 h-3.5 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                          />
+                        </svg>
+                      </div>
                       {templatesToDisplay.length > 0 ? (
                         <div className="grid grid-cols-3 gap-1.5 max-h-[148px] overflow-y-auto pr-0.5">
                           {templatesToDisplay.map((temp) => (
