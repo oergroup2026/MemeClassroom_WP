@@ -165,3 +165,150 @@ a.bg-purple-600:active,
 .dark * {
   scrollbar-color: #3f3f46 transparent;
 }
+
+/* ── Accessibility Widget: Global Feature Classes ─────────────────────────── */
+
+/* Highlight Links */
+.a11y-highlight-links a {
+  outline: 3px solid #f59e0b !important;
+  outline-offset: 2px !important;
+  border-radius: 2px;
+}
+
+/* Text Spacing */
+.a11y-text-spacing * {
+  letter-spacing: 0.12em !important;
+  line-height: 1.9 !important;
+  word-spacing: 0.16em !important;
+}
+
+/* Pause Animations */
+.a11y-pause-animations *,
+.a11y-pause-animations *::before,
+.a11y-pause-animations *::after {
+  animation-play-state: paused !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Hide Images */
+.a11y-hide-images img,
+.a11y-hide-images video,
+.a11y-hide-images svg:not(.a11y-icon) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* ── Accessibility Widget Panel Animation ─────────────────────────────────── */
+@keyframes a11yPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes a11yPanelOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+}
+
+.a11y-panel-enter {
+  animation: a11yPanelIn 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* ── Phase 2: OpenDyslexic Font ──────────────────────────────────────────── */
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic-regular.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic-regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.a11y-dyslexia-font,
+.a11y-dyslexia-font * {
+  font-family: 'OpenDyslexic', sans-serif !important;
+}
+
+/* ── Phase 2: Color Blindness Simulation Filters ─────────────────────────── */
+/* SVG filter definitions injected dynamically into DOM by AccessibilityWidget */
+.a11y-cb-protanopia   { filter: url(#a11y-protanopia)   !important; }
+.a11y-cb-deuteranopia { filter: url(#a11y-deuteranopia) !important; }
+.a11y-cb-tritanopia   { filter: url(#a11y-tritanopia)   !important; }
+.a11y-cb-grayscale    { filter: grayscale(100%)          !important; }
+
+/* ── Phase 2: Cursor Size ─────────────────────────────────────────────────── */
+/* 24×24 arrow for Large */
+.a11y-cursor-large,
+.a11y-cursor-large * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M5 2l14 11-5 2-2 6L5 2z' fill='%23000' stroke='%23fff' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 5 2, auto !important;
+}
+
+/* 32×32 arrow for X-Large */
+.a11y-cursor-xl,
+.a11y-cursor-xl * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cpath d='M7 3l18 14-7 2.5-2.5 8L7 3z' fill='%23000' stroke='%23fff' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") 7 3, auto !important;
+}
+
+/* ── Phase 2: Keyboard Navigation Enhanced Focus ─────────────────────────── */
+.a11y-keyboard-nav *:focus,
+.a11y-keyboard-nav *:focus-visible {
+  outline: 3px solid #6366f1 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.18) !important;
+  border-radius: 4px;
+}
+
+/* ── Phase 2: Skip Navigation Links ─────────────────────────────────────── */
+.a11y-skip-link {
+  position: absolute;
+  top: -120px;
+  left: 8px;
+  background: linear-gradient(135deg, #6366f1, #7c3aed);
+  color: #fff !important;
+  padding: 10px 20px;
+  border-radius: 0 0 10px 10px;
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+  z-index: 99999;
+  transition: top 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.a11y-skip-link:focus {
+  top: 0;
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Always-visible mode for skip links */
+.a11y-skip-links-always .a11y-skip-link {
+  top: 0;
+  position: fixed;
+}
+
+/* ── Phase 2: RTL Mode ───────────────────────────────────────────────────── */
+.a11y-rtl {
+  direction: rtl;
+}
+
+.a11y-rtl .flex {
+  flex-direction: row-reverse;
+}
+
+
