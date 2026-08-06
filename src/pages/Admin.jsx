@@ -100,7 +100,7 @@ const Admin = () => {
   const [resKeywords, setResKeywords] = useState("");
   // Story-specific archivist fields
   const [resUsageContext, setResUsageContext] = useState("");
-  const [resTemplateId, setResTemplateId] = useState("");
+  const [resExampleImages, setResExampleImages] = useState([""]); // array of URL strings
   const [resEducationalUse, setResEducationalUse] = useState("");
 
   // Marketing Form States
@@ -531,11 +531,11 @@ const Admin = () => {
         }
 
         // If it's a meme story, attach story-specific fields
-        if (resType === "stories") {
+          if (resType === "stories") {
           resourceData.meme_name = resTitle.trim();
           resourceData.usage_context = resUsageContext.trim();
           resourceData.educational_use = resEducationalUse.trim();
-          if (resTemplateId.trim()) resourceData.template_id = resTemplateId.trim();
+          resourceData.example_images = resExampleImages.map(u => u.trim()).filter(Boolean);
           resourceData.admin_approved = true; // Admin seeds are auto-approved
         }
 
@@ -550,7 +550,7 @@ const Admin = () => {
         setResThumbnailFile(null);
         setResKeywords("");
         setResUsageContext("");
-        setResTemplateId("");
+        setResExampleImages([""]);
         setResEducationalUse("");
         triggerAlert("Academic Resource seeded directly into Meme Reads gallery.");
       }
@@ -2084,14 +2084,41 @@ const Admin = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Linked Template ID (optional)</label>
-                      <input
-                        type="text"
-                        value={resTemplateId}
-                        onChange={e => setResTemplateId(e.target.value)}
-                        className={inputClass}
-                        placeholder="Paste Firestore template document ID"
-                      />
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Example Images (Optional)</label>
+                      <p className="text-[10px] text-gray-400 mb-2">Paste URLs of example uses of this meme (up to 5).</p>
+                      {resExampleImages.map((url, idx) => (
+                        <div key={idx} className="flex items-center gap-2 mb-1.5">
+                          <input
+                            type="url"
+                            value={url}
+                            onChange={e => {
+                              const next = [...resExampleImages];
+                              next[idx] = e.target.value;
+                              setResExampleImages(next);
+                            }}
+                            className={`${inputClass} flex-grow`}
+                            placeholder="https://example.com/meme-use.jpg"
+                          />
+                          {resExampleImages.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setResExampleImages(prev => prev.filter((_, i) => i !== idx))}
+                              className="text-red-400 hover:text-red-600 text-lg font-bold leading-none"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {resExampleImages.length < 5 && (
+                        <button
+                          type="button"
+                          onClick={() => setResExampleImages(prev => [...prev, ""])}
+                          className="text-xs font-bold text-amber-500 hover:underline"
+                        >
+                          + Add another URL
+                        </button>
+                      )}
                     </div>
                   </>
                 )}

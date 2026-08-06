@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Library from './pages/Library';
 import Lab from './pages/Lab';
 import Resources from './pages/Resources';
+import MemeStoryDetail from './pages/MemeStoryDetail';
 import Staffroom from './pages/Staffroom';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
@@ -49,6 +50,7 @@ function App() {
           {/* Library and Resources are public — no login needed to view */}
           <Route path="/library" element={<Library />} />
           <Route path="/resources" element={<Resources />} />
+          <Route path="/resources/story/:id" element={<MemeStoryDetail />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/about" element={<About />} />
           

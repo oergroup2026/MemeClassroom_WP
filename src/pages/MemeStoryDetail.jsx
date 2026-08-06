@@ -1,0 +1,584 @@
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  increment,
+  setDoc,
+  deleteDoc,
+  addDoc,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "../firebase";
+import { useAuth } from "../context/AuthContext";
+import { useUdl } from "../context/UdlContext";
+import {
+  ArrowLeft,
+  Heart,
+  Share2,
+  Bookmark,
+  Flag,
+  BookOpen,
+  Clock,
+  Eye,
+  Tag,
+  Lightbulb,
+  GraduationCap,
+  Puzzle,
+} from "lucide-react";
+
+// ─── Toast helper ──────────────────────────────────────────────────────────────
+const useToast = () => {
+  const [toast, setToast] = React.useState(null);
+  const show = (message, type = "info") => setToast({ message, type, id: Date.now() });
+  const dismiss = () => setToast(null);
+  return { toast, show, dismiss };
+};
+
+const Toast = ({ toast, dismiss }) => {
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(dismiss, 4000);
+    return () => clearTimeout(t);
+  }, [toast, dismiss]);
+
+  if (!toast) return null;
+  const colors = {
+    info: "bg-indigo-600",
+    success: "bg-green-600",
+    warning: "bg-yellow-500 text-gray-900",
+    error: "bg-red-600",
+  };
+  return (
+    <div
+      className={`fixed bottom-6 right-6 z-[200] flex items-start gap-3 px-5 py-4 rounded-xl shadow-2xl text-white text-sm font-semibold max-w-sm ${colors[toast.type]}`}
+    >
+      <span className="flex-1">{toast.message}</span>
+      <button onClick={dismiss} className="opacity-70 hover:opacity-100 font-bold text-lg leading-none">
+        ×
+      </button>
+    </div>
+  );
+};
+
+// ─── Section block ─────────────────────────────────────────────────────────────
+const Section = ({ icon: Icon, label, colorClass, children }) => (
+  <div className={`rounded-2xl p-5 border ${colorClass}`}>
+    <h3 className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest mb-3 opacity-80">
+      <Icon className="w-4 h-4" />
+      {label}
+    </h3>
+    <div className="text-sm leading-relaxed">{children}</div>
+  </div>
+);
+
+// ─── Main Page ─────────────────────────────────────────────────────────────────
+export default function MemeStoryDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user, profile } = useAuth();
+  const { highContrastMode } = useUdl();
+  const { toast, show: showToast, dismiss } = useToast();
+
+  const [story, setStory] = useState(null);
+  const [authorName, setAuthorName] = useState("Contributor");
+  const [template, setTemplate] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  // Interaction state
+  const [isLiked, setIsLiked] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [likeDocId, setLikeDocId] = useState(null);
+  const [bookmarkDocId, setBookmarkDocId] = useState(null);
+  const [alreadyFlagged, setAlreadyFlagged] = useState(false);
+  const [likePending, setLikePending] = useState(false);
+
+  // ── 1. Load story ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!id) return;
+    const fetchStory = async () => {
+      setLoading(true);
+      try {
+        const snap = await getDoc(doc(db, "resources", id));
+        if (!snap.exists() || snap.data().type !== "stories") {
+          setNotFound(true);
+          return;
+        }
+        const data = { id: snap.id, ...snap.data() };
+        setStory(data);
+
+        // Increment view count silently
+        updateDoc(doc(db, "resources", id), { view_count: increment(1) }).catch(() => {});
+
+        // Resolve author name
+        if (data.author_id && data.author_id !== "admin") {
+          const userSnap = await getDoc(doc(db, "users", data.author_id));
+          if (userSnap.exists()) setAuthorName(userSnap.data().name || "Contributor");
+        } else if (data.author_id === "admin") {
+          setAuthorName("Admin");
+        }
+
+        // Load associated template
+        if (data.template_id) {
+          const tSnap = await getDoc(doc(db, "templates", data.template_id));
+          if (tSnap.exists()) setTemplate({ id: tSnap.id, ...tSnap.data() });
+        }
+      } catch (e) {
+        console.error("Error loading story:", e);
+        setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStory();
+  }, [id]);
+
+  // ── 2. Real-time like subscription ───────────────────────────────────────────
+  useEffect(() => {
+    if (!user || !id) return;
+    const q = query(
+      collection(db, "resource_likes"),
+      where("user_id", "==", user.uid),
+      where("resource_id", "==", id)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      if (!snap.empty) {
+        setIsLiked(true);
+        setLikeDocId(snap.docs[0].id);
+      } else {
+        setIsLiked(false);
+        setLikeDocId(null);
+      }
+    });
+    return () => unsub();
+  }, [user, id]);
+
+  // ── 3. Real-time bookmark subscription ───────────────────────────────────────
+  useEffect(() => {
+    if (!user || !id) return;
+    const q = query(
+      collection(db, "saves"),
+      where("user_id", "==", user.uid),
+      where("resource_id", "==", id),
+      where("content_type", "==", "resource")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      if (!snap.empty) {
+        setIsBookmarked(true);
+        setBookmarkDocId(snap.docs[0].id);
+      } else {
+        setIsBookmarked(false);
+        setBookmarkDocId(null);
+      }
+    });
+    return () => unsub();
+  }, [user, id]);
+
+  // ── 4. Flag status ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user || !id) return;
+    const q = query(
+      collection(db, "flags"),
+      where("reporter_id", "==", user.uid),
+      where("content_id", "==", id)
+    );
+    const unsub = onSnapshot(q, (snap) => setAlreadyFlagged(!snap.empty));
+    return () => unsub();
+  }, [user, id]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────────
+  const handleLike = async () => {
+    if (!user) { showToast("Sign in to like stories.", "info"); return; }
+    if (likePending) return;
+    setLikePending(true);
+    try {
+      if (likeDocId) {
+        await deleteDoc(doc(db, "resource_likes", likeDocId));
+        await updateDoc(doc(db, "resources", id), { likes_count: increment(-1) });
+        setStory((s) => ({ ...s, likes_count: Math.max(0, (s.likes_count || 1) - 1) }));
+      } else {
+        const likeId = `${user.uid}_${id}`;
+        await setDoc(doc(db, "resource_likes", likeId), {
+          user_id: user.uid, resource_id: id, created_at: serverTimestamp(),
+        });
+        await updateDoc(doc(db, "resources", id), { likes_count: increment(1) });
+        setStory((s) => ({ ...s, likes_count: (s.likes_count || 0) + 1 }));
+      }
+    } catch (e) {
+      showToast("Failed to update like.", "error");
+    } finally {
+      setLikePending(false);
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!user) { showToast("Sign in to save stories.", "info"); return; }
+    try {
+      if (bookmarkDocId) {
+        await deleteDoc(doc(db, "saves", bookmarkDocId));
+        showToast("Removed from bookmarks.", "success");
+      } else {
+        const saveId = `${user.uid}_res_${id}`;
+        await setDoc(doc(db, "saves", saveId), {
+          user_id: user.uid, resource_id: id, content_type: "resource", created_at: serverTimestamp(),
+        });
+        showToast("Story saved to bookmarks!", "success");
+      }
+    } catch (e) {
+      showToast("Failed to update bookmark.", "error");
+    }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try { await navigator.share({ title: story?.title, url }); } catch (_) {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast("Link copied to clipboard! 🔗", "success");
+      } catch (_) { showToast("Could not copy link.", "error"); }
+    }
+  };
+
+  const handleFlag = async () => {
+    if (!user) { showToast("Sign in to report content.", "info"); return; }
+    if (alreadyFlagged) { showToast("You already reported this.", "info"); return; }
+    try {
+      await addDoc(collection(db, "flags"), {
+        reporter_id: user.uid, content_type: "resource", content_id: id,
+        reason: "Flagged by user", status: "pending", created_at: serverTimestamp(),
+      });
+      await updateDoc(doc(db, "resources", id), { flag_count: increment(1) });
+      showToast("Report submitted. Thank you.", "success");
+    } catch (e) {
+      showToast("Failed to submit report.", "error");
+    }
+  };
+
+  // ── Loading / Not Found states ─────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-4 border-amber-500/30 border-t-amber-500 animate-spin" />
+          <p className="text-sm font-semibold text-gray-400">Loading story…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (notFound || !story) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center flex-col gap-4 text-center px-4">
+        <span className="text-6xl">📭</span>
+        <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">Story not found</h2>
+        <p className="text-sm text-gray-500 max-w-xs">This meme story may have been removed or the link is invalid.</p>
+        <button
+          onClick={() => navigate("/resources?tab=stories")}
+          className="mt-2 bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition"
+        >
+          ← Back to Stories
+        </button>
+      </div>
+    );
+  }
+
+  const dateStr = story.created_at
+    ? new Date(story.created_at.seconds * 1000).toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })
+    : "Just now";
+
+  return (
+    <div className="relative overflow-visible">
+      <Toast toast={toast} dismiss={dismiss} />
+
+      {/* Ambient glow blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute -top-[5%] left-[10%] w-[450px] h-[450px] rounded-full bg-amber-400/10 dark:bg-amber-600/15 blur-[90px] animate-pulse" style={{ animationDuration: "9s" }} />
+        <div className="absolute top-[40%] right-[5%] w-[380px] h-[380px] rounded-full bg-orange-400/10 dark:bg-orange-600/15 blur-[80px] animate-pulse" style={{ animationDuration: "12s" }} />
+        <div className="absolute bottom-[10%] left-[15%] w-[320px] h-[320px] rounded-full bg-yellow-400/10 dark:bg-yellow-700/15 blur-[70px] animate-pulse" style={{ animationDuration: "7s" }} />
+      </div>
+
+      <div className="max-w-4xl mx-auto py-6 px-4 space-y-8 relative z-10">
+
+        {/* ── Back navigation ─────────────────────────────────────────────────── */}
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 transition group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+          Back to Resources
+        </button>
+
+        {/* ── Hero image ──────────────────────────────────────────────────────── */}
+        {story.thumbnail_url ? (
+          <div className="w-full rounded-2xl overflow-hidden border border-amber-200/50 dark:border-amber-800/30 shadow-2xl shadow-amber-500/10">
+            <img
+              src={story.thumbnail_url}
+              alt={story.title}
+              className="w-full object-cover max-h-[520px]"
+              style={{ objectPosition: "center" }}
+            />
+          </div>
+        ) : (
+          <div className="w-full h-60 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-950/30 dark:to-zinc-900 border border-amber-200/50 dark:border-amber-800/30 flex flex-col items-center justify-center gap-3 shadow-lg">
+            <BookOpen className="w-16 h-16 text-amber-400/50" />
+            {story.meme_name && (
+              <span className="text-sm font-bold text-amber-600/70 dark:text-amber-400/60">🎭 {story.meme_name}</span>
+            )}
+          </div>
+        )}
+
+        {/* ── Title + meta header ─────────────────────────────────────────────── */}
+        <div className="space-y-3">
+          {/* Badge row */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[11px] font-extrabold px-3 py-1 rounded-full border border-amber-200/60 dark:border-amber-700/40">
+              📖 Meme Story
+            </span>
+            {story.meme_name && (
+              <span className="inline-flex items-center gap-1.5 bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 text-[11px] font-bold px-3 py-1 rounded-full border border-orange-200/50 dark:border-orange-800/30">
+                🎭 {story.meme_name}
+              </span>
+            )}
+            {!story.admin_approved && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 px-2.5 py-1 rounded-full">
+                <Clock className="w-3 h-3" /> Pending Review
+              </span>
+            )}
+          </div>
+
+          {/* Title */}
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight tracking-tight">
+            {story.title}
+          </h1>
+
+          {/* Author + date + views */}
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400 pt-1">
+            <span className="font-semibold text-gray-700 dark:text-gray-200">By {authorName}</span>
+            <span className="flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" /> {dateStr}
+            </span>
+            {(story.view_count || 0) > 0 && (
+              <span className="flex items-center gap-1">
+                <Eye className="w-3.5 h-3.5" /> {story.view_count} views
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* ── Action bar ──────────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={handleLike}
+            disabled={likePending}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-sm border transition hover:scale-105 active:scale-95 ${
+              isLiked
+                ? "bg-red-50 dark:bg-red-950/30 text-red-500 border-red-200 dark:border-red-800"
+                : "bg-white/60 dark:bg-zinc-900/60 text-gray-500 border-gray-200 dark:border-zinc-700 hover:text-red-500 hover:border-red-200"
+            }`}
+          >
+            <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} strokeWidth={1.5} />
+            <span>{story.likes_count || 0}</span>
+          </button>
+
+          <button
+            onClick={handleBookmark}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-sm border transition hover:scale-105 active:scale-95 ${
+              isBookmarked
+                ? "bg-amber-50 dark:bg-amber-950/30 text-amber-600 border-amber-200 dark:border-amber-700"
+                : "bg-white/60 dark:bg-zinc-900/60 text-gray-500 border-gray-200 dark:border-zinc-700 hover:text-amber-500 hover:border-amber-200"
+            }`}
+          >
+            <Bookmark className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""}`} strokeWidth={1.5} />
+            <span>{isBookmarked ? "Saved" : "Save"}</span>
+          </button>
+
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-sm border bg-white/60 dark:bg-zinc-900/60 text-gray-500 border-gray-200 dark:border-zinc-700 hover:text-green-500 hover:border-green-200 transition hover:scale-105 active:scale-95"
+          >
+            <Share2 className="w-4 h-4" strokeWidth={1.5} />
+            Share
+          </button>
+
+          <button
+            onClick={handleFlag}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-sm border transition hover:scale-105 active:scale-95 ${
+              alreadyFlagged
+                ? "text-orange-500 border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20"
+                : "bg-white/60 dark:bg-zinc-900/60 text-gray-400 border-gray-200 dark:border-zinc-700 hover:text-orange-500 hover:border-orange-200"
+            }`}
+            title={alreadyFlagged ? "Already reported" : "Report this story"}
+          >
+            <Flag className="w-4 h-4" strokeWidth={1.5} />
+            {alreadyFlagged ? "Reported" : "Report"}
+          </button>
+        </div>
+
+        {/* ── Divider ─────────────────────────────────────────────────────────── */}
+        <div className="border-t border-amber-100 dark:border-amber-900/30" />
+
+        {/* ── Story Body ──────────────────────────────────────────────────────── */}
+        <Section
+          icon={BookOpen}
+          label="Story Background"
+          colorClass="bg-amber-50/80 dark:bg-amber-950/15 border-amber-200/60 dark:border-amber-800/30 text-amber-900 dark:text-amber-100"
+        >
+          <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-7">
+            {story.body || "No story content provided."}
+          </p>
+        </Section>
+
+        {/* ── Usage Context ────────────────────────────────────────────────────── */}
+        {story.usage_context && (
+          <Section
+            icon={Lightbulb}
+            label="Typical Meaning & Usage"
+            colorClass="bg-indigo-50/80 dark:bg-indigo-950/15 border-indigo-200/50 dark:border-indigo-800/30 text-indigo-900 dark:text-indigo-100"
+          >
+            <p className="text-gray-700 dark:text-gray-300 leading-7">{story.usage_context}</p>
+          </Section>
+        )}
+
+        {/* ── Educational Use ──────────────────────────────────────────────────── */}
+        {story.educational_use && (
+          <Section
+            icon={GraduationCap}
+            label="Educational Use"
+            colorClass="bg-emerald-50/80 dark:bg-emerald-950/15 border-emerald-200/50 dark:border-emerald-800/30 text-emerald-900 dark:text-emerald-100"
+          >
+            <p className="text-gray-700 dark:text-gray-300 leading-7">{story.educational_use}</p>
+          </Section>
+        )}
+
+        {/* ── Associated Template ──────────────────────────────────────────────── */}
+        {template && (
+          <div className="rounded-2xl p-5 border bg-purple-50/80 dark:bg-purple-950/15 border-purple-200/50 dark:border-purple-800/30">
+            <h3 className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest mb-4 text-purple-700 dark:text-purple-400 opacity-80">
+              <Puzzle className="w-4 h-4" />
+              Original Meme Template
+            </h3>
+            <div className="flex items-center gap-4">
+              {template.media_url ? (
+                <img
+                  src={template.media_url}
+                  alt={template.title}
+                  className="w-20 h-20 rounded-xl object-cover border border-purple-200 dark:border-purple-800 shadow-sm"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-400 text-2xl">🧩</div>
+              )}
+              <div className="flex-grow">
+                <h4 className="font-extrabold text-gray-900 dark:text-white text-base leading-snug">{template.title}</h4>
+                <p className="text-xs text-gray-400 capitalize mt-0.5">Format: {template.format || "image"}</p>
+              </div>
+              <button
+                onClick={() => navigate(`/lab?templateId=${template.id}&templateUrl=${encodeURIComponent(template.media_url)}&format=${template.format || "image"}`)}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-xl text-xs transition shadow-sm flex-shrink-0"
+              >
+                🎨 Remix Template
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Example Images ───────────────────────────────────────────────────── */}
+        {story.example_images && story.example_images.length > 0 && (
+          <div>
+            <h3 className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest mb-3 text-amber-600 dark:text-amber-400">
+              <span>🖼️</span> Example Uses of This Meme
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {story.example_images.map((imgUrl, idx) => (
+                <a
+                  key={idx}
+                  href={imgUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative aspect-square rounded-xl overflow-hidden border border-amber-200/50 dark:border-amber-800/30 shadow-sm hover:shadow-md transition-all duration-200"
+                >
+                  <img
+                    src={imgUrl}
+                    alt={`Example ${idx + 1}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="text-white text-[10px] font-bold bg-black/50 px-2 py-1 rounded-full">Open ↗</span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Keywords ────────────────────────────────────────────────────────── */}
+        {story.keywords && story.keywords.length > 0 && (
+          <div>
+            <h3 className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest mb-3 text-gray-400">
+              <Tag className="w-3.5 h-3.5" /> Keywords
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {story.keywords.map((k) => (
+                <span
+                  key={k}
+                  className="bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/30 text-xs font-semibold px-3 py-1 rounded-full"
+                >
+                  #{k}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Bottom action bar (sticky feel) ─────────────────────────────────── */}
+        <div className="sticky bottom-4 mt-4">
+          <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-amber-200/50 dark:border-amber-800/30 rounded-2xl px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-xl shadow-amber-500/5">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleLike}
+                disabled={likePending}
+                className={`flex items-center gap-1.5 font-bold text-sm transition hover:scale-105 active:scale-95 ${
+                  isLiked ? "text-red-500" : "text-gray-400 hover:text-red-500"
+                }`}
+              >
+                <Heart className={`w-5 h-5 ${isLiked ? "fill-current" : ""}`} strokeWidth={1.5} />
+                <span>{story.likes_count || 0}</span>
+              </button>
+              <button
+                onClick={handleBookmark}
+                className={`flex items-center gap-1.5 font-bold text-sm transition hover:scale-105 active:scale-95 ${
+                  isBookmarked ? "text-amber-500" : "text-gray-400 hover:text-amber-500"
+                }`}
+              >
+                <Bookmark className={`w-5 h-5 ${isBookmarked ? "fill-current" : ""}`} strokeWidth={1.5} />
+                <span>{isBookmarked ? "Saved" : "Save"}</span>
+              </button>
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-1.5 font-bold text-sm text-gray-400 hover:text-green-500 transition hover:scale-105 active:scale-95"
+              >
+                <Share2 className="w-5 h-5" strokeWidth={1.5} />
+                Share
+              </button>
+            </div>
+            <button
+              onClick={() => navigate("/resources?tab=stories")}
+              className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition shadow-sm hover:shadow-md"
+            >
+              ← More Stories
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
