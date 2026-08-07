@@ -447,6 +447,7 @@ const Resources = () => {
   const [uploadUsageContext, setUploadUsageContext] = useState("");
   const [uploadEducationalUse, setUploadEducationalUse] = useState("");
   const [uploadExampleImages, setUploadExampleImages] = useState([""]); // array of URL strings
+  const [uploadExampleFiles, setUploadExampleFiles] = useState([]); // array of File objects
 
   // ── External link form state (for "External" tab)
   const [showExternalModal, setShowExternalModal] = useState(false);
@@ -505,6 +506,7 @@ const Resources = () => {
     setUploadSubject("Biology"); setUploadCustomSubject(""); setUploadGrade("High School (9–10)");
     setUploadType("article"); setEditingResource(null);
     setUploadUsageContext(""); setUploadEducationalUse(""); setUploadExampleImages([""]);
+    setUploadExampleFiles([]);
   };
 
   // ── URL tab sync
@@ -741,6 +743,9 @@ const Resources = () => {
         return (
           r.title?.toLowerCase().includes(q) ||
           r.body?.toLowerCase().includes(q) ||
+          r.usage_context?.toLowerCase().includes(q) ||
+          r.educational_use?.toLowerCase().includes(q) ||
+          r.meme_name?.toLowerCase().includes(q) ||
           r.subject?.toLowerCase().includes(q) ||
           r.publisher_name?.toLowerCase().includes(q) ||
           r.type?.toLowerCase().includes(q) ||
@@ -936,9 +941,26 @@ const Resources = () => {
         thumbnailUrl = fileUrl;
       }
 
-      const parsedKeywords = uploadKeywords
-        ? uploadKeywords.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean)
-        : [];
+      let extraExampleUrls = [];
+      if (uploadType === "stories" && uploadExampleFiles.length > 0) {
+        for (let i = 0; i < uploadExampleFiles.length; i++) {
+          const file = uploadExampleFiles[i];
+          if (file) {
+            const exRef = ref(storage, `resources/examples_${user.uid}_${Date.now()}_${i}`);
+            const exSnap = await uploadBytes(exRef, file);
+            const exUrl = await getDownloadURL(exSnap.ref);
+            extraExampleUrls.push(exUrl);
+          }
+        }
+      }
+      const finalExampleImages = [
+        ...uploadExampleImages.map((u) => u.trim()).filter(Boolean),
+        ...extraExampleUrls,
+      ];
+
+      const parsedKeywords = (uploadType === "stories" || !uploadKeywords)
+        ? []
+        : uploadKeywords.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
 
       if (editingResource) {
         // ── EDIT MODE
@@ -967,7 +989,7 @@ const Resources = () => {
           updatedData.meme_name = uploadTitle.trim();
           updatedData.usage_context = uploadUsageContext.trim();
           updatedData.educational_use = uploadEducationalUse.trim();
-          updatedData.example_images = uploadExampleImages.map(u => u.trim()).filter(Boolean);
+          updatedData.example_images = finalExampleImages;
         }
 
         await updateDoc(doc(db, "resources", editingResource.id), updatedData);
@@ -1009,7 +1031,7 @@ const Resources = () => {
             resourceData.meme_name = uploadTitle.trim();
             resourceData.usage_context = uploadUsageContext.trim();
             resourceData.educational_use = uploadEducationalUse.trim();
-            resourceData.example_images = uploadExampleImages.map(u => u.trim()).filter(Boolean);
+            resourceData.example_images = finalExampleImages;
           }
           transaction.set(newDocRef, resourceData);
           if (statsSnap.exists()) {
@@ -1869,13 +1891,24 @@ const Resources = () => {
             )}
 
             <form onSubmit={handleResourceSubmit} className="space-y-4 text-xs font-semibold">
-              {/* Type moved above title */}
+              {/* Category Type */}
               <div>
                 <label className="block text-gray-500 uppercase mb-1">Category Type</label>
                 <select value={uploadType} onChange={(e) => setUploadType(e.target.value)} className={inputClass}>
                   {RESOURCE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </div>
+
+              {/* Attach File Option Moved to Top for Stories */}
+              {uploadType === "stories" && (
+                <div>
+                  <label className="block text-gray-500 uppercase mb-1">Attach File / Customizable Image Template *</label>
+                  <input type="file" accept="image/*,video/*,audio/*" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="block w-full text-xs" />
+                  <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-1">
+                    💡 This image/media file will be customizable by users in the Meme Lab.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-gray-500 uppercase mb-1">{getTitleLabel()}</label>
@@ -1885,11 +1918,11 @@ const Resources = () => {
 
               <div>
                 <label className="block text-gray-500 uppercase mb-1">
-                  {uploadType === "stories" ? "Background *" : "Description / Abstract *"}
+                  {uploadType === "stories" ? "Background — How it became a meme *" : "Description / Abstract *"}
                 </label>
                 <textarea
                   placeholder={uploadType === "stories"
-                    ? "Where did this template originate? Mention the source (movie, TV show, game, etc.) and how it became popular."
+                    ? "How it became a meme: Mention where this template originated (movie, TV show, game, viral event) and how it gained popularity."
                     : "Provide a detailed description of the resource..."}
                   value={uploadBody}
                   onChange={(e) => setUploadBody(e.target.value)} rows="3"
@@ -1920,41 +1953,53 @@ const Resources = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-500 uppercase mb-1">Example Images (Optional)</label>
-                    <p className="text-[10px] text-gray-400 mb-2">Add URLs of example uses of this meme (one per line).</p>
-                    {uploadExampleImages.map((url, idx) => (
-                      <div key={idx} className="flex items-center gap-2 mb-1.5">
-                        <input
-                          type="url"
-                          placeholder="https://example.com/meme-example.jpg"
-                          value={url}
-                          onChange={(e) => {
-                            const next = [...uploadExampleImages];
-                            next[idx] = e.target.value;
-                            setUploadExampleImages(next);
-                          }}
-                          className={`${inputClass} flex-grow`}
-                        />
-                        {uploadExampleImages.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setUploadExampleImages(prev => prev.filter((_, i) => i !== idx))}
-                            className="text-red-400 hover:text-red-600 text-lg font-bold leading-none flex-shrink-0"
-                            title="Remove"
-                          >
-                            ×
-                          </button>
-                        )}
+                    <label className="block text-gray-500 uppercase mb-1">Example Images (Upload Multiple Images)</label>
+                    <p className="text-[10px] text-gray-400 mb-2">Upload real example images of this meme being used.</p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setUploadExampleFiles(prev => [...prev, ...files]);
+                      }}
+                      className="block w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200 cursor-pointer"
+                    />
+                    {uploadExampleFiles.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {uploadExampleFiles.map((file, idx) => (
+                          <div key={idx} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-amber-300 dark:border-amber-700 bg-gray-100">
+                            <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setUploadExampleFiles(prev => prev.filter((_, i) => i !== idx))}
+                              className="absolute top-0 right-0 bg-red-600 text-white rounded-bl p-0.5 text-[10px] font-bold leading-none"
+                              title="Remove"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                    {uploadExampleImages.length < 5 && (
-                      <button
-                        type="button"
-                        onClick={() => setUploadExampleImages(prev => [...prev, ""])}
-                        className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline mt-1"
-                      >
-                        + Add another image URL
-                      </button>
+                    )}
+                    {uploadExampleImages.filter(Boolean).length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[10px] text-gray-400 mb-1">Existing Example URLs:</p>
+                        {uploadExampleImages.map((url, idx) => (
+                          url ? (
+                            <div key={idx} className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] text-gray-600 dark:text-gray-300 truncate max-w-xs">{url}</span>
+                              <button
+                                type="button"
+                                onClick={() => setUploadExampleImages(prev => prev.filter((_, i) => i !== idx))}
+                                className="text-red-400 hover:text-red-600 text-xs font-bold"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ) : null
+                        ))}
+                      </div>
                     )}
                   </div>
                 </>
@@ -2015,10 +2060,12 @@ const Resources = () => {
                   onChange={(e) => setUploadUrl(e.target.value)} className={inputClass} />
               </div>
 
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">Attach File (PDF / Image)</label>
-                <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="block w-full text-xs" />
-              </div>
+              {uploadType !== "stories" && (
+                <div>
+                  <label className="block text-gray-500 uppercase mb-1">Attach File (PDF / Image)</label>
+                  <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="block w-full text-xs" />
+                </div>
+              )}
 
               {/* Thumbnail upload — hidden for stories (the template/uploaded file is used) */}
               {uploadType !== "stories" && (
@@ -2031,11 +2078,13 @@ const Resources = () => {
                 </div>
               )}
 
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">Keywords (comma-separated)</label>
-                <input type="text" placeholder="e.g. biology, cell division, mitosis" value={uploadKeywords}
-                  onChange={(e) => setUploadKeywords(e.target.value)} className={inputClass} />
-              </div>
+              {uploadType !== "stories" && (
+                <div>
+                  <label className="block text-gray-500 uppercase mb-1">Keywords (comma-separated)</label>
+                  <input type="text" placeholder="e.g. biology, cell division, mitosis" value={uploadKeywords}
+                    onChange={(e) => setUploadKeywords(e.target.value)} className={inputClass} />
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-4">
                 <button type="button" onClick={() => { setShowUploadModal(false); resetUploadForm(); }}

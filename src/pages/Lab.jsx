@@ -379,6 +379,7 @@ const Lab = () => {
   const [storyUsageContext, setStoryUsageContext] = useState("");
   const [storyEducationalUse, setStoryEducationalUse] = useState("");
   const [storyExampleImages, setStoryExampleImages] = useState([""]); // array of URLs
+  const [storyExampleFiles, setStoryExampleFiles] = useState([]); // array of File objects for upload
 
   // Refs
   const canvasContainerRef = useRef(null);
@@ -1289,6 +1290,18 @@ const Lab = () => {
 
       // Optionally attach a meme story to this template contribution
       if (includeStory && (templateTitle.trim() || storyOrigin.trim())) {
+        let uploadedExampleUrls = [];
+        if (storyExampleFiles.length > 0) {
+          for (let i = 0; i < storyExampleFiles.length; i++) {
+            const exFile = storyExampleFiles[i];
+            if (exFile) {
+              const exRef = ref(storage, `resources/examples_${user.uid}_${Date.now()}_${i}`);
+              const exSnap = await uploadBytes(exRef, exFile);
+              const exUrl = await getDownloadURL(exSnap.ref);
+              uploadedExampleUrls.push(exUrl);
+            }
+          }
+        }
         await addDoc(collection(db, "resources"), {
           type: "stories",
           title: templateTitle.trim() || "Blank Background Template",
@@ -1296,7 +1309,7 @@ const Lab = () => {
           body: storyOrigin.trim(),
           usage_context: storyUsageContext.trim(),
           educational_use: storyEducationalUse.trim(),
-          example_images: storyExampleImages.map(u => u.trim()).filter(Boolean),
+          example_images: uploadedExampleUrls,
           template_id: templateDocRef.id,
           author_id: user.uid,
           status: "live",
@@ -1316,6 +1329,7 @@ const Lab = () => {
       setStoryUsageContext("");
       setStoryEducationalUse("");
       setStoryExampleImages([""]);
+      setStoryExampleFiles([]);
       setTimeout(() => {
         setShowContributeModal(false);
         setTemplateSuccess("");
@@ -3254,6 +3268,21 @@ const Lab = () => {
                   {templateSuccess}
                 </div>
               )}
+              {/* Attach File Option Moved to Top */}
+              <div>
+                <label className="block text-gray-500 uppercase mb-1.5">Attach File / Customizable Image Template *</label>
+                <input
+                  type="file"
+                  accept="image/*,video/*,audio/*"
+                  onChange={(e) => setTemplateFile(e.target.files?.[0] || null)}
+                  className="block w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                  required
+                />
+                <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-1">
+                  💡 This image/media file will be customizable by users in the Meme Lab.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-gray-500 uppercase mb-1.5">Template/Meme Name *</label>
                 <input
@@ -3262,16 +3291,6 @@ const Lab = () => {
                   value={templateTitle}
                   onChange={(e) => setTemplateTitle(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-gray-500 uppercase mb-1.5">Upload File (Image/GIF/Video/Audio)</label>
-                <input
-                  type="file"
-                  accept="image/*,video/*,audio/*"
-                  onChange={(e) => setTemplateFile(e.target.files?.[0] || null)}
-                  className="block w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
                   required
                 />
               </div>
@@ -3310,9 +3329,9 @@ const Lab = () => {
                 {includeStory && (
                   <div className="space-y-3 pt-2 border-t border-amber-200 dark:border-amber-800/40">
                     <div>
-                      <label className="block text-gray-500 uppercase mb-1">Background</label>
+                      <label className="block text-gray-500 uppercase mb-1">Background — How it became a meme</label>
                       <textarea
-                        placeholder="Where did this template originate? Mention the source (movie, TV show, game, etc.) and how it became popular."
+                        placeholder="How it became a meme: Mention where this template originated (movie, TV show, game, viral event) and how it gained popularity."
                         value={storyOrigin}
                         onChange={(e) => setStoryOrigin(e.target.value)}
                         rows={3}
@@ -3340,40 +3359,34 @@ const Lab = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-gray-500 uppercase mb-1">Example Images (Optional)</label>
-                      <p className="text-[10px] text-gray-400 mb-2">Add URLs of real examples of this meme being used (up to 5).</p>
-                      {storyExampleImages.map((url, idx) => (
-                        <div key={idx} className="flex items-center gap-2 mb-1.5">
-                          <input
-                            type="url"
-                            placeholder="https://example.com/meme-example.jpg"
-                            value={url}
-                            onChange={(e) => {
-                              const next = [...storyExampleImages];
-                              next[idx] = e.target.value;
-                              setStoryExampleImages(next);
-                            }}
-                            className="w-full px-3 py-2 border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none text-xs"
-                          />
-                          {storyExampleImages.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => setStoryExampleImages(prev => prev.filter((_, i) => i !== idx))}
-                              className="text-red-400 hover:text-red-600 text-lg font-bold leading-none flex-shrink-0"
-                            >
-                              ×
-                            </button>
-                          )}
+                      <label className="block text-gray-500 uppercase mb-1">Example Images (Upload Multiple Images)</label>
+                      <p className="text-[10px] text-gray-400 mb-2">Upload real example images of this meme being used.</p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          setStoryExampleFiles(prev => [...prev, ...files]);
+                        }}
+                        className="block w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200 cursor-pointer"
+                      />
+                      {storyExampleFiles.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {storyExampleFiles.map((file, idx) => (
+                            <div key={idx} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-amber-300 dark:border-amber-700 bg-gray-100">
+                              <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => setStoryExampleFiles(prev => prev.filter((_, i) => i !== idx))}
+                                className="absolute top-0 right-0 bg-red-600 text-white rounded-bl p-0.5 text-[10px] font-bold leading-none"
+                                title="Remove"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                      {storyExampleImages.length < 5 && (
-                        <button
-                          type="button"
-                          onClick={() => setStoryExampleImages(prev => [...prev, ""])}
-                          className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline mt-0.5"
-                        >
-                          + Add another image URL
-                        </button>
                       )}
                     </div>
                   </div>

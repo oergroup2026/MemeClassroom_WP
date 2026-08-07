@@ -14,7 +14,8 @@ import {
   onSnapshot,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, storage } from "../firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import {
@@ -30,6 +31,8 @@ import {
   Lightbulb,
   GraduationCap,
   Puzzle,
+  Pencil,
+  X,
 } from "lucide-react";
 
 // ─── Toast helper ──────────────────────────────────────────────────────────────
@@ -98,6 +101,85 @@ export default function MemeStoryDetail() {
   const [bookmarkDocId, setBookmarkDocId] = useState(null);
   const [alreadyFlagged, setAlreadyFlagged] = useState(false);
   const [likePending, setLikePending] = useState(false);
+
+  // Edit Story State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editUsageContext, setEditUsageContext] = useState("");
+  const [editEducationalUse, setEditEducationalUse] = useState("");
+  const [editExampleImages, setEditExampleImages] = useState([]);
+  const [editExampleFiles, setEditExampleFiles] = useState([]);
+  const [editFile, setEditFile] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+
+  const canEdit = user && (user.uid === story?.author_id || profile?.role === "admin");
+
+  const openEditModal = () => {
+    if (!story) return;
+    setEditTitle(story.title || story.meme_name || "");
+    setEditBody(story.body || "");
+    setEditUsageContext(story.usage_context || "");
+    setEditEducationalUse(story.educational_use || "");
+    setEditExampleImages(Array.isArray(story.example_images) ? story.example_images : []);
+    setEditExampleFiles([]);
+    setEditFile(null);
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!story || !user) return;
+    setEditLoading(true);
+    try {
+      let fileUrl = story.file_url || story.thumbnail_url || "";
+      if (editFile) {
+        const storageRef = ref(storage, `resources/${user.uid}_res_${Date.now()}`);
+        const snap = await uploadBytes(storageRef, editFile);
+        fileUrl = await getDownloadURL(snap.ref);
+      }
+
+      let uploadedExampleUrls = [];
+      if (editExampleFiles.length > 0) {
+        for (let i = 0; i < editExampleFiles.length; i++) {
+          const exFile = editExampleFiles[i];
+          if (exFile) {
+            const exRef = ref(storage, `resources/examples_${user.uid}_${Date.now()}_${i}`);
+            const exSnap = await uploadBytes(exRef, exFile);
+            const exUrl = await getDownloadURL(exSnap.ref);
+            uploadedExampleUrls.push(exUrl);
+          }
+        }
+      }
+
+      const finalExamples = [
+        ...editExampleImages.filter(Boolean),
+        ...uploadedExampleUrls
+      ];
+
+      const updatedData = {
+        title: editTitle.trim(),
+        meme_name: editTitle.trim(),
+        body: editBody.trim(),
+        usage_context: editUsageContext.trim(),
+        educational_use: editEducationalUse.trim(),
+        example_images: finalExamples,
+        file_url: fileUrl,
+        thumbnail_url: fileUrl,
+        updated_at: serverTimestamp()
+      };
+
+      await updateDoc(doc(db, "resources", story.id), updatedData);
+      setStory(prev => ({ ...prev, ...updatedData }));
+      showToast("Story updated successfully!", "success");
+      setShowEditModal(false);
+    } catch (err) {
+      console.error("Failed to edit story:", err);
+      showToast("Failed to update story.", "error");
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   // ── 1. Load story ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -412,6 +494,16 @@ export default function MemeStoryDetail() {
             Share
           </button>
 
+          {canEdit && (
+            <button
+              onClick={openEditModal}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-sm border bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition hover:scale-105 active:scale-95"
+            >
+              <Pencil className="w-4 h-4" />
+              Edit Story
+            </button>
+          )}
+
           <button
             onClick={handleFlag}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-sm border transition hover:scale-105 active:scale-95 ${
@@ -525,25 +617,6 @@ export default function MemeStoryDetail() {
           </div>
         )}
 
-        {/* ── Keywords ────────────────────────────────────────────────────────── */}
-        {story.keywords && story.keywords.length > 0 && (
-          <div>
-            <h3 className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest mb-3 text-gray-400">
-              <Tag className="w-3.5 h-3.5" /> Keywords
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {story.keywords.map((k) => (
-                <span
-                  key={k}
-                  className="bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/30 text-xs font-semibold px-3 py-1 rounded-full"
-                >
-                  #{k}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* ── Bottom action bar (sticky feel) ─────────────────────────────────── */}
         <div className="sticky bottom-4 mt-4">
           <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-amber-200/50 dark:border-amber-800/30 rounded-2xl px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-xl shadow-amber-500/5">
@@ -585,6 +658,155 @@ export default function MemeStoryDetail() {
         </div>
 
       </div>
+
+      {/* ── EDIT STORY MODAL ─────────────────────────────────────────────────── */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 w-full max-w-lg p-6 rounded-2xl overflow-y-auto max-h-[90vh] shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-3 mb-4 dark:border-zinc-800">
+              <h3 className="font-extrabold text-base text-gray-900 dark:text-white flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-purple-600" />
+                Edit Meme Story
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4 text-xs font-semibold">
+              <div>
+                <label className="block text-gray-500 uppercase mb-1">Attach File / Replace Image Template</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+                  className="block w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  💡 Upload a new image file to replace the main customizable image.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-gray-500 uppercase mb-1">Template / Meme Name *</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg outline-none focus:ring-2 focus:ring-purple-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-500 uppercase mb-1">Background — How it became a meme *</label>
+                <textarea
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  rows={3}
+                  placeholder="How it became a meme: Mention where this template originated (movie, TV show, game, viral event) and how it gained popularity."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-500 uppercase mb-1">Typical Meaning & Usage</label>
+                <textarea
+                  value={editUsageContext}
+                  onChange={(e) => setEditUsageContext(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-500 uppercase mb-1">Educational Use</label>
+                <textarea
+                  value={editEducationalUse}
+                  onChange={(e) => setEditEducationalUse(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-500 uppercase mb-1">Example Images (Upload Multiple Images)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setEditExampleFiles(prev => [...prev, ...files]);
+                  }}
+                  className="block w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200 cursor-pointer"
+                />
+                {editExampleFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {editExampleFiles.map((file, idx) => (
+                      <div key={idx} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-amber-300 dark:border-amber-700 bg-gray-100">
+                        <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setEditExampleFiles(prev => prev.filter((_, i) => i !== idx))}
+                          className="absolute top-0 right-0 bg-red-600 text-white rounded-bl p-0.5 text-[10px] font-bold leading-none"
+                          title="Remove"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {editExampleImages.filter(Boolean).length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-[10px] text-gray-400 mb-1">Existing Example Images:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {editExampleImages.map((url, idx) => (
+                        url ? (
+                          <div key={idx} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700 bg-gray-100">
+                            <img src={url} alt="example" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setEditExampleImages(prev => prev.filter((_, i) => i !== idx))}
+                              className="absolute top-0 right-0 bg-red-600 text-white rounded-bl p-0.5 text-[10px] font-bold leading-none"
+                              title="Remove"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : null
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 rounded-xl font-bold bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="px-5 py-2 rounded-xl font-bold bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-60"
+                >
+                  {editLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

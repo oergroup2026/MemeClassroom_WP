@@ -102,6 +102,7 @@ const Admin = () => {
   // Story-specific archivist fields
   const [resUsageContext, setResUsageContext] = useState("");
   const [resExampleImages, setResExampleImages] = useState([""]); // array of URL strings
+  const [resExampleFiles, setResExampleFiles] = useState([]); // array of File objects
   const [resEducationalUse, setResEducationalUse] = useState("");
 
   // Marketing Form States
@@ -534,11 +535,27 @@ const Admin = () => {
         }
 
         // If it's a meme story, attach story-specific fields
-          if (resType === "stories") {
+        if (resType === "stories") {
+          let extraExampleUrls = [];
+          if (resExampleFiles.length > 0) {
+            for (let i = 0; i < resExampleFiles.length; i++) {
+              const file = resExampleFiles[i];
+              if (file) {
+                const exRef = ref(storage, `resources/examples_seed_${Date.now()}_${i}`);
+                const exSnap = await uploadBytes(exRef, file);
+                const exUrl = await getDownloadURL(exSnap.ref);
+                extraExampleUrls.push(exUrl);
+              }
+            }
+          }
           resourceData.meme_name = resTitle.trim();
           resourceData.usage_context = resUsageContext.trim();
           resourceData.educational_use = resEducationalUse.trim();
-          resourceData.example_images = resExampleImages.map(u => u.trim()).filter(Boolean);
+          resourceData.example_images = [
+            ...resExampleImages.map(u => u.trim()).filter(Boolean),
+            ...extraExampleUrls
+          ];
+          resourceData.keywords = []; // remove keywords for stories
           resourceData.admin_approved = true; // Admin seeds are auto-approved
         }
 
@@ -554,6 +571,7 @@ const Admin = () => {
         setResKeywords("");
         setResUsageContext("");
         setResExampleImages([""]);
+        setResExampleFiles([]);
         setResEducationalUse("");
         triggerAlert("Academic Resource seeded directly into Meme Reads gallery.");
       }
@@ -2020,6 +2038,23 @@ const Admin = () => {
                     <option value="other">Other Tool</option>
                   </select>
                 </div>
+
+                {/* Attach File Option Moved to Top for Meme Stories */}
+                {resType === "stories" && (
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Attach File / Customizable Image Template *</label>
+                    <input
+                      type="file"
+                      accept="image/*,video/*,audio/*"
+                      onChange={e => setResFile(e.target.files?.[0] || null)}
+                      className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
+                    />
+                    <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-1">
+                      💡 Users can customize this image/template in the Meme Lab.
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">
                     {resType === "stories" ? "Template/Meme Name *" : "Resource Title *"}
@@ -2085,13 +2120,13 @@ const Admin = () => {
                 )}
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">
-                    {resType === "stories" ? "Background *" : "Summary / Body *"}
+                    {resType === "stories" ? "Background — How it became a meme *" : "Summary / Body *"}
                   </label>
                   <textarea
                     value={resBody}
                     onChange={e => setResBody(e.target.value)}
                     className={`${inputClass} h-20`}
-                    placeholder={resType === "stories" ? "Where did this template originate? Mention the source (movie, TV show, game, etc.) and how it became popular." : "Provide a quick summary or layout description..."}
+                    placeholder={resType === "stories" ? "How it became a meme: Mention where this template originated (movie, TV show, game, viral event) and how it gained popularity." : "Provide a quick summary or layout description..."}
                     required
                   />
                 </div>
@@ -2118,93 +2153,91 @@ const Admin = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Example Images (Optional)</label>
-                      <p className="text-[10px] text-gray-400 mb-2">Paste URLs of example uses of this meme (up to 5).</p>
-                      {resExampleImages.map((url, idx) => (
-                        <div key={idx} className="flex items-center gap-2 mb-1.5">
-                          <input
-                            type="url"
-                            value={url}
-                            onChange={e => {
-                              const next = [...resExampleImages];
-                              next[idx] = e.target.value;
-                              setResExampleImages(next);
-                            }}
-                            className={`${inputClass} flex-grow`}
-                            placeholder="https://example.com/meme-use.jpg"
-                          />
-                          {resExampleImages.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => setResExampleImages(prev => prev.filter((_, i) => i !== idx))}
-                              className="text-red-400 hover:text-red-600 text-lg font-bold leading-none"
-                            >
-                              ×
-                            </button>
-                          )}
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Example Images (Upload Multiple Images)</label>
+                      <p className="text-[10px] text-gray-400 mb-2">Upload real example images of this meme being used.</p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={e => {
+                          const files = Array.from(e.target.files || []);
+                          setResExampleFiles(prev => [...prev, ...files]);
+                        }}
+                        className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800 cursor-pointer"
+                      />
+                      {resExampleFiles.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {resExampleFiles.map((file, idx) => (
+                            <div key={idx} className="relative group w-12 h-12 rounded overflow-hidden border border-gray-300 dark:border-gray-700">
+                              <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => setResExampleFiles(prev => prev.filter((_, i) => i !== idx))}
+                                className="absolute top-0 right-0 bg-red-600 text-white rounded-bl p-0.5 text-[9px] font-bold"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                      {resExampleImages.length < 5 && (
-                        <button
-                          type="button"
-                          onClick={() => setResExampleImages(prev => [...prev, ""])}
-                          className="text-xs font-bold text-amber-500 hover:underline"
-                        >
-                          + Add another URL
-                        </button>
                       )}
                     </div>
                   </>
                 )}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Attachment File/Source URL</label>
-                  <input
-                    type="url"
-                    value={resUrl}
-                    onChange={e => setResUrl(e.target.value)}
-                    className={inputClass}
-                    placeholder="https://example.com/document.pdf"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Or Upload PDF/Attachment File</label>
-                  <input
-                    type="file"
-                    onChange={e => setResFile(e.target.files?.[0] || null)}
-                    className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Thumbnail Image URL</label>
-                    <input
-                      type="url"
-                      value={resThumbnailUrl}
-                      onChange={e => setResThumbnailUrl(e.target.value)}
-                      className={inputClass}
-                      placeholder="https://example.com/thumbnail.png"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Or Upload Thumbnail Image</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={e => setResThumbnailFile(e.target.files?.[0] || null)}
-                      className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Keywords (comma-separated)</label>
-                  <input
-                    type="text"
-                    value={resKeywords}
-                    onChange={e => setResKeywords(e.target.value)}
-                    className={inputClass}
-                    placeholder="e.g. biology, cell, science"
-                  />
-                </div>
+
+                {resType !== "stories" && (
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Attachment File/Source URL</label>
+                      <input
+                        type="url"
+                        value={resUrl}
+                        onChange={e => setResUrl(e.target.value)}
+                        className={inputClass}
+                        placeholder="https://example.com/document.pdf"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Or Upload PDF/Attachment File</label>
+                      <input
+                        type="file"
+                        onChange={e => setResFile(e.target.files?.[0] || null)}
+                        className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Thumbnail Image URL</label>
+                        <input
+                          type="url"
+                          value={resThumbnailUrl}
+                          onChange={e => setResThumbnailUrl(e.target.value)}
+                          className={inputClass}
+                          placeholder="https://example.com/thumbnail.png"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Or Upload Thumbnail Image</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => setResThumbnailFile(e.target.files?.[0] || null)}
+                          className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gray-100 dark:file:bg-gray-800"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Keywords (comma-separated)</label>
+                      <input
+                        type="text"
+                        value={resKeywords}
+                        onChange={e => setResKeywords(e.target.value)}
+                        className={inputClass}
+                        placeholder="e.g. biology, cell, science"
+                      />
+                    </div>
+                  </>
+                )}
               </>
             )}
 
