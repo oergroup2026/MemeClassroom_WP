@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Clock, Search, BookOpen, Image } from "lucide-react";
+import { Clock, Search, BookOpen, Image, Heart, Share2, Bookmark, Flag as FlagIcon, MessageSquare } from "lucide-react";
 import {
   collection,
   query,
@@ -435,7 +435,7 @@ const Resources = () => {
   // Story-specific upload fields
   const [uploadUsageContext, setUploadUsageContext] = useState("");
   const [uploadEducationalUse, setUploadEducationalUse] = useState("");
-  const [uploadTemplateId, setUploadTemplateId] = useState("");
+  const [uploadExampleImages, setUploadExampleImages] = useState([""]); // array of URL strings
 
   // ── External link form state (for "External" tab)
   const [showExternalModal, setShowExternalModal] = useState(false);
@@ -491,7 +491,7 @@ const Resources = () => {
     setUploadThumbnailFile(null); setUploadKeywords(""); setUploadError("");
     setUploadSubject("Biology"); setUploadCustomSubject(""); setUploadGrade("High School (9–10)");
     setUploadType("article"); setEditingResource(null);
-    setUploadUsageContext(""); setUploadEducationalUse(""); setUploadTemplateId("");
+    setUploadUsageContext(""); setUploadEducationalUse(""); setUploadExampleImages([""]);
   };
 
   // ── URL tab sync
@@ -887,7 +887,11 @@ const Resources = () => {
     setUploadKeywords(Array.isArray(res.keywords) ? res.keywords.join(", ") : (res.keywords || ""));
     setUploadUsageContext(res.usage_context || "");
     setUploadEducationalUse(res.educational_use || "");
-    setUploadTemplateId(res.template_id || "");
+    setUploadExampleImages(
+      Array.isArray(res.example_images) && res.example_images.length > 0
+        ? res.example_images
+        : [""]
+    );
     setUploadError("");
     setShowUploadModal(true);
   };
@@ -951,7 +955,7 @@ const Resources = () => {
           updatedData.meme_name = uploadTitle.trim();
           updatedData.usage_context = uploadUsageContext.trim();
           updatedData.educational_use = uploadEducationalUse.trim();
-          updatedData.template_id = uploadTemplateId.trim();
+          updatedData.example_images = uploadExampleImages.map(u => u.trim()).filter(Boolean);
         }
 
         await updateDoc(doc(db, "resources", editingResource.id), updatedData);
@@ -992,7 +996,7 @@ const Resources = () => {
             resourceData.meme_name = uploadTitle.trim();
             resourceData.usage_context = uploadUsageContext.trim();
             resourceData.educational_use = uploadEducationalUse.trim();
-            resourceData.template_id = uploadTemplateId.trim();
+            resourceData.example_images = uploadExampleImages.map(u => u.trim()).filter(Boolean);
           }
           transaction.set(newDocRef, resourceData);
           // Try updating stats; ignore if doc doesn't exist yet
@@ -1173,48 +1177,7 @@ const Resources = () => {
         </div>
       </div>
 
-      {/* ── Hero Featured Carousel ────────────────────────────────────────────── */}
-      {activeTab !== "external" && activeTab !== "saved" && activeTab !== "mine" && (
-        <div className="p-6 rounded-xl border relative overflow-hidden flex flex-col justify-between min-h-[220px] bg-gradient-to-r from-purple-900 via-indigo-900 to-indigo-950 dark:from-zinc-900 dark:to-zinc-950 text-white border-transparent dark:border-zinc-800">
-          {/* Dynamic type badge */}
-          <div className="absolute top-4 right-4 bg-purple-500/20 text-purple-300 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border border-purple-500/30 capitalize">
-            {activeFeat.type ? activeFeat.type.replace(/_/g, " ") : "Featured"}
-          </div>
 
-          <div className="max-w-2xl">
-            <span className="text-[10px] font-extrabold uppercase bg-purple-600/50 px-2 py-0.5 rounded tracking-wide">
-              {activeFeat.subject} • {activeFeat.grade_group}
-            </span>
-            <h2 className="text-2xl font-extrabold mt-3 leading-tight tracking-tight">
-              {activeFeat.title}
-            </h2>
-            <p className="text-sm mt-2 opacity-85 line-clamp-2 leading-relaxed">
-              {activeFeat.body}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between pt-6">
-            <div className="flex space-x-1.5">
-              {featuredResources.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setFeaturedIndex(idx)}
-                  className={`h-1.5 rounded-full transition-all ${featuredIndex === idx ? "w-6 bg-purple-500" : "w-2 bg-gray-400/50"}`}
-                />
-              ))}
-            </div>
-            <button
-              onClick={() => {
-                const found = resources.find((r) => r.id === activeFeat.id);
-                if (found) { setDetailResource(found); handleIncrementViewCount(found.id); }
-              }}
-              className="text-xs font-bold text-purple-300 hover:text-white transition underline underline-offset-2"
-            >
-              View Resource →
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── Category Tabs ─────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800 pb-2">
@@ -1306,42 +1269,55 @@ const Resources = () => {
       ) : (
         /* ── MAIN RESOURCES GRID ───────────────────────────────────────────── */
         <div>
-          {/* Search + Sort bar */}
-          <div className={`p-4 ${containerClass} flex flex-wrap items-center gap-3 mb-6`}>
-            <div className="relative flex-grow min-w-0">
-              <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by title, keywords, subject, publisher..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`${inputClass} pl-10 h-10 rounded-xl`}
-              />
-            </div>
+          {/* Search bar — full width, Library-style pill */}
+          <form
+            onSubmit={(e) => { e.preventDefault(); }}
+            className="w-full flex items-center bg-white dark:bg-zinc-900 px-4 py-2 rounded-full border border-gray-200 dark:border-zinc-800 shadow-md dark:shadow-black/25 focus-within:shadow-lg focus-within:shadow-purple-500/10 dark:focus-within:shadow-black/40 focus-within:ring-2 focus-within:ring-purple-500 transition-all duration-300 mb-6"
+          >
+            <Search className="w-4 h-4 text-gray-400 mr-3 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Search by title, keywords, subject, publisher..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-transparent border-0 text-sm focus:outline-none dark:text-white placeholder-gray-400 py-1"
+            />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="text-xs font-bold text-red-500 hover:underline px-2 flex-shrink-0">
-                Clear
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm px-2 flex-shrink-0 transition"
+              >
+                ✕
               </button>
             )}
-            {/* Sort control */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className={`${inputClass} w-auto flex-shrink-0 rounded-lg px-3 py-2 h-10`}
-              title="Sort resources"
+            <button
+              type="submit"
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs p-2 rounded-full transition flex items-center justify-center w-8 h-8 shrink-0 ml-2"
             >
-              <option value="newest">Newest</option>
-              <option value="most_liked">Most Liked</option>
-              <option value="most_viewed">Most Viewed</option>
-              <option value="oldest">Oldest</option>
-            </select>
-          </div>
+              <Search className="w-4 h-4" />
+            </button>
+          </form>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Sidebar Filters */}
-            <div className={`p-6 h-fit ${containerClass}`}>
+            <div className={`p-5 h-fit ${containerClass}`}>
               <h3 className="text-xs font-bold uppercase tracking-wider mb-4 border-b pb-2">Filters</h3>
               <div className="space-y-4">
+                {/* Sort — moved here from search bar row */}
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Sort By</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className={`${inputClass} text-xs py-1.5`}
+                  >
+                    <option value="newest">Newest</option>
+                    <option value="most_liked">Most Liked</option>
+                    <option value="most_viewed">Most Viewed</option>
+                    <option value="oldest">Oldest</option>
+                  </select>
+                </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Subject</label>
                   <input
@@ -1389,14 +1365,213 @@ const Resources = () => {
                       const canDelete = user && (res.author_id === user.uid || isAdmin);
                       const alreadyFlagged = !!userFlagsMap[res.id];
 
+                      // ── Story Card (Library meme-card style) ────────────────
+                      if (res.type === "stories") {
+                        return (
+                          <div
+                            key={res.id}
+                            className="flex flex-col h-full bg-white/45 dark:bg-zinc-900/45 backdrop-blur-sm border border-amber-200/60 dark:border-amber-800/40 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden"
+                          >
+                            {/* Card Header: avatar + author + type badge */}
+                            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-amber-100/60 dark:border-amber-900/30">
+                              <div
+                                className="flex items-center gap-2.5 cursor-pointer group"
+                                onClick={() => { if (res.author_id !== "admin") openUserModal(res.author_id); }}
+                              >
+                                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0 border border-amber-200/50 dark:border-amber-800/30">
+                                  <BookOpen className="w-4 h-4 text-amber-700 dark:text-amber-300" />
+                                </div>
+                                <div>
+                                  <h5 className="text-[11px] font-extrabold text-gray-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition truncate max-w-[130px]">
+                                    {authorName}
+                                  </h5>
+                                  <span className="text-[9px] text-gray-400 block">
+                                    {res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : "Just now"}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {!res.admin_approved && (
+                                  <span className="flex items-center gap-1 text-[9px] font-bold text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 px-1.5 py-0.5 rounded-full">
+                                    <Clock className="w-2.5 h-2.5" /> Pending
+                                  </span>
+                                )}
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                                  📖 Story
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Thumbnail — always shown, amber placeholder if missing */}
+                            <div
+                              className="relative w-full bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/20 dark:to-zinc-900 flex items-center justify-center overflow-hidden group cursor-pointer"
+                              style={{ height: '180px' }}
+                              onClick={() => navigate(`/resources/story/${res.id}`)}
+                            >
+                              {/* Hover overlay */}
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                                <span className="bg-white/90 dark:bg-zinc-900/90 text-gray-900 dark:text-white px-3.5 py-1.5 rounded-full text-[10px] font-bold shadow-md hover:scale-105 transition-transform">
+                                  📖 Read Story
+                                </span>
+                              </div>
+                              {res.thumbnail_url ? (
+                                <img
+                                  src={res.thumbnail_url}
+                                  alt={res.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex flex-col items-center justify-center gap-2 text-amber-400 dark:text-amber-600">
+                                  <BookOpen className="w-10 h-10 opacity-40" />
+                                  {res.meme_name && (
+                                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 px-3 text-center opacity-70">
+                                      🎭 {res.meme_name}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Card Body */}
+                            <div className="p-4 flex-grow flex flex-col">
+                              {/* Meme name badge */}
+                              {res.meme_name && (
+                                <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full mb-2 border border-amber-200 dark:border-amber-700/50 self-start">
+                                  <Image className="w-3 h-3 text-amber-600 dark:text-amber-400" /> {res.meme_name}
+                                </span>
+                              )}
+
+                              {/* Title */}
+                              <button
+                                onClick={() => navigate(`/resources/story/${res.id}`)}
+                                className="font-extrabold text-sm mb-2 text-left hover:text-amber-600 dark:hover:text-amber-400 transition block w-full text-gray-900 dark:text-white leading-snug"
+                              >
+                                {res.title}
+                              </button>
+
+                              {/* Story body excerpt */}
+                              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3 leading-relaxed mb-2 flex-grow">
+                                {res.body}
+                              </p>
+
+                              {/* Read more */}
+                              <button
+                                onClick={() => navigate(`/resources/story/${res.id}`)}
+                                className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline self-start mb-2"
+                              >
+                                Read more →
+                              </button>
+
+                              {/* Keywords */}
+                              {res.keywords && res.keywords.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {res.keywords.slice(0, 4).map((k) => (
+                                    <button
+                                      key={k}
+                                      onClick={() => setSearchQuery(k)}
+                                      className="bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/30 text-[9px] px-1.5 py-0.5 rounded-full hover:bg-amber-100 transition"
+                                    >
+                                      #{k}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Card Footer: Library-style icon action row */}
+                            <div className="px-4 pb-3 pt-2 border-t border-amber-100/60 dark:border-amber-900/30">
+                              <div className="flex items-center justify-between text-gray-400 dark:text-gray-500">
+
+                                {/* Like */}
+                                <button
+                                  onClick={() => handleResourceLikeToggle(res.id, res.author_id)}
+                                  className={`flex items-center gap-0.5 hover:scale-110 active:scale-95 transition-all ${
+                                    isLiked ? 'text-red-500' : 'hover:text-red-500'
+                                  }`}
+                                  title="Like"
+                                >
+                                  <Heart
+                                    className={`w-[15px] h-[15px] ${isLiked ? 'fill-current' : ''}`}
+                                    strokeWidth={1.5}
+                                  />
+                                  <span className="text-[9px] font-bold tabular-nums ml-0.5">{res.likes_count || 0}</span>
+                                </button>
+
+                                {/* View count */}
+                                {(res.view_count || 0) > 0 && (
+                                  <span className="flex items-center gap-0.5 text-[9px] font-bold text-gray-400">
+                                    👁 {res.view_count}
+                                  </span>
+                                )}
+
+                                {/* Share */}
+                                <button
+                                  onClick={() => handleShareResource(res.id)}
+                                  className="hover:text-green-500 hover:scale-110 active:scale-95 transition-all"
+                                  title="Share / Copy link"
+                                >
+                                  <Share2 className="w-[15px] h-[15px]" strokeWidth={1.5} />
+                                </button>
+
+                                {/* Bookmark / Save */}
+                                <button
+                                  onClick={() => handleBookmarkToggle(res.id)}
+                                  className={`hover:scale-110 active:scale-95 transition-all ${
+                                    isBookmarked ? 'text-amber-500' : 'hover:text-amber-500'
+                                  }`}
+                                  title={isBookmarked ? "Remove from saved" : "Save to bookmarks"}
+                                >
+                                  <Bookmark
+                                    className={`w-[15px] h-[15px] ${isBookmarked ? 'fill-current' : ''}`}
+                                    strokeWidth={1.5}
+                                  />
+                                </button>
+
+                                {/* Flag */}
+                                <button
+                                  onClick={() => handleFlagResource(res.id)}
+                                  className={`hover:scale-110 active:scale-95 transition-all ${
+                                    alreadyFlagged ? 'text-orange-500' : 'hover:text-orange-400'
+                                  }`}
+                                  title={alreadyFlagged ? "Already reported" : "Report resource"}
+                                >
+                                  <FlagIcon className="w-[15px] h-[15px]" strokeWidth={1.5} />
+                                </button>
+
+                                {/* Edit / Delete (owner/admin only) */}
+                                {(canEdit || canDelete) && (
+                                  <div className="flex items-center gap-1.5">
+                                    {canEdit && (
+                                      <button
+                                        onClick={() => handleOpenEditModal(res)}
+                                        className="text-gray-400 hover:text-blue-500 transition text-[10px] font-bold"
+                                        title="Edit"
+                                      >
+                                        ✏️
+                                      </button>
+                                    )}
+                                    {canDelete && (
+                                      <button
+                                        onClick={() => handleDeleteResource(res.id)}
+                                        className="text-gray-400 hover:text-red-500 transition text-[10px] font-bold"
+                                        title="Delete"
+                                      >
+                                        🗑️
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // ── Generic Resource Card (articles, activities, courses, other) ─
                       return (
-                        <div 
-                          key={res.id} 
-                          className={`p-5 flex flex-col justify-between h-full ${
-                            res.type === "stories"
-                              ? "bg-gradient-to-b from-amber-50 to-white dark:from-zinc-900 dark:to-zinc-950 border border-amber-200 dark:border-amber-800/40 shadow-sm rounded-xl"
-                              : containerClass
-                          }`}
+                        <div
+                          key={res.id}
+                          className={`p-5 flex flex-col justify-between h-full ${containerClass}`}
                         >
                           <div>
                             {/* Pending Admin Approval Badge */}
@@ -1409,12 +1584,8 @@ const Resources = () => {
                             {/* Author header */}
                             <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-zinc-800 pb-3">
                               <div className="flex items-center min-w-0">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs mr-2.5 shadow-sm flex-shrink-0 ${
-                                  res.type === "stories"
-                                    ? "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
-                                    : "bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300"
-                                }`}>
-                                  {res.type === "stories" ? <BookOpen className="w-4 h-4 text-amber-700 dark:text-amber-300" /> : (authorName ? authorName.charAt(0).toUpperCase() : "C")}
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-xs mr-2.5 shadow-sm flex-shrink-0 bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
+                                  {authorName ? authorName.charAt(0).toUpperCase() : "C"}
                                 </div>
                                 <div className="flex-grow min-w-0">
                                   <button
@@ -1426,12 +1597,8 @@ const Resources = () => {
                                   <span className="text-[9px] text-gray-400 block leading-tight mt-0.5">Contributor</span>
                                 </div>
                               </div>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0 ml-2 ${
-                                res.type === "stories"
-                                  ? "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
-                                  : "bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300"
-                              }`}>
-                                {res.type === "stories" ? "Story" : (res.type?.replace(/_/g, " ") || "resource")}
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0 ml-2 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300">
+                                {res.type?.replace(/_/g, " ") || "resource"}
                               </span>
                             </div>
 
@@ -1451,17 +1618,6 @@ const Resources = () => {
                             </button>
 
                             <p className="text-xs text-gray-500 mb-3 line-clamp-3 leading-relaxed">{res.body}</p>
-
-                            {/* Story-specific: meme name badge + usage context */}
-                            {res.type === "stories" && (
-                              <>
-                                {res.meme_name && (
-                                  <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full mb-2 border border-amber-200 dark:border-amber-700/50">
-                                    <Image className="w-3.5 h-3.5 mr-0.5 text-amber-600 dark:text-amber-400" /> {res.meme_name}
-                                  </span>
-                                )}
-                              </>
-                            )}
 
                             {/* Keywords */}
                             {res.keywords && res.keywords.length > 0 && (
@@ -1521,40 +1677,40 @@ const Resources = () => {
                                 {/* Like */}
                                 <button
                                   onClick={() => handleResourceLikeToggle(res.id, res.author_id)}
-                                  className={`flex items-center gap-1 transition hover:scale-105 active:scale-95 ${isLiked ? "text-red-500 font-bold" : "text-gray-400 hover:text-gray-500"}`}
+                                  className={`flex items-center gap-1 transition hover:scale-105 active:scale-95 ${isLiked ? "text-red-500 font-bold" : "text-gray-400 hover:text-red-500"}`}
                                   title="Like"
                                 >
-                                  <span>{isLiked ? "❤️" : "🤍"}</span>
+                                  <Heart className={`w-[14px] h-[14px] ${isLiked ? 'fill-current' : ''}`} strokeWidth={1.5} />
                                   <span>{res.likes_count || 0}</span>
                                 </button>
 
                                 {/* Bookmark */}
                                 <button
                                   onClick={() => handleBookmarkToggle(res.id)}
-                                  className={`flex items-center gap-1 ${isBookmarked ? "text-indigo-600 dark:text-indigo-400" : "text-gray-400 hover:text-gray-500"}`}
+                                  className={`flex items-center gap-1 transition hover:scale-105 active:scale-95 ${isBookmarked ? "text-amber-500" : "text-gray-400 hover:text-amber-500"}`}
                                   title="Save to My Bookmarks"
                                 >
-                                  <span>{isBookmarked ? "🔖" : "📥"}</span>
+                                  <Bookmark className={`w-[14px] h-[14px] ${isBookmarked ? 'fill-current' : ''}`} strokeWidth={1.5} />
                                   <span>{isBookmarked ? "Saved" : "Save"}</span>
                                 </button>
 
-                                {/* Flag — shows count */}
+                                {/* Flag */}
                                 <button
                                   onClick={() => handleFlagResource(res.id)}
-                                  className={`flex items-center gap-1 transition ${alreadyFlagged ? "text-orange-500" : "text-gray-400 hover:text-red-500"}`}
+                                  className={`flex items-center gap-1 transition hover:scale-105 ${alreadyFlagged ? "text-orange-500" : "text-gray-400 hover:text-red-500"}`}
                                   title={alreadyFlagged ? "Already reported" : "Report resource"}
                                 >
-                                  <span>🏳️</span>
+                                  <FlagIcon className="w-[14px] h-[14px]" strokeWidth={1.5} />
                                   {(res.flag_count || 0) > 0 && <span className="text-[9px]">{res.flag_count}</span>}
                                 </button>
 
                                 {/* Share */}
                                 <button
                                   onClick={() => handleShareResource(res.id)}
-                                  className="text-gray-400 hover:text-indigo-500 transition"
+                                  className="text-gray-400 hover:text-green-500 hover:scale-105 active:scale-95 transition-all"
                                   title="Copy link"
                                 >
-                                  🔗
+                                  <Share2 className="w-[14px] h-[14px]" strokeWidth={1.5} />
                                 </button>
                               </div>
 
@@ -1746,19 +1902,42 @@ const Resources = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-500 uppercase mb-1">Associated Meme Template (Optional)</label>
-                    <select
-                      value={uploadTemplateId}
-                      onChange={(e) => setUploadTemplateId(e.target.value)}
-                      className={inputClass}
-                    >
-                      <option value="">-- Select Template --</option>
-                      {templates.map((temp) => (
-                        <option key={temp.id} value={temp.id}>
-                          {temp.title} ({temp.format || "image"})
-                        </option>
-                      ))}
-                    </select>
+                    <label className="block text-gray-500 uppercase mb-1">Example Images (Optional)</label>
+                    <p className="text-[10px] text-gray-400 mb-2">Add URLs of example uses of this meme (one per line).</p>
+                    {uploadExampleImages.map((url, idx) => (
+                      <div key={idx} className="flex items-center gap-2 mb-1.5">
+                        <input
+                          type="url"
+                          placeholder="https://example.com/meme-example.jpg"
+                          value={url}
+                          onChange={(e) => {
+                            const next = [...uploadExampleImages];
+                            next[idx] = e.target.value;
+                            setUploadExampleImages(next);
+                          }}
+                          className={`${inputClass} flex-grow`}
+                        />
+                        {uploadExampleImages.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setUploadExampleImages(prev => prev.filter((_, i) => i !== idx))}
+                            className="text-red-400 hover:text-red-600 text-lg font-bold leading-none flex-shrink-0"
+                            title="Remove"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {uploadExampleImages.length < 5 && (
+                      <button
+                        type="button"
+                        onClick={() => setUploadExampleImages(prev => [...prev, ""])}
+                        className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline mt-1"
+                      >
+                        + Add another image URL
+                      </button>
+                    )}
                   </div>
                 </>
               )}

@@ -378,6 +378,7 @@ const Lab = () => {
   const [storyOrigin, setStoryOrigin] = useState("");
   const [storyUsageContext, setStoryUsageContext] = useState("");
   const [storyEducationalUse, setStoryEducationalUse] = useState("");
+  const [storyExampleImages, setStoryExampleImages] = useState([""]); // array of URLs
 
   // Refs
   const canvasContainerRef = useRef(null);
@@ -1295,6 +1296,7 @@ const Lab = () => {
           body: storyOrigin.trim(),
           usage_context: storyUsageContext.trim(),
           educational_use: storyEducationalUse.trim(),
+          example_images: storyExampleImages.map(u => u.trim()).filter(Boolean),
           template_id: templateDocRef.id,
           author_id: user.uid,
           status: "live",
@@ -1313,6 +1315,7 @@ const Lab = () => {
       setStoryOrigin("");
       setStoryUsageContext("");
       setStoryEducationalUse("");
+      setStoryExampleImages([""]);
       setTimeout(() => {
         setShowContributeModal(false);
         setTemplateSuccess("");
@@ -3239,7 +3242,7 @@ const Lab = () => {
               <h3 className="font-bold text-sm uppercase tracking-wider text-purple-700 dark:text-purple-400">Contribute Template to Library</h3>
               <button 
                 type="button" 
-                onClick={() => { setShowContributeModal(false); setTemplateSuccess(""); setIncludeStory(false); setStoryOrigin(""); setStoryUsageContext(""); setStoryEducationalUse(""); }} 
+                onClick={() => { setShowContributeModal(false); setTemplateSuccess(""); setIncludeStory(false); setStoryOrigin(""); setStoryUsageContext(""); setStoryEducationalUse(""); setStoryExampleImages([""]); }} 
                 className="text-gray-400 hover:text-gray-600 text-sm font-bold"
               >
                 ✕
@@ -3335,6 +3338,43 @@ const Lab = () => {
                         rows={2}
                         className="w-full px-3 py-2 border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none resize-none"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-gray-500 uppercase mb-1">Example Images (Optional)</label>
+                      <p className="text-[10px] text-gray-400 mb-2">Add URLs of real examples of this meme being used (up to 5).</p>
+                      {storyExampleImages.map((url, idx) => (
+                        <div key={idx} className="flex items-center gap-2 mb-1.5">
+                          <input
+                            type="url"
+                            placeholder="https://example.com/meme-example.jpg"
+                            value={url}
+                            onChange={(e) => {
+                              const next = [...storyExampleImages];
+                              next[idx] = e.target.value;
+                              setStoryExampleImages(next);
+                            }}
+                            className="w-full px-3 py-2 border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none text-xs"
+                          />
+                          {storyExampleImages.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setStoryExampleImages(prev => prev.filter((_, i) => i !== idx))}
+                              className="text-red-400 hover:text-red-600 text-lg font-bold leading-none flex-shrink-0"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {storyExampleImages.length < 5 && (
+                        <button
+                          type="button"
+                          onClick={() => setStoryExampleImages(prev => [...prev, ""])}
+                          className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline mt-0.5"
+                        >
+                          + Add another image URL
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
