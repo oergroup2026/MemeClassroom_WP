@@ -24,6 +24,7 @@ import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
 import { trackCustomSubmission } from "../utils/taxonomyUtils";
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useVideoTrim } from "../hooks/useVideoTrim";
+import { compileVideoMeme } from "../utils/videoCompiler";
 import LibraryPickerModal from "../components/LibraryPickerModal";
 import GiphySearch from "../components/GiphySearch";
 import AudiogramCanvas from "../components/AudiogramCanvas";
@@ -282,6 +283,8 @@ const Lab = () => {
   const [videoTrimEnd, setVideoTrimEnd] = useState(15);
   // Phase 2E: timed captions — one per line, format: "0:02 – Caption text"
   const [videoCaptions, setVideoCaptions] = useState("");
+  const [activeVideoCaptionText, setActiveVideoCaptionText] = useState("");
+  const [aspectRatio, setAspectRatio] = useState("16:9");
 
   // --- GIF Tab State ---
   const [gifUrl, setGifUrl] = useState(MEDIA_SAMPLES?.gif?.[0]?.url || "");
@@ -384,6 +387,8 @@ const Lab = () => {
   // Refs
   const canvasContainerRef = useRef(null);
   const videoPlayerRef = useRef(null);
+  const timelineTrackRef = useRef(null);
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0);
   const audioPlayerRef = useRef(null);
   const dragInfoRef = useRef({ isDragging: false, textId: null, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
 
@@ -621,19 +626,55 @@ const Lab = () => {
     if (!video || activeTab !== "video" || !videoUrl) return;
 
     const checkTime = () => {
+      setVideoCurrentTime(video.currentTime);
+
       if (video.currentTime > videoTrimEnd) {
         video.currentTime = videoTrimStart;
       }
       if (video.currentTime < videoTrimStart) {
         video.currentTime = videoTrimStart;
       }
+
+      // Parse captions
+      const parsedCaptions = videoCaptions
+        .split("\n")
+        .map(line => {
+          const match = line.match(/^(\d+):(\d+)\s*[–\-]\s*(.+)$/);
+          if (!match) return null;
+          const minutes = parseInt(match[1], 10);
+          const seconds = parseInt(match[2], 10);
+          return { time: minutes * 60 + seconds, text: match[3].trim() };
+        })
+        .filter(Boolean);
+
+      const active = parsedCaptions
+        .slice()
+        .reverse()
+        .find(c => c.time <= video.currentTime);
+      setActiveVideoCaptionText(active ? active.text : "");
+    };
+
+    const handleLoadedMetadata = () => {
+      if (video.duration) {
+        setVideoDuration(video.duration);
+        if (videoTrimEnd === 15 || videoTrimEnd > video.duration) {
+          setVideoTrimEnd(video.duration);
+        }
+      }
     };
 
     video.addEventListener("timeupdate", checkTime);
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+
+    if (video.readyState >= 1) {
+      handleLoadedMetadata();
+    }
+
     return () => {
       video.removeEventListener("timeupdate", checkTime);
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
-  }, [videoTrimStart, videoTrimEnd, videoUrl, activeTab]);
+  }, [videoTrimStart, videoTrimEnd, videoUrl, activeTab, videoCaptions]);
 
   // Audio trim preview loop
   useEffect(() => {
@@ -671,6 +712,69 @@ const Lab = () => {
         return { time: minutes * 60 + seconds, text: match[3].trim() };
       })
       .filter(Boolean);
+  };
+
+  const formatTime = (totalSeconds) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = Math.floor(totalSeconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const rebuildCaptionsString = (list) => {
+    return list
+      .map(c => `${formatTime(c.time)} – ${c.text}`)
+      .join("\n");
+  };
+
+  const handleAddCaptionAtCurrentTime = () => {
+    const video = videoPlayerRef.current;
+    const time = video ? Math.floor(video.currentTime) : 0;
+    const parsed = parseCaptionLines(videoCaptions);
+    parsed.push({ time, text: "New timed subtitle" });
+    parsed.sort((a, b) => a.time - b.time);
+    setVideoCaptions(rebuildCaptionsString(parsed));
+  };
+
+  const handleDeleteCaptionIndex = (indexToDelete) => {
+    const parsed = parseCaptionLines(videoCaptions);
+    const filtered = parsed.filter((_, idx) => idx !== indexToDelete);
+    setVideoCaptions(rebuildCaptionsString(filtered));
+  };
+
+  const handleEditCaptionText = (indexToEdit) => {
+    const parsed = parseCaptionLines(videoCaptions);
+    const currentText = parsed[indexToEdit]?.text || "";
+    const newText = prompt("Edit Subtitle Text:", currentText);
+    if (newText !== null) {
+      parsed[indexToEdit].text = newText.trim() || "Subtitle";
+      setVideoCaptions(rebuildCaptionsString(parsed));
+    }
+  };
+
+  const handleTimelineMouseDown = (e, type) => {
+    e.preventDefault();
+    if (!timelineTrackRef.current) return;
+    const rect = timelineTrackRef.current.getBoundingClientRect();
+    const updateTime = (clientX) => {
+      const offset = clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, offset / rect.width));
+      const targetTime = pct * videoDuration;
+      if (type === "start") {
+        setVideoTrimStart(Math.min(targetTime, videoTrimEnd - 0.5));
+      } else if (type === "end") {
+        setVideoTrimEnd(Math.max(targetTime, videoTrimStart + 0.5));
+      }
+    };
+    const handleMouseMove = (moveEvent) => {
+      updateTime(moveEvent.clientX);
+    };
+    const handleMouseUp = () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    updateTime(e.clientX);
   };
 
   // --- Background Auto-Save Worker (30 Seconds) ---
@@ -956,31 +1060,37 @@ const Lab = () => {
             }
           }
         } else if (activeTab === "video") {
-          // Week 6: real ffmpeg.wasm trim for download-only flow
-          if (videoFile && window.crossOriginIsolated) {
-            try {
-              setIsTrimming(true);
-              setFfmpegProgress(0);
-              const trimmedBlob = await trimVideo(videoFile, videoTrimStart, videoTrimEnd, (p) => setFfmpegProgress(p));
-              const url = URL.createObjectURL(trimmedBlob);
-              const a = document.createElement("a");
-              a.download = `${title.trim() || "video_meme"}.mp4`;
-              a.href = url;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-            } finally {
-              setIsTrimming(false);
+          try {
+            setIsTrimming(true);
+            setFfmpegProgress(0);
+            const sourceUrl = videoFile ? URL.createObjectURL(videoFile) : videoUrl;
+            const compiledBlob = await compileVideoMeme({
+              videoUrl: sourceUrl,
+              textLayers: textLayers,
+              videoCaptions: videoCaptions,
+              videoTrimStart: videoTrimStart,
+              videoTrimEnd: videoTrimEnd,
+              aspectRatio: aspectRatio || "16:9",
+              onProgress: (p) => setFfmpegProgress(p / 100)
+            });
+
+            if (videoFile) {
+              URL.revokeObjectURL(sourceUrl);
             }
-          } else {
-            // Fallback: download raw video (no trim) — handles sample URLs and non-isolated browsers
+
+            const url = URL.createObjectURL(compiledBlob);
             const a = document.createElement("a");
             a.download = `${title.trim() || "video_meme"}.mp4`;
-            a.href = videoUrl;
+            a.href = url;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          } catch (err) {
+            console.error("Compilation failed:", err);
+            setAlertMessage("Failed to compile video meme.");
+          } finally {
+            setIsTrimming(false);
           }
         } else if (activeTab === "audio") {
           // Week 7: download the audiogram card PNG for audio memes
@@ -1067,43 +1177,46 @@ const Lab = () => {
           URL.revokeObjectURL(downloadUrl);
         }
       } 
-      // 2. Week 6: Real ffmpeg.wasm trim → upload trimmed video to Storage
-      else if (activeTab === "video" && videoFile) {
-        let videoBlob = videoFile; // default: upload as-is
-
-        if (window.crossOriginIsolated) {
-          try {
-            setIsTrimming(true);
-            setFfmpegProgress(0);
-            videoBlob = await trimVideo(
-              videoFile,
-              videoTrimStart,
-              videoTrimEnd,
-              (p) => setFfmpegProgress(p)
-            );
-          } catch (trimErr) {
-            console.warn("ffmpeg trim failed, falling back to original file:", trimErr);
-          } finally {
-            setIsTrimming(false);
+      // 2. Week 6: Real video compiler → upload compiled video to Storage
+      else if (activeTab === "video") {
+        let videoBlob;
+        try {
+          setIsTrimming(true);
+          setFfmpegProgress(0);
+          const sourceUrl = videoFile ? URL.createObjectURL(videoFile) : videoUrl;
+          videoBlob = await compileVideoMeme({
+            videoUrl: sourceUrl,
+            textLayers: textLayers,
+            videoCaptions: videoCaptions,
+            videoTrimStart: videoTrimStart,
+            videoTrimEnd: videoTrimEnd,
+            aspectRatio: aspectRatio || "16:9",
+            onProgress: (p) => setFfmpegProgress(p / 100)
+          });
+          if (videoFile) {
+            URL.revokeObjectURL(sourceUrl);
           }
-        } else {
-          // Not cross-origin-isolated — inform user but continue upload
-          console.warn("crossOriginIsolated is false — uploading original video without trim.");
+        } catch (compileErr) {
+          console.warn("video compilation failed, falling back to raw source:", compileErr);
+          const res = await fetch(videoUrl);
+          videoBlob = await res.blob();
+        } finally {
+          setIsTrimming(false);
         }
 
         const storageRef = ref(storage, `memes/${user.uid}_meme_${Date.now()}.mp4`);
         const snapshot = await uploadBytes(storageRef, videoBlob);
         fileUrl = await getDownloadURL(snapshot.ref);
 
-        // Local download of trimmed video
-        const trimmedUrl = URL.createObjectURL(videoBlob);
+        // Local download of compiled video
+        const compiledUrl = URL.createObjectURL(videoBlob);
         const link = document.createElement("a");
         link.download = `${title.trim() || 'meme'}.mp4`;
-        link.href = trimmedUrl;
+        link.href = compiledUrl;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(trimmedUrl);
+        URL.revokeObjectURL(compiledUrl);
       } 
       // 3. Week 7: Generate audiogram PNG card → upload as the meme's media_url
       else if (activeTab === "audio") {
@@ -1830,9 +1943,38 @@ const Lab = () => {
                     </div>
 
                     {videoUrl && (
-                      <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-3 text-gray-500">Crop / Trim Playback Window</span>
-                        <div className="space-y-3 text-xs font-semibold">
+                      <div className="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-4">
+                        <div>
+                          <span className="block text-[11px] font-bold uppercase tracking-wider mb-2 text-gray-500">Output Aspect Ratio</span>
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {[
+                              { label: "16:9 Landscape", val: "16:9" },
+                              { label: "9:16 Vertical", val: "9:16" },
+                              { label: "1:1 Square", val: "1:1" },
+                              { label: "4:3 Classic", val: "4:3" }
+                            ].map((opt) => (
+                              <button
+                                key={opt.val}
+                                type="button"
+                                onClick={() => setAspectRatio(opt.val)}
+                                className={`text-[9px] font-bold p-2 rounded-lg border text-center transition flex flex-col items-center justify-center gap-1 ${
+                                  aspectRatio === opt.val
+                                    ? "bg-purple-650 text-white border-purple-650"
+                                    : "bg-gray-50 dark:bg-zinc-900 border-gray-250 dark:border-zinc-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 active:scale-95"
+                                }`}
+                              >
+                                <span className="text-xs">
+                                  {opt.val === "16:9" ? "📺" : opt.val === "9:16" ? "📱" : opt.val === "1:1" ? "🔲" : "📼"}
+                                </span>
+                                <span>{opt.label.split(" ")[0]}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+                          <span className="block text-[11px] font-semibold uppercase tracking-wider mb-3 text-gray-500">Crop / Trim Playback Window</span>
+                          <div className="space-y-3 text-xs font-semibold">
                           <div>
                             <label className="flex justify-between">
                               <span>Start Timestamp</span>
@@ -1864,9 +2006,10 @@ const Lab = () => {
                             />
                           </div>
                         </div>
+                      </div>
 
-                        {/* Phase 2E: Video Captions textarea */}
-                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                      {/* Phase 2E: Video Captions textarea */}
+                      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                           <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5 text-gray-500">
                             Timed Captions
                           </label>
@@ -2736,25 +2879,203 @@ const Lab = () => {
                 )}
 
                 {activeTab === "video" && (
-                  <div className="w-full h-full flex items-center justify-center bg-black">
-                    {videoUrl ? (
-                      <video 
-                        ref={videoPlayerRef}
-                        src={videoUrl} 
-                        controls 
-                        className="w-full max-h-full object-contain" 
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-950/10">
-                        <div className="mb-4 text-purple-400">
-                          <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
+                  <div className="w-full h-full flex flex-col bg-zinc-950 text-white select-none">
+                    {/* Top Section: Video Preview + Text Overlays */}
+                    <div className="flex-1 min-h-0 relative flex items-center justify-center bg-black overflow-hidden">
+                      {videoUrl ? (
+                        <div className="relative w-full h-full flex items-center justify-center p-4">
+                          <div 
+                            className="relative bg-zinc-900 border border-zinc-800 shadow-2xl overflow-hidden flex items-center justify-center transition-all duration-300"
+                            style={{
+                              aspectRatio: aspectRatio === "16:9" ? "16/9" : aspectRatio === "9:16" ? "9/16" : aspectRatio === "1:1" ? "1/1" : "4/3",
+                              maxHeight: "100%",
+                              maxWidth: "100%"
+                            }}
+                          >
+                            <video 
+                              ref={videoPlayerRef}
+                              src={videoUrl} 
+                              controls={false}
+                              className="w-full h-full object-contain pointer-events-none" 
+                            />
+                            {/* Live Subtitle Overlay */}
+                            {activeVideoCaptionText && (
+                              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/80 text-white text-sm font-bold rounded-lg shadow-lg border border-zinc-800 text-center max-w-[85%] select-none pointer-events-none z-30">
+                                {activeVideoCaptionText}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <p className="font-bold text-sm mb-1 text-gray-700 dark:text-gray-300">Video Canvas Empty</p>
-                        <p className="text-xs text-gray-500 max-w-xs">
-                          Upload a short video clip or select a sample preset in the left panel to play and trim.
-                        </p>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-950/10">
+                          <div className="mb-4 text-purple-400">
+                            <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <p className="font-bold text-sm mb-1 text-gray-700 dark:text-gray-300">Video Canvas Empty</p>
+                          <p className="text-xs text-gray-500 max-w-xs">
+                            Upload a short video clip or select a sample preset in the left panel to play and trim.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bottom Section: Timeline & Playback Panel */}
+                    {videoUrl && (
+                      <div className="bg-zinc-900 border-t border-zinc-850 p-3 space-y-3 z-30">
+                        {/* Control bar */}
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const video = videoPlayerRef.current;
+                                if (!video) return;
+                                if (video.paused) video.play().catch(() => {});
+                                else video.pause();
+                              }}
+                              className="w-8 h-8 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center font-bold text-xs transition active:scale-95"
+                              title="Play / Pause"
+                            >
+                              {videoPlayerRef.current && !videoPlayerRef.current.paused ? "⏸" : "▶"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const video = videoPlayerRef.current;
+                                if (!video) return;
+                                video.pause();
+                                video.currentTime = videoTrimStart;
+                              }}
+                              className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-750 text-zinc-300 flex items-center justify-center font-bold text-[10px] transition active:scale-95"
+                              title="Stop & Reset"
+                            >
+                              ⏹
+                            </button>
+                            <span className="text-[11px] font-mono text-zinc-400">
+                              {formatTime(videoCurrentTime)} / {formatTime(videoDuration)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleAddCaptionAtCurrentTime}
+                              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-purple-650 text-white font-bold text-[10px] transition flex items-center gap-1 border border-zinc-700 hover:border-purple-500 active:scale-95"
+                            >
+                              <span>➕</span>
+                              <span>Add Subtitle at Playhead</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Interactive Tracks Panel */}
+                        <div 
+                          ref={timelineTrackRef}
+                          className="relative h-20 bg-zinc-950 rounded-lg border border-zinc-800 overflow-hidden cursor-crosshair"
+                          onClick={(e) => {
+                            if (e.target.closest(".no-snap")) return;
+                            const rect = timelineTrackRef.current.getBoundingClientRect();
+                            const pct = (e.clientX - rect.left) / rect.width;
+                            const targetTime = pct * videoDuration;
+                            if (videoPlayerRef.current) {
+                              videoPlayerRef.current.currentTime = targetTime;
+                              setVideoCurrentTime(targetTime);
+                            }
+                          }}
+                        >
+                          {/* Visual Waveform Mock Background Track */}
+                          <div className="absolute inset-x-0 top-2 h-4 flex items-center justify-around opacity-15 pointer-events-none">
+                            {Array.from({ length: 48 }).map((_, i) => (
+                              <div 
+                                key={i} 
+                                className="w-[2px] bg-purple-500 rounded-full" 
+                                style={{ height: `${20 + Math.sin(i * 0.5) * 80}%` }}
+                              />
+                            ))}
+                          </div>
+
+                          {/* Video Trim Highlight Range */}
+                          <div 
+                            className="absolute top-1 bottom-1 bg-purple-500/10 border-l border-r border-purple-500/40"
+                            style={{
+                              left: `${(videoTrimStart / videoDuration) * 100}%`,
+                              width: `${((videoTrimEnd - videoTrimStart) / videoDuration) * 100}%`
+                            }}
+                          />
+
+                          {/* Captions Capsule Track */}
+                          <div className="absolute inset-x-0 bottom-2 h-7 border-t border-zinc-900/50 flex items-center">
+                            {videoCaptions
+                              .split("\n")
+                              .map((line, idx) => {
+                                const match = line.match(/^(\d+):(\d+)\s*[–\-]\s*(.+)$/);
+                                if (!match) return null;
+                                const startTime = parseInt(match[1]) * 60 + parseInt(match[2]);
+                                
+                                const nextLine = videoCaptions.split("\n")[idx + 1];
+                                const nextMatch = nextLine ? nextLine.match(/^(\d+):(\d+)\s*[–\-]\s*(.+)$/) : null;
+                                const endTime = nextMatch ? (parseInt(nextMatch[1]) * 60 + parseInt(nextMatch[2])) : videoDuration;
+                                const capEnd = Math.min(endTime, startTime + 4.5);
+
+                                const leftPct = (startTime / videoDuration) * 100;
+                                const widthPct = ((capEnd - startTime) / videoDuration) * 100;
+
+                                return (
+                                  <div
+                                    key={idx}
+                                    className="no-snap absolute h-5 bg-purple-650/40 hover:bg-purple-650/60 border border-purple-500/50 rounded px-1.5 flex items-center justify-between text-[9px] text-white font-bold select-none cursor-pointer truncate max-w-full"
+                                    style={{
+                                      left: `${leftPct}%`,
+                                      width: `${widthPct}%`
+                                    }}
+                                    title={match[3]}
+                                    onClick={() => handleEditCaptionText(idx)}
+                                  >
+                                    <span className="truncate mr-1">{match[3]}</span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteCaptionIndex(idx);
+                                      }}
+                                      className="hover:text-red-400 font-bold ml-1 text-[8px]"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                );
+                              })
+                            }
+                          </div>
+
+                          {/* Trim Start Handle */}
+                          <div 
+                            className="no-snap absolute top-0 bottom-0 w-2.5 bg-purple-600 hover:bg-purple-500 cursor-ew-resize flex items-center justify-center border-r border-black/40 shadow-md"
+                            style={{ left: `${(videoTrimStart / videoDuration) * 100}%` }}
+                            onMouseDown={(e) => handleTimelineMouseDown(e, "start")}
+                          >
+                            <div className="w-[1px] h-3 bg-white/50" />
+                          </div>
+
+                          {/* Trim End Handle */}
+                          <div 
+                            className="no-snap absolute top-0 bottom-0 w-2.5 bg-purple-600 hover:bg-purple-500 cursor-ew-resize flex items-center justify-center border-l border-black/40 shadow-md"
+                            style={{ left: `${(videoTrimEnd / videoDuration) * 100}%`, transform: 'translateX(-100%)' }}
+                            onMouseDown={(e) => handleTimelineMouseDown(e, "end")}
+                          >
+                            <div className="w-[1px] h-3 bg-white/50" />
+                          </div>
+
+                          {/* Red Playhead line */}
+                          <div 
+                            className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-10 pointer-events-none"
+                            style={{ left: `${(videoCurrentTime / videoDuration) * 100}%` }}
+                          >
+                            <div className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-red-500 rotate-45 rounded-sm" />
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
