@@ -317,23 +317,27 @@ export default function MemeStoryDetail() {
         </button>
 
         {/* ── Hero image ──────────────────────────────────────────────────────── */}
-        {story.thumbnail_url ? (
-          <div className="w-full rounded-2xl overflow-hidden border border-amber-200/50 dark:border-amber-800/30 shadow-2xl shadow-amber-500/10">
-            <img
-              src={story.thumbnail_url}
-              alt={story.title}
-              className="w-full object-cover max-h-[520px]"
-              style={{ objectPosition: "center" }}
-            />
-          </div>
-        ) : (
-          <div className="w-full h-60 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-950/30 dark:to-zinc-900 border border-amber-200/50 dark:border-amber-800/30 flex flex-col items-center justify-center gap-3 shadow-lg">
-            <BookOpen className="w-16 h-16 text-amber-400/50" />
-            {story.meme_name && (
-              <span className="text-sm font-bold text-amber-600/70 dark:text-amber-400/60">🎭 {story.meme_name}</span>
-            )}
-          </div>
-        )}
+        {(() => {
+          const heroUrl = story.thumbnail_url || template?.media_url || null;
+          const heroAlt = story.thumbnail_url ? story.title : (template?.title || story.meme_name || story.title);
+          return heroUrl ? (
+            <div className="w-full rounded-2xl overflow-hidden border border-amber-200/50 dark:border-amber-800/30 shadow-2xl shadow-amber-500/10 bg-amber-50/30 dark:bg-zinc-900 flex items-center justify-center">
+              <img
+                src={heroUrl}
+                alt={heroAlt}
+                className="w-full object-contain"
+                style={{ maxHeight: '520px' }}
+              />
+            </div>
+          ) : (
+            <div className="w-full h-60 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-950/30 dark:to-zinc-900 border border-amber-200/50 dark:border-amber-800/30 flex flex-col items-center justify-center gap-3 shadow-lg">
+              <BookOpen className="w-16 h-16 text-amber-400/50" />
+              {story.meme_name && (
+                <span className="text-sm font-bold text-amber-600/70 dark:text-amber-400/60">🎭 {story.meme_name}</span>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── Title + meta header ─────────────────────────────────────────────── */}
         <div className="space-y-3">
@@ -465,16 +469,18 @@ export default function MemeStoryDetail() {
               <Puzzle className="w-4 h-4" />
               Original Meme Template
             </h3>
-            <div className="flex items-center gap-4">
-              {template.media_url ? (
+            {/* Large full-width template image */}
+            {template.media_url && (
+              <div className="w-full rounded-xl overflow-hidden border border-purple-200 dark:border-purple-800 mb-4 bg-white dark:bg-zinc-900 flex items-center justify-center">
                 <img
                   src={template.media_url}
                   alt={template.title}
-                  className="w-20 h-20 rounded-xl object-cover border border-purple-200 dark:border-purple-800 shadow-sm"
+                  className="w-full object-contain"
+                  style={{ maxHeight: '420px' }}
                 />
-              ) : (
-                <div className="w-20 h-20 rounded-xl bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-400 text-2xl">🧩</div>
-              )}
+              </div>
+            )}
+            <div className="flex items-center gap-4">
               <div className="flex-grow">
                 <h4 className="font-extrabold text-gray-900 dark:text-white text-base leading-snug">{template.title}</h4>
                 <p className="text-xs text-gray-400 capitalize mt-0.5">Format: {template.format || "image"}</p>

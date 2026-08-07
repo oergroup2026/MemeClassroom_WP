@@ -43,6 +43,7 @@ import {
   FolderOpen
 } from "lucide-react";
 
+
 const MILESTONES = [0, 1, 5, 10, 25, 50];
 const LEVEL_NAMES = ["None", "Bronze", "Silver", "Gold", "Platinum", "Diamond"];
 
@@ -97,7 +98,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const toast = useToast();
 
-  // Tab selections: "my-memes" | "my-drafts" | "bookmarks"
+  // Tab selections: "my-memes" | "my-drafts" | "bookmarks" | "my-resources" | "saved-resources"
   const [activeTab, setActiveTab] = useState("my-memes");
 
   // User Stats & Badges states
@@ -161,6 +162,10 @@ const Profile = () => {
   const [myMemes, setMyMemes] = useState([]);
   const [myDrafts, setMyDrafts] = useState([]);
   const [bookmarkedMemes, setBookmarkedMemes] = useState([]);
+
+  // Resource Lists
+  const [myResources, setMyResources] = useState([]);
+  const [savedResources, setSavedResources] = useState([]);
 
   // Cache to resolve creator usernames on bookmark cards
   const [creatorCache, setCreatorCache] = useState({});
@@ -269,6 +274,47 @@ const Profile = () => {
     });
 
     return () => unsubscribeSaves();
+  }, [user]);
+
+  // Fetch User's Uploaded Resources
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "resources"), where("author_id", "==", user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list = [];
+      snapshot.forEach((d) => list.push({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
+      setMyResources(list);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Fetch User's Saved (Bookmarked) Resources
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, "saves"),
+      where("user_id", "==", user.uid),
+      where("content_type", "==", "resource")
+    );
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const list = [];
+      for (const d of snapshot.docs) {
+        const resourceId = d.data().resource_id;
+        if (!resourceId) continue;
+        try {
+          const resDoc = await getDoc(doc(db, "resources", resourceId));
+          if (resDoc.exists()) {
+            list.push({ id: resDoc.id, saveId: d.id, ...resDoc.data() });
+          }
+        } catch (e) {
+          console.error("Failed loading saved resource", e);
+        }
+      }
+      list.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
+      setSavedResources(list);
+    });
+    return () => unsubscribe();
   }, [user]);
 
   // Fetch user's earned badges
@@ -722,6 +768,155 @@ const Profile = () => {
     );
   };
 
+  // Render resource cards for My Resources / Saved Resources tabs
+  const renderResourceGrid = (items, isSavedTab = false) => {
+    const typeLabels = {
+      article: "Article",
+      research_paper: "Research Paper",
+      activity: "Activity",
+      course: "Course",
+      stories: "Meme Story",
+      other: "Other Tool",
+    };
+    const typeBadgeColors = {
+      article: "bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300",
+      research_paper: "bg-cyan-50 dark:bg-cyan-950/20 text-cyan-700 dark:text-cyan-300",
+      activity: "bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300",
+      course: "bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300",
+      stories: "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300",
+      other: "bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300",
+    };
+
+    if (items.length === 0) {
+      return (
+        <div className={`p-12 text-center flex flex-col items-center justify-center ${containerClass}`}>
+          <div className="relative w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+            <div className="absolute inset-0 bg-indigo-50 dark:bg-indigo-950/20 rounded-full scale-75 animate-pulse" />
+            <FileText className="w-12 h-12 text-indigo-400 dark:text-indigo-500 relative z-10" />
+          </div>
+          <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No resources yet</h4>
+          <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mb-6 leading-relaxed">
+            {isSavedTab
+              ? "You haven't bookmarked any resources. Explore Meme Reads and save resources that interest you."
+              : "You haven't contributed any resources yet. Share articles, lesson plans, or activities with the community."}
+          </p>
+          <button
+            onClick={() => navigate("/resources")}
+            className="bg-indigo-600 hover:bg-indigo-750 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-md shadow-indigo-600/10"
+          >
+            {isSavedTab ? "Browse Meme Reads" : "Go to Meme Reads"} <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      );
+    }
+
+    const handleRemoveSavedResource = async (saveId) => {
+      try {
+        await deleteDoc(doc(db, "saves", saveId));
+        toast("Resource removed from saved.", "success");
+      } catch (e) {
+        console.error("Failed to remove saved resource", e);
+        toast("Failed to remove. Please try again.", "error");
+      }
+    };
+
+    const handleDeleteResource = async (resourceId) => {
+      if (!window.confirm("Delete this resource? This cannot be undone.")) return;
+      try {
+        await deleteDoc(doc(db, "resources", resourceId));
+        toast("Resource deleted.", "success");
+      } catch (e) {
+        console.error("Failed to delete resource", e);
+        toast("Failed to delete. Please try again.", "error");
+      }
+    };
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map((res) => {
+          const typeLabel = typeLabels[res.type] || "Resource";
+          const badgeColor = typeBadgeColors[res.type] || "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400";
+          const createdDate = res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : "";
+          return (
+            <div key={res.id} className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              {/* Header Bar */}
+              <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 border-b border-gray-100 dark:border-zinc-800/60 bg-gray-50/50 dark:bg-zinc-900/50">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${badgeColor}`}>
+                    {typeLabel}
+                  </span>
+                  {res.subject && (
+                    <span className="text-[9px] font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full truncate">
+                      {res.subject}
+                    </span>
+                  )}
+                </div>
+                {!res.admin_approved ? (
+                  <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full flex-shrink-0">
+                    <Clock className="w-2.5 h-2.5" /> Pending
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-gray-400 flex-shrink-0">{createdDate}</span>
+                )}
+              </div>
+
+              {/* Main Body */}
+              <div className="p-4 flex-grow flex flex-col justify-between space-y-3">
+                <div>
+                  <h4 className="font-extrabold text-sm mb-1.5 text-gray-900 dark:text-white line-clamp-2 leading-snug">{res.title}</h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed mb-2">{res.body}</p>
+
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    {res.grade_group && (
+                      <span className="text-[9px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 px-2 py-0.5 rounded-full">
+                        🎓 {res.grade_group}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer Action Bar */}
+                <div className="pt-2.5 border-t border-gray-100 dark:border-zinc-800/80 flex items-center justify-between text-xs font-semibold">
+                  <div className="flex items-center gap-2">
+                    {res.likes_count > 0 && (
+                      <span className="flex items-center gap-1 text-[10px] text-rose-500 font-bold">
+                        <Heart className="w-3 h-3 fill-current" /> {res.likes_count}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <button
+                      onClick={() => navigate("/resources")}
+                      className="text-indigo-600 dark:text-indigo-400 hover:underline font-bold text-[11px]"
+                    >
+                      View
+                    </button>
+                    {isSavedTab && (
+                      <button
+                        onClick={() => handleRemoveSavedResource(res.saveId)}
+                        className="text-red-500 hover:underline text-[11px] font-semibold"
+                      >
+                        Unsave
+                      </button>
+                    )}
+                    {!isSavedTab && user && res.author_id === user.uid && (
+                      <button
+                        onClick={() => handleDeleteResource(res.id)}
+                        className="text-red-500 hover:underline text-[11px] font-semibold"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8">
 
@@ -922,7 +1117,7 @@ const Profile = () => {
       </div>
 
       {/* 4. Portfolio folder tab selector */}
-      <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-800 pb-2">
+      <div className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-800 pb-2">
         <button
           onClick={() => setActiveTab("my-memes")}
           className={`px-4 py-2 text-sm font-bold border-b-2 transition ${activeTab === "my-memes"
@@ -950,6 +1145,24 @@ const Profile = () => {
         >
           My Bookmarked Memes ({bookmarkedMemes.length})
         </button>
+        <button
+          onClick={() => setActiveTab("my-resources")}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition ${activeTab === "my-resources"
+            ? "border-purple-600 text-purple-600 dark:text-purple-400"
+            : "border-transparent text-gray-400 hover:text-gray-500"
+            }`}
+        >
+          My Resources ({myResources.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("saved-resources")}
+          className={`px-4 py-2 text-sm font-bold border-b-2 transition ${activeTab === "saved-resources"
+            ? "border-purple-600 text-purple-600 dark:text-purple-400"
+            : "border-transparent text-gray-400 hover:text-gray-500"
+            }`}
+        >
+          Saved Resources ({savedResources.length})
+        </button>
       </div>
 
       {/* 5. Render Tab contents */}
@@ -957,6 +1170,8 @@ const Profile = () => {
         {activeTab === "my-memes" && renderCardGrid(myMemes)}
         {activeTab === "my-drafts" && renderCardGrid(myDrafts)}
         {activeTab === "bookmarks" && renderCardGrid(bookmarkedMemes, true)}
+        {activeTab === "my-resources" && renderResourceGrid(myResources)}
+        {activeTab === "saved-resources" && renderResourceGrid(savedResources, true)}
       </div>
 
       {/* Avatar Picker Modal */}

@@ -22,6 +22,7 @@ import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star } from "lucide-r
 import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 
 const Admin = () => {
   const { user, profile } = useAuth();
@@ -122,9 +123,11 @@ const Admin = () => {
   const [newTaxSubject, setNewTaxSubject] = useState("");
   const [newTaxGrade, setNewTaxGrade] = useState("");
   const [newTaxLanguage, setNewTaxLanguage] = useState("");
+  const [newTaxToolSection, setNewTaxToolSection] = useState("");
   const [taxSubjectSearch, setTaxSubjectSearch] = useState("");
   const [taxGradeSearch, setTaxGradeSearch] = useState("");
   const [taxLangSearch, setTaxLangSearch] = useState("");
+  const [taxSectionSearch, setTaxSectionSearch] = useState("");
 
   const [loadingAction, setLoadingAction] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -825,6 +828,37 @@ const Admin = () => {
       const updated = currentLanguages.filter(item => item !== lang);
       await setDoc(doc(db, "configs", "taxonomy"), { ...taxonomy, languages: updated }, { merge: true });
       triggerAlert(`Removed language ${lang} from configuration catalogs.`);
+    } catch (e) {
+      triggerAlert(e.message || "Removal failed.", "error");
+    }
+  };
+
+  const handleAddToolSection = async (e) => {
+    e.preventDefault();
+    if (profile.role !== "admin" || !newTaxToolSection.trim()) return;
+    const cleanSection = newTaxToolSection.trim();
+    try {
+      const currentSections = taxonomy.tool_sections || DEFAULT_TOOL_SECTIONS;
+      if (currentSections.includes(cleanSection)) {
+        triggerAlert("Section already exists in list.", "error");
+        return;
+      }
+      const updated = [...currentSections, cleanSection];
+      await setDoc(doc(db, "configs", "taxonomy"), { ...taxonomy, tool_sections: updated }, { merge: true });
+      setNewTaxToolSection("");
+      triggerAlert(`Added tool section "${cleanSection}" to catalogs.`);
+    } catch (e) {
+      triggerAlert(e.message || "Failed to update tool sections.", "error");
+    }
+  };
+
+  const handleRemoveToolSection = async (sectionName) => {
+    if (profile.role !== "admin") return;
+    try {
+      const currentSections = taxonomy.tool_sections || DEFAULT_TOOL_SECTIONS;
+      const updated = currentSections.filter(item => item !== sectionName);
+      await setDoc(doc(db, "configs", "taxonomy"), { ...taxonomy, tool_sections: updated }, { merge: true });
+      triggerAlert(`Removed section "${sectionName}" from catalogs.`);
     } catch (e) {
       triggerAlert(e.message || "Removal failed.", "error");
     }
@@ -2727,6 +2761,51 @@ const Admin = () => {
                           ✕
                         </button>
                       )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Additional Tool Sections configuration list */}
+            <div className={`p-6 ${containerClass} space-y-4`}>
+              <h3 className="text-sm font-extrabold mb-2 border-b pb-2 uppercase text-gray-400">
+                Additional Tool Sections & Categories
+              </h3>
+
+              <form onSubmit={handleAddToolSection} className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newTaxToolSection}
+                  onChange={e => setNewTaxToolSection(e.target.value)}
+                  className={inputClass}
+                  placeholder="Add tool section..."
+                />
+                <button type="submit" className={btnClass("purple")}>
+                  Add
+                </button>
+              </form>
+
+              {/* Section Search Bar */}
+              <input
+                type="text"
+                placeholder="🔍 Search tool sections..."
+                value={taxSectionSearch}
+                onChange={e => setTaxSectionSearch(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-xs"
+              />
+
+              <div className="space-y-2 max-h-60 overflow-y-auto pt-2">
+                {(taxonomy.tool_sections || DEFAULT_TOOL_SECTIONS)
+                  .filter(sec => sec.toLowerCase().includes(taxSectionSearch.toLowerCase()))
+                  .map(sec => (
+                    <div key={sec} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-150 dark:border-gray-800 text-xs">
+                      <span className="font-semibold">{sec}</span>
+                      <button
+                        onClick={() => handleRemoveToolSection(sec)}
+                        className="text-red-500 hover:text-red-700 font-bold"
+                      >
+                        ✕
+                      </button>
                     </div>
                   ))}
               </div>

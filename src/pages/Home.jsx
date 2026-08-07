@@ -62,19 +62,21 @@ const FEATURE_CARDS = [
 
 const Home = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState({ memes: null, users: null });
+  const [stats, setStats] = useState({ memes: null, users: null, resources: null });
 
   // Fetch real counts from Firestore
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [memesSnap, usersSnap] = await Promise.all([
+        const [memesSnap, usersSnap, resourcesSnap] = await Promise.all([
           getCountFromServer(query(collection(db, "memes"), where("visibility", "==", "public"))),
           getCountFromServer(collection(db, "users")),
+          getCountFromServer(collection(db, "resources")),
         ]);
         setStats({
           memes: memesSnap.data().count,
           users: usersSnap.data().count,
+          resources: resourcesSnap.data().count,
         });
       } catch (err) {
         // silently ignore — stats stay null (show "—")
@@ -153,8 +155,8 @@ const Home = () => {
           <div className="text-[10px] text-gray-400 uppercase tracking-widest mt-1 font-bold">Members</div>
         </div>
         <div>
-          <div className="text-3xl font-extrabold text-purple-600">4</div>
-          <div className="text-[10px] text-gray-400 uppercase tracking-widest mt-1 font-bold">Meme Formats</div>
+          <div className="text-3xl font-extrabold text-purple-600 tabular-nums">{fmt(stats.resources)}</div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-widest mt-1 font-bold">Resources</div>
         </div>
         <div>
           <div className="text-3xl font-extrabold text-purple-600">Open</div>

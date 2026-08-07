@@ -40,3 +40,9 @@ export const RESOURCE_TYPES = [
   { value: "stories", label: "Meme Story" },
   { value: "other", label: "Other Tool" }
 ];
+
+export const DEFAULT_TOOL_SECTIONS = [
+  "Meme Related Tools",
+  "Media Literacy",
+  "Other Open Educational Resources"
+];
