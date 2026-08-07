@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Clock, Search, BookOpen, Image, Heart, Share2, Bookmark, Flag as FlagIcon, MessageSquare } from "lucide-react";
+import { Clock, Search, BookOpen, Image, Heart, Eye, Share2, Bookmark, Flag as FlagIcon, MessageSquare } from "lucide-react";
 import {
   collection,
   query,
@@ -23,7 +23,7 @@ import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
-import { SUBJECTS, GRADE_GROUPS, RESOURCE_TYPES } from "../constants/taxonomy";
+import { SUBJECTS, GRADE_GROUPS, RESOURCE_TYPES, DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 12;
@@ -59,28 +59,27 @@ const trackCustomSubmission = async (type, name) => {
   try {
     await runTransaction(db, async (transaction) => {
       const counterSnap = await transaction.get(counterRef);
+      const taxSnap = await transaction.get(taxRef);
+
       let count = 1;
       if (counterSnap.exists()) {
         count = (counterSnap.data().count || 0) + 1;
       }
       transaction.set(counterRef, { name: cleanName, count, type }, { merge: true });
 
-      if (count >= 10) {
-        const taxSnap = await transaction.get(taxRef);
-        if (taxSnap.exists()) {
-          const taxData = taxSnap.data();
-          if (type === "subject") {
-            const subjects = taxData.subjects || [];
-            const exists = subjects.some(s => s.toLowerCase() === cleanName.toLowerCase());
-            if (!exists) {
-              const otherIdx = subjects.indexOf("Other");
-              if (otherIdx !== -1) {
-                subjects.splice(otherIdx, 0, cleanName);
-              } else {
-                subjects.push(cleanName);
-              }
-              transaction.update(taxRef, { subjects });
+      if (count >= 10 && taxSnap.exists()) {
+        const taxData = taxSnap.data();
+        if (type === "subject") {
+          const subjects = taxData.subjects || [];
+          const exists = subjects.some(s => s.toLowerCase() === cleanName.toLowerCase());
+          if (!exists) {
+            const otherIdx = subjects.indexOf("Other");
+            if (otherIdx !== -1) {
+              subjects.splice(otherIdx, 0, cleanName);
+            } else {
+              subjects.push(cleanName);
             }
+            transaction.update(taxRef, { subjects });
           }
         }
       }
@@ -165,12 +164,24 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, act
         )}
 
         <div className="px-6 py-5 space-y-5">
-          {/* Thumbnail */}
-          {res.thumbnail_url && (
-            <div className="w-full aspect-[16/9] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-              <img src={res.thumbnail_url} alt={res.title} className="w-full h-full object-cover" />
+          {/* Thumbnail / Template Hero Image */}
+          {res.thumbnail_url ? (
+            <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-900 flex items-center justify-center">
+              <img
+                src={res.thumbnail_url}
+                alt={res.title}
+                className="w-full object-contain max-h-[360px]"
+              />
             </div>
-          )}
+          ) : (isStory && activeTemplate?.media_url) ? (
+            <div className="w-full rounded-xl overflow-hidden border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/50 dark:bg-zinc-900 flex items-center justify-center">
+              <img
+                src={activeTemplate.media_url}
+                alt={activeTemplate.title || res.meme_name || res.title}
+                className="w-full object-contain max-h-[360px]"
+              />
+            </div>
+          ) : null}
 
           {/* Author + Meta */}
           <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
@@ -238,22 +249,21 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, act
           {/* Associated Template Details */}
           {activeTemplate && (
             <div className="bg-purple-50/50 dark:bg-purple-950/10 border border-purple-100/70 dark:border-purple-900/40 rounded-xl p-4 text-xs font-semibold">
-              <span className="block uppercase tracking-wider text-purple-700 dark:text-purple-400 text-[10px] mb-2 font-extrabold">
+              <span className="block uppercase tracking-wider text-purple-700 dark:text-purple-400 text-[10px] mb-3 font-extrabold">
                 Original Meme Template
               </span>
-              <div className="flex items-center space-x-4">
-                {activeTemplate.media_url ? (
+              {/* Large template image preview */}
+              {activeTemplate.media_url && (
+                <div className="w-full rounded-lg overflow-hidden border border-purple-200 dark:border-purple-800 mb-3 bg-purple-50 dark:bg-zinc-900 flex items-center justify-center">
                   <img
                     src={activeTemplate.media_url}
                     alt={activeTemplate.title}
-                    className="w-14 h-14 rounded-lg object-cover border border-purple-200 dark:border-purple-800"
+                    className="w-full object-contain max-h-[300px]"
                   />
-                ) : (
-                  <div className="w-14 h-14 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-500 font-bold text-xl">
-                    🧩
-                  </div>
-                )}
-                <div className="flex-grow">
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-4">
+                <div>
                   <h4 className="font-extrabold text-gray-800 dark:text-gray-200 text-sm leading-tight">{activeTemplate.title}</h4>
                   <p className="text-gray-500 dark:text-gray-400 text-[10px] capitalize mt-0.5">Format: {activeTemplate.format || "image"}</p>
                 </div>
@@ -263,7 +273,7 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, act
                     onClose();
                     navigate(`/lab?templateId=${activeTemplate.id}&templateUrl=${encodeURIComponent(activeTemplate.media_url)}&format=${activeTemplate.format || "image"}`);
                   }}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-3 rounded-lg text-[10px] transition shadow-sm"
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-3 rounded-lg text-[10px] transition shadow-sm flex-shrink-0"
                 >
                   Remix Template
                 </button>
@@ -409,6 +419,7 @@ const Resources = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // ── Modals & UI
+  const [showFilters, setShowFilters] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [editingResource, setEditingResource] = useState(null); // null = create mode; resource obj = edit mode
   const [detailResource, setDetailResource] = useState(null);
@@ -443,6 +454,8 @@ const Resources = () => {
   const [extDescription, setExtDescription] = useState("");
   const [extImageUrl, setExtImageUrl] = useState("");
   const [extDestUrl, setExtDestUrl] = useState("");
+  const [extSection, setExtSection] = useState("Meme Related Tools");
+  const [toolSections, setToolSections] = useState(DEFAULT_TOOL_SECTIONS);
   const [extLoading, setExtLoading] = useState(false);
   const [extError, setExtError] = useState("");
 
@@ -520,6 +533,9 @@ const Resources = () => {
         if (data.grades?.length) {
           const hasOldGrades = data.grades.some(g => ["10-12", "13-15", "16-18", "University"].includes(g));
           setGradeGroups(hasOldGrades ? GRADE_GROUPS : data.grades);
+        }
+        if (data.tool_sections?.length) {
+          setToolSections(data.tool_sections);
         }
       }
     }, (error) => {
@@ -707,13 +723,9 @@ const Resources = () => {
     let result = [...resources];
 
     // Tab filter
-    if (activeTab === "saved") {
-      result = result.filter((r) => !!savedResourcesMap[r.id]);
-    } else if (activeTab === "mine") {
-      result = result.filter((r) => r.author_id === user?.uid);
-    } else if (activeTab === "article_paper") {
+    if (activeTab === "article_paper") {
       result = result.filter((r) => r.type === "article" || r.type === "research_paper");
-    } else if (activeTab !== "all" && activeTab !== "external") {
+    } else if (activeTab !== "all" && activeTab !== "additional") {
       result = result.filter((r) => r.type === activeTab);
     }
 
@@ -970,6 +982,7 @@ const Resources = () => {
         const statsDocRef = doc(db, "user_stats", user.uid);
 
         await runTransaction(db, async (transaction) => {
+          const statsSnap = await transaction.get(statsDocRef);
           const newDocRef = doc(resColRef);
           const resourceData = {
             title: uploadTitle.trim(),
@@ -999,8 +1012,6 @@ const Resources = () => {
             resourceData.example_images = uploadExampleImages.map(u => u.trim()).filter(Boolean);
           }
           transaction.set(newDocRef, resourceData);
-          // Try updating stats; ignore if doc doesn't exist yet
-          const statsSnap = await transaction.get(statsDocRef);
           if (statsSnap.exists()) {
             transaction.update(statsDocRef, { resources_contributed_count: increment(1) });
           } else {
@@ -1038,12 +1049,13 @@ const Resources = () => {
         description: extDescription,
         image_url: extImageUrl || "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=400&q=80",
         destination_url: extDestUrl,
+        section: extSection || "Meme Related Tools",
         contributor_id: user.uid,
         admin_approved: false,
         created_at: serverTimestamp()
       });
       setShowExternalModal(false);
-      setExtTitle(""); setExtDescription(""); setExtImageUrl(""); setExtDestUrl("");
+      setExtTitle(""); setExtDescription(""); setExtImageUrl(""); setExtDestUrl(""); setExtSection("Meme Related Tools");
       showToast("External resource added! Pending admin review.", "success");
     } catch (err) {
       console.error(err); setExtError("Failed to add resource. Try again.");
@@ -1090,12 +1102,7 @@ const Resources = () => {
     { id: "activity", label: "Activities" },
     { id: "course", label: "Courses" },
     { id: "stories", label: "Meme Stories" },
-    { id: "other", label: "Other Tools" },
-    { id: "external", label: "🌐 External Platforms" },
-    ...(user ? [
-      { id: "saved", label: "📥 My Saved" },
-      { id: "mine", label: "📤 My Uploads" }
-    ] : [])
+    { id: "additional", label: "🔧 Additional Tools" },
   ];
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -1147,16 +1154,16 @@ const Resources = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-gray-800 pb-5">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">
-            {activeTab === "external" ? "Open Education Resources" : "Meme Resources"}
+            {activeTab === "additional" ? "Additional Tools & External Platforms" : "Meme Resources"}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            {activeTab === "external"
-              ? "Curated external OER platforms, pedagogical tools, and teaching resources."
+            {activeTab === "additional"
+              ? "Other tools, curated external OER platforms, pedagogical tools, and teaching resources."
               : "Access curriculum activities, lesson cards, research papers, and stories. No login needed to browse."}
           </p>
         </div>
         <div className="mt-4 sm:mt-0 flex gap-2">
-          {activeTab === "external" ? (
+          {activeTab === "additional" ? (
             user && (
               <button onClick={() => setShowExternalModal(true)} className={btnClass}>
                 ➕ Add External Link
@@ -1196,77 +1203,168 @@ const Resources = () => {
         ))}
       </div>
 
-      {/* ── EXTERNAL RESOURCES TAB ────────────────────────────────────────────── */}
-      {activeTab === "external" ? (
-        <div>
-          {externalLinks.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {externalLinks.map((link) => {
-                const contributorName = displayCache[link.contributor_id] || "Contributor";
-                return (
-                  <div key={link.id} className={`${containerClass} p-5 flex flex-col justify-between`}>
-                    <div>
-                      {!link.admin_approved && (
-                        <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 px-2 py-1 rounded-lg">
-                          <Clock className="w-3 h-3" /> Pending Admin Approval
-                        </div>
-                      )}
-                      <div className="w-full aspect-video rounded-lg overflow-hidden mb-4 border border-gray-200 dark:border-gray-700 bg-gray-100">
-                        <img
-                          src={link.image_url}
-                          alt={link.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=400&q=80"; }}
-                        />
-                      </div>
-                      <h3 className="font-extrabold text-sm mb-1.5 line-clamp-1">{link.title}</h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 line-clamp-2 leading-relaxed">{link.description}</p>
-                    </div>
-                    <div className="space-y-3">
-                      <a
-                        href={link.destination_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold w-full py-2.5 rounded-lg text-xs text-center block transition"
-                      >
-                        Visit Resource ↗
-                      </a>
-                      <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-[10px] text-gray-400 font-semibold">
-                        <span>Added: {link.created_at ? new Date(link.created_at.seconds * 1000).toLocaleDateString() : "Just now"}</span>
-                        <div className="flex items-center gap-2">
-                          {user && (link.contributor_id === user.uid || isAdmin) && (
-                            <button
-                              onClick={() => handleDeleteExternalLink(link.id)}
-                              className="text-red-500 hover:text-red-700 font-bold transition"
+      {/* ── ADDITIONAL TOOLS TAB (Categorized by Sections) ────────── */}
+      {activeTab === "additional" ? (
+        <div className="space-y-12">
+          {/* Header row with submit button */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-zinc-800 pb-4">
+            <div>
+              <h2 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                <span>🔧</span> Additional Tools & Resources
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Explore tools for meme creation, media literacy, and open educational resources.
+              </p>
+            </div>
+            {user && (
+              <button
+                onClick={() => setShowExternalModal(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-sm self-start sm:self-auto"
+              >
+                <span>+</span> Add Resource Link
+              </button>
+            )}
+          </div>
+
+          {/* Render Sections */}
+          {toolSections.map((secName) => {
+            const secIcon =
+              secName === "Meme Related Tools" ? "🎭" :
+              secName === "Media Literacy" ? "📰" :
+              secName === "Other Open Educational Resources" ? "📚" : "🛠️";
+
+            // Find external links for this section (default missing to "Meme Related Tools")
+            const matchingLinks = externalLinks.filter(l => {
+              const linkSec = l.section || "Meme Related Tools";
+              return linkSec === secName;
+            });
+
+            // For "Other Open Educational Resources", also include "other" type resources from DB
+            const matchingOtherResources = secName === "Other Open Educational Resources"
+              ? resources.filter(r => r.type === "other")
+              : [];
+
+            const totalItemsCount = matchingLinks.length + matchingOtherResources.length;
+
+            return (
+              <div key={secName} className="space-y-4">
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-2">
+                  <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span>{secIcon}</span> {secName}
+                    <span className="text-xs font-normal text-gray-400">({totalItemsCount})</span>
+                  </h3>
+                </div>
+
+                {totalItemsCount > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* External Links */}
+                    {matchingLinks.map((link) => {
+                      const contributorName = displayCache[link.contributor_id] || "Contributor";
+                      return (
+                        <div key={link.id} className="flex flex-col justify-between h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5">
+                          <div>
+                            {!link.admin_approved && (
+                              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-1 rounded-lg">
+                                <Clock className="w-3 h-3" /> Pending Admin Review
+                              </div>
+                            )}
+                            <div className="w-full aspect-video rounded-xl overflow-hidden mb-3.5 border border-gray-200 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-800">
+                              <img
+                                src={link.image_url}
+                                alt={link.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=400&q=80"; }}
+                              />
+                            </div>
+                            <h4 className="font-extrabold text-sm mb-1.5 line-clamp-1 text-gray-900 dark:text-white">{link.title}</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 line-clamp-2 leading-relaxed">{link.description}</p>
+                          </div>
+                          <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                            <a
+                              href={link.destination_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold w-full py-2 rounded-xl text-xs text-center block transition shadow-sm"
                             >
-                              Delete
-                            </button>
-                          )}
-                          <button
-                            onClick={() => { if (link.contributor_id) openUserModal(link.contributor_id); }}
-                            className="text-purple-600 hover:underline capitalize"
-                          >
-                            By {contributorName}
-                          </button>
+                              Visit Tool ↗
+                            </a>
+                            <div className="flex items-center justify-between text-[10px] text-gray-400 font-medium">
+                              <span>Added: {link.created_at ? new Date(link.created_at.seconds * 1000).toLocaleDateString() : "Just now"}</span>
+                              <div className="flex items-center gap-2">
+                                {user && (link.contributor_id === user.uid || isAdmin) && (
+                                  <button
+                                    onClick={() => handleDeleteExternalLink(link.id)}
+                                    className="text-red-500 hover:text-red-700 font-bold transition"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => { if (link.contributor_id) openUserModal(link.contributor_id); }}
+                                  className="text-purple-600 dark:text-purple-400 hover:underline capitalize font-semibold"
+                                >
+                                  By {contributorName}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      );
+                    })}
+
+                    {/* Other Resources */}
+                    {matchingOtherResources.map((res) => {
+                      const isBookmarked = !!savedResourcesMap[res.id];
+                      return (
+                        <div key={res.id} className="flex flex-col justify-between h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5">
+                          <div>
+                            <h4 className="font-extrabold text-sm mb-1.5 line-clamp-2 text-gray-900 dark:text-white">{res.title}</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-3 leading-relaxed">{res.body}</p>
+                            {res.subject && (
+                              <span className="bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 text-[9px] px-2 py-0.5 rounded-full font-bold">
+                                {res.subject}
+                              </span>
+                            )}
+                          </div>
+                          <div className="pt-3 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between mt-3 text-xs">
+                            <button onClick={() => setDetailResource(res)} className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">
+                              View Details →
+                            </button>
+                            {user && (
+                              <button
+                                onClick={() => handleBookmarkToggle(res.id)}
+                                className={`font-bold ${isBookmarked ? "text-purple-600" : "text-gray-400 hover:text-purple-500"}`}
+                              >
+                                {isBookmarked ? "📥 Saved" : "Save"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className={`${containerClass} p-12 text-center text-gray-500`}>
-              <p className="text-2xl mb-3">🌐</p>
-              <p className="text-sm font-medium mb-2">No external resources yet.</p>
-              {user
-                ? <button onClick={() => setShowExternalModal(true)} className={`${btnClass} mx-auto`}>Be the first to add one →</button>
-                : <a href="/auth" className="text-purple-600 text-xs font-bold hover:underline">Sign in to contribute →</a>
-              }
-            </div>
-          )}
+                ) : (
+                  <div className="p-6 rounded-2xl border border-dashed border-gray-200 dark:border-zinc-800 text-center bg-gray-50/50 dark:bg-zinc-900/30">
+                    <p className="text-xs text-gray-400 mb-2">No tools listed under "{secName}" yet.</p>
+                    {user ? (
+                      <button
+                        onClick={() => { setExtSection(secName); setShowExternalModal(true); }}
+                        className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                      >
+                        + Submit a tool for {secName}
+                      </button>
+                    ) : (
+                      <a href="/auth" className="text-xs font-bold text-purple-600 hover:underline">Sign in to contribute</a>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
+
+
         /* ── MAIN RESOURCES GRID ───────────────────────────────────────────── */
         <div>
           {/* Search bar — full width, Library-style pill */}
@@ -1299,25 +1397,56 @@ const Resources = () => {
             </button>
           </form>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Sidebar Filters */}
-            <div className={`p-5 h-fit ${containerClass}`}>
-              <h3 className="text-xs font-bold uppercase tracking-wider mb-4 border-b pb-2">Filters</h3>
-              <div className="space-y-4">
-                {/* Sort — moved here from search bar row */}
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Sort By</label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className={`${inputClass} text-xs py-1.5`}
-                  >
-                    <option value="newest">Newest</option>
-                    <option value="most_liked">Most Liked</option>
-                    <option value="most_viewed">Most Viewed</option>
-                    <option value="oldest">Oldest</option>
-                  </select>
-                </div>
+          {/* ── Horizontal Filter Bar ─────────────────────────────────────────────── */}
+          <div className="mb-5 space-y-3">
+            {/* Filter toggle row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setShowFilters((v) => !v)}
+                className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${
+                  showFilters
+                    ? "bg-purple-600 text-white border-purple-600"
+                    : "border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                }`}
+              >
+                ⚙ Filters {showFilters ? "▲" : "▼"}
+              </button>
+
+              {/* Sort inline */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+              >
+                <option value="newest">↓ Newest</option>
+                <option value="most_liked">♥ Most Liked</option>
+                <option value="most_viewed">● Most Viewed</option>
+                <option value="oldest">↑ Oldest</option>
+              </select>
+
+              {/* Active filter pills */}
+              {subjectFilter && (
+                <span className="flex items-center gap-1 bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
+                  Subject: {subjectFilter}
+                  <button onClick={() => setSubjectFilter("")} className="ml-0.5 hover:text-purple-900 font-extrabold">✕</button>
+                </span>
+              )}
+              {gradeFilter && (
+                <span className="flex items-center gap-1 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800">
+                  Grade: {gradeFilter}
+                  <button onClick={() => setGradeFilter("")} className="ml-0.5 hover:text-indigo-900 font-extrabold">✕</button>
+                </span>
+              )}
+              {(subjectFilter || gradeFilter) && (
+                <button onClick={() => { setSubjectFilter(""); setGradeFilter(""); }} className="text-[10px] font-bold text-red-500 hover:underline">
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            {/* Expandable filter panel */}
+            {showFilters && (
+              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-sm`}>
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Subject</label>
                   <input
@@ -1341,22 +1470,15 @@ const Resources = () => {
                     {gradeGroups.map((g) => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
-                {(subjectFilter || gradeFilter) && (
-                  <button
-                    onClick={() => { setSubjectFilter(""); setGradeFilter(""); }}
-                    className="text-xs text-red-500 hover:underline font-bold"
-                  >
-                    Clear Filters
-                  </button>
-                )}
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Resources Grid */}
-            <div className="lg:col-span-3">
+          {/* ── Resources Grid (3-column) ──────────────────────────────────────────── */}
+          <div>
               {paginatedResources.length > 0 ? (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {paginatedResources.map((res) => {
                       const isBookmarked = !!savedResourcesMap[res.id];
                       const isLiked = !!savedResourceLikesMap[res.id];
@@ -1365,34 +1487,29 @@ const Resources = () => {
                       const canDelete = user && (res.author_id === user.uid || isAdmin);
                       const alreadyFlagged = !!userFlagsMap[res.id];
 
-                      // ── Story Card (Library meme-card style) ────────────────
+                      // ── Story Card ─────────────────────────────────────────
                       if (res.type === "stories") {
                         return (
                           <div
                             key={res.id}
-                            className="flex flex-col h-full bg-white/45 dark:bg-zinc-900/45 backdrop-blur-sm border border-amber-200/60 dark:border-amber-800/40 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden"
+                            className="flex flex-col h-full bg-white/45 dark:bg-zinc-900/45 backdrop-blur-sm border border-amber-200/60 dark:border-amber-800/40 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
                           >
-                            {/* Card Header: avatar + author + type badge */}
-                            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-amber-100/60 dark:border-amber-900/30">
+                            {/* Header: author + badge */}
+                            <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 border-b border-amber-100/60 dark:border-amber-900/30">
                               <div
-                                className="flex items-center gap-2.5 cursor-pointer group"
+                                className="flex items-center gap-2 cursor-pointer group min-w-0"
                                 onClick={() => { if (res.author_id !== "admin") openUserModal(res.author_id); }}
                               >
-                                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0 border border-amber-200/50 dark:border-amber-800/30">
-                                  <BookOpen className="w-4 h-4 text-amber-700 dark:text-amber-300" />
+                                <div className="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0 border border-amber-200/50 dark:border-amber-800/30 text-[10px] font-extrabold text-amber-700 dark:text-amber-300">
+                                  {authorName.charAt(0).toUpperCase()}
                                 </div>
-                                <div>
-                                  <h5 className="text-[11px] font-extrabold text-gray-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition truncate max-w-[130px]">
-                                    {authorName}
-                                  </h5>
-                                  <span className="text-[9px] text-gray-400 block">
-                                    {res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : "Just now"}
-                                  </span>
-                                </div>
+                                <span className="text-[11px] font-extrabold text-gray-800 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition truncate">
+                                  {authorName}
+                                </span>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
                                 {!res.admin_approved && (
-                                  <span className="flex items-center gap-1 text-[9px] font-bold text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 px-1.5 py-0.5 rounded-full">
+                                  <span className="flex items-center gap-0.5 text-[9px] font-bold text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 px-1.5 py-0.5 rounded-full">
                                     <Clock className="w-2.5 h-2.5" /> Pending
                                   </span>
                                 )}
@@ -1402,163 +1519,97 @@ const Resources = () => {
                               </div>
                             </div>
 
-                            {/* Thumbnail — always shown, amber placeholder if missing */}
-                            <div
-                              className="relative w-full bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/20 dark:to-zinc-900 flex items-center justify-center overflow-hidden group cursor-pointer"
-                              style={{ height: '180px' }}
-                              onClick={() => navigate(`/resources/story/${res.id}`)}
-                            >
-                              {/* Hover overlay */}
-                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                                <span className="bg-white/90 dark:bg-zinc-900/90 text-gray-900 dark:text-white px-3.5 py-1.5 rounded-full text-[10px] font-bold shadow-md hover:scale-105 transition-transform">
-                                  📖 Read Story
-                                </span>
-                              </div>
-                              {res.thumbnail_url ? (
-                                <img
-                                  src={res.thumbnail_url}
-                                  alt={res.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex flex-col items-center justify-center gap-2 text-amber-400 dark:text-amber-600">
-                                  <BookOpen className="w-10 h-10 opacity-40" />
-                                  {res.meme_name && (
-                                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 px-3 text-center opacity-70">
-                                      🎭 {res.meme_name}
+                            {/* Image block */}
+                            {(() => {
+                              const previewUrl = res.thumbnail_url
+                                || (res.template_id && templates.find(t => t.id === res.template_id)?.media_url)
+                                || null;
+                              return (
+                                <div
+                                  className="relative w-full bg-gradient-to-br from-amber-50 to-amber-100 dark:from-zinc-900 dark:to-zinc-950 flex items-center justify-center overflow-hidden group cursor-pointer flex-shrink-0"
+                                  style={{ height: '170px' }}
+                                  onClick={() => navigate(`/resources/story/${res.id}`)}
+                                >
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                                    <span className="bg-white/90 dark:bg-zinc-900/90 text-gray-900 dark:text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm">
+                                      📖 Read Story
                                     </span>
+                                  </div>
+                                  {previewUrl ? (
+                                    <img
+                                      src={previewUrl}
+                                      alt={res.title}
+                                      className="w-full h-full object-contain"
+                                    />
+                                  ) : (
+                                    <div className="flex flex-col items-center justify-center gap-1.5 text-amber-400 dark:text-amber-600">
+                                      <BookOpen className="w-9 h-9 opacity-40" />
+                                      {res.meme_name && (
+                                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 px-3 text-center opacity-70">
+                                          🎭 {res.meme_name}
+                                        </span>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
-                              )}
-                            </div>
+                              );
+                            })()}
 
-                            {/* Card Body */}
-                            <div className="p-4 flex-grow flex flex-col">
-                              {/* Meme name badge */}
+                            {/* Card body */}
+                            <div className="px-4 pt-3 pb-2 flex-grow flex flex-col">
                               {res.meme_name && (
-                                <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full mb-2 border border-amber-200 dark:border-amber-700/50 self-start">
-                                  <Image className="w-3 h-3 text-amber-600 dark:text-amber-400" /> {res.meme_name}
+                                <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full mb-1.5 border border-amber-200 dark:border-amber-700/50 self-start">
+                                  <Image className="w-2.5 h-2.5" /> {res.meme_name}
                                 </span>
                               )}
-
-                              {/* Title */}
                               <button
                                 onClick={() => navigate(`/resources/story/${res.id}`)}
-                                className="font-extrabold text-sm mb-2 text-left hover:text-amber-600 dark:hover:text-amber-400 transition block w-full text-gray-900 dark:text-white leading-snug"
+                                className="font-extrabold text-sm mb-1.5 text-left hover:text-amber-600 dark:hover:text-amber-400 transition block w-full text-gray-900 dark:text-white leading-snug line-clamp-2"
                               >
                                 {res.title}
                               </button>
-
-                              {/* Story body excerpt */}
-                              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3 leading-relaxed mb-2 flex-grow">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed flex-grow">
                                 {res.body}
                               </p>
-
-                              {/* Read more */}
-                              <button
-                                onClick={() => navigate(`/resources/story/${res.id}`)}
-                                className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline self-start mb-2"
-                              >
-                                Read more →
-                              </button>
-
-                              {/* Keywords */}
-                              {res.keywords && res.keywords.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {res.keywords.slice(0, 4).map((k) => (
-                                    <button
-                                      key={k}
-                                      onClick={() => setSearchQuery(k)}
-                                      className="bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/30 text-[9px] px-1.5 py-0.5 rounded-full hover:bg-amber-100 transition"
-                                    >
-                                      #{k}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
                             </div>
 
-                            {/* Card Footer: Library-style icon action row */}
+                            {/* CTA — prominent */}
+                            <div className="px-4 pb-3 pt-1">
+                              <button
+                                onClick={() => navigate(`/resources/story/${res.id}`)}
+                                className="w-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded-xl transition shadow-sm"
+                              >
+                                📖 Read Story →
+                              </button>
+                            </div>
+
+                            {/* Footer icon bar */}
                             <div className="px-4 pb-3 pt-2 border-t border-amber-100/60 dark:border-amber-900/30">
                               <div className="flex items-center justify-between text-gray-400 dark:text-gray-500">
-
-                                {/* Like */}
                                 <button
                                   onClick={() => handleResourceLikeToggle(res.id, res.author_id)}
-                                  className={`flex items-center gap-0.5 hover:scale-110 active:scale-95 transition-all ${
-                                    isLiked ? 'text-red-500' : 'hover:text-red-500'
-                                  }`}
+                                  className={`flex items-center gap-0.5 hover:scale-110 active:scale-95 transition-all ${isLiked ? 'text-red-500' : 'hover:text-red-500'}`}
                                   title="Like"
                                 >
-                                  <Heart
-                                    className={`w-[15px] h-[15px] ${isLiked ? 'fill-current' : ''}`}
-                                    strokeWidth={1.5}
-                                  />
+                                  <Heart className={`w-[14px] h-[14px] ${isLiked ? 'fill-current' : ''}`} strokeWidth={1.5} />
                                   <span className="text-[9px] font-bold tabular-nums ml-0.5">{res.likes_count || 0}</span>
                                 </button>
-
-                                {/* View count */}
                                 {(res.view_count || 0) > 0 && (
-                                  <span className="flex items-center gap-0.5 text-[9px] font-bold text-gray-400">
-                                    👁 {res.view_count}
-                                  </span>
+                                  <span className="flex items-center gap-0.5 text-[9px] font-bold text-gray-400">👁 {res.view_count}</span>
                                 )}
-
-                                {/* Share */}
-                                <button
-                                  onClick={() => handleShareResource(res.id)}
-                                  className="hover:text-green-500 hover:scale-110 active:scale-95 transition-all"
-                                  title="Share / Copy link"
-                                >
-                                  <Share2 className="w-[15px] h-[15px]" strokeWidth={1.5} />
+                                <button onClick={() => handleShareResource(res.id)} className="hover:text-green-500 hover:scale-110 active:scale-95 transition-all" title="Share">
+                                  <Share2 className="w-[14px] h-[14px]" strokeWidth={1.5} />
                                 </button>
-
-                                {/* Bookmark / Save */}
-                                <button
-                                  onClick={() => handleBookmarkToggle(res.id)}
-                                  className={`hover:scale-110 active:scale-95 transition-all ${
-                                    isBookmarked ? 'text-amber-500' : 'hover:text-amber-500'
-                                  }`}
-                                  title={isBookmarked ? "Remove from saved" : "Save to bookmarks"}
-                                >
-                                  <Bookmark
-                                    className={`w-[15px] h-[15px] ${isBookmarked ? 'fill-current' : ''}`}
-                                    strokeWidth={1.5}
-                                  />
+                                <button onClick={() => handleBookmarkToggle(res.id)} className={`hover:scale-110 active:scale-95 transition-all ${isBookmarked ? 'text-amber-500' : 'hover:text-amber-500'}`} title={isBookmarked ? "Remove from saved" : "Save"}>
+                                  <Bookmark className={`w-[14px] h-[14px] ${isBookmarked ? 'fill-current' : ''}`} strokeWidth={1.5} />
                                 </button>
-
-                                {/* Flag */}
-                                <button
-                                  onClick={() => handleFlagResource(res.id)}
-                                  className={`hover:scale-110 active:scale-95 transition-all ${
-                                    alreadyFlagged ? 'text-orange-500' : 'hover:text-orange-400'
-                                  }`}
-                                  title={alreadyFlagged ? "Already reported" : "Report resource"}
-                                >
-                                  <FlagIcon className="w-[15px] h-[15px]" strokeWidth={1.5} />
+                                <button onClick={() => handleFlagResource(res.id)} className={`hover:scale-110 active:scale-95 transition-all ${alreadyFlagged ? 'text-orange-500' : 'hover:text-orange-400'}`} title={alreadyFlagged ? "Already reported" : "Report"}>
+                                  <FlagIcon className="w-[14px] h-[14px]" strokeWidth={1.5} />
                                 </button>
-
-                                {/* Edit / Delete (owner/admin only) */}
                                 {(canEdit || canDelete) && (
                                   <div className="flex items-center gap-1.5">
-                                    {canEdit && (
-                                      <button
-                                        onClick={() => handleOpenEditModal(res)}
-                                        className="text-gray-400 hover:text-blue-500 transition text-[10px] font-bold"
-                                        title="Edit"
-                                      >
-                                        ✏️
-                                      </button>
-                                    )}
-                                    {canDelete && (
-                                      <button
-                                        onClick={() => handleDeleteResource(res.id)}
-                                        className="text-gray-400 hover:text-red-500 transition text-[10px] font-bold"
-                                        title="Delete"
-                                      >
-                                        🗑️
-                                      </button>
-                                    )}
+                                    {canEdit && <button onClick={() => handleOpenEditModal(res)} className="text-gray-400 hover:text-blue-500 transition text-[10px]" title="Edit">✏️</button>}
+                                    {canDelete && <button onClick={() => handleDeleteResource(res.id)} className="text-gray-400 hover:text-red-500 transition text-[10px]" title="Delete">🗑️</button>}
                                   </div>
                                 )}
                               </div>
@@ -1567,185 +1618,153 @@ const Resources = () => {
                         );
                       }
 
-                      // ── Generic Resource Card (articles, activities, courses, other) ─
+                      // ── Generic Resource Card ──────────────────────────────
                       return (
                         <div
                           key={res.id}
-                          className={`p-5 flex flex-col justify-between h-full ${containerClass}`}
+                          className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
                         >
-                          <div>
-                            {/* Pending Admin Approval Badge */}
-                            {!res.admin_approved && (
-                              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 px-2 py-1 rounded-lg">
-                                <Clock className="w-3 h-3" /> Pending Admin Approval
+                          {/* Header: author + type badge */}
+                          <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 border-b border-gray-100 dark:border-zinc-800/60">
+                            <div
+                              className="flex items-center gap-2 cursor-pointer group min-w-0"
+                              onClick={() => { if (res.author_id !== "admin") openUserModal(res.author_id); }}
+                            >
+                              <div className="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center font-extrabold text-[10px] flex-shrink-0">
+                                {authorName ? authorName.charAt(0).toUpperCase() : "C"}
                               </div>
-                            )}
-
-                            {/* Author header */}
-                            <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-zinc-800 pb-3">
-                              <div className="flex items-center min-w-0">
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-xs mr-2.5 shadow-sm flex-shrink-0 bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
-                                  {authorName ? authorName.charAt(0).toUpperCase() : "C"}
-                                </div>
-                                <div className="flex-grow min-w-0">
-                                  <button
-                                    onClick={() => { if (res.author_id !== "admin") openUserModal(res.author_id); }}
-                                    className="text-xs font-bold text-gray-900 dark:text-white hover:text-purple-600 dark:hover:text-purple-400 transition text-left block leading-tight truncate"
-                                  >
-                                    {authorName}
-                                  </button>
-                                  <span className="text-[9px] text-gray-400 block leading-tight mt-0.5">Contributor</span>
-                                </div>
+                              <div className="min-w-0">
+                                <span className="text-[11px] font-extrabold text-gray-800 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition block truncate">
+                                  {authorName}
+                                </span>
+                                {(res.type === "article" || res.type === "research_paper") && res.publisher_name && (
+                                  <span className="text-[9px] text-gray-400 block truncate">{res.publisher_name}</span>
+                                )}
                               </div>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize flex-shrink-0 ml-2 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300">
-                                {res.type?.replace(/_/g, " ") || "resource"}
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {!res.admin_approved ? (
+                                <span className="flex items-center gap-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded-full">
+                                  <Clock className="w-2.5 h-2.5" /> Pending
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-gray-400">
+                                  {res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : ""}
+                                </span>
+                              )}
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/50 dark:border-purple-800/40 capitalize">
+                                {res.type === "article" ? "📄 Article" : res.type === "research_paper" ? "🔬 Paper" : res.type === "activity" ? "🎯 Activity" : res.type === "course" ? "🎓 Course" : "🛠️ Tool"}
                               </span>
                             </div>
+                          </div>
 
-                            {/* Thumbnail */}
-                            {res.thumbnail_url && (
-                              <div className="w-full aspect-[16/9] mb-3 rounded-lg overflow-hidden border border-gray-200 dark:border-zinc-800 bg-gray-50">
-                                <img src={res.thumbnail_url} alt={res.title} className="w-full h-full object-cover" />
-                              </div>
-                            )}
+                          {/* Image block */}
+                          {res.thumbnail_url && (
+                            <div
+                              onClick={() => { setDetailResource(res); handleIncrementViewCount(res.id); }}
+                              className="w-full overflow-hidden bg-gray-100 dark:bg-zinc-800 cursor-pointer group flex-shrink-0"
+                              style={{ height: '160px' }}
+                            >
+                              <img
+                                src={res.thumbnail_url}
+                                alt={res.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+                          )}
+                          {res.type === "course" && res.file_url && !res.thumbnail_url && (
+                            <div className="w-full bg-black flex-shrink-0" style={{ height: '160px' }}>
+                              <iframe src={res.file_url} title={res.title} className="w-full h-full" allowFullScreen />
+                            </div>
+                          )}
 
-                            {/* Title */}
+                          {/* Card body */}
+                          <div className="px-4 pt-3 pb-2 flex-grow flex flex-col">
                             <button
                               onClick={() => { setDetailResource(res); handleIncrementViewCount(res.id); }}
-                              className="font-extrabold text-sm mb-2 text-left hover:text-purple-600 dark:hover:text-purple-400 transition block w-full text-gray-900 dark:text-white"
+                              className="font-extrabold text-sm mb-1.5 text-left hover:text-purple-600 dark:hover:text-purple-400 transition block w-full text-gray-900 dark:text-white leading-snug line-clamp-2"
                             >
                               {res.title}
                             </button>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed flex-grow">
+                              {res.body}
+                            </p>
+                          </div>
 
-                            <p className="text-xs text-gray-500 mb-3 line-clamp-3 leading-relaxed">{res.body}</p>
-
-                            {/* Keywords */}
-                            {res.keywords && res.keywords.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mb-3">
-                                {res.keywords.map((k) => (
-                                  <button
-                                    key={k}
-                                    onClick={() => setSearchQuery(k)}
-                                    className="bg-gray-100 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 text-[9px] px-1.5 py-0.5 rounded hover:bg-purple-100 hover:text-purple-700 transition"
-                                  >
-                                    #{k}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Publication info for articles */}
-                            {(res.type === "article" || res.type === "research_paper") && (res.publication_year || res.publisher_name) && (
-                              <div className="mb-3 p-2 bg-purple-50/50 dark:bg-purple-950/10 border border-purple-100 dark:border-purple-900/50 rounded-lg text-[10px] text-purple-900 dark:text-purple-300 flex items-center space-x-1.5">
-                                <BookOpen className="w-3.5 h-3.5 text-purple-600" />
-                                <span className="font-semibold">
-                                  {res.publisher_name}{res.publication_year && ` (${res.publication_year})`}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Course embed */}
-                            {res.type === "course" && res.file_url && (
-                              <div className="w-full aspect-video rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-black mb-3">
-                                <iframe src={res.file_url} title={res.title} className="w-full h-full" allowFullScreen />
-                              </div>
+                          {/* CTA — prominent */}
+                          <div className="px-4 pb-3 pt-1">
+                            {res.file_url && res.type !== "course" ? (
+                              <a
+                                href={res.file_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={() => handleIncrementViewCount(res.id)}
+                                className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5"
+                              >
+                                {res.file_url.includes("firebasestorage.googleapis.com") ? "📄 Open PDF ↗" : "🔗 Visit ↗"}
+                              </a>
+                            ) : (
+                              <button
+                                onClick={() => { setDetailResource(res); handleIncrementViewCount(res.id); }}
+                                className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5"
+                              >
+                                View Details →
+                              </button>
                             )}
                           </div>
 
-                          {/* Card Footer */}
-                          <div className="pt-3 border-t border-gray-100 dark:border-gray-800 flex flex-col space-y-2 text-xs font-semibold">
-                            <div className="flex items-center justify-between text-gray-400 text-[10px] pb-1">
-                              <div className="flex items-center gap-2">
-                                <span>📅 {res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : "Just now"}</span>
-                                {(res.view_count || 0) > 0 && <span>👁 {res.view_count}</span>}
-                              </div>
-                              {res.file_url && res.type !== "course" && (
-                                <a
-                                  href={res.file_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  onClick={() => handleIncrementViewCount(res.id)}
-                                  className="bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-900/50 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-[10px] font-bold px-2.5 py-1 rounded-full transition flex items-center"
-                                >
-                                  {res.file_url.includes("firebasestorage.googleapis.com") ? "📄 Open PDF ↗" : "🔗 Visit ↗"}
-                                </a>
+                          {/* Footer icon toolbar */}
+                          <div className="px-4 py-2 border-t border-gray-100 dark:border-zinc-800/60 flex items-center justify-between text-gray-400 dark:text-gray-500">
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => handleResourceLikeToggle(res.id, res.author_id)}
+                                className={`flex items-center gap-1 hover:scale-105 active:scale-95 transition ${isLiked ? 'text-red-500 font-bold' : 'hover:text-red-500'}`}
+                                title="Like"
+                              >
+                                <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : ''}`} strokeWidth={1.5} />
+                                <span className="text-[10px] font-semibold tabular-nums">{res.likes_count || 0}</span>
+                              </button>
+                              {(res.view_count || 0) > 0 && (
+                                <span className="flex items-center gap-1 text-[10px] font-medium">
+                                  <Eye className="w-3.5 h-3.5" strokeWidth={1.5} /> {res.view_count}
+                                </span>
                               )}
                             </div>
+                            <div className="flex items-center gap-3">
+                              <button onClick={() => handleShareResource(res.id)} className="hover:text-green-500 hover:scale-105 active:scale-95 transition" title="Share">
+                                <Share2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+                              </button>
+                              <button onClick={() => handleBookmarkToggle(res.id)} className={`hover:scale-105 active:scale-95 transition ${isBookmarked ? 'text-amber-500' : 'hover:text-amber-500'}`} title={isBookmarked ? "Remove" : "Save"}>
+                                <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-current' : ''}`} strokeWidth={1.5} />
+                              </button>
+                              <button onClick={() => handleFlagResource(res.id)} className={`hover:scale-105 active:scale-95 transition ${alreadyFlagged ? 'text-orange-500' : 'hover:text-orange-400'}`} title={alreadyFlagged ? "Already reported" : "Report"}>
+                                <FlagIcon className="w-3.5 h-3.5" strokeWidth={1.5} />
+                              </button>
 
-                            <div className="flex items-center justify-between pt-1">
-                              <div className="flex flex-wrap gap-3">
-                                {/* Like */}
-                                <button
-                                  onClick={() => handleResourceLikeToggle(res.id, res.author_id)}
-                                  className={`flex items-center gap-1 transition hover:scale-105 active:scale-95 ${isLiked ? "text-red-500 font-bold" : "text-gray-400 hover:text-red-500"}`}
-                                  title="Like"
-                                >
-                                  <Heart className={`w-[14px] h-[14px] ${isLiked ? 'fill-current' : ''}`} strokeWidth={1.5} />
-                                  <span>{res.likes_count || 0}</span>
-                                </button>
-
-                                {/* Bookmark */}
-                                <button
-                                  onClick={() => handleBookmarkToggle(res.id)}
-                                  className={`flex items-center gap-1 transition hover:scale-105 active:scale-95 ${isBookmarked ? "text-amber-500" : "text-gray-400 hover:text-amber-500"}`}
-                                  title="Save to My Bookmarks"
-                                >
-                                  <Bookmark className={`w-[14px] h-[14px] ${isBookmarked ? 'fill-current' : ''}`} strokeWidth={1.5} />
-                                  <span>{isBookmarked ? "Saved" : "Save"}</span>
-                                </button>
-
-                                {/* Flag */}
-                                <button
-                                  onClick={() => handleFlagResource(res.id)}
-                                  className={`flex items-center gap-1 transition hover:scale-105 ${alreadyFlagged ? "text-orange-500" : "text-gray-400 hover:text-red-500"}`}
-                                  title={alreadyFlagged ? "Already reported" : "Report resource"}
-                                >
-                                  <FlagIcon className="w-[14px] h-[14px]" strokeWidth={1.5} />
-                                  {(res.flag_count || 0) > 0 && <span className="text-[9px]">{res.flag_count}</span>}
-                                </button>
-
-                                {/* Share */}
-                                <button
-                                  onClick={() => handleShareResource(res.id)}
-                                  className="text-gray-400 hover:text-green-500 hover:scale-105 active:scale-95 transition-all"
-                                  title="Copy link"
-                                >
-                                  <Share2 className="w-[14px] h-[14px]" strokeWidth={1.5} />
-                                </button>
-                              </div>
-
-                              {/* Edit / Delete */}
-                              <div className="flex gap-2">
-                                {canEdit && (
-                                  <button
-                                    onClick={() => handleOpenEditModal(res)}
-                                    className="text-gray-400 hover:text-blue-500 flex items-center gap-1 transition"
-                                    title="Edit Resource"
-                                  >
-                                    <span>✏️</span>
-                                    <span className="text-[10px]">Edit</span>
-                                  </button>
-                                )}
-                                {canDelete && (
-                                  <button
-                                    onClick={() => handleDeleteResource(res.id)}
-                                    className="text-gray-400 hover:text-red-500 flex items-center gap-1 transition"
-                                    title="Delete Resource"
-                                  >
-                                    <span>🗑️</span>
-                                    <span className="text-[10px]">Delete</span>
-                                  </button>
-                                )}
-                              </div>
+                              {/* Edit / Delete (Owner / Admin) */}
+                              {(canEdit || canDelete) && (
+                                <div className="flex items-center gap-1.5 border-l border-gray-200 dark:border-zinc-800 pl-2.5">
+                                  {canEdit && (
+                                    <button
+                                      onClick={() => handleOpenEditModal(res)}
+                                      className="text-gray-400 hover:text-blue-500 transition text-[11px]"
+                                      title="Edit"
+                                    >
+                                      ✏️
+                                    </button>
+                                  )}
+                                  {canDelete && (
+                                    <button
+                                      onClick={() => handleDeleteResource(res.id)}
+                                      className="text-gray-400 hover:text-red-500 transition text-[11px]"
+                                      title="Delete"
+                                    >
+                                      🗑️
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
-
-                            {/* Read More button */}
-                            <button
-                              onClick={() => { setDetailResource(res); handleIncrementViewCount(res.id); }}
-                              className="w-full text-center text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline mt-1"
-                            >
-                              Read More →
-                            </button>
                           </div>
                         </div>
                       );
@@ -1830,7 +1849,6 @@ const Resources = () => {
               )}
             </div>
           </div>
-        </div>
       )}
 
       {/* ── CONTRIBUTE RESOURCE MODAL ─────────────────────────────────────────── */}
@@ -2044,6 +2062,18 @@ const Resources = () => {
               <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 text-red-600 rounded text-xs">{extError}</div>
             )}
             <form onSubmit={handleExternalSubmit} className="space-y-4 text-xs font-semibold">
+              <div>
+                <label className="block text-gray-500 uppercase mb-1">Section / Category *</label>
+                <select
+                  value={extSection}
+                  onChange={(e) => setExtSection(e.target.value)}
+                  className={inputClass}
+                >
+                  {toolSections.map((sec) => (
+                    <option key={sec} value={sec}>{sec}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-gray-500 uppercase mb-1">Resource Title *</label>
                 <input type="text" value={extTitle} onChange={(e) => setExtTitle(e.target.value)} className={inputClass}

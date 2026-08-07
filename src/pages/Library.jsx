@@ -70,6 +70,7 @@ const Library = () => {
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
   const [allRatings, setAllRatings] = useState([]);
   const [sortBy, setSortBy] = useState("newest");
+  const [showFilters, setShowFilters] = useState(false);
   const [animatingHeartMemeId, setAnimatingHeartMemeId] = useState(null);
   const [likePendingMap, setLikePendingMap] = useState({});
 
@@ -1128,91 +1129,118 @@ const Library = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_200px] gap-5 items-start">
-        {/* Left Column: Sorting & Filtering (lg:col-span-1) */}
-        <div className={`p-3 h-fit ${containerClass}`}>
-          <div className="mb-6">
-            <label className="block text-[11px] font-bold text-gray-400 uppercase mb-2">SORT BY</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className={inputClass}
-            >
-              <option value="newest">Newest Uploads</option>
-              <option value="likes">Most Popular (Likes)</option>
-              <option value="rating">Highest Rated</option>
-            </select>
-          </div>
+      {/* ── Horizontal Filter Bar ──────────────────────────────────────────── */}
+      <div className="mb-5 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Filters toggle */}
+          <button
+            onClick={() => setShowFilters(v => !v)}
+            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${
+              showFilters
+                ? "bg-purple-600 text-white border-purple-600"
+                : "border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
+            }`}
+          >
+            &#9881; Filters {showFilters ? "&#9650;" : "&#9660;"}
+          </button>
 
-          <h2 className="text-[11px] font-bold uppercase tracking-wider mb-4 border-b pb-2 text-gray-400">FILTERS</h2>
-          <div className="space-y-4">
+          {/* Sort inline */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+          >
+            <option value="newest">Newest</option>
+            <option value="likes">Most Popular</option>
+            <option value="rating">Highest Rated</option>
+          </select>
+
+          {/* Active filter pills */}
+          {subjectFilter && (
+            <span className="flex items-center gap-1 bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
+              {subjectFilter}
+              <button onClick={() => setSubjectFilter("")} className="ml-0.5 hover:text-purple-900 font-extrabold">x</button>
+            </span>
+          )}
+          {gradeFilter && (
+            <span className="flex items-center gap-1 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800">
+              {gradeFilter}
+              <button onClick={() => setGradeFilter("")} className="ml-0.5 hover:text-indigo-900 font-extrabold">x</button>
+            </span>
+          )}
+          {languageFilter && (
+            <span className="flex items-center gap-1 bg-teal-100 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-teal-200 dark:border-teal-800">
+              {languageFilter}
+              <button onClick={() => setLanguageFilter("")} className="ml-0.5 hover:text-teal-900 font-extrabold">x</button>
+            </span>
+          )}
+          {formatFilter && (
+            <span className="flex items-center gap-1 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800">
+              {formatFilter}
+              <button onClick={() => setFormatFilter("")} className="ml-0.5 hover:text-amber-900 font-extrabold">x</button>
+            </span>
+          )}
+          {(subjectFilter || gradeFilter || languageFilter || formatFilter) && (
+            <button
+              onClick={() => { setSubjectFilter(""); setGradeFilter(""); setLanguageFilter(""); setFormatFilter(""); setSearchQuery(""); setAppliedSearchQuery(""); }}
+              className="text-[10px] font-bold text-red-500 hover:underline"
+            >
+              Clear all
+            </button>
+          )}
+
+          {/* Direct Upload button — moved here from sidebar */}
+          {user && (
+            <button
+              onClick={() => setShowDirectUploadModal(true)}
+              className="ml-auto text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition shadow-sm"
+            >
+              + Upload Meme
+            </button>
+          )}
+        </div>
+
+        {/* Expandable filter panel */}
+        {showFilters && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-sm">
             <div>
               <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Subject</label>
               <input
                 type="text"
-                placeholder="Search subject..."
+                placeholder="Search..."
                 value={filterSubjectSearch}
                 onChange={(e) => setFilterSubjectSearch(e.target.value)}
                 className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
               />
-              <select
-                value={subjectFilter}
-                onChange={(e) => setSubjectFilter(e.target.value)}
-                className={inputClass}
-              >
+              <select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)} className={inputClass}>
                 <option value="">All Subjects</option>
-                {subjects
-                  .filter(s => s !== "Other" && s.toLowerCase().includes(filterSubjectSearch.toLowerCase()))
-                  .map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
+                {subjects.filter(s => s !== "Other" && s.toLowerCase().includes(filterSubjectSearch.toLowerCase())).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-
             <div>
               <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Grade</label>
-              <select
-                value={gradeFilter}
-                onChange={(e) => setGradeFilter(e.target.value)}
-                className={inputClass}
-              >
+              <select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)} className={inputClass}>
                 <option value="">All Grades</option>
-                {gradeGroups.map(g => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
+                {gradeGroups.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
-
             <div>
               <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Language</label>
               <input
                 type="text"
-                placeholder="Search language..."
+                placeholder="Search..."
                 value={filterLanguageSearch}
                 onChange={(e) => setFilterLanguageSearch(e.target.value)}
                 className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
               />
-              <select
-                value={languageFilter}
-                onChange={(e) => setLanguageFilter(e.target.value)}
-                className={inputClass}
-              >
+              <select value={languageFilter} onChange={(e) => setLanguageFilter(e.target.value)} className={inputClass}>
                 <option value="">All Languages</option>
-                {languages
-                  .filter(lang => lang !== "Other" && lang.toLowerCase().includes(filterLanguageSearch.toLowerCase()))
-                  .map(lang => (
-                    <option key={lang} value={lang}>{lang}</option>
-                  ))}
+                {languages.filter(l => l !== "Other" && l.toLowerCase().includes(filterLanguageSearch.toLowerCase())).map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
-
             <div>
               <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Format</label>
-              <select
-                value={formatFilter}
-                onChange={(e) => setFormatFilter(e.target.value)}
-                className={inputClass}
-              >
+              <select value={formatFilter} onChange={(e) => setFormatFilter(e.target.value)} className={inputClass}>
                 <option value="">All Formats</option>
                 <option value="image">Image</option>
                 <option value="video">Video</option>
@@ -1220,38 +1248,12 @@ const Library = () => {
                 <option value="audio">Audio</option>
               </select>
             </div>
-
-            {(subjectFilter || gradeFilter || languageFilter || formatFilter || appliedSearchQuery) && (
-              <button
-                onClick={() => {
-                  setSubjectFilter("");
-                  setGradeFilter("");
-                  setLanguageFilter("");
-                  setFormatFilter("");
-                  setSearchQuery("");
-                  setAppliedSearchQuery("");
-                }}
-                className="w-full text-center text-xs font-semibold text-red-650 hover:underline pt-2"
-              >
-                Clear Filters
-              </button>
-            )}
           </div>
+        )}
+      </div>
 
-          {/* Direct Upload Option */}
-          {user && (
-            <div className="mt-8 border-t pt-4">
-              <button
-                onClick={() => setShowDirectUploadModal(true)}
-                className={`${btnClass} w-full`}
-              >
-                Direct Meme Upload
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Center Column: Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_200px] gap-5 items-start">
+        {/* Main Feed Column */}
         <div className="space-y-5 min-w-0">
           {/* Share a meme with the classroom container */}
           <div
@@ -1280,7 +1282,7 @@ const Library = () => {
           </div>
 
           {filteredMemes.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredMemes.map((meme) => {
                 const isLiked = !!userLikesMap[meme.id];
                 const isSaved = !!userSavesMap[meme.id];
