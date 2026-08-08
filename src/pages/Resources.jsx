@@ -24,6 +24,7 @@ import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
 import { SUBJECTS, GRADE_GROUPS, RESOURCE_TYPES, DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
+import ActivityContributeModal from "../components/ActivityContributeModal";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 12;
@@ -427,6 +428,12 @@ const Resources = () => {
   const [showFlagPopup, setShowFlagPopup] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // ── Activity tab state
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [strategyTags, setStrategyTags] = useState([]);
+  const [activityTagFilter, setActivityTagFilter] = useState("");
+  const [showActivityPendingPopup, setShowActivityPendingPopup] = useState(false);
+
   // ── Upload form state
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadBody, setUploadBody] = useState("");
@@ -543,6 +550,17 @@ const Resources = () => {
     }, (error) => {
       console.error("Taxonomy configs subscription failed:", error);
     });
+    return () => unsub();
+  }, []);
+
+  // ── Load strategy tags from Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "configs", "strategy_tags"), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (Array.isArray(data.tags)) setStrategyTags(data.tags);
+      }
+    }, () => {});
     return () => unsub();
   }, []);
 
@@ -1117,6 +1135,134 @@ const Resources = () => {
   const activeFeat = featuredResources[featuredIndex] || MOCK_FEATURED[0];
   const isAdmin = profile?.role === "admin";
 
+  // ─── Activity Card (for the Activities tab) ────────────────────────────────
+  const ActivityCard = ({ res }) => {
+    const isPending = !res.admin_approved;
+    const isLiked = !!savedResourceLikesMap[res.id];
+    const isBookmarked = !!savedResourcesMap[res.id];
+    const alreadyFlagged = !!userFlagsMap[res.id];
+    const authorName = res.author_id === "admin" ? "Admin" : (displayCache[res.author_id] || "Contributor");
+    const canEdit = user && res.author_id === user.uid;
+    const canDelete = user && (res.author_id === user.uid || isAdmin);
+
+    return (
+      <div className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-purple-200/60 dark:border-purple-900/40 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
+        {/* Header: author + pending badge */}
+        <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 border-b border-purple-100/60 dark:border-purple-900/30">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center font-extrabold text-[10px] flex-shrink-0">
+              {authorName.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-[11px] font-extrabold text-gray-800 dark:text-white truncate">{authorName}</span>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {isPending && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowActivityPendingPopup(true); }}
+                className="flex items-center gap-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded-full hover:bg-amber-100 transition"
+                title="Click to learn about pending approval"
+              >
+                <Clock className="w-2.5 h-2.5" /> Pending
+              </button>
+            )}
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/50 dark:border-purple-800/40">
+              🎯 Activity
+            </span>
+          </div>
+        </div>
+
+        {/* Thumbnail */}
+        <div
+          onClick={() => { navigate(`/resources/activity/${res.id}`); handleIncrementViewCount(res.id); }}
+          className="relative w-full bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-purple-950/30 dark:to-indigo-950/30 flex items-center justify-center overflow-hidden group cursor-pointer flex-shrink-0"
+          style={{ height: 160 }}
+        >
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+            <span className="bg-white/90 dark:bg-zinc-900/90 text-gray-900 dark:text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm">Open Activity →</span>
+          </div>
+          {res.cover_image_url ? (
+            <img src={res.cover_image_url} alt={res.title} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-5xl opacity-20">🎯</span>
+          )}
+        </div>
+
+        {/* Body */}
+        <div className="px-4 pt-3 pb-2 flex-grow flex flex-col gap-1.5">
+          {/* Strategy tags */}
+          {(res.strategy_tags || []).length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {res.strategy_tags.slice(0, 3).map(tag => (
+                <span key={tag} className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => { navigate(`/resources/activity/${res.id}`); handleIncrementViewCount(res.id); }}
+            className="font-extrabold text-sm text-left hover:text-purple-600 dark:hover:text-purple-400 transition text-gray-900 dark:text-white leading-snug line-clamp-2 block w-full"
+          >
+            {res.title}
+          </button>
+          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed flex-grow">{res.body}</p>
+          <div className="flex flex-wrap gap-2 text-[10px] text-gray-400">
+            {res.subject && <span className="bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">{res.subject}</span>}
+            {res.grade_group && <span className="bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">{res.grade_group}</span>}
+            {res.duration_minutes && <span className="bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-bold px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900">⏱ {res.duration_minutes} min</span>}
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="px-4 pb-3 pt-1">
+          <button
+            onClick={() => { navigate(`/resources/activity/${res.id}`); handleIncrementViewCount(res.id); }}
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 rounded-xl transition shadow-sm"
+          >
+            🎯 Open Activity →
+          </button>
+        </div>
+
+        {/* Footer icon bar */}
+        <div className="px-4 py-2 border-t border-purple-100/60 dark:border-purple-900/30 flex items-center justify-between text-gray-400 dark:text-gray-500">
+          <div className="flex items-center gap-3">
+            <button onClick={() => handleResourceLikeToggle(res.id, res.author_id)}
+              className={`flex items-center gap-1 hover:scale-105 active:scale-95 transition ${isLiked ? 'text-red-500 font-bold' : 'hover:text-red-500'}`} title="Like">
+              <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : ''}`} strokeWidth={1.5} />
+              <span className="text-[10px] font-semibold tabular-nums">{res.likes_count || 0}</span>
+            </button>
+            {(res.view_count || 0) > 0 && (
+              <span className="flex items-center gap-1 text-[10px] font-medium">
+                <Eye className="w-3.5 h-3.5" strokeWidth={1.5} /> {res.view_count}
+              </span>
+            )}
+            {(res.references || []).length > 0 && (
+              <span className="text-[10px] font-medium">📎 {res.references.length}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => handleShareResource(res.id)} className="hover:text-green-500 hover:scale-105 active:scale-95 transition" title="Share">
+              <Share2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+            <button onClick={() => handleBookmarkToggle(res.id)} className={`hover:scale-105 active:scale-95 transition ${isBookmarked ? 'text-amber-500' : 'hover:text-amber-500'}`} title={isBookmarked ? 'Remove' : 'Save'}>
+              <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-current' : ''}`} strokeWidth={1.5} />
+            </button>
+            <button onClick={() => handleFlagResource(res.id)} className={`hover:scale-105 active:scale-95 transition ${alreadyFlagged ? 'text-orange-500' : 'hover:text-orange-400'}`} title={alreadyFlagged ? 'Already reported' : 'Report'}>
+              <FlagIcon className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+            {(canEdit || canDelete) && (
+              <div className="flex items-center gap-1.5 border-l border-gray-200 dark:border-zinc-800 pl-2.5">
+                {canDelete && (
+                  <button onClick={() => handleDeleteResource(res.id)} className="text-gray-400 hover:text-red-500 transition text-[11px]" title="Delete">🗑️</button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ─── Tab config ───────────────────────────────────────────────────────────────
   const tabs = [
     { id: "all", label: "All Resources" },
@@ -1189,6 +1335,13 @@ const Resources = () => {
             user && (
               <button onClick={() => setShowExternalModal(true)} className={btnClass}>
                 ➕ Add External Link
+              </button>
+            )
+          ) : activeTab === "activity" ? (
+            user && (
+              <button onClick={() => setShowActivityModal(true)}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5">
+                🎯 Contribute Activity
               </button>
             )
           ) : (
@@ -1496,9 +1649,44 @@ const Resources = () => {
             )}
           </div>
 
+          {/* ── Activity Tab: Strategy tag filter pills ───────────────────────── */}
+          {activeTab === "activity" && strategyTags.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2 items-center">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mr-1">Strategy:</span>
+              <button
+                onClick={() => setActivityTagFilter("")}
+                className={`text-[10px] font-bold px-3 py-1 rounded-full border transition ${
+                  activityTagFilter === ""
+                    ? "bg-purple-600 text-white border-purple-600"
+                    : "border-gray-300 dark:border-zinc-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                }`}
+              >
+                All
+              </button>
+              {strategyTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setActivityTagFilter(activityTagFilter === tag ? "" : tag)}
+                  className={`text-[10px] font-bold px-3 py-1 rounded-full border transition ${
+                    activityTagFilter === tag
+                      ? "bg-purple-600 text-white border-purple-600"
+                      : "border-gray-300 dark:border-zinc-700 text-gray-500 hover:bg-purple-50 dark:hover:bg-purple-950/20 hover:border-purple-300"
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* ── Resources Grid (3-column) ──────────────────────────────────────────── */}
           <div>
-              {paginatedResources.length > 0 ? (
+              {paginatedResources
+                .filter(res => {
+                  if (activeTab !== "activity" || !activityTagFilter) return true;
+                  return (res.strategy_tags || []).includes(activityTagFilter);
+                })
+                .length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {paginatedResources.map((res) => {
@@ -1508,6 +1696,11 @@ const Resources = () => {
                       const canEdit = user && res.author_id === user.uid;
                       const canDelete = user && (res.author_id === user.uid || isAdmin);
                       const alreadyFlagged = !!userFlagsMap[res.id];
+
+                      // ── Activity Card ────────────────────────────────────────
+                      if (res.type === "activity") {
+                        return <ActivityCard key={res.id} res={res} />;
+                      }
 
                       // ── Story Card ─────────────────────────────────────────
                       if (res.type === "stories") {
@@ -1871,6 +2064,37 @@ const Resources = () => {
               )}
             </div>
           </div>
+      )}
+
+      {/* ── PENDING APPROVAL POPUP (Activity tab) ───────────────────────────── */}
+      {showActivityPendingPopup && createPortal(
+        <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4" onClick={() => setShowActivityPendingPopup(false)}>
+          <div className="bg-white dark:bg-zinc-900 border border-yellow-200 dark:border-yellow-800 rounded-2xl shadow-2xl p-6 max-w-sm text-center space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="text-4xl">⏳</div>
+            <h3 className="text-base font-extrabold text-gray-900 dark:text-white">Pending Admin Approval</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+              This activity was uploaded by a community member and is currently awaiting review by our admin team. The content has not yet been verified or approved.
+            </p>
+            <p className="text-xs text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-xl px-3 py-2">
+              You can still view and interact with this activity. It will receive a ✅ verified badge once approved.
+            </p>
+            <button onClick={() => setShowActivityPendingPopup(false)} className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">
+              Got it
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── ACTIVITY CONTRIBUTE MODAL ─────────────────────────────────────────── */}
+      {showActivityModal && (
+        <ActivityContributeModal
+          onClose={() => setShowActivityModal(false)}
+          onSuccess={() => showToast("Activity published! It's live and pending admin review. 🎯", "success")}
+          subjects={subjects}
+          gradeGroups={gradeGroups}
+          availableTags={strategyTags}
+        />
       )}
 
       {/* ── CONTRIBUTE RESOURCE MODAL ─────────────────────────────────────────── */}
