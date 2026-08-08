@@ -25,6 +25,7 @@ import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
 import { SUBJECTS, GRADE_GROUPS, RESOURCE_TYPES, DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 import ActivityContributeModal from "../components/ActivityContributeModal";
+import ContributeResourceModal from "../components/ContributeResourceModal";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 12;
@@ -433,6 +434,10 @@ const Resources = () => {
   const [strategyTags, setStrategyTags] = useState([]);
   const [activityTagFilter, setActivityTagFilter] = useState("");
   const [showActivityPendingPopup, setShowActivityPendingPopup] = useState(false);
+
+  // ── Universal contribute modal
+  const [showContributeModal, setShowContributeModal] = useState(false);
+  const [contributeDefaultType, setContributeDefaultType] = useState(null); // null = show type picker
 
   // ── Upload form state
   const [uploadTitle, setUploadTitle] = useState("");
@@ -907,28 +912,8 @@ const Resources = () => {
 
   const handleOpenEditModal = (res) => {
     setEditingResource(res);
-    setUploadTitle(res.title || res.meme_name || "");
-    setUploadBody(res.body || "");
-    setUploadType(res.type || "article");
-    setUploadSubject(subjects.includes(res.subject) ? res.subject : "Other");
-    setUploadCustomSubject(subjects.includes(res.subject) ? "" : (res.subject || ""));
-    setUploadGrade(res.grade_group || "High School (9–10)");
-    setUploadUrl(res.file_url || "");
-    setUploadPublicationYear(res.publication_year || "");
-    setUploadPublisherName(res.publisher_name || "");
-    setUploadThumbnailUrl(res.thumbnail_url || "");
-    setUploadFile(null);
-    setUploadThumbnailFile(null);
-    setUploadKeywords(Array.isArray(res.keywords) ? res.keywords.join(", ") : (res.keywords || ""));
-    setUploadUsageContext(res.usage_context || "");
-    setUploadEducationalUse(res.educational_use || "");
-    setUploadExampleImages(
-      Array.isArray(res.example_images) && res.example_images.length > 0
-        ? res.example_images
-        : [""]
-    );
-    setUploadError("");
-    setShowUploadModal(true);
+    setContributeDefaultType(res.type || "article");
+    setShowContributeModal(true);
   };
 
   const handleResourceSubmit = async (e) => {
@@ -1331,31 +1316,29 @@ const Resources = () => {
           </p>
         </div>
         <div className="mt-4 sm:mt-0 flex gap-2">
-          {activeTab === "additional" ? (
-            user && (
-              <button onClick={() => setShowExternalModal(true)} className={btnClass}>
-                ➕ Add External Link
+          {(() => {
+            // Per-tab CTA configuration
+            const TAB_CONTRIBUTE_CONFIG = {
+              all:           { label: "➕ Contribute Resource",  defaultType: null,       handler: () => { setContributeDefaultType(null); setEditingResource(null); setShowContributeModal(true); } },
+              article_paper: { label: "✍️ Contribute Article",   defaultType: "article",  handler: () => { setContributeDefaultType("article"); setEditingResource(null); setShowContributeModal(true); } },
+              activity:      { label: "🎯 Contribute Activity",  defaultType: "activity", handler: () => setShowActivityModal(true) },
+              course:        { label: "🎓 Contribute Course",    defaultType: "course",   handler: () => { setContributeDefaultType("course"); setEditingResource(null); setShowContributeModal(true); } },
+              stories:       { label: "📚 Contribute Story",     defaultType: "stories",  handler: () => { setContributeDefaultType("stories"); setEditingResource(null); setShowContributeModal(true); } },
+              additional:    { label: "➕ Add External Link",    defaultType: null,       handler: () => setShowExternalModal(true) },
+            };
+            const cfg = TAB_CONTRIBUTE_CONFIG[activeTab] || TAB_CONTRIBUTE_CONFIG.all;
+            if (!user) {
+              return <a href="/auth" className={btnClass}>Sign in to Contribute</a>;
+            }
+            return (
+              <button
+                onClick={cfg.handler}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+              >
+                {cfg.label}
               </button>
-            )
-          ) : activeTab === "activity" ? (
-            user && (
-              <button onClick={() => setShowActivityModal(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5">
-                🎯 Contribute Activity
-              </button>
-            )
-          ) : (
-            user && (
-              <button onClick={() => { resetUploadForm(); setShowUploadModal(true); }} className={btnClass}>
-                ➕ Contribute Resource
-              </button>
-            )
-          )}
-          {!user && (
-            <a href="/auth" className={btnClass}>
-              Sign in to Contribute
-            </a>
-          )}
+            );
+          })()}
         </div>
       </div>
 
@@ -2097,234 +2080,22 @@ const Resources = () => {
         />
       )}
 
-      {/* ── CONTRIBUTE RESOURCE MODAL ─────────────────────────────────────────── */}
-      {showUploadModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className={`w-full max-w-lg p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
-            <h2 className="text-lg font-bold mb-1">{editingResource ? "Edit Resource" : "Contribute Resource"}</h2>
-            <p className="text-xs text-gray-500 mb-5">
-              {editingResource
-                ? editingResource.admin_approved
-                  ? "Editing an approved resource will re-enter it into the admin review queue."
-                  : "You can freely edit this resource before admin approval."
-                : "Your resource will go live immediately. A 'Pending Admin Approval' badge will show until an admin reviews it."}
-            </p>
-
-            {uploadError && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 text-red-600 rounded text-xs">{uploadError}</div>
-            )}
-
-            <form onSubmit={handleResourceSubmit} className="space-y-4 text-xs font-semibold">
-              {/* Category Type */}
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">Category Type</label>
-                <select value={uploadType} onChange={(e) => setUploadType(e.target.value)} className={inputClass}>
-                  {RESOURCE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-
-              {/* Attach File Option Moved to Top for Stories */}
-              {uploadType === "stories" && (
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Attach File / Customizable Image Template *</label>
-                  <input type="file" accept="image/*,video/*,audio/*" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="block w-full text-xs" />
-                  <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-1">
-                    💡 This image/media file will be customizable by users in the Meme Lab.
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">{getTitleLabel()}</label>
-                <input type="text" placeholder={getTitlePlaceholder()} value={uploadTitle}
-                  onChange={(e) => setUploadTitle(e.target.value)} className={inputClass} required />
-              </div>
-
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">
-                  {uploadType === "stories" ? "Background — How it became a meme *" : "Description / Abstract *"}
-                </label>
-                <textarea
-                  placeholder={uploadType === "stories"
-                    ? "How it became a meme: Mention where this template originated (movie, TV show, game, viral event) and how it gained popularity."
-                    : "Provide a detailed description of the resource..."}
-                  value={uploadBody}
-                  onChange={(e) => setUploadBody(e.target.value)} rows="3"
-                  className={`${inputClass} resize-none`} required />
-              </div>
-
-              {/* Stories-specific fields */}
-              {uploadType === "stories" && (
-                <>
-                  <div>
-                    <label className="block text-gray-500 uppercase mb-1">Typical Meaning & Usage</label>
-                    <textarea
-                      placeholder="Used to express confusion while reading something complicated or reacting to unexpected information."
-                      value={uploadUsageContext || ""}
-                      onChange={(e) => setUploadUsageContext(e.target.value)}
-                      rows="2"
-                      className={`${inputClass} resize-none`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-500 uppercase mb-1">Educational Use</label>
-                    <textarea
-                      placeholder="Suggest classroom situations where this template can be used. E.g. Assignment instructions"
-                      value={uploadEducationalUse || ""}
-                      onChange={(e) => setUploadEducationalUse(e.target.value)}
-                      rows="2"
-                      className={`${inputClass} resize-none`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-500 uppercase mb-1">Example Images (Upload Multiple Images)</label>
-                    <p className="text-[10px] text-gray-400 mb-2">Upload real example images of this meme being used.</p>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        setUploadExampleFiles(prev => [...prev, ...files]);
-                      }}
-                      className="block w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200 cursor-pointer"
-                    />
-                    {uploadExampleFiles.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {uploadExampleFiles.map((file, idx) => (
-                          <div key={idx} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-amber-300 dark:border-amber-700 bg-gray-100">
-                            <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => setUploadExampleFiles(prev => prev.filter((_, i) => i !== idx))}
-                              className="absolute top-0 right-0 bg-red-600 text-white rounded-bl p-0.5 text-[10px] font-bold leading-none"
-                              title="Remove"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {uploadExampleImages.filter(Boolean).length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-[10px] text-gray-400 mb-1">Existing Example URLs:</p>
-                        {uploadExampleImages.map((url, idx) => (
-                          url ? (
-                            <div key={idx} className="flex items-center gap-2 mb-1">
-                              <span className="text-[10px] text-gray-600 dark:text-gray-300 truncate max-w-xs">{url}</span>
-                              <button
-                                type="button"
-                                onClick={() => setUploadExampleImages(prev => prev.filter((_, i) => i !== idx))}
-                                className="text-red-400 hover:text-red-600 text-xs font-bold"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ) : null
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {/* Subject + Grade — hidden for stories */}
-              {uploadType !== "stories" && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-gray-500 uppercase mb-1">Subject</label>
-                      <input
-                        type="text"
-                        placeholder="Search subject..."
-                        value={formSubjectSearch}
-                        onChange={(e) => setFormSubjectSearch(e.target.value)}
-                        className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
-                      />
-                      <select value={uploadSubject} onChange={(e) => setUploadSubject(e.target.value)} className={inputClass}>
-                        {subjects
-                          .filter((s) => s.toLowerCase().includes(formSubjectSearch.toLowerCase()))
-                          .map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      {uploadSubject === "Other" && (
-                        <input type="text" placeholder="Type your subject..." value={uploadCustomSubject}
-                          onChange={(e) => setUploadCustomSubject(e.target.value)}
-                          className={`${inputClass} mt-2`} required />
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-gray-500 uppercase mb-1">Grade Group</label>
-                      <select value={uploadGrade} onChange={(e) => setUploadGrade(e.target.value)} className={inputClass}>
-                        {gradeGroups.map((g) => <option key={g} value={g}>{g}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {(uploadType === "article" || uploadType === "research_paper") && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-gray-500 uppercase mb-1">Year of Publication</label>
-                    <input type="text" placeholder="e.g. 2024" value={uploadPublicationYear}
-                      onChange={(e) => setUploadPublicationYear(e.target.value)} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="block text-gray-500 uppercase mb-1">Journal / Publisher</label>
-                    <input type="text" placeholder="e.g. Nature Science" value={uploadPublisherName}
-                      onChange={(e) => setUploadPublisherName(e.target.value)} className={inputClass} />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">External URL / Embed Link</label>
-                <input type="text" placeholder="https://youtube.com/embed/..." value={uploadUrl}
-                  onChange={(e) => setUploadUrl(e.target.value)} className={inputClass} />
-              </div>
-
-              {uploadType !== "stories" && (
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Attach File (PDF / Image)</label>
-                  <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="block w-full text-xs" />
-                </div>
-              )}
-
-              {/* Thumbnail upload — hidden for stories (the template/uploaded file is used) */}
-              {uploadType !== "stories" && (
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Thumbnail Image (optional)</label>
-                  <input type="file" accept="image/*" onChange={(e) => setUploadThumbnailFile(e.target.files?.[0] || null)} className="block w-full text-xs" />
-                  <p className="text-[10px] text-gray-400 mt-1">
-                    💡 If no thumbnail is uploaded and you attach an image file, it will automatically be used as the thumbnail.
-                  </p>
-                </div>
-              )}
-
-              {uploadType !== "stories" && (
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Keywords (comma-separated)</label>
-                  <input type="text" placeholder="e.g. biology, cell division, mitosis" value={uploadKeywords}
-                    onChange={(e) => setUploadKeywords(e.target.value)} className={inputClass} />
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-4">
-                <button type="button" onClick={() => { setShowUploadModal(false); resetUploadForm(); }}
-                  className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold text-xs">
-                  Cancel
-                </button>
-                <button type="submit" disabled={uploadLoading}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-purple-700 disabled:opacity-60">
-                  {uploadLoading ? "Saving..." : editingResource ? "Save Changes" : "Publish Resource"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>,
-        document.body
+      {/* ── UNIVERSAL CONTRIBUTE MODAL ────────────────────────────────────────── */}
+      {showContributeModal && (
+        <ContributeResourceModal
+          defaultType={contributeDefaultType}
+          editingResource={editingResource}
+          onClose={() => { setShowContributeModal(false); setEditingResource(null); setContributeDefaultType(null); }}
+          onSuccess={(msg) => showToast(msg || "Resource published! It's live and pending admin review. ✅", "success")}
+          subjects={subjects}
+          gradeGroups={gradeGroups}
+          availableTags={strategyTags}
+        />
       )}
+
+      {/* ── ADD EXTERNAL LINK MODAL ───────────────────────────────────────────── */}
+
+
 
       {/* ── ADD EXTERNAL LINK MODAL ───────────────────────────────────────────── */}
       {showExternalModal && createPortal(

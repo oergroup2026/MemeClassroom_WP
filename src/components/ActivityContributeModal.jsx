@@ -227,9 +227,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
   const [subject, setSubject] = useState("Biology");
   const [customSubject, setCustomSubject] = useState("");
   const [gradeGroup, setGradeGroup] = useState("High School (9–10)");
-  const [duration, setDuration] = useState("");
-  const [strategyTags, setStrategyTags] = useState([]);
-  const [educatorNotes, setEducatorNotes] = useState("");
+  const [remarks, setRemarks] = useState("");
 
   // Cover image
   const [coverFile, setCoverFile] = useState(null);
@@ -254,7 +252,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
   // ── Cover preview
   useEffect(() => {
     if (!coverFile) { setCoverPreview(""); return; }
-    const url = URL.createObjectURL(coverFile);
+    const url = URL.parse ? URL.createObjectURL(coverFile) : URL.createObjectURL(coverFile);
     setCoverPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [coverFile]);
@@ -289,7 +287,6 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
     if (!user) { setError("Please sign in to contribute."); return; }
     if (!title.trim()) { setError("Title is required."); return; }
     if (!pdfFile && !slidesEmbedUrl.trim()) { setError("Please upload a PDF or provide a Google Slides embed URL."); return; }
-    if (strategyTags.length === 0) { setError("Please add at least one strategy tag."); return; }
 
     setLoading(true);
     setError("");
@@ -340,11 +337,9 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           cover_image_url: coverUrl,
           pdf_url: pdfUrl,
           slides_embed_url: slidesEmbedUrl.trim(),
-          strategy_tags: strategyTags,
           subject: finalSubject,
           grade_group: gradeGroup,
-          duration_minutes: duration ? parseInt(duration, 10) : null,
-          educator_notes: educatorNotes.trim(),
+          educator_notes: remarks.trim(),
           videos: cleanVideos,
           references: cleanRefs,
           author_id: user.uid,
@@ -416,9 +411,9 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
                 className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>Short Description (shown on card) *</label>
+              <label className={labelClass}>Short Description (optional)</label>
               <textarea value={body} onChange={e => setBody(e.target.value)} rows={2}
-                placeholder="Brief 1-2 sentence description of the activity..."
+                placeholder="Brief description of the activity..."
                 className={inputClass + " resize-none"} />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -439,27 +434,9 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>Duration (minutes)</label>
-                <input type="number" value={duration} onChange={e => setDuration(e.target.value)}
-                  placeholder="e.g. 20" min={1} max={240} className={inputClass} />
-              </div>
-            </div>
           </div>
 
-          {/* ── Section 2: Strategy Tags */}
-          <div className={sectionClass}>
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">🏷️ Strategy Tags *</h3>
-            <p className="text-[10px] text-gray-500 dark:text-gray-400">Select from existing tags or type a new one. At least one required.</p>
-            <TagInput
-              selectedTags={strategyTags}
-              availableTags={availableTags || []}
-              onChange={setStrategyTags}
-            />
-          </div>
-
-          {/* ── Section 3: Cover Image */}
+          {/* ── Section 2: Cover Image */}
           <div className={sectionClass}>
             <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">🖼️ Cover Thumbnail</h3>
             <div className="flex items-center gap-4">
@@ -488,7 +465,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
             </div>
           </div>
 
-          {/* ── Section 4: Presentation */}
+          {/* ── Section 3: Presentation */}
           <div className={sectionClass}>
             <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📄 Presentation *</h3>
             <p className="text-[10px] text-gray-500 dark:text-gray-400">Upload a PDF (from PowerPoint / Google Slides) or paste a Google Slides embed URL. At least one is required.</p>
@@ -536,15 +513,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
             </div>
           </div>
 
-          {/* ── Section 5: Educator Notes */}
-          <div className={sectionClass}>
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📝 Educator Notes</h3>
-            <textarea value={educatorNotes} onChange={e => setEducatorNotes(e.target.value)} rows={3}
-              placeholder="Tips, context, or instructions for teachers using this activity..."
-              className={inputClass + " resize-none"} />
-          </div>
-
-          {/* ── Section 6: Videos */}
+          {/* ── Section 4: Videos */}
           <div className={sectionClass}>
             <div className="flex items-center justify-between">
               <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">🎬 Embedded Videos</h3>
@@ -586,7 +555,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
             })}
           </div>
 
-          {/* ── Section 7: References */}
+          {/* ── Section 5: References */}
           <div className={sectionClass}>
             <div className="flex items-center justify-between">
               <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📚 References</h3>
@@ -646,6 +615,14 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
                 </button>
               </div>
             ))}
+          </div>
+
+          {/* ── Section 6: Remarks if any */}
+          <div className={sectionClass}>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📝 Remarks if any</h3>
+            <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3}
+              placeholder="Any additional remarks, notes, or tips for educators..."
+              className={inputClass + " resize-none"} />
           </div>
         </form>
 
