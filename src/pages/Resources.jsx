@@ -24,6 +24,8 @@ import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
 import { SUBJECTS, GRADE_GROUPS, RESOURCE_TYPES, DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
+import ActivityContributeModal from "../components/ActivityContributeModal";
+import ContributeResourceModal from "../components/ContributeResourceModal";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 12;
@@ -427,6 +429,16 @@ const Resources = () => {
   const [showFlagPopup, setShowFlagPopup] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // ── Activity tab state
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [strategyTags, setStrategyTags] = useState([]);
+  const [activityTagFilter, setActivityTagFilter] = useState("");
+  const [showActivityPendingPopup, setShowActivityPendingPopup] = useState(false);
+
+  // ── Universal contribute modal
+  const [showContributeModal, setShowContributeModal] = useState(false);
+  const [contributeDefaultType, setContributeDefaultType] = useState(null); // null = show type picker
+
   // ── Upload form state
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadBody, setUploadBody] = useState("");
@@ -543,6 +555,17 @@ const Resources = () => {
     }, (error) => {
       console.error("Taxonomy configs subscription failed:", error);
     });
+    return () => unsub();
+  }, []);
+
+  // ── Load strategy tags from Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "configs", "strategy_tags"), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (Array.isArray(data.tags)) setStrategyTags(data.tags);
+      }
+    }, () => {});
     return () => unsub();
   }, []);
 
@@ -889,28 +912,8 @@ const Resources = () => {
 
   const handleOpenEditModal = (res) => {
     setEditingResource(res);
-    setUploadTitle(res.title || res.meme_name || "");
-    setUploadBody(res.body || "");
-    setUploadType(res.type || "article");
-    setUploadSubject(subjects.includes(res.subject) ? res.subject : "Other");
-    setUploadCustomSubject(subjects.includes(res.subject) ? "" : (res.subject || ""));
-    setUploadGrade(res.grade_group || "High School (9–10)");
-    setUploadUrl(res.file_url || "");
-    setUploadPublicationYear(res.publication_year || "");
-    setUploadPublisherName(res.publisher_name || "");
-    setUploadThumbnailUrl(res.thumbnail_url || "");
-    setUploadFile(null);
-    setUploadThumbnailFile(null);
-    setUploadKeywords(Array.isArray(res.keywords) ? res.keywords.join(", ") : (res.keywords || ""));
-    setUploadUsageContext(res.usage_context || "");
-    setUploadEducationalUse(res.educational_use || "");
-    setUploadExampleImages(
-      Array.isArray(res.example_images) && res.example_images.length > 0
-        ? res.example_images
-        : [""]
-    );
-    setUploadError("");
-    setShowUploadModal(true);
+    setContributeDefaultType(res.type || "article");
+    setShowContributeModal(true);
   };
 
   const handleResourceSubmit = async (e) => {
@@ -1117,6 +1120,134 @@ const Resources = () => {
   const activeFeat = featuredResources[featuredIndex] || MOCK_FEATURED[0];
   const isAdmin = profile?.role === "admin";
 
+  // ─── Activity Card (for the Activities tab) ────────────────────────────────
+  const ActivityCard = ({ res }) => {
+    const isPending = !res.admin_approved;
+    const isLiked = !!savedResourceLikesMap[res.id];
+    const isBookmarked = !!savedResourcesMap[res.id];
+    const alreadyFlagged = !!userFlagsMap[res.id];
+    const authorName = res.author_id === "admin" ? "Admin" : (displayCache[res.author_id] || "Contributor");
+    const canEdit = user && res.author_id === user.uid;
+    const canDelete = user && (res.author_id === user.uid || isAdmin);
+
+    return (
+      <div className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-purple-200/60 dark:border-purple-900/40 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
+        {/* Header: author + pending badge */}
+        <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 border-b border-purple-100/60 dark:border-purple-900/30">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center font-extrabold text-[10px] flex-shrink-0">
+              {authorName.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-[11px] font-extrabold text-gray-800 dark:text-white truncate">{authorName}</span>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {isPending && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowActivityPendingPopup(true); }}
+                className="flex items-center gap-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded-full hover:bg-amber-100 transition"
+                title="Click to learn about pending approval"
+              >
+                <Clock className="w-2.5 h-2.5" /> Pending
+              </button>
+            )}
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/50 dark:border-purple-800/40">
+              🎯 Activity
+            </span>
+          </div>
+        </div>
+
+        {/* Thumbnail */}
+        <div
+          onClick={() => { navigate(`/resources/activity/${res.id}`); handleIncrementViewCount(res.id); }}
+          className="relative w-full bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-purple-950/30 dark:to-indigo-950/30 flex items-center justify-center overflow-hidden group cursor-pointer flex-shrink-0"
+          style={{ height: 160 }}
+        >
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+            <span className="bg-white/90 dark:bg-zinc-900/90 text-gray-900 dark:text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm">Open Activity →</span>
+          </div>
+          {res.cover_image_url ? (
+            <img src={res.cover_image_url} alt={res.title} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-5xl opacity-20">🎯</span>
+          )}
+        </div>
+
+        {/* Body */}
+        <div className="px-4 pt-3 pb-2 flex-grow flex flex-col gap-1.5">
+          {/* Strategy tags */}
+          {(res.strategy_tags || []).length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {res.strategy_tags.slice(0, 3).map(tag => (
+                <span key={tag} className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => { navigate(`/resources/activity/${res.id}`); handleIncrementViewCount(res.id); }}
+            className="font-extrabold text-sm text-left hover:text-purple-600 dark:hover:text-purple-400 transition text-gray-900 dark:text-white leading-snug line-clamp-2 block w-full"
+          >
+            {res.title}
+          </button>
+          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed flex-grow">{res.body}</p>
+          <div className="flex flex-wrap gap-2 text-[10px] text-gray-400">
+            {res.subject && <span className="bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">{res.subject}</span>}
+            {res.grade_group && <span className="bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">{res.grade_group}</span>}
+            {res.duration_minutes && <span className="bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-bold px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900">⏱ {res.duration_minutes} min</span>}
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="px-4 pb-3 pt-1">
+          <button
+            onClick={() => { navigate(`/resources/activity/${res.id}`); handleIncrementViewCount(res.id); }}
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 rounded-xl transition shadow-sm"
+          >
+            🎯 Open Activity →
+          </button>
+        </div>
+
+        {/* Footer icon bar */}
+        <div className="px-4 py-2 border-t border-purple-100/60 dark:border-purple-900/30 flex items-center justify-between text-gray-400 dark:text-gray-500">
+          <div className="flex items-center gap-3">
+            <button onClick={() => handleResourceLikeToggle(res.id, res.author_id)}
+              className={`flex items-center gap-1 hover:scale-105 active:scale-95 transition ${isLiked ? 'text-red-500 font-bold' : 'hover:text-red-500'}`} title="Like">
+              <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : ''}`} strokeWidth={1.5} />
+              <span className="text-[10px] font-semibold tabular-nums">{res.likes_count || 0}</span>
+            </button>
+            {(res.view_count || 0) > 0 && (
+              <span className="flex items-center gap-1 text-[10px] font-medium">
+                <Eye className="w-3.5 h-3.5" strokeWidth={1.5} /> {res.view_count}
+              </span>
+            )}
+            {(res.references || []).length > 0 && (
+              <span className="text-[10px] font-medium">📎 {res.references.length}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => handleShareResource(res.id)} className="hover:text-green-500 hover:scale-105 active:scale-95 transition" title="Share">
+              <Share2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+            <button onClick={() => handleBookmarkToggle(res.id)} className={`hover:scale-105 active:scale-95 transition ${isBookmarked ? 'text-amber-500' : 'hover:text-amber-500'}`} title={isBookmarked ? 'Remove' : 'Save'}>
+              <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-current' : ''}`} strokeWidth={1.5} />
+            </button>
+            <button onClick={() => handleFlagResource(res.id)} className={`hover:scale-105 active:scale-95 transition ${alreadyFlagged ? 'text-orange-500' : 'hover:text-orange-400'}`} title={alreadyFlagged ? 'Already reported' : 'Report'}>
+              <FlagIcon className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+            {(canEdit || canDelete) && (
+              <div className="flex items-center gap-1.5 border-l border-gray-200 dark:border-zinc-800 pl-2.5">
+                {canDelete && (
+                  <button onClick={() => handleDeleteResource(res.id)} className="text-gray-400 hover:text-red-500 transition text-[11px]" title="Delete">🗑️</button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ─── Tab config ───────────────────────────────────────────────────────────────
   const tabs = [
     { id: "all", label: "All Resources" },
@@ -1185,24 +1316,29 @@ const Resources = () => {
           </p>
         </div>
         <div className="mt-4 sm:mt-0 flex gap-2">
-          {activeTab === "additional" ? (
-            user && (
-              <button onClick={() => setShowExternalModal(true)} className={btnClass}>
-                ➕ Add External Link
+          {(() => {
+            // Per-tab CTA configuration
+            const TAB_CONTRIBUTE_CONFIG = {
+              all:           { label: "➕ Contribute Resource",  defaultType: null,       handler: () => { setContributeDefaultType(null); setEditingResource(null); setShowContributeModal(true); } },
+              article_paper: { label: "✍️ Contribute Article",   defaultType: "article",  handler: () => { setContributeDefaultType("article"); setEditingResource(null); setShowContributeModal(true); } },
+              activity:      { label: "🎯 Contribute Activity",  defaultType: "activity", handler: () => setShowActivityModal(true) },
+              course:        { label: "🎓 Contribute Course",    defaultType: "course",   handler: () => { setContributeDefaultType("course"); setEditingResource(null); setShowContributeModal(true); } },
+              stories:       { label: "📚 Contribute Story",     defaultType: "stories",  handler: () => { setContributeDefaultType("stories"); setEditingResource(null); setShowContributeModal(true); } },
+              additional:    { label: "➕ Add External Link",    defaultType: null,       handler: () => setShowExternalModal(true) },
+            };
+            const cfg = TAB_CONTRIBUTE_CONFIG[activeTab] || TAB_CONTRIBUTE_CONFIG.all;
+            if (!user) {
+              return <a href="/auth" className={btnClass}>Sign in to Contribute</a>;
+            }
+            return (
+              <button
+                onClick={cfg.handler}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+              >
+                {cfg.label}
               </button>
-            )
-          ) : (
-            user && (
-              <button onClick={() => { resetUploadForm(); setShowUploadModal(true); }} className={btnClass}>
-                ➕ Contribute Resource
-              </button>
-            )
-          )}
-          {!user && (
-            <a href="/auth" className={btnClass}>
-              Sign in to Contribute
-            </a>
-          )}
+            );
+          })()}
         </div>
       </div>
 
@@ -1496,9 +1632,44 @@ const Resources = () => {
             )}
           </div>
 
+          {/* ── Activity Tab: Strategy tag filter pills ───────────────────────── */}
+          {activeTab === "activity" && strategyTags.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2 items-center">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 mr-1">Strategy:</span>
+              <button
+                onClick={() => setActivityTagFilter("")}
+                className={`text-[10px] font-bold px-3 py-1 rounded-full border transition ${
+                  activityTagFilter === ""
+                    ? "bg-purple-600 text-white border-purple-600"
+                    : "border-gray-300 dark:border-zinc-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                }`}
+              >
+                All
+              </button>
+              {strategyTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setActivityTagFilter(activityTagFilter === tag ? "" : tag)}
+                  className={`text-[10px] font-bold px-3 py-1 rounded-full border transition ${
+                    activityTagFilter === tag
+                      ? "bg-purple-600 text-white border-purple-600"
+                      : "border-gray-300 dark:border-zinc-700 text-gray-500 hover:bg-purple-50 dark:hover:bg-purple-950/20 hover:border-purple-300"
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* ── Resources Grid (3-column) ──────────────────────────────────────────── */}
           <div>
-              {paginatedResources.length > 0 ? (
+              {paginatedResources
+                .filter(res => {
+                  if (activeTab !== "activity" || !activityTagFilter) return true;
+                  return (res.strategy_tags || []).includes(activityTagFilter);
+                })
+                .length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {paginatedResources.map((res) => {
@@ -1508,6 +1679,11 @@ const Resources = () => {
                       const canEdit = user && res.author_id === user.uid;
                       const canDelete = user && (res.author_id === user.uid || isAdmin);
                       const alreadyFlagged = !!userFlagsMap[res.id];
+
+                      // ── Activity Card ────────────────────────────────────────
+                      if (res.type === "activity") {
+                        return <ActivityCard key={res.id} res={res} />;
+                      }
 
                       // ── Story Card ─────────────────────────────────────────
                       if (res.type === "stories") {
@@ -1873,234 +2049,53 @@ const Resources = () => {
           </div>
       )}
 
-      {/* ── CONTRIBUTE RESOURCE MODAL ─────────────────────────────────────────── */}
-      {showUploadModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className={`w-full max-w-lg p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
-            <h2 className="text-lg font-bold mb-1">{editingResource ? "Edit Resource" : "Contribute Resource"}</h2>
-            <p className="text-xs text-gray-500 mb-5">
-              {editingResource
-                ? editingResource.admin_approved
-                  ? "Editing an approved resource will re-enter it into the admin review queue."
-                  : "You can freely edit this resource before admin approval."
-                : "Your resource will go live immediately. A 'Pending Admin Approval' badge will show until an admin reviews it."}
+      {/* ── PENDING APPROVAL POPUP (Activity tab) ───────────────────────────── */}
+      {showActivityPendingPopup && createPortal(
+        <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4" onClick={() => setShowActivityPendingPopup(false)}>
+          <div className="bg-white dark:bg-zinc-900 border border-yellow-200 dark:border-yellow-800 rounded-2xl shadow-2xl p-6 max-w-sm text-center space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="text-4xl">⏳</div>
+            <h3 className="text-base font-extrabold text-gray-900 dark:text-white">Pending Admin Approval</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+              This activity was uploaded by a community member and is currently awaiting review by our admin team. The content has not yet been verified or approved.
             </p>
-
-            {uploadError && (
-              <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 text-red-600 rounded text-xs">{uploadError}</div>
-            )}
-
-            <form onSubmit={handleResourceSubmit} className="space-y-4 text-xs font-semibold">
-              {/* Category Type */}
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">Category Type</label>
-                <select value={uploadType} onChange={(e) => setUploadType(e.target.value)} className={inputClass}>
-                  {RESOURCE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-
-              {/* Attach File Option Moved to Top for Stories */}
-              {uploadType === "stories" && (
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Attach File / Customizable Image Template *</label>
-                  <input type="file" accept="image/*,video/*,audio/*" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="block w-full text-xs" />
-                  <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-1">
-                    💡 This image/media file will be customizable by users in the Meme Lab.
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">{getTitleLabel()}</label>
-                <input type="text" placeholder={getTitlePlaceholder()} value={uploadTitle}
-                  onChange={(e) => setUploadTitle(e.target.value)} className={inputClass} required />
-              </div>
-
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">
-                  {uploadType === "stories" ? "Background — How it became a meme *" : "Description / Abstract *"}
-                </label>
-                <textarea
-                  placeholder={uploadType === "stories"
-                    ? "How it became a meme: Mention where this template originated (movie, TV show, game, viral event) and how it gained popularity."
-                    : "Provide a detailed description of the resource..."}
-                  value={uploadBody}
-                  onChange={(e) => setUploadBody(e.target.value)} rows="3"
-                  className={`${inputClass} resize-none`} required />
-              </div>
-
-              {/* Stories-specific fields */}
-              {uploadType === "stories" && (
-                <>
-                  <div>
-                    <label className="block text-gray-500 uppercase mb-1">Typical Meaning & Usage</label>
-                    <textarea
-                      placeholder="Used to express confusion while reading something complicated or reacting to unexpected information."
-                      value={uploadUsageContext || ""}
-                      onChange={(e) => setUploadUsageContext(e.target.value)}
-                      rows="2"
-                      className={`${inputClass} resize-none`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-500 uppercase mb-1">Educational Use</label>
-                    <textarea
-                      placeholder="Suggest classroom situations where this template can be used. E.g. Assignment instructions"
-                      value={uploadEducationalUse || ""}
-                      onChange={(e) => setUploadEducationalUse(e.target.value)}
-                      rows="2"
-                      className={`${inputClass} resize-none`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-500 uppercase mb-1">Example Images (Upload Multiple Images)</label>
-                    <p className="text-[10px] text-gray-400 mb-2">Upload real example images of this meme being used.</p>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        setUploadExampleFiles(prev => [...prev, ...files]);
-                      }}
-                      className="block w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200 cursor-pointer"
-                    />
-                    {uploadExampleFiles.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {uploadExampleFiles.map((file, idx) => (
-                          <div key={idx} className="relative group w-14 h-14 rounded-lg overflow-hidden border border-amber-300 dark:border-amber-700 bg-gray-100">
-                            <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => setUploadExampleFiles(prev => prev.filter((_, i) => i !== idx))}
-                              className="absolute top-0 right-0 bg-red-600 text-white rounded-bl p-0.5 text-[10px] font-bold leading-none"
-                              title="Remove"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {uploadExampleImages.filter(Boolean).length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-[10px] text-gray-400 mb-1">Existing Example URLs:</p>
-                        {uploadExampleImages.map((url, idx) => (
-                          url ? (
-                            <div key={idx} className="flex items-center gap-2 mb-1">
-                              <span className="text-[10px] text-gray-600 dark:text-gray-300 truncate max-w-xs">{url}</span>
-                              <button
-                                type="button"
-                                onClick={() => setUploadExampleImages(prev => prev.filter((_, i) => i !== idx))}
-                                className="text-red-400 hover:text-red-600 text-xs font-bold"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ) : null
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {/* Subject + Grade — hidden for stories */}
-              {uploadType !== "stories" && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-gray-500 uppercase mb-1">Subject</label>
-                      <input
-                        type="text"
-                        placeholder="Search subject..."
-                        value={formSubjectSearch}
-                        onChange={(e) => setFormSubjectSearch(e.target.value)}
-                        className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
-                      />
-                      <select value={uploadSubject} onChange={(e) => setUploadSubject(e.target.value)} className={inputClass}>
-                        {subjects
-                          .filter((s) => s.toLowerCase().includes(formSubjectSearch.toLowerCase()))
-                          .map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      {uploadSubject === "Other" && (
-                        <input type="text" placeholder="Type your subject..." value={uploadCustomSubject}
-                          onChange={(e) => setUploadCustomSubject(e.target.value)}
-                          className={`${inputClass} mt-2`} required />
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-gray-500 uppercase mb-1">Grade Group</label>
-                      <select value={uploadGrade} onChange={(e) => setUploadGrade(e.target.value)} className={inputClass}>
-                        {gradeGroups.map((g) => <option key={g} value={g}>{g}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {(uploadType === "article" || uploadType === "research_paper") && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-gray-500 uppercase mb-1">Year of Publication</label>
-                    <input type="text" placeholder="e.g. 2024" value={uploadPublicationYear}
-                      onChange={(e) => setUploadPublicationYear(e.target.value)} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className="block text-gray-500 uppercase mb-1">Journal / Publisher</label>
-                    <input type="text" placeholder="e.g. Nature Science" value={uploadPublisherName}
-                      onChange={(e) => setUploadPublisherName(e.target.value)} className={inputClass} />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">External URL / Embed Link</label>
-                <input type="text" placeholder="https://youtube.com/embed/..." value={uploadUrl}
-                  onChange={(e) => setUploadUrl(e.target.value)} className={inputClass} />
-              </div>
-
-              {uploadType !== "stories" && (
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Attach File (PDF / Image)</label>
-                  <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="block w-full text-xs" />
-                </div>
-              )}
-
-              {/* Thumbnail upload — hidden for stories (the template/uploaded file is used) */}
-              {uploadType !== "stories" && (
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Thumbnail Image (optional)</label>
-                  <input type="file" accept="image/*" onChange={(e) => setUploadThumbnailFile(e.target.files?.[0] || null)} className="block w-full text-xs" />
-                  <p className="text-[10px] text-gray-400 mt-1">
-                    💡 If no thumbnail is uploaded and you attach an image file, it will automatically be used as the thumbnail.
-                  </p>
-                </div>
-              )}
-
-              {uploadType !== "stories" && (
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Keywords (comma-separated)</label>
-                  <input type="text" placeholder="e.g. biology, cell division, mitosis" value={uploadKeywords}
-                    onChange={(e) => setUploadKeywords(e.target.value)} className={inputClass} />
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-4">
-                <button type="button" onClick={() => { setShowUploadModal(false); resetUploadForm(); }}
-                  className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg font-bold text-xs">
-                  Cancel
-                </button>
-                <button type="submit" disabled={uploadLoading}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-purple-700 disabled:opacity-60">
-                  {uploadLoading ? "Saving..." : editingResource ? "Save Changes" : "Publish Resource"}
-                </button>
-              </div>
-            </form>
+            <p className="text-xs text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-xl px-3 py-2">
+              You can still view and interact with this activity. It will receive a ✅ verified badge once approved.
+            </p>
+            <button onClick={() => setShowActivityPendingPopup(false)} className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">
+              Got it
+            </button>
           </div>
         </div>,
         document.body
       )}
+
+      {/* ── ACTIVITY CONTRIBUTE MODAL ─────────────────────────────────────────── */}
+      {showActivityModal && (
+        <ActivityContributeModal
+          onClose={() => setShowActivityModal(false)}
+          onSuccess={() => showToast("Activity published! It's live and pending admin review. 🎯", "success")}
+          subjects={subjects}
+          gradeGroups={gradeGroups}
+          availableTags={strategyTags}
+        />
+      )}
+
+      {/* ── UNIVERSAL CONTRIBUTE MODAL ────────────────────────────────────────── */}
+      {showContributeModal && (
+        <ContributeResourceModal
+          defaultType={contributeDefaultType}
+          editingResource={editingResource}
+          onClose={() => { setShowContributeModal(false); setEditingResource(null); setContributeDefaultType(null); }}
+          onSuccess={(msg) => showToast(msg || "Resource published! It's live and pending admin review. ✅", "success")}
+          subjects={subjects}
+          gradeGroups={gradeGroups}
+          availableTags={strategyTags}
+        />
+      )}
+
+      {/* ── ADD EXTERNAL LINK MODAL ───────────────────────────────────────────── */}
+
+
 
       {/* ── ADD EXTERNAL LINK MODAL ───────────────────────────────────────────── */}
       {showExternalModal && createPortal(

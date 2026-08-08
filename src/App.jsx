@@ -9,6 +9,7 @@ import Library from './pages/Library';
 import Lab from './pages/Lab';
 import Resources from './pages/Resources';
 import MemeStoryDetail from './pages/MemeStoryDetail';
+import ActivityDetail from './pages/ActivityDetail';
 import Staffroom from './pages/Staffroom';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
@@ -51,6 +52,7 @@ function App() {
           <Route path="/library" element={<Library />} />
           <Route path="/resources" element={<Resources />} />
           <Route path="/resources/story/:id" element={<MemeStoryDetail />} />
+          <Route path="/resources/activity/:id" element={<ActivityDetail />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/about" element={<About />} />
           
