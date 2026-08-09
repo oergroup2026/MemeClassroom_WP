@@ -28,6 +28,7 @@ import { compileVideoMeme } from "../utils/videoCompiler";
 import LibraryPickerModal from "../components/LibraryPickerModal";
 import GiphySearch from "../components/GiphySearch";
 import AudiogramCanvas from "../components/AudiogramCanvas";
+import RichTextArea from "../components/RichTextArea";
 import { useToast } from "../components/ToastNotification";
 import html2canvas from "html2canvas";
 
@@ -3651,32 +3652,29 @@ const Lab = () => {
                   <div className="space-y-3 pt-2 border-t border-amber-200 dark:border-amber-800/40">
                     <div>
                       <label className="block text-gray-500 uppercase mb-1">Background — How it became a meme</label>
-                      <textarea
+                      <RichTextArea
                         placeholder="How it became a meme: Mention where this template originated (movie, TV show, game, viral event) and how it gained popularity."
                         value={storyOrigin}
                         onChange={(e) => setStoryOrigin(e.target.value)}
                         rows={3}
-                        className="w-full px-3 py-2 border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none resize-none"
                       />
                     </div>
                     <div>
                       <label className="block text-gray-500 uppercase mb-1">Typical Meaning & Usage</label>
-                      <textarea
+                      <RichTextArea
                         placeholder="Used to express confusion while reading something complicated or reacting to unexpected information."
                         value={storyUsageContext}
                         onChange={(e) => setStoryUsageContext(e.target.value)}
                         rows={2}
-                        className="w-full px-3 py-2 border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none resize-none"
                       />
                     </div>
                     <div>
                       <label className="block text-gray-500 uppercase mb-1">Educational Use</label>
-                      <textarea
+                      <RichTextArea
                         placeholder="Suggest classroom situations where this template can be used. E.g. Assignment instructions"
                         value={storyEducationalUse}
                         onChange={(e) => setStoryEducationalUse(e.target.value)}
                         rows={2}
-                        className="w-full px-3 py-2 border border-amber-200 dark:border-amber-800/50 bg-white dark:bg-gray-900 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none resize-none"
                       />
                     </div>
                     <div>

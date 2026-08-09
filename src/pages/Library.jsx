@@ -22,6 +22,7 @@ import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
+import RichTextArea from "../components/RichTextArea";
 import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
 
 import { trackCustomSubmission } from "../utils/taxonomyUtils";
@@ -1903,12 +1904,11 @@ const Library = () => {
                       <span className="block text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase flex items-center gap-1">
                         <ShieldCheck className="w-3.5 h-3.5" /> Add Expert Comment
                       </span>
-                      <textarea
+                      <RichTextArea
                         placeholder="Write an expert or academic comment on this meme…"
                         value={newExpertComment}
                         onChange={(e) => setNewExpertComment(e.target.value)}
-                        rows="2"
-                        className="w-full px-3 py-2 border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400/30"
+                        rows={2}
                         required
                       />
                       <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-1.5 rounded-xl transition">

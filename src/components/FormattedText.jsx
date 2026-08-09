@@ -13,8 +13,8 @@ export default function FormattedText({ text, className = "", inline = false }) 
     const parts = [];
     let lastIndex = 0;
 
-    // Matches **bold**, *italic*, and http(s) URLs
-    const regex = /(\*\*(.*?)\*\*)|(\*(.*?)\*)|(https?:\/\/[^\s]+)/g;
+    // Matches **bold**, *italic*, [label](url) markdown links, and raw http(s) URLs
+    const regex = /(\*\*(.*?)\*\*)|(\*(.*?)\*)|(\[(.*?)\]\((https?:\/\/[^\s\)]+)\))|(https?:\/\/[^\s]+)/g;
     let match;
 
     while ((match = regex.exec(str)) !== null) {
@@ -35,9 +35,25 @@ export default function FormattedText({ text, className = "", inline = false }) 
             {match[4]}
           </em>
         );
-      } else if (match[5]) {
-        // URL
-        const url = match[5];
+      } else if (match[6] && match[7]) {
+        // Markdown Link [label](url)
+        const label = match[6];
+        const url = match[7];
+        parts.push(
+          <a
+            key={`ml-${match.index}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-600 dark:text-purple-400 font-semibold hover:underline break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {label} ↗
+          </a>
+        );
+      } else if (match[8]) {
+        // Raw URL
+        const url = match[8];
         parts.push(
           <a
             key={`u-${match.index}`}
@@ -83,6 +99,8 @@ export default function FormattedText({ text, className = "", inline = false }) 
     const unorderedMatch = trimmed.match(/^([•‣◦▪▫⁃\-\*\+—])\s+(.*)/) || trimmed.match(/^([•‣◦▪▫⁃])\s*(.*)/);
     // Detect numbered list item (1. 2. 1) 2))
     const orderedMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)/);
+    // Detect blockquote
+    const quoteMatch = trimmed.match(/^>\s?(.*)/);
 
     if (unorderedMatch) {
       if (currentList && currentList.type !== "ul") flushList();
@@ -92,6 +110,9 @@ export default function FormattedText({ text, className = "", inline = false }) 
       if (currentList && currentList.type !== "ol") flushList();
       if (!currentList) currentList = { type: "ol", items: [] };
       currentList.items.push(orderedMatch[2]);
+    } else if (quoteMatch) {
+      flushList();
+      blocks.push({ type: "quote", text: quoteMatch[1] });
     } else {
       flushList();
       blocks.push({ type: "p", text: trimmed });
@@ -127,6 +148,13 @@ export default function FormattedText({ text, className = "", inline = false }) 
                 </li>
               ))}
             </ol>
+          );
+        }
+        if (block.type === "quote") {
+          return (
+            <blockquote key={idx} className="border-l-4 border-purple-400 dark:border-purple-600 pl-3 py-1 my-2 italic text-gray-700 dark:text-gray-300 bg-purple-50/50 dark:bg-purple-950/20 rounded-r-lg">
+              {renderInline(block.text)}
+            </blockquote>
           );
         }
         return (

@@ -9,6 +9,7 @@ import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
 import { X, Search, Plus, Trash2, Link, BookOpen, FileText } from "lucide-react";
+import RichTextArea from "./RichTextArea";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const detectVideoPlatform = (url) => {
@@ -414,9 +415,8 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
             </div>
             <div>
               <label className={labelClass}>Short Description (optional)</label>
-              <textarea value={body} onChange={e => setBody(e.target.value)} rows={2}
-                placeholder="Brief description of the activity..."
-                className={inputClass + " resize-none"} />
+              <RichTextArea value={body} onChange={e => setBody(e.target.value)} rows={3}
+                placeholder="Brief description of the activity..." />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -641,10 +641,9 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
 
           {/* ── Section 7: Remarks if any */}
           <div className={sectionClass}>
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📝 Remarks if any</h3>
-            <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3}
-              placeholder="Any additional remarks, notes, or tips for educators..."
-              className={inputClass + " resize-none"} />
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400 mb-1.5">📝 Remarks if any</h3>
+            <RichTextArea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3}
+              placeholder="Any additional remarks, notes, or tips for educators..." />
           </div>
         </form>
 
