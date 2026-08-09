@@ -471,6 +471,8 @@ const Resources = () => {
   const [extSection, setExtSection] = useState("Meme Related Tools");
   const [extIsClassroomFriendly, setExtIsClassroomFriendly] = useState(false);
   const [extClassroomFriendlyOnly, setExtClassroomFriendlyOnly] = useState(false);
+  const [extSortBy, setExtSortBy] = useState("newest");
+  const [extSectionFilter, setExtSectionFilter] = useState("");
   const [toolSections, setToolSections] = useState(DEFAULT_TOOL_SECTIONS);
   const [extLoading, setExtLoading] = useState(false);
   const [extError, setExtError] = useState("");
@@ -1259,7 +1261,7 @@ const Resources = () => {
     { id: "activity", label: "Activities" },
     { id: "course", label: "Courses" },
     { id: "stories", label: "Meme Stories" },
-    { id: "additional", label: "🔧 Additional Tools" },
+    { id: "additional", label: "🔧 Additional Resources" },
   ];
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -1341,7 +1343,7 @@ const Resources = () => {
             handler: () => { setContributeDefaultType("stories"); setEditingResource(null); setShowContributeModal(true); }
           },
           additional: {
-            title: "Additional Tools & External Platforms",
+            title: "Additional Resources",
             subtitle: "Explore tools for meme creation, media literacy, and curated open educational resources.",
             ctaLabel: "+ Add Resource Link",
             handler: () => setShowExternalModal(true)
@@ -1359,18 +1361,6 @@ const Resources = () => {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-              {activeTab === "additional" && (
-                <button
-                  onClick={() => setExtClassroomFriendlyOnly((v) => !v)}
-                  className={`text-xs font-bold px-3.5 py-2.5 rounded-xl border transition flex items-center gap-1.5 shadow-sm ${
-                    extClassroomFriendlyOnly
-                      ? "bg-emerald-600 text-white border-emerald-600"
-                      : "border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 bg-white dark:bg-zinc-900"
-                  }`}
-                >
-                  <span>🏫</span> Classroom & Student Friendly {extClassroomFriendlyOnly ? "✓" : ""}
-                </button>
-              )}
               {user ? (
                 <button
                   onClick={headerInfo.handler}
@@ -1433,47 +1423,147 @@ const Resources = () => {
         </button>
       </form>
 
-      {/* ── ADDITIONAL TOOLS TAB (Categorized by Sections) ────────── */}
+      {/* ── ADDITIONAL RESOURCES TAB ────────────────────────────────────────── */}
       {activeTab === "additional" ? (
-        <div className="space-y-10">
+        <div className="space-y-8">
+          {/* Filter & Sort controls bar for Additional Resources */}
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setShowFilters((v) => !v)}
+                className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${
+                  showFilters
+                    ? "bg-purple-600 text-white border-purple-600"
+                    : "border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 bg-white dark:bg-zinc-900"
+                }`}
+              >
+                ⚙ Filters {showFilters ? "▲" : "▼"}
+              </button>
+
+              {/* Sort inline */}
+              <select
+                value={extSortBy}
+                onChange={(e) => setExtSortBy(e.target.value)}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+              >
+                <option value="newest">↓ Newest</option>
+                <option value="oldest">↑ Oldest</option>
+                <option value="alpha">A-Z Title</option>
+              </select>
+
+              {/* Classroom & Student Friendly Filter */}
+              <button
+                onClick={() => setExtClassroomFriendlyOnly((v) => !v)}
+                className={`text-xs font-bold px-3.5 py-1.5 rounded-lg border transition flex items-center gap-1.5 shadow-sm ${
+                  extClassroomFriendlyOnly
+                    ? "bg-emerald-600 text-white border-emerald-600"
+                    : "border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 bg-white dark:bg-zinc-900"
+                }`}
+              >
+                <span>🏫</span> Classroom & Student Friendly {extClassroomFriendlyOnly ? "✓" : ""}
+              </button>
+
+              {/* Active section filter pill */}
+              {extSectionFilter && (
+                <span className="flex items-center gap-1 bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
+                  Category: {extSectionFilter}
+                  <button onClick={() => setExtSectionFilter("")} className="ml-0.5 hover:text-purple-900 font-extrabold">✕</button>
+                </span>
+              )}
+              {(extClassroomFriendlyOnly || extSectionFilter) && (
+                <button onClick={() => { setExtClassroomFriendlyOnly(false); setExtSectionFilter(""); }} className="text-[10px] font-bold text-red-500 hover:underline">
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            {/* Expandable filter panel */}
+            {showFilters && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-sm">
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Resource Category / Section</label>
+                  <select
+                    value={extSectionFilter}
+                    onChange={(e) => setExtSectionFilter(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">All Categories & Sections</option>
+                    {toolSections.map((sec) => (
+                      <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center pt-4">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={extClassroomFriendlyOnly}
+                      onChange={(e) => setExtClassroomFriendlyOnly(e.target.checked)}
+                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 border-gray-300"
+                    />
+                    Show Classroom & Student Friendly Tools Only
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Render Sections */}
-          {toolSections.map((secName) => {
-            const secIcon =
-              secName === "Meme Related Tools" ? "🎭" :
-              secName === "Media Literacy" ? "📰" :
-              secName === "Other Open Educational Resources" ? "📚" : "🛠️";
+          {toolSections
+            .filter(secName => !extSectionFilter || secName === extSectionFilter)
+            .map((secName) => {
+              const secIcon =
+                secName === "Meme Related Tools" ? "🎭" :
+                secName === "Media Literacy" ? "📰" :
+                secName === "Other Open Educational Resources" ? "📚" : "🛠️";
 
-            const q = searchQuery.toLowerCase().trim();
+              const q = searchQuery.toLowerCase().trim();
 
-            // Find external links for this section matching classroom filter and search query
-            const matchingLinks = externalLinks.filter(l => {
-              const linkSec = l.section || "Meme Related Tools";
-              const matchesSection = linkSec === secName;
-              const matchesClassroom = !extClassroomFriendlyOnly || l.is_classroom_friendly;
-              const matchesSearch = !q || (
-                l.title?.toLowerCase().includes(q) ||
-                l.description?.toLowerCase().includes(q) ||
-                l.section?.toLowerCase().includes(q) ||
-                l.destination_url?.toLowerCase().includes(q)
-              );
-              return matchesSection && matchesClassroom && matchesSearch;
-            });
+              // Find external links for this section matching classroom filter and search query
+              let matchingLinks = externalLinks.filter(l => {
+                const linkSec = l.section || "Meme Related Tools";
+                const matchesSection = linkSec === secName;
+                const matchesClassroom = !extClassroomFriendlyOnly || l.is_classroom_friendly;
+                const matchesSearch = !q || (
+                  l.title?.toLowerCase().includes(q) ||
+                  l.description?.toLowerCase().includes(q) ||
+                  l.section?.toLowerCase().includes(q) ||
+                  l.destination_url?.toLowerCase().includes(q)
+                );
+                return matchesSection && matchesClassroom && matchesSearch;
+              });
 
-            // For "Other Open Educational Resources", also include "other" type resources from DB
-            const matchingOtherResources = secName === "Other Open Educational Resources"
-              ? resources.filter(r => {
-                  if (r.type !== "other") return false;
-                  if (extClassroomFriendlyOnly && !r.is_classroom_friendly) return false;
-                  if (!q) return true;
-                  return (
-                    r.title?.toLowerCase().includes(q) ||
-                    r.body?.toLowerCase().includes(q) ||
-                    r.subject?.toLowerCase().includes(q)
-                  );
-                })
-              : [];
+              if (extSortBy === "newest") {
+                matchingLinks.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
+              } else if (extSortBy === "oldest") {
+                matchingLinks.sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
+              } else if (extSortBy === "alpha") {
+                matchingLinks.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+              }
 
-            const totalItemsCount = matchingLinks.length + matchingOtherResources.length;
+              // For "Other Open Educational Resources", also include "other" type resources from DB
+              let matchingOtherResources = secName === "Other Open Educational Resources"
+                ? resources.filter(r => {
+                    if (r.type !== "other") return false;
+                    if (extClassroomFriendlyOnly && !r.is_classroom_friendly) return false;
+                    if (!q) return true;
+                    return (
+                      r.title?.toLowerCase().includes(q) ||
+                      r.body?.toLowerCase().includes(q) ||
+                      r.subject?.toLowerCase().includes(q)
+                    );
+                  })
+                : [];
+
+              if (extSortBy === "newest") {
+                matchingOtherResources.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
+              } else if (extSortBy === "oldest") {
+                matchingOtherResources.sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
+              } else if (extSortBy === "alpha") {
+                matchingOtherResources.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+              }
+
+              const totalItemsCount = matchingLinks.length + matchingOtherResources.length;
 
             return (
               <div key={secName} className="space-y-4">
