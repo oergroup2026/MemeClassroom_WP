@@ -23,6 +23,7 @@ import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
+import RichTextArea from "../components/RichTextArea";
 import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -1796,12 +1797,12 @@ const Staffroom = () => {
                     {/* Reply compose */}
                     {user ? (
                       <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-800/40 space-y-1">
-                        <textarea
+                        <RichTextArea
                           placeholder="Write a peer response… (min 10 characters)"
                           value={replyInputMap[thread.id] || ""}
                           onChange={(e) => setReplyInputMap((prev) => ({ ...prev, [thread.id]: e.target.value }))}
                           rows={2}
-                          className={`${inputClass} resize-none text-xs`}
+                          showPreviewToggle={false}
                         />
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] text-gray-400">
@@ -1957,8 +1958,8 @@ const Staffroom = () => {
 
                 {composerTab === "write" ? (
                   <div className="relative">
-                    <textarea
-                      placeholder="Describe your thread (supports Markdown bold **text**, italic *text*, `code`)…"
+                    <RichTextArea
+                      placeholder="Describe your thread..."
                       value={composeBody}
                       onChange={(e) => {
                         setComposeBody(e.target.value);
@@ -1966,16 +1967,7 @@ const Staffroom = () => {
                         if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
                         hintTimerRef.current = setTimeout(() => setShowWritingHint(true), 5000);
                       }}
-                      onFocus={() => {
-                        if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
-                        hintTimerRef.current = setTimeout(() => setShowWritingHint(true), 5000);
-                      }}
-                      onBlur={() => {
-                        if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
-                        setShowWritingHint(false);
-                      }}
-                      rows={4}
-                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded resize-y focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      rows={5}
                       required
                     />
                     {showWritingHint && WRITING_HINTS[composeType] && (
@@ -2262,12 +2254,11 @@ const Staffroom = () => {
               {user && profile && (profile.role === "expert" || profile.role === "admin" || profile.is_verified) ? (
                 <form onSubmit={handleExpertCommentSubmit} className="space-y-3 border-t pt-4 text-left">
                   <span className="block text-xs font-semibold text-purple-700 uppercase flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-purple-650" /> Add Verification Review</span>
-                  <textarea
+                  <RichTextArea
                     placeholder="Write a verification review or academic comment…"
                     value={newExpertComment}
                     onChange={(e) => setNewExpertComment(e.target.value)}
                     rows={3}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-xs rounded text-gray-800"
                     required
                   />
                   <button type="submit" className={btnClass}>Submit Verified Review</button>

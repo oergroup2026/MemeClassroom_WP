@@ -23,6 +23,7 @@ import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
+import RichTextArea from "../components/RichTextArea";
 import { SUBJECTS, GRADE_GROUPS, RESOURCE_TYPES, DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 import ActivityContributeModal from "../components/ActivityContributeModal";
 import ContributeResourceModal from "../components/ContributeResourceModal";
@@ -2268,8 +2269,8 @@ const Resources = () => {
               </div>
               <div>
                 <label className="block text-gray-500 uppercase mb-1">Short Description *</label>
-                <textarea value={extDescription} onChange={(e) => setExtDescription(e.target.value)}
-                  className={`${inputClass} h-20 resize-none`} placeholder="A quick summary of the tool or platform..." required />
+                <RichTextArea value={extDescription} onChange={(e) => setExtDescription(e.target.value)}
+                  rows={3} placeholder="A quick summary of the tool or platform..." required />
               </div>
               <div>
                 <label className="block text-gray-500 uppercase mb-1">Thumbnail Image URL</label>

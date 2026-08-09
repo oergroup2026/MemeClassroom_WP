@@ -22,6 +22,7 @@ import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star } from "lucide-r
 import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
+import RichTextArea from "../components/RichTextArea";
 import { DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 
 const Admin = () => {
@@ -2122,10 +2123,10 @@ const Admin = () => {
                   <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">
                     {resType === "stories" ? "Background — How it became a meme *" : "Summary / Body *"}
                   </label>
-                  <textarea
+                  <RichTextArea
                     value={resBody}
                     onChange={e => setResBody(e.target.value)}
-                    className={`${inputClass} h-20`}
+                    rows={3}
                     placeholder={resType === "stories" ? "How it became a meme: Mention where this template originated (movie, TV show, game, viral event) and how it gained popularity." : "Provide a quick summary or layout description..."}
                     required
                   />
@@ -2136,19 +2137,19 @@ const Admin = () => {
                   <>
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Typical Meaning & Usage</label>
-                      <textarea
+                      <RichTextArea
                         value={resUsageContext}
                         onChange={e => setResUsageContext(e.target.value)}
-                        className={`${inputClass} h-16`}
+                        rows={2}
                         placeholder="Used to express confusion while reading something complicated or reacting to unexpected information."
                       />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Educational Use</label>
-                      <textarea
+                      <RichTextArea
                         value={resEducationalUse}
                         onChange={e => setResEducationalUse(e.target.value)}
-                        className={`${inputClass} h-16`}
+                        rows={2}
                         placeholder="Suggest classroom situations where this template can be used. E.g. Assignment instructions"
                       />
                     </div>
@@ -2594,10 +2595,10 @@ const Admin = () => {
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Review Body Text *</label>
-                <textarea
+                <RichTextArea
                   value={testBody}
                   onChange={e => setTestBody(e.target.value)}
-                  className={`${inputClass} h-16`}
+                  rows={2}
                   placeholder="Testimonial details..."
                   required
                 />

@@ -20,6 +20,7 @@ import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { X, FileText, Image as ImageIcon, Link, BookOpen, User } from "lucide-react";
 import ActivityContributeModal from "./ActivityContributeModal";
+import RichTextArea from "./RichTextArea";
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 const trackCustomSubmission = async (type, name) => {
@@ -192,8 +193,8 @@ const ArticleForm = ({ form, setForm, subjects, gradeGroups }) => (
       </div>
       <div>
         <label className={labelClass}>Description / Abstract *</label>
-        <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
-          rows={3} placeholder="Provide a detailed description..." className={inputBase + " resize-none"} />
+        <RichTextArea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
+          rows={3} placeholder="Provide a detailed description..." />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -293,8 +294,8 @@ const CourseForm = ({ form, setForm, subjects, gradeGroups }) => (
       </div>
       <div>
         <label className={labelClass}>Description *</label>
-        <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
-          rows={3} placeholder="What will learners gain from this course?" className={inputBase + " resize-none"} />
+        <RichTextArea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
+          rows={3} placeholder="What will learners gain from this course?" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -382,27 +383,24 @@ const StoryForm = ({ form, setForm }) => (
     <Section title="📖 Background Story">
       <div>
         <label className={labelClass}>How it became a meme *</label>
-        <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
+        <RichTextArea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
           rows={3}
-          placeholder="How this template originated (movie, TV show, game, viral event) and how it gained popularity..."
-          className={inputBase + " resize-none"} />
+          placeholder="How this template originated (movie, TV show, game, viral event) and how it gained popularity..." />
       </div>
     </Section>
 
     <Section title="🎓 Classroom Use">
       <div>
         <label className={labelClass}>Typical Meaning & Usage</label>
-        <textarea value={form.usageContext} onChange={e => setForm(f => ({ ...f, usageContext: e.target.value }))}
+        <RichTextArea value={form.usageContext} onChange={e => setForm(f => ({ ...f, usageContext: e.target.value }))}
           rows={2}
-          placeholder="Used to express confusion while reading something complicated..."
-          className={inputBase + " resize-none"} />
+          placeholder="Used to express confusion while reading something complicated..." />
       </div>
       <div>
         <label className={labelClass}>Educational Use</label>
-        <textarea value={form.educationalUse} onChange={e => setForm(f => ({ ...f, educationalUse: e.target.value }))}
+        <RichTextArea value={form.educationalUse} onChange={e => setForm(f => ({ ...f, educationalUse: e.target.value }))}
           rows={2}
-          placeholder="Suggest classroom situations where this template can be used..."
-          className={inputBase + " resize-none"} />
+          placeholder="Suggest classroom situations where this template can be used..." />
       </div>
     </Section>
 
@@ -445,8 +443,8 @@ const OtherForm = ({ form, setForm, subjects, gradeGroups }) => (
       </div>
       <div>
         <label className={labelClass}>Description *</label>
-        <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
-          rows={3} placeholder="Describe this resource..." className={inputBase + " resize-none"} />
+        <RichTextArea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
+          rows={3} placeholder="Describe this resource..." />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>

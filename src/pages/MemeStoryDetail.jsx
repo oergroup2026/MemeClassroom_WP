@@ -19,6 +19,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import FormattedText from "../components/FormattedText";
+import RichTextArea from "../components/RichTextArea";
 import {
   ArrowLeft,
   Heart,
@@ -703,33 +704,30 @@ export default function MemeStoryDetail() {
 
               <div>
                 <label className="block text-gray-500 uppercase mb-1">Background — How it became a meme *</label>
-                <textarea
+                <RichTextArea
                   value={editBody}
                   onChange={(e) => setEditBody(e.target.value)}
                   rows={3}
                   placeholder="How it became a meme: Mention where this template originated (movie, TV show, game, viral event) and how it gained popularity."
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-gray-500 uppercase mb-1">Typical Meaning & Usage</label>
-                <textarea
+                <RichTextArea
                   value={editUsageContext}
                   onChange={(e) => setEditUsageContext(e.target.value)}
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                 />
               </div>
 
               <div>
                 <label className="block text-gray-500 uppercase mb-1">Educational Use</label>
-                <textarea
+                <RichTextArea
                   value={editEducationalUse}
                   onChange={(e) => setEditEducationalUse(e.target.value)}
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                 />
               </div>
 
