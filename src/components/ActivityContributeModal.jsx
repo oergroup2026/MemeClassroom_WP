@@ -228,6 +228,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
   const [customSubject, setCustomSubject] = useState("");
   const [gradeGroup, setGradeGroup] = useState("High School (9–10)");
   const [remarks, setRemarks] = useState("");
+  const [isClassroomFriendly, setIsClassroomFriendly] = useState(true);
 
   // Cover image
   const [coverFile, setCoverFile] = useState(null);
@@ -340,6 +341,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           subject: finalSubject,
           grade_group: gradeGroup,
           educator_notes: remarks.trim(),
+          is_classroom_friendly: Boolean(isClassroomFriendly),
           videos: cleanVideos,
           references: cleanRefs,
           author_id: user.uid,
@@ -617,7 +619,27 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
             ))}
           </div>
 
-          {/* ── Section 6: Remarks if any */}
+          {/* ── Section 6: Guidelines & Suitability */}
+          <div className={sectionClass}>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">🏫 Guidelines & Suitability</h3>
+            <div className="flex items-start gap-2.5 p-3 bg-purple-50/50 dark:bg-zinc-800/60 border border-purple-100 dark:border-zinc-700/60 rounded-xl">
+              <input
+                type="checkbox"
+                id="actClassroomFriendlyCheck"
+                checked={isClassroomFriendly}
+                onChange={e => setIsClassroomFriendly(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600"
+              />
+              <label htmlFor="actClassroomFriendlyCheck" className="text-xs text-gray-800 dark:text-gray-200 font-bold cursor-pointer select-none">
+                Classroom & Student Friendly
+                <span className="block text-[10px] text-gray-500 dark:text-gray-400 font-normal leading-snug mt-0.5">
+                  Check if this activity is designed for classroom learning and follows required student & child-friendly guidelines.
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* ── Section 7: Remarks if any */}
           <div className={sectionClass}>
             <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📝 Remarks if any</h3>
             <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3}

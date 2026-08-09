@@ -468,6 +468,8 @@ const Resources = () => {
   const [extImageUrl, setExtImageUrl] = useState("");
   const [extDestUrl, setExtDestUrl] = useState("");
   const [extSection, setExtSection] = useState("Meme Related Tools");
+  const [extIsClassroomFriendly, setExtIsClassroomFriendly] = useState(false);
+  const [extClassroomFriendlyOnly, setExtClassroomFriendlyOnly] = useState(false);
   const [toolSections, setToolSections] = useState(DEFAULT_TOOL_SECTIONS);
   const [extLoading, setExtLoading] = useState(false);
   const [extError, setExtError] = useState("");
@@ -1075,12 +1077,13 @@ const Resources = () => {
         image_url: extImageUrl || "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=400&q=80",
         destination_url: extDestUrl,
         section: extSection || "Meme Related Tools",
+        is_classroom_friendly: Boolean(extIsClassroomFriendly),
         contributor_id: user.uid,
         admin_approved: false,
         created_at: serverTimestamp()
       });
       setShowExternalModal(false);
-      setExtTitle(""); setExtDescription(""); setExtImageUrl(""); setExtDestUrl(""); setExtSection("Meme Related Tools");
+      setExtTitle(""); setExtDescription(""); setExtImageUrl(""); setExtDestUrl(""); setExtSection("Meme Related Tools"); setExtIsClassroomFriendly(false);
       showToast("External resource added! Pending admin review.", "success");
     } catch (err) {
       console.error(err); setExtError("Failed to add resource. Try again.");
@@ -1364,7 +1367,7 @@ const Resources = () => {
       {/* ── ADDITIONAL TOOLS TAB (Categorized by Sections) ────────── */}
       {activeTab === "additional" ? (
         <div className="space-y-12">
-          {/* Header row with submit button */}
+          {/* Header row with submit button & filter */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-zinc-800 pb-4">
             <div>
               <h2 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1374,14 +1377,26 @@ const Resources = () => {
                 Explore tools for meme creation, media literacy, and open educational resources.
               </p>
             </div>
-            {user && (
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
               <button
-                onClick={() => setShowExternalModal(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-sm self-start sm:self-auto"
+                onClick={() => setExtClassroomFriendlyOnly((v) => !v)}
+                className={`text-xs font-bold px-3.5 py-2.5 rounded-xl border transition flex items-center gap-1.5 shadow-sm ${
+                  extClassroomFriendlyOnly
+                    ? "bg-emerald-600 text-white border-emerald-600"
+                    : "border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 bg-white dark:bg-zinc-900"
+                }`}
               >
-                <span>+</span> Add Resource Link
+                <span>🏫</span> Classroom & Student Friendly {extClassroomFriendlyOnly ? "✓" : ""}
               </button>
-            )}
+              {user && (
+                <button
+                  onClick={() => setShowExternalModal(true)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+                >
+                  <span>+</span> Add Resource Link
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Render Sections */}
@@ -1394,12 +1409,16 @@ const Resources = () => {
             // Find external links for this section (default missing to "Meme Related Tools")
             const matchingLinks = externalLinks.filter(l => {
               const linkSec = l.section || "Meme Related Tools";
-              return linkSec === secName;
+              const matchesSection = linkSec === secName;
+              if (extClassroomFriendlyOnly) {
+                return matchesSection && l.is_classroom_friendly;
+              }
+              return matchesSection;
             });
 
             // For "Other Open Educational Resources", also include "other" type resources from DB
             const matchingOtherResources = secName === "Other Open Educational Resources"
-              ? resources.filter(r => r.type === "other")
+              ? resources.filter(r => r.type === "other" && (!extClassroomFriendlyOnly || r.is_classroom_friendly))
               : [];
 
             const totalItemsCount = matchingLinks.length + matchingOtherResources.length;
@@ -1421,11 +1440,18 @@ const Resources = () => {
                       return (
                         <div key={link.id} className="flex flex-col justify-between h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5">
                           <div>
-                            {!link.admin_approved && (
-                              <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-1 rounded-lg">
-                                <Clock className="w-3 h-3" /> Pending Admin Review
-                              </div>
-                            )}
+                            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                              {!link.admin_approved && (
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
+                                  <Clock className="w-3 h-3" /> Pending Review
+                                </div>
+                              )}
+                              {link.is_classroom_friendly && (
+                                <div className="flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
+                                  <span>🏫</span> Classroom & Student Friendly
+                                </div>
+                              )}
+                            </div>
                             <div className="w-full aspect-video rounded-xl overflow-hidden mb-3.5 border border-gray-200 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-800">
                               <img
                                 src={link.image_url}
@@ -1476,6 +1502,11 @@ const Resources = () => {
                       return (
                         <div key={res.id} className="flex flex-col justify-between h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5">
                           <div>
+                            {res.is_classroom_friendly && (
+                              <div className="mb-2 inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
+                                <span>🏫</span> Classroom & Student Friendly
+                              </div>
+                            )}
                             <h4 className="font-extrabold text-sm mb-1.5 line-clamp-2 text-gray-900 dark:text-white">{res.title}</h4>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-3 leading-relaxed">{res.body}</p>
                             {res.subject && (
@@ -2137,6 +2168,21 @@ const Resources = () => {
                 <label className="block text-gray-500 uppercase mb-1">Destination URL *</label>
                 <input type="url" value={extDestUrl} onChange={(e) => setExtDestUrl(e.target.value)} className={inputClass}
                   placeholder="https://example.com/pedagogy-reads" required />
+              </div>
+              <div className="flex items-start gap-2.5 p-3 bg-purple-50/50 dark:bg-zinc-800/60 border border-purple-100 dark:border-zinc-700/60 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="extClassroomFriendlyCheck"
+                  checked={extIsClassroomFriendly}
+                  onChange={(e) => setExtIsClassroomFriendly(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600"
+                />
+                <label htmlFor="extClassroomFriendlyCheck" className="text-xs text-gray-800 dark:text-gray-200 font-bold cursor-pointer select-none">
+                  Classroom & Student Friendly
+                  <span className="block text-[10px] text-gray-500 dark:text-gray-400 font-normal leading-snug mt-0.5">
+                    Check if this tool is designed for classroom learning and follows required student & child-friendly guidelines.
+                  </span>
+                </label>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowExternalModal(false)}
