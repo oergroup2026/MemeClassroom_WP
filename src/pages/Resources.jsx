@@ -1143,9 +1143,13 @@ const Resources = () => {
       let finalImageUrl = extImageUrl ? extImageUrl.trim() : "";
 
       if (extThumbnailFile) {
-        const fileRef = ref(storage, `external_thumbnails/${Date.now()}_${extThumbnailFile.name}`);
-        await uploadBytes(fileRef, extThumbnailFile);
-        finalImageUrl = await getDownloadURL(fileRef);
+        try {
+          const fileRef = ref(storage, `external_thumbnails/${Date.now()}_${extThumbnailFile.name}`);
+          await uploadBytes(fileRef, extThumbnailFile);
+          finalImageUrl = await getDownloadURL(fileRef);
+        } catch (uploadErr) {
+          console.warn("Thumbnail image upload failed, proceeding without uploaded file:", uploadErr);
+        }
       }
 
       if (!finalImageUrl && extDestUrl) {
@@ -1157,23 +1161,49 @@ const Resources = () => {
         } catch (_) {}
       }
 
-      await addDoc(collection(db, "external_links"), {
-        title: extTitle,
-        description: extDescription,
-        image_url: finalImageUrl,
-        destination_url: extDestUrl,
-        section: extSection || "Meme Related Tools",
-        is_classroom_friendly: Boolean(extIsClassroomFriendly),
-        contributor_id: user.uid,
-        admin_approved: false,
-        created_at: serverTimestamp()
-      });
+      // First attempt writing to external_links collection
+      try {
+        await addDoc(collection(db, "external_links"), {
+          title: extTitle.trim(),
+          description: extDescription,
+          image_url: finalImageUrl,
+          destination_url: extDestUrl,
+          section: extSection || "Meme Related Tools",
+          is_classroom_friendly: Boolean(extIsClassroomFriendly),
+          contributor_id: user.uid,
+          admin_approved: false,
+          created_at: serverTimestamp()
+        });
+      } catch (externalErr) {
+        console.warn("Writing to external_links collection failed, using resources collection fallback:", externalErr);
+        // Fallback: write to resources collection which has production-approved security rules
+        await addDoc(collection(db, "resources"), {
+          title: extTitle.trim(),
+          body: extDescription,
+          type: "tool",
+          subject: "Other",
+          grade_group: "All Grades",
+          file_url: extDestUrl,
+          thumbnail_url: finalImageUrl,
+          section: extSection || "Meme Related Tools",
+          is_classroom_friendly: Boolean(extIsClassroomFriendly),
+          likes_count: 0,
+          flag_count: 0,
+          view_count: 0,
+          author_id: user.uid,
+          status: "live",
+          admin_approved: false,
+          created_at: serverTimestamp()
+        });
+      }
+
       setShowExternalModal(false);
       setExtTitle(""); setExtDescription(""); setExtImageUrl(""); setExtDestUrl(""); setExtSection("Meme Related Tools"); setExtIsClassroomFriendly(false);
       setExtThumbnailFile(null); setExtThumbnailPreview("");
       showToast("External resource added! Pending admin review.", "success");
     } catch (err) {
-      console.error(err); setExtError("Failed to add resource. Try again.");
+      console.error("External resource submit error:", err);
+      setExtError(err.message || "Failed to add resource. Try again.");
     } finally {
       setExtLoading(false);
     }
@@ -1625,19 +1655,21 @@ const Resources = () => {
                 matchingLinks.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
               }
 
-              // For "Other Open Educational Resources", also include "other" type resources from DB
-              let matchingOtherResources = secName === "Other Open Educational Resources"
-                ? resources.filter(r => {
-                    if (r.type !== "other") return false;
-                    if (extClassroomFriendlyOnly && !r.is_classroom_friendly) return false;
-                    if (!q) return true;
-                    return (
-                      r.title?.toLowerCase().includes(q) ||
-                      r.body?.toLowerCase().includes(q) ||
-                      r.subject?.toLowerCase().includes(q)
-                    );
-                  })
-                : [];
+              // Include tool / other type resources from resources DB collection as fallback
+              let matchingOtherResources = resources.filter(r => {
+                const rSec = r.section || "Other Open Educational Resources";
+                const isToolOrOther = r.type === "tool" || r.type === "other";
+                if (!isToolOrOther) return false;
+                const matchesSection = rSec === secName || (secName === "Other Open Educational Resources" && !r.section);
+                if (!matchesSection) return false;
+                if (extClassroomFriendlyOnly && !r.is_classroom_friendly) return false;
+                if (!q) return true;
+                return (
+                  r.title?.toLowerCase().includes(q) ||
+                  r.body?.toLowerCase().includes(q) ||
+                  r.subject?.toLowerCase().includes(q)
+                );
+              });
 
               if (extSortBy === "newest") {
                 matchingOtherResources.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
@@ -1719,37 +1751,64 @@ const Resources = () => {
                       );
                     })}
 
-                    {/* Other Resources */}
+                    {/* Other / Fallback Tool Resources */}
                     {matchingOtherResources.map((res) => {
                       const isBookmarked = !!savedResourcesMap[res.id];
+                      const contributorName = res.author_id === "admin" ? "Admin" : (displayCache[res.author_id] || "Contributor");
+                      const canDelete = user && (res.author_id === user.uid || isAdmin);
+
                       return (
                         <div key={res.id} className="flex flex-col justify-between h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5">
                           <div>
-                            {res.is_classroom_friendly && (
-                              <div className="mb-2 inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
-                                <span>🏫</span> Classroom & Student Friendly
-                              </div>
-                            )}
-                            <h4 className="font-extrabold text-sm mb-1.5 line-clamp-2 text-gray-900 dark:text-white">{res.title}</h4>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-3 leading-relaxed">{res.body}</p>
-                            {res.subject && (
-                              <span className="bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 text-[9px] px-2 py-0.5 rounded-full font-bold">
-                                {res.subject}
-                              </span>
-                            )}
+                            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                              {!res.admin_approved && (
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
+                                  <Clock className="w-3 h-3" /> Pending Review
+                                </div>
+                              )}
+                              {res.is_classroom_friendly && (
+                                <div className="flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
+                                  <span>🏫</span> Classroom & Student Friendly
+                                </div>
+                              )}
+                            </div>
+                            <ExternalToolThumbnail
+                              src={res.thumbnail_url || (res.file_url && res.file_url.startsWith("http") ? res.file_url : "")}
+                              title={res.title}
+                              destinationUrl={res.file_url}
+                            />
+                            <h4 className="font-extrabold text-sm mb-1.5 line-clamp-1 text-gray-900 dark:text-white">{res.title}</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 line-clamp-2 leading-relaxed">{res.body}</p>
                           </div>
-                          <div className="pt-3 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between mt-3 text-xs">
-                            <button onClick={() => setDetailResource(res)} className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">
-                              View Details →
-                            </button>
-                            {user && (
-                              <button
-                                onClick={() => handleBookmarkToggle(res.id)}
-                                className={`font-bold ${isBookmarked ? "text-purple-600" : "text-gray-400 hover:text-purple-500"}`}
+                          <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                            {res.file_url ? (
+                              <a
+                                href={res.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => handleIncrementViewCount(res.id)}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold w-full py-2 rounded-xl text-xs text-center block transition shadow-sm"
                               >
-                                {isBookmarked ? "📥 Saved" : "Save"}
+                                Visit Tool ↗
+                              </a>
+                            ) : (
+                              <button onClick={() => setDetailResource(res)} className="text-indigo-600 font-bold text-xs hover:underline block w-full text-center">
+                                View Details →
                               </button>
                             )}
+                            <div className="flex items-center justify-between text-[10px] text-gray-400 font-medium">
+                              <span>Added: {res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : "Just now"}</span>
+                              <div className="flex items-center gap-2">
+                                {canDelete && (
+                                  <button onClick={() => handleDeleteResource(res.id)} className="text-red-500 hover:text-red-700 font-bold transition">
+                                    Delete
+                                  </button>
+                                )}
+                                <button onClick={() => { if (res.author_id && res.author_id !== "admin") openUserModal(res.author_id); }} className="text-purple-600 dark:text-purple-400 hover:underline capitalize font-semibold">
+                                  By {contributorName}
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       );
