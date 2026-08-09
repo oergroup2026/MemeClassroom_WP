@@ -377,6 +377,119 @@ const FlagPopup = ({ onClose }) => {
   );
 };
 
+// ─── External Tool Detail Modal ───────────────────────────────────────────────
+const ExternalToolDetailModal = ({ tool, contributorName, user, isAdmin, onClose, onDelete }) => {
+  if (!tool) return null;
+  const descriptionText = tool.description || tool.body || "";
+  const isPending = !tool.admin_approved;
+
+  let domain = "";
+  try {
+    const targetUrl = tool.destination_url || tool.file_url;
+    if (targetUrl) {
+      domain = new URL(targetUrl).hostname.replace(/^www\./, "");
+    }
+  } catch (_) {}
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-[120] flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-gray-100 dark:border-zinc-800 px-6 py-4 flex items-start justify-between">
+          <div className="flex-1 pr-4">
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+              <span className="inline-block bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border border-purple-200/50 dark:border-purple-800/40">
+                🛠️ {tool.section || "Additional Tool"}
+              </span>
+              {isPending && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
+                  <Clock className="w-3 h-3" /> Pending Admin Review
+                </span>
+              )}
+              {tool.is_classroom_friendly && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
+                  🏫 Classroom Friendly
+                </span>
+              )}
+            </div>
+            <h2 className="text-xl font-extrabold text-gray-900 dark:text-white leading-snug">{tool.title}</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-2xl font-bold leading-none flex-shrink-0">×</button>
+        </div>
+
+        {/* Body Content */}
+        <div className="px-6 py-5 space-y-5">
+          {/* Banner Thumbnail */}
+          <ExternalToolThumbnail
+            src={tool.image_url || tool.thumbnail_url}
+            title={tool.title}
+            destinationUrl={tool.destination_url || tool.file_url}
+          />
+
+          {/* Meta Info */}
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400 pb-3 border-b border-gray-100 dark:border-zinc-800">
+            <span className="font-semibold text-gray-700 dark:text-gray-200">
+              Contributed by <strong className="text-purple-600 dark:text-purple-400">{contributorName}</strong>
+            </span>
+            <span>📅 {tool.created_at ? new Date((tool.created_at.seconds || 0) * 1000).toLocaleDateString() : "Recently added"}</span>
+          </div>
+
+          {/* Full Description formatted with FormattedText */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+              Full Description & Guidance
+            </h3>
+            <div className="p-4 rounded-xl bg-gray-50 dark:bg-zinc-800/60 border border-gray-200/80 dark:border-zinc-700/60 text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
+              <FormattedText text={descriptionText} />
+            </div>
+          </div>
+
+          {/* Destination Link Box */}
+          {(tool.destination_url || tool.file_url) && (
+            <div className="p-3.5 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold text-indigo-500 uppercase block">Official Website</span>
+                <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 truncate block">
+                  {domain || tool.destination_url || tool.file_url}
+                </span>
+              </div>
+              <a
+                href={tool.destination_url || tool.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex-shrink-0 transition shadow-sm flex items-center gap-1.5"
+              >
+                Visit Tool ↗
+              </a>
+            </div>
+          )}
+
+          {/* Footer Actions */}
+          <div className="pt-3 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between">
+            {user && (tool.contributor_id === user.uid || tool.author_id === user.uid || isAdmin) ? (
+              <button
+                onClick={() => { onDelete(tool.id); onClose(); }}
+                className="text-xs font-bold text-red-500 hover:text-red-700 transition"
+              >
+                🗑️ Delete Tool
+              </button>
+            ) : <div />}
+            <button
+              onClick={onClose}
+              className="bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-200 text-xs font-bold px-5 py-2 rounded-xl transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── External Tool Card Thumbnail ──────────────────────────────────────────────
 const ExternalToolThumbnail = ({ src, title, destinationUrl }) => {
   const [imgError, setImgError] = useState(false);
@@ -491,6 +604,7 @@ const Resources = () => {
   const [editingResource, setEditingResource] = useState(null); // null = create mode; resource obj = edit mode
   const [detailResource, setDetailResource] = useState(null);
   const currentResourceDetail = detailResource ? (resources.find(r => r.id === detailResource.id) || detailResource) : null;
+  const [detailTool, setDetailTool] = useState(null);
   const [showFlagPopup, setShowFlagPopup] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -1423,6 +1537,23 @@ const Resources = () => {
         document.body
       )}
 
+      {/* External Tool Detail Modal Popup */}
+      {detailTool && createPortal(
+        <ExternalToolDetailModal
+          tool={detailTool}
+          contributorName={
+            detailTool.contributor_id === "admin" || detailTool.author_id === "admin"
+              ? "Admin"
+              : (displayCache[detailTool.contributor_id || detailTool.author_id] || "Contributor")
+          }
+          user={user}
+          isAdmin={isAdmin}
+          onClose={() => setDetailTool(null)}
+          onDelete={(id) => handleDeleteExternalLink(id)}
+        />,
+        document.body
+      )}
+
       {/* ── Page Header ───────────────────────────────────────────────────────── */}
       {(() => {
         const TAB_HEADER_MAP = {
@@ -1710,13 +1841,21 @@ const Resources = () => {
                                 </div>
                               )}
                             </div>
-                            <ExternalToolThumbnail
-                              src={link.image_url}
-                              title={link.title}
-                              destinationUrl={link.destination_url}
-                            />
-                            <h4 className="font-extrabold text-sm mb-1.5 line-clamp-1 text-gray-900 dark:text-white">{link.title}</h4>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 line-clamp-2 leading-relaxed">{link.description}</p>
+                            <div className="cursor-pointer group" onClick={() => setDetailTool(link)}>
+                              <ExternalToolThumbnail
+                                src={link.image_url}
+                                title={link.title}
+                                destinationUrl={link.destination_url}
+                              />
+                              <h4 className="font-extrabold text-sm mb-1.5 line-clamp-1 text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">{link.title}</h4>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 line-clamp-2 leading-relaxed">{link.description}</p>
+                            <button
+                              onClick={() => setDetailTool(link)}
+                              className="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline mb-3 inline-flex items-center gap-1"
+                            >
+                              📖 View Full Description →
+                            </button>
                           </div>
                           <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-zinc-800">
                             <a
@@ -1772,13 +1911,21 @@ const Resources = () => {
                                 </div>
                               )}
                             </div>
-                            <ExternalToolThumbnail
-                              src={res.thumbnail_url || (res.file_url && res.file_url.startsWith("http") ? res.file_url : "")}
-                              title={res.title}
-                              destinationUrl={res.file_url}
-                            />
-                            <h4 className="font-extrabold text-sm mb-1.5 line-clamp-1 text-gray-900 dark:text-white">{res.title}</h4>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 line-clamp-2 leading-relaxed">{res.body}</p>
+                            <div className="cursor-pointer group" onClick={() => setDetailTool(res)}>
+                              <ExternalToolThumbnail
+                                src={res.thumbnail_url || (res.file_url && res.file_url.startsWith("http") ? res.file_url : "")}
+                                title={res.title}
+                                destinationUrl={res.file_url}
+                              />
+                              <h4 className="font-extrabold text-sm mb-1.5 line-clamp-1 text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">{res.title}</h4>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 line-clamp-2 leading-relaxed">{res.body}</p>
+                            <button
+                              onClick={() => setDetailTool(res)}
+                              className="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline mb-3 inline-flex items-center gap-1"
+                            >
+                              📖 View Full Description →
+                            </button>
                           </div>
                           <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-zinc-800">
                             {res.file_url ? (
