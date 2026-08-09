@@ -1307,48 +1307,86 @@ const Resources = () => {
       )}
 
       {/* ── Page Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-gray-800 pb-5">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">
-            {activeTab === "additional" ? "Additional Tools & External Platforms" : "Meme Resources"}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {activeTab === "additional"
-              ? "Other tools, curated external OER platforms, pedagogical tools, and teaching resources."
-              : "Access curriculum activities, lesson cards, research papers, and stories. No login needed to browse."}
-          </p>
-        </div>
-        <div className="mt-4 sm:mt-0 flex gap-2">
-          {(() => {
-            // Per-tab CTA configuration
-            const TAB_CONTRIBUTE_CONFIG = {
-              all:           { label: "➕ Contribute Resource",  defaultType: null,       handler: () => { setContributeDefaultType(null); setEditingResource(null); setShowContributeModal(true); } },
-              article_paper: { label: "✍️ Contribute Article",   defaultType: "article",  handler: () => { setContributeDefaultType("article"); setEditingResource(null); setShowContributeModal(true); } },
-              activity:      { label: "🎯 Contribute Activity",  defaultType: "activity", handler: () => setShowActivityModal(true) },
-              course:        { label: "🎓 Contribute Course",    defaultType: "course",   handler: () => { setContributeDefaultType("course"); setEditingResource(null); setShowContributeModal(true); } },
-              stories:       { label: "📚 Contribute Story",     defaultType: "stories",  handler: () => { setContributeDefaultType("stories"); setEditingResource(null); setShowContributeModal(true); } },
-              additional:    { label: "➕ Add External Link",    defaultType: null,       handler: () => setShowExternalModal(true) },
-            };
-            const cfg = TAB_CONTRIBUTE_CONFIG[activeTab] || TAB_CONTRIBUTE_CONFIG.all;
-            if (!user) {
-              return <a href="/auth" className={btnClass}>Sign in to Contribute</a>;
-            }
-            return (
-              <button
-                onClick={cfg.handler}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
-              >
-                {cfg.label}
-              </button>
-            );
-          })()}
-        </div>
-      </div>
-
-
+      {(() => {
+        const TAB_HEADER_MAP = {
+          all: {
+            title: "Meme Resources",
+            subtitle: "Access curriculum activities, lesson cards, research papers, and stories. No login needed to browse.",
+            ctaLabel: "➕ Contribute Resource",
+            handler: () => { setContributeDefaultType(null); setEditingResource(null); setShowContributeModal(true); }
+          },
+          article_paper: {
+            title: "Articles & Research Papers",
+            subtitle: "Explore pedagogical literature, blog posts, studies, and academic publications on meme-based learning.",
+            ctaLabel: "✍️ Contribute Article",
+            handler: () => { setContributeDefaultType("article"); setEditingResource(null); setShowContributeModal(true); }
+          },
+          activity: {
+            title: "Classroom Activities",
+            subtitle: "Interactive lesson plans, worksheets, and active learning activities using memes.",
+            ctaLabel: "🎯 Contribute Activity",
+            handler: () => setShowActivityModal(true)
+          },
+          course: {
+            title: "Courses & Lesson Modules",
+            subtitle: "Structured courses, lesson modules, and curricula centered on digital culture and memetics.",
+            ctaLabel: "🎓 Contribute Course",
+            handler: () => { setContributeDefaultType("course"); setEditingResource(null); setShowContributeModal(true); }
+          },
+          stories: {
+            title: "Meme Stories & Origins",
+            subtitle: "Discover the origin stories, classroom usage, and history of educational meme templates.",
+            ctaLabel: "📖 Contribute Story",
+            handler: () => { setContributeDefaultType("stories"); setEditingResource(null); setShowContributeModal(true); }
+          },
+          additional: {
+            title: "Additional Tools & External Platforms",
+            subtitle: "Explore tools for meme creation, media literacy, and curated open educational resources.",
+            ctaLabel: "+ Add Resource Link",
+            handler: () => setShowExternalModal(true)
+          }
+        };
+        const headerInfo = TAB_HEADER_MAP[activeTab] || TAB_HEADER_MAP.all;
+        return (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-gray-800 pb-5 gap-4">
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">
+                {headerInfo.title}
+              </h1>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {headerInfo.subtitle}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+              {activeTab === "additional" && (
+                <button
+                  onClick={() => setExtClassroomFriendlyOnly((v) => !v)}
+                  className={`text-xs font-bold px-3.5 py-2.5 rounded-xl border transition flex items-center gap-1.5 shadow-sm ${
+                    extClassroomFriendlyOnly
+                      ? "bg-emerald-600 text-white border-emerald-600"
+                      : "border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 bg-white dark:bg-zinc-900"
+                  }`}
+                >
+                  <span>🏫</span> Classroom & Student Friendly {extClassroomFriendlyOnly ? "✓" : ""}
+                </button>
+              )}
+              {user ? (
+                <button
+                  onClick={headerInfo.handler}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5"
+                >
+                  {headerInfo.ctaLabel}
+                </button>
+              ) : (
+                <a href="/auth" className={btnClass}>Sign in to Contribute</a>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Category Tabs ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800 pb-2">
+      <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800 pb-2 mt-4">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -1364,41 +1402,39 @@ const Resources = () => {
         ))}
       </div>
 
+      {/* ── Shared Search Bar (rendered for all tabs) ────────────────────────── */}
+      <form
+        onSubmit={(e) => { e.preventDefault(); }}
+        className="w-full flex items-center bg-white dark:bg-zinc-900 px-4 py-2 rounded-full border border-gray-200 dark:border-zinc-800 shadow-md dark:shadow-black/25 focus-within:shadow-lg focus-within:shadow-purple-500/10 dark:focus-within:shadow-black/40 focus-within:ring-2 focus-within:ring-purple-500 transition-all duration-300 my-5"
+      >
+        <Search className="w-4 h-4 text-gray-400 mr-3 flex-shrink-0" />
+        <input
+          type="text"
+          placeholder={activeTab === "additional" ? "Search tools by title, description, category..." : "Search by title, keywords, subject, publisher..."}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full bg-transparent border-0 text-sm focus:outline-none dark:text-white placeholder-gray-400 py-1"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery("")}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm px-2 flex-shrink-0 transition"
+          >
+            ✕
+          </button>
+        )}
+        <button
+          type="submit"
+          className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs p-2 rounded-full transition flex items-center justify-center w-8 h-8 shrink-0 ml-2"
+        >
+          <Search className="w-4 h-4" />
+        </button>
+      </form>
+
       {/* ── ADDITIONAL TOOLS TAB (Categorized by Sections) ────────── */}
       {activeTab === "additional" ? (
-        <div className="space-y-12">
-          {/* Header row with submit button & filter */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-zinc-800 pb-4">
-            <div>
-              <h2 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
-                <span>🔧</span> Additional Tools & Resources
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Explore tools for meme creation, media literacy, and open educational resources.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-              <button
-                onClick={() => setExtClassroomFriendlyOnly((v) => !v)}
-                className={`text-xs font-bold px-3.5 py-2.5 rounded-xl border transition flex items-center gap-1.5 shadow-sm ${
-                  extClassroomFriendlyOnly
-                    ? "bg-emerald-600 text-white border-emerald-600"
-                    : "border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 bg-white dark:bg-zinc-900"
-                }`}
-              >
-                <span>🏫</span> Classroom & Student Friendly {extClassroomFriendlyOnly ? "✓" : ""}
-              </button>
-              {user && (
-                <button
-                  onClick={() => setShowExternalModal(true)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-sm"
-                >
-                  <span>+</span> Add Resource Link
-                </button>
-              )}
-            </div>
-          </div>
-
+        <div className="space-y-10">
           {/* Render Sections */}
           {toolSections.map((secName) => {
             const secIcon =
@@ -1406,19 +1442,34 @@ const Resources = () => {
               secName === "Media Literacy" ? "📰" :
               secName === "Other Open Educational Resources" ? "📚" : "🛠️";
 
-            // Find external links for this section (default missing to "Meme Related Tools")
+            const q = searchQuery.toLowerCase().trim();
+
+            // Find external links for this section matching classroom filter and search query
             const matchingLinks = externalLinks.filter(l => {
               const linkSec = l.section || "Meme Related Tools";
               const matchesSection = linkSec === secName;
-              if (extClassroomFriendlyOnly) {
-                return matchesSection && l.is_classroom_friendly;
-              }
-              return matchesSection;
+              const matchesClassroom = !extClassroomFriendlyOnly || l.is_classroom_friendly;
+              const matchesSearch = !q || (
+                l.title?.toLowerCase().includes(q) ||
+                l.description?.toLowerCase().includes(q) ||
+                l.section?.toLowerCase().includes(q) ||
+                l.destination_url?.toLowerCase().includes(q)
+              );
+              return matchesSection && matchesClassroom && matchesSearch;
             });
 
             // For "Other Open Educational Resources", also include "other" type resources from DB
             const matchingOtherResources = secName === "Other Open Educational Resources"
-              ? resources.filter(r => r.type === "other" && (!extClassroomFriendlyOnly || r.is_classroom_friendly))
+              ? resources.filter(r => {
+                  if (r.type !== "other") return false;
+                  if (extClassroomFriendlyOnly && !r.is_classroom_friendly) return false;
+                  if (!q) return true;
+                  return (
+                    r.title?.toLowerCase().includes(q) ||
+                    r.body?.toLowerCase().includes(q) ||
+                    r.subject?.toLowerCase().includes(q)
+                  );
+                })
               : [];
 
             const totalItemsCount = matchingLinks.length + matchingOtherResources.length;
@@ -1556,36 +1607,6 @@ const Resources = () => {
 
         /* ── MAIN RESOURCES GRID ───────────────────────────────────────────── */
         <div>
-          {/* Search bar — full width, Library-style pill */}
-          <form
-            onSubmit={(e) => { e.preventDefault(); }}
-            className="w-full flex items-center bg-white dark:bg-zinc-900 px-4 py-2 rounded-full border border-gray-200 dark:border-zinc-800 shadow-md dark:shadow-black/25 focus-within:shadow-lg focus-within:shadow-purple-500/10 dark:focus-within:shadow-black/40 focus-within:ring-2 focus-within:ring-purple-500 transition-all duration-300 mb-6"
-          >
-            <Search className="w-4 h-4 text-gray-400 mr-3 flex-shrink-0" />
-            <input
-              type="text"
-              placeholder="Search by title, keywords, subject, publisher..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent border-0 text-sm focus:outline-none dark:text-white placeholder-gray-400 py-1"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm px-2 flex-shrink-0 transition"
-              >
-                ✕
-              </button>
-            )}
-            <button
-              type="submit"
-              className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs p-2 rounded-full transition flex items-center justify-center w-8 h-8 shrink-0 ml-2"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-          </form>
-
           {/* ── Horizontal Filter Bar ─────────────────────────────────────────────── */}
           <div className="mb-5 space-y-3">
             {/* Filter toggle row */}
