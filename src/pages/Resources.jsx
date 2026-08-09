@@ -377,6 +377,69 @@ const FlagPopup = ({ onClose }) => {
   );
 };
 
+// ─── External Tool Card Thumbnail ──────────────────────────────────────────────
+const ExternalToolThumbnail = ({ src, title, destinationUrl }) => {
+  const [imgError, setImgError] = useState(false);
+
+  let domain = "";
+  try {
+    if (destinationUrl) {
+      domain = new URL(destinationUrl).hostname.replace(/^www\./, "");
+    }
+  } catch (_) {}
+
+  const gradients = [
+    "from-purple-600 via-indigo-600 to-purple-800",
+    "from-blue-600 via-teal-600 to-emerald-700",
+    "from-amber-500 via-orange-600 to-rose-600",
+    "from-emerald-600 via-teal-700 to-cyan-800",
+    "from-violet-600 via-purple-700 to-fuchsia-800"
+  ];
+  const charCodeSum = (title || "").split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const bgGradient = gradients[charCodeSum % gradients.length];
+  const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null;
+
+  if (!src || imgError) {
+    return (
+      <div className={`w-full aspect-video rounded-xl mb-3.5 bg-gradient-to-br ${bgGradient} flex flex-col justify-between p-3.5 text-white shadow-sm relative overflow-hidden group select-none`}>
+        <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10 blur-sm pointer-events-none" />
+        <div className="absolute -left-4 -top-4 w-20 h-20 rounded-full bg-black/10 blur-sm pointer-events-none" />
+
+        <div className="flex items-center justify-between z-10">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider bg-black/25 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/20">
+            🛠️ {domain || "Tool"}
+          </span>
+          {faviconUrl && (
+            <img
+              src={faviconUrl}
+              alt=""
+              className="w-5 h-5 rounded-full bg-white p-0.5 shadow flex-shrink-0"
+              onError={(e) => { e.target.style.display = "none"; }}
+            />
+          )}
+        </div>
+
+        <div className="z-10 mt-auto">
+          <h4 className="font-extrabold text-sm leading-tight drop-shadow-sm line-clamp-2 text-white">
+            {title}
+          </h4>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full aspect-video rounded-xl overflow-hidden mb-3.5 border border-gray-200 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-800 relative group">
+      <img
+        src={src}
+        alt={title}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        onError={() => setImgError(true)}
+      />
+    </div>
+  );
+};
+
 // ─── Main Resources Component ─────────────────────────────────────────────────
 const Resources = () => {
   const { user, profile } = useAuth();
@@ -468,6 +531,8 @@ const Resources = () => {
   const [extTitle, setExtTitle] = useState("");
   const [extDescription, setExtDescription] = useState("");
   const [extImageUrl, setExtImageUrl] = useState("");
+  const [extThumbnailFile, setExtThumbnailFile] = useState(null);
+  const [extThumbnailPreview, setExtThumbnailPreview] = useState("");
   const [extDestUrl, setExtDestUrl] = useState("");
   const [extSection, setExtSection] = useState("Meme Related Tools");
   const [extIsClassroomFriendly, setExtIsClassroomFriendly] = useState(false);
@@ -1075,10 +1140,27 @@ const Resources = () => {
     }
     setExtLoading(true); setExtError("");
     try {
+      let finalImageUrl = extImageUrl ? extImageUrl.trim() : "";
+
+      if (extThumbnailFile) {
+        const fileRef = ref(storage, `external_thumbnails/${Date.now()}_${extThumbnailFile.name}`);
+        await uploadBytes(fileRef, extThumbnailFile);
+        finalImageUrl = await getDownloadURL(fileRef);
+      }
+
+      if (!finalImageUrl && extDestUrl) {
+        try {
+          const domain = new URL(extDestUrl).hostname;
+          if (domain) {
+            finalImageUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=256`;
+          }
+        } catch (_) {}
+      }
+
       await addDoc(collection(db, "external_links"), {
         title: extTitle,
         description: extDescription,
-        image_url: extImageUrl || "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=400&q=80",
+        image_url: finalImageUrl,
         destination_url: extDestUrl,
         section: extSection || "Meme Related Tools",
         is_classroom_friendly: Boolean(extIsClassroomFriendly),
@@ -1088,6 +1170,7 @@ const Resources = () => {
       });
       setShowExternalModal(false);
       setExtTitle(""); setExtDescription(""); setExtImageUrl(""); setExtDestUrl(""); setExtSection("Meme Related Tools"); setExtIsClassroomFriendly(false);
+      setExtThumbnailFile(null); setExtThumbnailPreview("");
       showToast("External resource added! Pending admin review.", "success");
     } catch (err) {
       console.error(err); setExtError("Failed to add resource. Try again.");
@@ -1595,14 +1678,11 @@ const Resources = () => {
                                 </div>
                               )}
                             </div>
-                            <div className="w-full aspect-video rounded-xl overflow-hidden mb-3.5 border border-gray-200 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-800">
-                              <img
-                                src={link.image_url}
-                                alt={link.title}
-                                className="w-full h-full object-cover"
-                                onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=400&q=80"; }}
-                              />
-                            </div>
+                            <ExternalToolThumbnail
+                              src={link.image_url}
+                              title={link.title}
+                              destinationUrl={link.destination_url}
+                            />
                             <h4 className="font-extrabold text-sm mb-1.5 line-clamp-1 text-gray-900 dark:text-white">{link.title}</h4>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 line-clamp-2 leading-relaxed">{link.description}</p>
                           </div>
@@ -2273,9 +2353,41 @@ const Resources = () => {
                   rows={3} placeholder="A quick summary of the tool or platform..." required />
               </div>
               <div>
-                <label className="block text-gray-500 uppercase mb-1">Thumbnail Image URL</label>
-                <input type="url" value={extImageUrl} onChange={(e) => setExtImageUrl(e.target.value)} className={inputClass}
-                  placeholder="https://domain.com/thumbnail.png" />
+                <label className="block text-gray-500 uppercase mb-1">Thumbnail Image (Upload File or Enter URL)</label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    {extThumbnailPreview && (
+                      <img src={extThumbnailPreview} alt="Preview" className="w-14 h-10 object-cover rounded-lg border border-gray-200 dark:border-zinc-700 flex-shrink-0" />
+                    )}
+                    <label className="cursor-pointer bg-gray-100 dark:bg-zinc-800 hover:bg-purple-50 dark:hover:bg-purple-950/20 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold px-3 py-2 rounded-xl transition inline-block">
+                      📁 Choose Image File
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setExtThumbnailFile(file);
+                          setExtThumbnailPreview(file ? URL.createObjectURL(file) : "");
+                        }}
+                      />
+                    </label>
+                    {extThumbnailFile && (
+                      <span className="text-[10px] text-gray-500 truncate max-w-[140px]">{extThumbnailFile.name}</span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-gray-400 font-medium">OR enter Image URL directly:</div>
+                  <input
+                    type="url"
+                    value={extImageUrl}
+                    onChange={(e) => setExtImageUrl(e.target.value)}
+                    className={inputClass}
+                    placeholder="https://domain.com/thumbnail.png"
+                  />
+                  <p className="text-[10px] text-purple-600 dark:text-purple-400">
+                    💡 If left blank, we'll automatically generate a website icon or stylized tool card.
+                  </p>
+                </div>
               </div>
               <div>
                 <label className="block text-gray-500 uppercase mb-1">Destination URL *</label>
