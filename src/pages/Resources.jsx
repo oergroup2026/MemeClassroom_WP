@@ -26,6 +26,7 @@ import { useUserModal } from "../context/UserModalContext";
 import { SUBJECTS, GRADE_GROUPS, RESOURCE_TYPES, DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 import ActivityContributeModal from "../components/ActivityContributeModal";
 import ContributeResourceModal from "../components/ContributeResourceModal";
+import FormattedText from "../components/FormattedText";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 12;
@@ -211,7 +212,7 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, act
               <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                 {res.body && res.body.length > 400 && !storyExpanded ? (
                   <>
-                    <p className="whitespace-pre-wrap">{res.body.slice(0, 400)}...</p>
+                    <FormattedText text={res.body.slice(0, 400) + "..."} />
                     <button
                       onClick={() => setStoryExpanded(true)}
                       className="text-amber-600 dark:text-amber-400 font-bold hover:underline mt-2 text-xs"
@@ -220,12 +221,12 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, act
                     </button>
                   </>
                 ) : (
-                  <p className="whitespace-pre-wrap">{res.body}</p>
+                  <FormattedText text={res.body} />
                 )}
               </div>
             </div>
           ) : (
-            <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{res.body}</div>
+            <FormattedText text={res.body} className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed" />
           )}
 
           {/* Typical Meaning & Usage (stories only) */}
@@ -234,17 +235,17 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, act
               <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 mb-2 flex items-center gap-1">
                 <span>💡</span> Typical Meaning & Usage
               </h4>
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{res.usage_context}</p>
+              <FormattedText text={res.usage_context} className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed" />
             </div>
           )}
 
           {/* Educational Use (stories only) */}
           {isStory && res.educational_use && (
             <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl p-4">
-              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-405 mb-2 flex items-center gap-1">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
                 <span>🎓</span> Educational Use
               </h4>
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{res.educational_use}</p>
+              <FormattedText text={res.educational_use} className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed" />
             </div>
           )}
 

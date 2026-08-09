@@ -12,6 +12,7 @@ import {
   ChevronDown, ChevronUp, ExternalLink, Clock, BookOpen
 } from "lucide-react";
 import PdfSlideViewer from "../components/PdfSlideViewer";
+import FormattedText from "../components/FormattedText";
 
 // ─── Toast helper ─────────────────────────────────────────────────────────────
 const useToast = () => {
@@ -537,7 +538,7 @@ export default function ActivityDetail() {
             </div>
 
             {activity.body && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{activity.body}</p>
+              <FormattedText text={activity.body} className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed" />
             )}
           </div>
         </div>
@@ -556,9 +557,7 @@ export default function ActivityDetail() {
       {/* ── Educator Notes ───────────────────────────────────────────────────── */}
       {activity.educator_notes && (
         <CollapsibleSection title="Educator Notes" icon="📝" accentColor="green" defaultOpen>
-          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-wrap">
-            {activity.educator_notes}
-          </p>
+          <FormattedText text={activity.educator_notes} className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed" />
         </CollapsibleSection>
       )}
 

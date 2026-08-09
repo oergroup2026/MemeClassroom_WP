@@ -26,6 +26,7 @@ import { useUserModal } from "../context/UserModalContext";
 import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
+import FormattedText from "../components/FormattedText";
 import { 
   ThumbsUp, 
   MessageSquare, 
@@ -987,16 +988,7 @@ const Staffroom = () => {
   };
 
   const renderMarkdown = (text = "") => {
-    return text.split("\n").map((line, idx) => {
-      const content = line.trim();
-      if (content.startsWith("# ")) return <h1 key={idx} className="text-lg font-black mt-2 mb-1">{content.slice(2)}</h1>;
-      if (content.startsWith("## ")) return <h2 key={idx} className="text-base font-extrabold mt-2 mb-1">{content.slice(3)}</h2>;
-      if (content.startsWith("### ")) return <h3 key={idx} className="text-sm font-bold mt-1.5 mb-1">{content.slice(4)}</h3>;
-      if (content.startsWith("- ") || content.startsWith("* "))
-        return <li key={idx} className="list-disc list-inside ml-2 my-0.5 text-xs text-left">{parseMarkdownInline(content.slice(2))}</li>;
-      if (!content.trim()) return <div key={idx} className="h-2" />;
-      return <p key={idx} className="my-1 text-xs leading-relaxed text-left">{parseMarkdownInline(content)}</p>;
-    });
+    return <FormattedText text={text} className="text-xs text-left leading-relaxed text-gray-800 dark:text-zinc-200 font-medium" />;
   };
 
   const renderPoll = (thread) => {
@@ -1794,7 +1786,7 @@ const Staffroom = () => {
                                   )
                                 )}
                               </div>
-                              <p className="text-gray-700 dark:text-gray-300 font-semibold text-left">{reply.body}</p>
+                              <FormattedText text={reply.body} className="text-gray-700 dark:text-gray-300 font-medium text-left" />
                             </div>
                           );
                         })}
