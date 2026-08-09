@@ -157,6 +157,26 @@ const Section = ({ title, children }) => (
 const labelClass = "block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1";
 const inputBase = "w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-800 dark:text-gray-200";
 
+const ClassroomFriendlySection = ({ form, setForm }) => (
+  <Section title="🏫 Guidelines & Suitability">
+    <div className="flex items-start gap-2.5 p-3 bg-purple-50/50 dark:bg-zinc-800/60 border border-purple-100 dark:border-zinc-700/60 rounded-xl">
+      <input
+        type="checkbox"
+        id="isClassroomFriendlyCheck"
+        checked={form.isClassroomFriendly || false}
+        onChange={e => setForm(f => ({ ...f, isClassroomFriendly: e.target.checked }))}
+        className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600"
+      />
+      <label htmlFor="isClassroomFriendlyCheck" className="text-xs text-gray-800 dark:text-gray-200 font-bold cursor-pointer select-none">
+        Classroom & Student Friendly
+        <span className="block text-[10px] text-gray-500 dark:text-gray-400 font-normal leading-snug mt-0.5">
+          Check if this tool or resource is designed for classroom learning and follows required student & child-friendly guidelines.
+        </span>
+      </label>
+    </div>
+  </Section>
+);
+
 // ─── Individual field-set forms per type ──────────────────────────────────────
 
 /** ARTICLE / RESEARCH PAPER form */
@@ -257,6 +277,7 @@ const ArticleForm = ({ form, setForm, subjects, gradeGroups }) => (
         placeholder="e.g. biology, cell division, mitosis (comma-separated)"
         className={inputBase} />
     </Section>
+    <ClassroomFriendlySection form={form} setForm={setForm} />
   </>
 );
 
@@ -330,6 +351,7 @@ const CourseForm = ({ form, setForm, subjects, gradeGroups }) => (
         onChange={e => setForm(f => ({ ...f, keywords: e.target.value }))}
         placeholder="e.g. memes, pedagogy (comma-separated)" className={inputBase} />
     </Section>
+    <ClassroomFriendlySection form={form} setForm={setForm} />
   </>
 );
 
@@ -407,6 +429,7 @@ const StoryForm = ({ form, setForm }) => (
         </div>
       )}
     </Section>
+    <ClassroomFriendlySection form={form} setForm={setForm} />
   </>
 );
 
@@ -456,6 +479,7 @@ const OtherForm = ({ form, setForm, subjects, gradeGroups }) => (
         </label>
       </div>
     </Section>
+    <ClassroomFriendlySection form={form} setForm={setForm} />
   </>
 );
 
@@ -482,7 +506,7 @@ export default function ContributeResourceModal({
   const defaultForm = {
     title: "", body: "", subject: subjects?.[0] || "Biology",
     customSubject: "", gradeGroup: gradeGroups?.[0] || "High School (9–10)",
-    externalUrl: "", keywords: "",
+    externalUrl: "", keywords: "", isClassroomFriendly: false,
     file: null, thumbnailFile: null, thumbnailPreview: "",
     // article / paper
     publicationYear: "", publisherName: "",
@@ -515,6 +539,7 @@ export default function ContributeResourceModal({
       publisherName: editingResource.publisher_name || "",
       usageContext: editingResource.usage_context || "",
       educationalUse: editingResource.educational_use || "",
+      isClassroomFriendly: !!editingResource.is_classroom_friendly,
       type: editingResource.type || "article",
     }));
   }, [editingResource]);
@@ -582,6 +607,7 @@ export default function ContributeResourceModal({
         file_url: fileUrl,
         thumbnail_url: thumbnailUrl,
         keywords: parsedKeywords,
+        is_classroom_friendly: Boolean(form.isClassroomFriendly),
         status: "live",
         admin_approved: false,
       };
