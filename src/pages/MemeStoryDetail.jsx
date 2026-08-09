@@ -18,6 +18,7 @@ import { db, storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
+import FormattedText from "../components/FormattedText";
 import {
   ArrowLeft,
   Heart,
@@ -527,9 +528,7 @@ export default function MemeStoryDetail() {
           label="Story Background"
           colorClass="bg-amber-50/80 dark:bg-amber-950/15 border-amber-200/60 dark:border-amber-800/30 text-amber-900 dark:text-amber-100"
         >
-          <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-7">
-            {story.body || "No story content provided."}
-          </p>
+          <FormattedText text={story.body || "No story content provided."} className="text-gray-700 dark:text-gray-300 leading-7" />
         </Section>
 
         {/* ── Usage Context ────────────────────────────────────────────────────── */}
@@ -539,7 +538,7 @@ export default function MemeStoryDetail() {
             label="Typical Meaning & Usage"
             colorClass="bg-indigo-50/80 dark:bg-indigo-950/15 border-indigo-200/50 dark:border-indigo-800/30 text-indigo-900 dark:text-indigo-100"
           >
-            <p className="text-gray-700 dark:text-gray-300 leading-7">{story.usage_context}</p>
+            <FormattedText text={story.usage_context} className="text-gray-700 dark:text-gray-300 leading-7" />
           </Section>
         )}
 
@@ -550,7 +549,7 @@ export default function MemeStoryDetail() {
             label="Educational Use"
             colorClass="bg-emerald-50/80 dark:bg-emerald-950/15 border-emerald-200/50 dark:border-emerald-800/30 text-emerald-900 dark:text-emerald-100"
           >
-            <p className="text-gray-700 dark:text-gray-300 leading-7">{story.educational_use}</p>
+            <FormattedText text={story.educational_use} className="text-gray-700 dark:text-gray-300 leading-7" />
           </Section>
         )}
 
