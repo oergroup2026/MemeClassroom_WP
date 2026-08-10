@@ -4,7 +4,7 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
 // ── Worker setup (Vite-compatible CDN approach) ──────────────────────────────
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // ─── Loading skeleton ────────────────────────────────────────────────────────
 const PageSkeleton = ({ width }) => (
@@ -27,6 +27,7 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
   const [scale, setScale] = useState(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [useIframeFallback, setUseIframeFallback] = useState(false);
   const [thumbError, setThumbError] = useState({});
   const containerRef = useRef(null);
   const pageWrapRef = useRef(null);
@@ -52,6 +53,9 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
     if (active) active.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }, [currentPage]);
 
+  const goNext = useCallback(() => setCurrentPage((p) => Math.min(numPages || 1, p + 1)), [numPages]);
+  const goPrev = useCallback(() => setCurrentPage((p) => Math.max(1, p - 1)), []);
+
   // ── Keyboard nav ─────────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
@@ -61,11 +65,7 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, numPages, isFullscreen]);
-
-  const goNext = useCallback(() => setCurrentPage((p) => Math.min(numPages || 1, p + 1)), [numPages]);
-  const goPrev = useCallback(() => setCurrentPage((p) => Math.max(1, p - 1)), []);
+  }, [goNext, goPrev, isFullscreen]);
 
   const onDocumentLoadSuccess = ({ numPages: n }) => {
     setNumPages(n);
@@ -73,7 +73,9 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
     setLoadError(false);
   };
 
-  const onDocumentLoadError = () => setLoadError(true);
+  const onDocumentLoadError = () => {
+    setLoadError(true);
+  };
 
   // ── Fullscreen wrapper classes ────────────────────────────────────────────
   const fsClasses = isFullscreen
@@ -114,19 +116,40 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
     <div ref={containerRef} className={fsClasses}>
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
       <div className={`flex items-center justify-between gap-3 px-4 py-2 ${isFullscreen ? "bg-gray-900 border-b border-zinc-800" : "bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-t-2xl"}`}>
-        {/* Left: title in fullscreen */}
+        {/* Left: title in fullscreen + Page counter */}
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm">📄</span>
           {isFullscreen && (
             <span className="text-xs font-semibold text-gray-300 truncate max-w-[200px]">{title}</span>
           )}
-          {/* Page counter */}
           {numPages && (
             <span className="text-xs font-bold text-gray-500 dark:text-gray-400 whitespace-nowrap">
-              Slide {currentPage} / {numPages}
+              Page {currentPage} / {numPages}
             </span>
           )}
         </div>
+
+        {/* Center: Up / Down arrow navigation */}
+        {numPages && !loadError && !useIframeFallback && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={goPrev}
+              disabled={currentPage <= 1}
+              className="w-7 h-7 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-xs font-bold transition"
+              title="Previous Page / Up (ArrowUp)"
+            >
+              ▲
+            </button>
+            <button
+              onClick={goNext}
+              disabled={currentPage >= (numPages || 1)}
+              className="w-7 h-7 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-xs font-bold transition"
+              title="Next Page / Down (ArrowDown)"
+            >
+              ▼
+            </button>
+          </div>
+        )}
 
         {/* Right: controls */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -145,6 +168,16 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
             className="w-7 h-7 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center justify-center text-sm font-bold transition"
             title="Zoom in"
           >+</button>
+
+          {/* Fallback toggle */}
+          {loadError && (
+            <button
+              onClick={() => setUseIframeFallback(f => !f)}
+              className="px-2 py-1 rounded-lg border border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-[11px] font-bold transition"
+            >
+              {useIframeFallback ? "Canvas View" : "Embed Viewer"}
+            </button>
+          )}
 
           {/* Download */}
           <a
@@ -170,15 +203,22 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
         {/* Slide canvas */}
         <div
           ref={pageWrapRef}
-          className={`flex-1 flex items-center justify-center overflow-auto ${isFullscreen ? "bg-gray-950 p-4" : "bg-gray-100 dark:bg-zinc-900/60 p-4 border-x border-gray-200 dark:border-zinc-700"}`}
+          className={`flex-1 flex flex-col items-center justify-center overflow-auto min-h-[420px] ${isFullscreen ? "bg-gray-950 p-4" : "bg-gray-100 dark:bg-zinc-900/60 p-4 border-x border-gray-200 dark:border-zinc-700"}`}
         >
-          {loadError ? (
-            <div className="text-center text-sm text-gray-500 py-12 space-y-2">
-              <p className="text-3xl">⚠️</p>
-              <p>Could not load the PDF.</p>
-              <a href={pdfUrl} target="_blank" rel="noreferrer" className="text-purple-500 underline text-xs">
-                Open directly ↗
-              </a>
+          {useIframeFallback || loadError ? (
+            <div className="w-full flex flex-col items-center justify-center py-4 space-y-3">
+              <div className="w-full h-[520px] rounded-xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white">
+                <iframe
+                  src={`https://docs.google.com/gview?url=${encodeURIComponent(pdfUrl)}&embedded=true`}
+                  title={title || "PDF Document"}
+                  className="w-full h-full border-0"
+                />
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <a href={pdfUrl} target="_blank" rel="noreferrer" className="text-purple-600 dark:text-purple-400 font-semibold hover:underline">
+                  Open direct link ↗
+                </a>
+              </div>
             </div>
           ) : (
             <Document
@@ -200,103 +240,125 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
         </div>
       </div>
 
-      {/* ── Navigation bar (prev, dots, next) + thumbnail strip ─────────── */}
-      <div className={`${isFullscreen ? "bg-gray-900 border-t border-zinc-800" : "bg-gray-50 dark:bg-zinc-900 border border-t-0 border-gray-200 dark:border-zinc-700 rounded-b-2xl"}`}>
-        {/* Prev / Page indicator / Next */}
-        <div className="flex items-center justify-between px-4 py-2">
-          <button
-            onClick={goPrev}
-            disabled={currentPage <= 1}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl border border-gray-300 dark:border-zinc-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
-          >
-            ◀ Prev
-          </button>
-
-          {/* Progress dots (max 10 shown) */}
-          {numPages && numPages <= 20 && (
-            <div className="flex items-center gap-1">
-              {Array.from({ length: numPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setCurrentPage(p)}
-                  className={`rounded-full transition-all duration-200 ${
-                    p === currentPage
-                      ? "w-2.5 h-2.5 bg-purple-600"
-                      : "w-1.5 h-1.5 bg-gray-300 dark:bg-zinc-600 hover:bg-purple-400"
-                  }`}
-                  title={`Slide ${p}`}
-                />
-              ))}
-            </div>
-          )}
-          {numPages && numPages > 20 && (
+      {/* ── Navigation bar (prev, dots, up/down, next) + thumbnail strip ─── */}
+      {!useIframeFallback && (
+        <div className={`${isFullscreen ? "bg-gray-900 border-t border-zinc-800" : "bg-gray-50 dark:bg-zinc-900 border border-t-0 border-gray-200 dark:border-zinc-700 rounded-b-2xl"}`}>
+          {/* Prev / Page indicator / Up Down / Next */}
+          <div className="flex items-center justify-between px-4 py-2">
             <div className="flex items-center gap-2">
-              <input
-                type="range"
-                min={1}
-                max={numPages}
-                value={currentPage}
-                onChange={(e) => setCurrentPage(Number(e.target.value))}
-                className="w-32 accent-purple-600"
-              />
-            </div>
-          )}
-
-          <button
-            onClick={goNext}
-            disabled={currentPage >= (numPages || 1)}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl border border-gray-300 dark:border-zinc-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
-          >
-            Next ▶
-          </button>
-        </div>
-
-        {/* Thumbnail strip */}
-        {numPages && numPages > 1 && (
-          <div
-            ref={thumbsRef}
-            className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-zinc-700"
-          >
-            {Array.from({ length: Math.min(numPages, 30) }, (_, i) => i + 1).map((p) => (
               <button
-                key={p}
-                data-page={p}
-                onClick={() => setCurrentPage(p)}
-                className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
-                  p === currentPage
-                    ? "border-purple-600 shadow-md shadow-purple-500/20"
-                    : "border-gray-200 dark:border-zinc-700 opacity-60 hover:opacity-100 hover:border-purple-300"
-                }`}
-                title={`Slide ${p}`}
+                onClick={goPrev}
+                disabled={currentPage <= 1}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-300 dark:border-zinc-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
               >
-                {!thumbError[p] ? (
-                  <Document file={pdfUrl} loading={null} noData={null}>
-                    <Page
-                      pageNumber={p}
-                      width={64}
-                      renderAnnotationLayer={false}
-                      renderTextLayer={false}
-                      loading={
-                        <div className="w-16 h-20 bg-gray-200 dark:bg-zinc-800 animate-pulse rounded" />
-                      }
-                      onRenderError={() => setThumbError((prev) => ({ ...prev, [p]: true }))}
-                    />
-                  </Document>
-                ) : (
-                  <div className="w-16 h-20 bg-gray-200 dark:bg-zinc-800 flex items-center justify-center text-[10px] text-gray-400 font-bold">
-                    {p}
-                  </div>
-                )}
+                ◀ Prev
               </button>
-            ))}
-            {numPages > 30 && (
-              <div className="flex-shrink-0 w-16 h-20 rounded-lg bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] text-gray-400 font-bold">
-                +{numPages - 30}
+              <button
+                onClick={goPrev}
+                disabled={currentPage <= 1}
+                className="px-2.5 py-1.5 rounded-xl border border-gray-300 dark:border-zinc-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                title="Up"
+              >
+                ▲
+              </button>
+            </div>
+
+            {/* Progress dots (max 20 shown) */}
+            {numPages && numPages <= 20 && (
+              <div className="flex items-center gap-1">
+                {Array.from({ length: numPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setCurrentPage(p)}
+                    className={`rounded-full transition-all duration-200 ${
+                      p === currentPage
+                        ? "w-2.5 h-2.5 bg-purple-600"
+                        : "w-1.5 h-1.5 bg-gray-300 dark:bg-zinc-600 hover:bg-purple-400"
+                    }`}
+                    title={`Page ${p}`}
+                  />
+                ))}
               </div>
             )}
+            {numPages && numPages > 20 && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min={1}
+                  max={numPages}
+                  value={currentPage}
+                  onChange={(e) => setCurrentPage(Number(e.target.value))}
+                  className="w-32 accent-purple-600"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={goNext}
+                disabled={currentPage >= (numPages || 1)}
+                className="px-2.5 py-1.5 rounded-xl border border-gray-300 dark:border-zinc-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                title="Down"
+              >
+                ▼
+              </button>
+              <button
+                onClick={goNext}
+                disabled={currentPage >= (numPages || 1)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-300 dark:border-zinc-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
+              >
+                Next ▶
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Thumbnail strip */}
+          {numPages && numPages > 1 && (
+            <div
+              ref={thumbsRef}
+              className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-zinc-700"
+            >
+              {Array.from({ length: Math.min(numPages, 30) }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  data-page={p}
+                  onClick={() => setCurrentPage(p)}
+                  className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                    p === currentPage
+                      ? "border-purple-600 shadow-md shadow-purple-500/20"
+                      : "border-gray-200 dark:border-zinc-700 opacity-60 hover:opacity-100 hover:border-purple-300"
+                  }`}
+                  title={`Page ${p}`}
+                >
+                  {!thumbError[p] ? (
+                    <Document file={pdfUrl} loading={null} noData={null}>
+                      <Page
+                        pageNumber={p}
+                        width={64}
+                        renderAnnotationLayer={false}
+                        renderTextLayer={false}
+                        loading={
+                          <div className="w-16 h-20 bg-gray-200 dark:bg-zinc-800 animate-pulse rounded" />
+                        }
+                        onRenderError={() => setThumbError((prev) => ({ ...prev, [p]: true }))}
+                      />
+                    </Document>
+                  ) : (
+                    <div className="w-16 h-20 bg-gray-200 dark:bg-zinc-800 flex items-center justify-center text-[10px] text-gray-400 font-bold">
+                      {p}
+                    </div>
+                  )}
+                </button>
+              ))}
+              {numPages > 30 && (
+                <div className="flex-shrink-0 w-16 h-20 rounded-lg bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] text-gray-400 font-bold">
+                  +{numPages - 30}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

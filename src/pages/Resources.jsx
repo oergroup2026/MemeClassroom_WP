@@ -610,6 +610,7 @@ const Resources = () => {
 
   // ── Activity tab state
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [editingActivity, setEditingActivity] = useState(null);
   const [strategyTags, setStrategyTags] = useState([]);
   const [activityTagFilter, setActivityTagFilter] = useState("");
   const [showActivityPendingPopup, setShowActivityPendingPopup] = useState(false);
@@ -1471,6 +1472,9 @@ const Resources = () => {
             </button>
             {(canEdit || canDelete) && (
               <div className="flex items-center gap-1.5 border-l border-gray-200 dark:border-zinc-800 pl-2.5">
+                {canEdit && (
+                  <button onClick={() => { setEditingActivity(res); setShowActivityModal(true); }} className="text-gray-400 hover:text-purple-600 transition text-[11px]" title="Edit">✏️</button>
+                )}
                 {canDelete && (
                   <button onClick={() => handleDeleteResource(res.id)} className="text-gray-400 hover:text-red-500 transition text-[11px]" title="Delete">🗑️</button>
                 )}
@@ -1486,7 +1490,7 @@ const Resources = () => {
   const tabs = [
     { id: "all", label: "All Resources" },
     { id: "article_paper", label: "Articles & Papers" },
-    { id: "activity", label: "Activities" },
+    { id: "activity", label: "Use Cases & Activities" },
     { id: "course", label: "Courses" },
     { id: "stories", label: "Meme Stories" },
     { id: "additional", label: "🔧 Additional Resources" },
@@ -1570,10 +1574,10 @@ const Resources = () => {
             handler: () => { setContributeDefaultType("article"); setEditingResource(null); setShowContributeModal(true); }
           },
           activity: {
-            title: "Classroom Activities",
-            subtitle: "Interactive lesson plans, worksheets, and active learning activities using memes.",
-            ctaLabel: "🎯 Contribute Activity",
-            handler: () => setShowActivityModal(true)
+            title: "Use Cases & Activities",
+            subtitle: "Interactive real-world use cases, lesson plans, worksheets, and active learning activities using memes.",
+            ctaLabel: "🎯 Contribute Use Case / Activity",
+            handler: () => { setEditingActivity(null); setShowActivityModal(true); }
           },
           course: {
             title: "Courses & Lesson Modules",
@@ -2502,8 +2506,12 @@ const Resources = () => {
       {/* ── ACTIVITY CONTRIBUTE MODAL ─────────────────────────────────────────── */}
       {showActivityModal && (
         <ActivityContributeModal
-          onClose={() => setShowActivityModal(false)}
-          onSuccess={() => showToast("Activity published! It's live and pending admin review. 🎯", "success")}
+          activityToEdit={editingActivity}
+          onClose={() => { setShowActivityModal(false); setEditingActivity(null); }}
+          onSuccess={(res) => {
+            showToast(editingActivity ? "Activity updated successfully! 🎯" : "Activity published! It's live and pending admin review. 🎯", "success");
+            setEditingActivity(null);
+          }}
           subjects={subjects}
           gradeGroups={gradeGroups}
           availableTags={strategyTags}
