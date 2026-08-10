@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import PdfSlideViewer from "../components/PdfSlideViewer";
 import FormattedText from "../components/FormattedText";
+import ActivityContributeModal from "../components/ActivityContributeModal";
 
 // ─── Toast helper ─────────────────────────────────────────────────────────────
 const useToast = () => {
@@ -171,6 +172,7 @@ export default function ActivityDetail() {
   const [alreadyFlagged, setAlreadyFlagged] = useState(false);
   const [showFlagConfirm, setShowFlagConfirm] = useState(false);
   const [showPendingPopup, setShowPendingPopup] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Comments
   const [comments, setComments] = useState([]);
@@ -409,7 +411,7 @@ export default function ActivityDetail() {
         <p className="text-sm text-gray-500">This activity may have been removed or the link is incorrect.</p>
         <button onClick={() => navigate("/resources?tab=activity")}
           className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition">
-          ← Back to Activities
+          ← Back to Use Cases & Activities
         </button>
       </div>
     );
@@ -441,9 +443,16 @@ export default function ActivityDetail() {
           onClick={() => navigate("/resources?tab=activity")}
           className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Activities
+          <ArrowLeft className="w-4 h-4" /> Back to Use Cases & Activities
         </button>
         <div className="flex items-center gap-2">
+          {user && (activity.author_id === user.uid || isAdmin) && (
+            <button onClick={() => setShowEditModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-purple-300 dark:border-purple-800 text-xs font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition"
+            >
+              ✏️ Edit Activity
+            </button>
+          )}
           <button onClick={handleLike}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition hover:scale-105 ${isLiked ? "border-red-200 dark:border-red-800 text-red-500 bg-red-50 dark:bg-red-950/20" : "border-gray-300 dark:border-zinc-700 text-gray-500 hover:border-red-300 hover:text-red-500"}`}
           >
@@ -684,6 +693,19 @@ export default function ActivityDetail() {
             ))}
           </div>
         </div>
+      )}
+      {/* ── Edit Modal ──────────────────────────────────────────────────────── */}
+      {showEditModal && (
+        <ActivityContributeModal
+          activityToEdit={activity}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={(updatedData) => {
+            showToast("Activity updated successfully! ✏️", "success");
+            if (updatedData) {
+              setActivity(prev => ({ ...prev, ...updatedData }));
+            }
+          }}
+        />
       )}
     </div>
   );

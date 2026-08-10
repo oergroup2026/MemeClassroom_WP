@@ -217,34 +217,45 @@ const TagInput = ({ selectedTags, availableTags, onChange }) => {
 };
 
 // ─── Main Modal ───────────────────────────────────────────────────────────────
-export default function ActivityContributeModal({ onClose, onSuccess, subjects: subjectsProp, gradeGroups: gradeGroupsProp, availableTags }) {
+export default function ActivityContributeModal({ onClose, onSuccess, subjects: subjectsProp, gradeGroups: gradeGroupsProp, availableTags, activityToEdit }) {
   const { user } = useAuth();
   const subjects = subjectsProp || SUBJECTS;
   const gradeGroups = gradeGroupsProp || GRADE_GROUPS;
+  const isEditing = Boolean(activityToEdit);
 
   // Form state
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [subject, setSubject] = useState("Biology");
-  const [customSubject, setCustomSubject] = useState("");
-  const [gradeGroup, setGradeGroup] = useState("High School (9–10)");
-  const [remarks, setRemarks] = useState("");
-  const [isClassroomFriendly, setIsClassroomFriendly] = useState(true);
+  const [title, setTitle] = useState(activityToEdit?.title || "");
+  const [body, setBody] = useState(activityToEdit?.body || "");
+  const [subject, setSubject] = useState(() => {
+    if (!activityToEdit?.subject) return "Biology";
+    return subjects.includes(activityToEdit.subject) ? activityToEdit.subject : "Other";
+  });
+  const [customSubject, setCustomSubject] = useState(() => {
+    if (!activityToEdit?.subject) return "";
+    return subjects.includes(activityToEdit.subject) ? "" : activityToEdit.subject;
+  });
+  const [gradeGroup, setGradeGroup] = useState(activityToEdit?.grade_group || "High School (9–10)");
+  const [remarks, setRemarks] = useState(activityToEdit?.educator_notes || "");
+  const [isClassroomFriendly, setIsClassroomFriendly] = useState(activityToEdit?.is_classroom_friendly ?? true);
 
   // Cover image
   const [coverFile, setCoverFile] = useState(null);
-  const [coverPreview, setCoverPreview] = useState("");
+  const [coverPreview, setCoverPreview] = useState(activityToEdit?.cover_image_url || "");
 
   // PDF
   const [pdfFile, setPdfFile] = useState(null);
-  const [pdfName, setPdfName] = useState("");
-  const [slidesEmbedUrl, setSlidesEmbedUrl] = useState("");
+  const [pdfName, setPdfName] = useState(activityToEdit?.pdf_url ? "Attached PDF document" : "");
+  const [slidesEmbedUrl, setSlidesEmbedUrl] = useState(activityToEdit?.slides_embed_url || "");
 
   // Videos
-  const [videos, setVideos] = useState([{ url: "", label: "" }]);
+  const [videos, setVideos] = useState(
+    activityToEdit?.videos?.length ? activityToEdit.videos : [{ url: "", label: "" }]
+  );
 
   // References
-  const [references, setReferences] = useState([]);
+  const [references, setReferences] = useState(
+    activityToEdit?.references?.length ? activityToEdit.references : []
+  );
   const [searchPickerType, setSearchPickerType] = useState(null); // "internal_meme" | "internal_resource"
   const [searchPickerRefIdx, setSearchPickerRefIdx] = useState(null);
 
@@ -253,10 +264,10 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
 
   // ── Cover preview
   useEffect(() => {
-    if (!coverFile) { setCoverPreview(""); return; }
-    const url = URL.parse ? URL.createObjectURL(coverFile) : URL.createObjectURL(coverFile);
+    if (!coverFile) return;
+    const url = URL.createObjectURL ? URL.createObjectURL(coverFile) : "";
     setCoverPreview(url);
-    return () => URL.revokeObjectURL(url);
+    return () => { if (url) URL.revokeObjectURL(url); };
   }, [coverFile]);
 
   // ── Video helpers
@@ -288,14 +299,17 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
     e.preventDefault();
     if (!user) { setError("Please sign in to contribute."); return; }
     if (!title.trim()) { setError("Title is required."); return; }
-    if (!pdfFile && !slidesEmbedUrl.trim()) { setError("Please upload a PDF or provide a Google Slides embed URL."); return; }
+    if (!pdfFile && !slidesEmbedUrl.trim() && !activityToEdit?.pdf_url) {
+      setError("Please upload a PDF or provide a Google Slides embed URL.");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     try {
-      let pdfUrl = "";
-      let coverUrl = "";
+      let pdfUrl = activityToEdit?.pdf_url || "";
+      let coverUrl = activityToEdit?.cover_image_url || "";
 
       if (pdfFile) {
         const pdfRef = ref(storage, `activities/pdf_${user.uid}_${Date.now()}`);
@@ -323,12 +337,35 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
 
       const finalSubject = subject === "Other" ? customSubject.trim() : subject;
 
+      if (isEditing) {
+        const updateData = {
+          title: title.trim(),
+          body: body.trim(),
+          cover_image_url: coverUrl,
+          pdf_url: pdfUrl,
+          slides_embed_url: slidesEmbedUrl.trim(),
+          subject: finalSubject,
+          grade_group: gradeGroup,
+          educator_notes: remarks.trim(),
+          is_classroom_friendly: Boolean(isClassroomFriendly),
+          videos: cleanVideos,
+          references: cleanRefs,
+          updated_at: serverTimestamp()
+        };
+        await updateDoc(doc(db, "resources", activityToEdit.id), updateData);
+        if (onSuccess) onSuccess({ id: activityToEdit.id, ...activityToEdit, ...updateData });
+        onClose();
+        return;
+      }
+
       const statsDocRef = doc(db, "user_stats", user.uid);
       const resColRef = collection(db, "resources");
 
+      let createdDocId = null;
       await runTransaction(db, async (transaction) => {
         const statsSnap = await transaction.get(statsDocRef);
         const newDocRef = doc(resColRef);
+        createdDocId = newDocRef.id;
 
         const activityData = {
           type: "activity",
@@ -363,7 +400,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
         }
       });
 
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess({ id: createdDocId });
       onClose();
     } catch (err) {
       console.error("Activity submit failed", err);
@@ -383,12 +420,15 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
         className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex-shrink-0">
           <div>
-            <h2 className="text-base font-extrabold text-gray-900 dark:text-white">🎯 Contribute an Activity</h2>
+            <h2 className="text-base font-extrabold text-gray-900 dark:text-white">
+              {isEditing ? "✏️ Edit Use Case / Activity" : "🎯 Contribute a Use Case / Activity"}
+            </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Your activity goes live immediately with a "Pending Approval" badge until reviewed by admin.
+              {isEditing
+                ? "Update details, presentation PDF, videos, and notes."
+                : "Your activity goes live immediately with a 'Pending Approval' badge until reviewed by admin."}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-1">
@@ -396,7 +436,6 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           </button>
         </div>
 
-        {/* Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-600 dark:text-red-400">
@@ -404,19 +443,15 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
             </div>
           )}
 
-          {/* ── Section 1: Basic Info */}
           <div className={sectionClass}>
             <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📋 Basic Info</h3>
             <div>
               <label className={labelClass}>Activity Title *</label>
-              <input type="text" value={title} onChange={e => setTitle(e.target.value)} required
-                placeholder="e.g. Caption This: Cell Division Edition"
-                className={inputClass} />
+              <input type="text" value={title} onChange={e => setTitle(e.target.value)} required className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>Short Description (optional)</label>
-              <RichTextArea value={body} onChange={e => setBody(e.target.value)} rows={3}
-                placeholder="Brief description of the activity..." />
+              <label className={labelClass}>Short Description</label>
+              <RichTextArea value={body} onChange={e => setBody(e.target.value)} rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -438,7 +473,6 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
             </div>
           </div>
 
-          {/* ── Section 2: Cover Image */}
           <div className={sectionClass}>
             <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">🖼️ Cover Thumbnail</h3>
             <div className="flex items-center gap-4">
@@ -448,178 +482,150 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
                     className="w-24 h-16 object-cover rounded-xl border border-gray-200 dark:border-zinc-700" />
                   <button type="button" onClick={() => { setCoverFile(null); setCoverPreview(""); }}
                     className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">
-                    <X className="w-3 h-3" />
+                    ×
                   </button>
                 </div>
-              ) : (
-                <div className="w-24 h-16 rounded-xl border-2 border-dashed border-gray-300 dark:border-zinc-600 flex items-center justify-center text-gray-300 flex-shrink-0">
-                  🖼️
-                </div>
-              )}
+              ) : null}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => {
+                  if (e.target.files[0]) setCoverFile(e.target.files[0]);
+                }}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className={sectionClass}>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📄 Presentation (PDF or Google Slides)</h3>
+            <div className="space-y-3">
               <div>
-                <label className="cursor-pointer bg-gray-100 dark:bg-zinc-800 hover:bg-purple-50 dark:hover:bg-purple-950/20 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold px-3 py-2 rounded-xl transition inline-block">
-                  📁 Choose Image
-                  <input type="file" accept="image/*" className="hidden"
-                    onChange={e => setCoverFile(e.target.files?.[0] || null)} />
-                </label>
-                <p className="text-[10px] text-gray-400 mt-1">Optional. JPG, PNG, WebP. Max 5 MB.</p>
+                <label className={labelClass}>Upload PDF</label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={e => {
+                    const f = e.target.files[0];
+                    if (f) {
+                      setPdfFile(f);
+                      setPdfName(f.name);
+                    }
+                  }}
+                  className={inputClass}
+                />
+                {pdfName && <p className="text-[11px] text-purple-600 font-semibold mt-1">📄 {pdfName}</p>}
+              </div>
+              <div className="text-center text-[10px] text-gray-400 font-bold uppercase">— OR —</div>
+              <div>
+                <label className={labelClass}>Google Slides Embed URL</label>
+                <input
+                  type="url"
+                  value={slidesEmbedUrl}
+                  onChange={e => setSlidesEmbedUrl(e.target.value)}
+                  placeholder="https://docs.google.com/presentation/d/.../embed"
+                  className={inputClass}
+                />
               </div>
             </div>
           </div>
 
-          {/* ── Section 3: Presentation */}
-          <div className={sectionClass}>
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📄 Presentation *</h3>
-            <p className="text-[10px] text-gray-500 dark:text-gray-400">Upload a PDF (from PowerPoint / Google Slides) or paste a Google Slides embed URL. At least one is required.</p>
-
-            {/* PDF Upload */}
-            <div>
-              <label className={labelClass}>Upload PDF (recommended)</label>
-              <label className="cursor-pointer flex items-center gap-3 bg-gray-100 dark:bg-zinc-800 hover:bg-purple-50 dark:hover:bg-purple-950/20 border border-gray-300 dark:border-zinc-700 rounded-xl px-4 py-3 transition">
-                <FileText className="w-4 h-4 text-purple-500 flex-shrink-0" />
-                <div className="min-w-0">
-                  {pdfName ? (
-                    <p className="text-xs font-bold text-gray-800 dark:text-white truncate">{pdfName}</p>
-                  ) : (
-                    <p className="text-xs text-gray-500">Click to select PDF file (max 20 MB)</p>
-                  )}
-                </div>
-                <input type="file" accept=".pdf" className="hidden"
-                  onChange={e => {
-                    const f = e.target.files?.[0];
-                    if (f) { setPdfFile(f); setPdfName(f.name); }
-                  }} />
-              </label>
-              {pdfFile && (
-                <button type="button" onClick={() => { setPdfFile(null); setPdfName(""); }}
-                  className="mt-1 text-[10px] text-red-500 hover:underline">Remove</button>
-              )}
-            </div>
-
-            {/* Divider */}
-            <div className="flex items-center gap-2 text-[10px] text-gray-400 font-semibold">
-              <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
-              OR
-              <div className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
-            </div>
-
-            {/* Google Slides embed URL */}
-            <div>
-              <label className={labelClass}>Google Slides Embed URL</label>
-              <input type="url" value={slidesEmbedUrl} onChange={e => setSlidesEmbedUrl(e.target.value)}
-                placeholder="https://docs.google.com/presentation/d/…/embed"
-                className={inputClass} />
-              <p className="text-[10px] text-gray-400 mt-1">
-                In Google Slides: File → Share → Publish to web → Embed → Copy link
-              </p>
-            </div>
-          </div>
-
-          {/* ── Section 4: Videos */}
           <div className={sectionClass}>
             <div className="flex items-center justify-between">
               <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">🎬 Embedded Videos</h3>
-              {videos.length < 5 && (
-                <button type="button" onClick={addVideo}
-                  className="flex items-center gap-1 text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline">
-                  <Plus className="w-3 h-3" /> Add video
-                </button>
-              )}
+              <button type="button" onClick={addVideo}
+                className="text-[11px] font-extrabold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1">
+                <Plus className="w-3 h-3" /> Add Video
+              </button>
             </div>
-            <p className="text-[10px] text-gray-400">Paste YouTube or Vimeo URLs (up to 5).</p>
-            {videos.map((v, i) => {
-              const platform = detectVideoPlatform(v.url);
-              return (
-                <div key={i} className="flex items-start gap-2">
-                  <div className="flex-1 space-y-1.5">
-                    <div className="relative">
-                      <input type="url" value={v.url}
-                        onChange={e => updateVideo(i, "url", e.target.value)}
-                        placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
-                        className={inputClass} />
-                      {platform && (
-                        <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold ${platform === "youtube" ? "text-red-500" : "text-blue-500"}`}>
-                          {platform === "youtube" ? "▶ YouTube" : "✦ Vimeo"}
-                        </span>
-                      )}
-                    </div>
-                    <input type="text" value={v.label}
-                      onChange={e => updateVideo(i, "label", e.target.value)}
-                      placeholder="Video label (optional)"
-                      className={inputClass} />
-                  </div>
-                  <button type="button" onClick={() => removeVideo(i)}
-                    className="mt-1 text-gray-400 hover:text-red-500 transition flex-shrink-0">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* ── Section 5: References */}
-          <div className={sectionClass}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📚 References</h3>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={addExternalRef}
-                  className="flex items-center gap-1 text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline">
-                  <Link className="w-3 h-3" /> External
-                </button>
-                <button type="button" onClick={() => addInternalRef("internal_meme")}
-                  className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline">
-                  <span>😂</span> Library Meme
-                </button>
-                <button type="button" onClick={() => addInternalRef("internal_resource")}
-                  className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
-                  <BookOpen className="w-3 h-3" /> Resource
-                </button>
-              </div>
-            </div>
-            {references.length === 0 && (
-              <p className="text-[10px] text-gray-400">No references added yet. Use the buttons above to add links.</p>
-            )}
-            {references.map((r, i) => (
-              <div key={i} className="flex items-start gap-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl p-3">
-                <div className="flex-shrink-0 mt-0.5 text-sm">
-                  {r.type === "external" ? "🔗" : r.type === "internal_meme" ? "😂" : "📄"}
-                </div>
-                <div className="flex-1 space-y-1.5">
-                  <input type="text" value={r.label}
-                    onChange={e => updateRef(i, "label", e.target.value)}
-                    placeholder={r.type === "external" ? "Reference label *" : "Auto-filled from search"}
-                    className={inputClass}
-                    readOnly={r.type !== "external" && !!r.resource_id}
+            <div className="space-y-3">
+              {videos.map((v, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <input
+                    type="url"
+                    value={v.url}
+                    onChange={e => updateVideo(i, "url", e.target.value)}
+                    placeholder="YouTube or Vimeo URL..."
+                    className={inputClass + " flex-1"}
                   />
-                  {r.type === "external" ? (
-                    <input type="url" value={r.url}
-                      onChange={e => updateRef(i, "url", e.target.value)}
-                      placeholder="https://..."
-                      className={inputClass} />
-                  ) : (
-                    <button type="button"
-                      onClick={() => openSearchPicker(i, r.type)}
-                      className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-500 hover:border-purple-400 transition">
-                      <Search className="w-3 h-3" />
-                      {r.resource_id ? (
-                        <span className="text-purple-600 dark:text-purple-400 font-bold">
-                          {r.type === "internal_meme" ? "Meme" : "Resource"} selected — click to change
-                        </span>
-                      ) : (
-                        <span>Click to search and select a {r.type === "internal_meme" ? "Library meme" : "resource"}...</span>
-                      )}
+                  <input
+                    type="text"
+                    value={v.label}
+                    onChange={e => updateVideo(i, "label", e.target.value)}
+                    placeholder="Label (optional)"
+                    className={inputClass + " w-36"}
+                  />
+                  {videos.length > 1 && (
+                    <button type="button" onClick={() => removeVideo(i)} className="text-gray-400 hover:text-red-500">
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
-                <button type="button" onClick={() => removeRef(i)}
-                  className="text-gray-400 hover:text-red-500 transition flex-shrink-0 mt-0.5">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* ── Section 6: Guidelines & Suitability */}
+          <div className={sectionClass}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📚 References & Attachments</h3>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={addExternalRef}
+                  className="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline">
+                  + External URL
+                </button>
+                <button type="button" onClick={() => addInternalRef("internal_meme")}
+                  className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                  + Meme
+                </button>
+                <button type="button" onClick={() => addInternalRef("internal_resource")}
+                  className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                  + Resource
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {references.map((r, i) => (
+                <div key={i} className="flex items-center gap-2 bg-white dark:bg-zinc-800 p-2.5 rounded-xl border border-gray-200 dark:border-zinc-700">
+                  <div className="flex-1 space-y-1.5">
+                    <input
+                      type="text"
+                      value={r.label}
+                      onChange={e => updateRef(i, "label", e.target.value)}
+                      placeholder="Reference label..."
+                      className={inputClass}
+                    />
+                    {r.type === "external" ? (
+                      <input
+                        type="url"
+                        value={r.url}
+                        onChange={e => updateRef(i, "url", e.target.value)}
+                        placeholder="https://..."
+                        className={inputClass}
+                      />
+                    ) : (
+                      <button type="button"
+                        onClick={() => openSearchPicker(i, r.type)}
+                        className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-500 hover:border-purple-400 transition">
+                        <Search className="w-3 h-3" />
+                        {r.resource_id ? (
+                          <span className="text-purple-600 dark:text-purple-400 font-bold">
+                            {r.type === "internal_meme" ? "Meme" : "Resource"} selected — click to change
+                          </span>
+                        ) : (
+                          <span>Click to search and select a {r.type === "internal_meme" ? "Library meme" : "resource"}...</span>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => removeRef(i)}
+                    className="text-gray-400 hover:text-red-500 transition flex-shrink-0 mt-0.5">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className={sectionClass}>
             <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">🏫 Guidelines & Suitability</h3>
             <div className="flex items-start gap-2.5 p-3 bg-purple-50/50 dark:bg-zinc-800/60 border border-purple-100 dark:border-zinc-700/60 rounded-xl">
@@ -632,24 +638,20 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
               />
               <label htmlFor="actClassroomFriendlyCheck" className="text-xs text-gray-800 dark:text-gray-200 font-bold cursor-pointer select-none">
                 Classroom & Student Friendly
-                <span className="block text-[10px] text-gray-500 dark:text-gray-400 font-normal leading-snug mt-0.5">
-                  Check if this activity is designed for classroom learning and follows required student & child-friendly guidelines.
-                </span>
               </label>
             </div>
           </div>
 
-          {/* ── Section 7: Remarks if any */}
           <div className={sectionClass}>
             <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400 mb-1.5">📝 Remarks if any</h3>
-            <RichTextArea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3}
-              placeholder="Any additional remarks, notes, or tips for educators..." />
+            <RichTextArea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} />
           </div>
         </form>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between gap-3 flex-shrink-0">
-          <p className="text-[10px] text-gray-400">⏳ Will be posted live with a "Pending Approval" badge</p>
+          <p className="text-[10px] text-gray-400">
+            {isEditing ? "✏️ Updating activity" : "⏳ Will be posted live with a \"Pending Approval\" badge"}
+          </p>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onClose}
               className="px-4 py-2 text-xs font-bold border border-gray-300 dark:border-zinc-700 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-gray-600 dark:text-gray-300">
@@ -657,12 +659,11 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
             </button>
             <button
               type="submit"
-              form=""
               onClick={handleSubmit}
               disabled={loading}
               className="px-5 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition shadow-sm disabled:opacity-50 flex items-center gap-2"
             >
-              {loading ? "Publishing..." : "🎯 Publish Activity"}
+              {loading ? (isEditing ? "Saving..." : "Publishing...") : (isEditing ? "Save Changes" : "🎯 Publish Activity")}
             </button>
           </div>
         </div>
