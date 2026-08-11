@@ -3,50 +3,64 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-// ── Worker setup (Vite-compatible CDN approach) ──────────────────────────────
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// ── Worker setup (Multi-tier CDN approach for Vite compatibility) ────────────
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
-// ─── Loading skeleton ────────────────────────────────────────────────────────
+// ─── Loading Skeleton ────────────────────────────────────────────────────────
 const PageSkeleton = ({ width }) => (
   <div
-    className="animate-pulse bg-gray-200 dark:bg-zinc-800 rounded"
+    className="animate-pulse bg-gray-200 dark:bg-zinc-800 rounded-xl"
     style={{ width: width || "100%", height: Math.floor((width || 600) * 1.294) }}
   />
 );
 
-// ─── PdfSlideViewer ──────────────────────────────────────────────────────────
+// ─── PdfSlideViewer Component ────────────────────────────────────────────────
 /**
  * Props:
- *  pdfUrl        {string}  Firebase Storage / public URL to the PDF
- *  slidesEmbedUrl {string} Google Slides embed URL (fallback when no PDF)
- *  title         {string}  Activity title (used in full-screen header)
+ *  pdfUrl         {string} Firebase Storage or public URL to the PDF
+ *  slidesEmbedUrl {string} Google Slides embed URL
+ *  title          {string} Activity title
  */
 export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
+  const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageInput, setPageInput] = useState("1");
   const [scale, setScale] = useState(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const [useIframeFallback, setUseIframeFallback] = useState(false);
-  const [thumbError, setThumbError] = useState({});
+  const [viewMode, setViewMode] = useState("canvas"); // "canvas" | "native" | "gview"
+
+  // Search state
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMatches, setSearchMatches] = useState([]); // array of page numbers
+  const [currentMatchIdx, setCurrentMatchIdx] = useState(0);
+  const [searching, setSearching] = useState(false);
+
   const containerRef = useRef(null);
   const pageWrapRef = useRef(null);
   const thumbsRef = useRef(null);
+  const [pageWidth, setPageWidth] = useState(650);
 
-  // ── Compute render width from container ──────────────────────────────────
-  const [pageWidth, setPageWidth] = useState(600);
+  // Sync pageInput when currentPage changes
+  useEffect(() => {
+    setPageInput(String(currentPage));
+  }, [currentPage]);
+
+  // Compute render width dynamically
   useEffect(() => {
     const el = pageWrapRef.current;
     if (!el) return;
     const obs = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
-      if (w) setPageWidth(Math.min(w, 900));
+      if (w) setPageWidth(Math.min(w - 32, 900));
     });
     obs.observe(el);
     return () => obs.disconnect();
   }, [isFullscreen]);
 
-  // ── Thumbnail auto-scroll when page changes ──────────────────────────────
+  // Auto-scroll active thumbnail into view
   useEffect(() => {
     if (!thumbsRef.current) return;
     const active = thumbsRef.current.querySelector(`[data-page="${currentPage}"]`);
@@ -56,9 +70,10 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
   const goNext = useCallback(() => setCurrentPage((p) => Math.min(numPages || 1, p + 1)), [numPages]);
   const goPrev = useCallback(() => setCurrentPage((p) => Math.max(1, p - 1)), []);
 
-  // ── Keyboard nav ─────────────────────────────────────────────────────────
+  // Keyboard navigation
   useEffect(() => {
     const handler = (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
       if (e.key === "ArrowRight" || e.key === "ArrowDown") goNext();
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") goPrev();
       if (e.key === "Escape" && isFullscreen) setIsFullscreen(false);
@@ -67,29 +82,98 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
     return () => window.removeEventListener("keydown", handler);
   }, [goNext, goPrev, isFullscreen]);
 
-  const onDocumentLoadSuccess = ({ numPages: n }) => {
-    setNumPages(n);
+  const onDocumentLoadSuccess = (pdf) => {
+    setPdfDoc(pdf);
+    setNumPages(pdf.numPages);
     setCurrentPage(1);
     setLoadError(false);
   };
 
-  const onDocumentLoadError = () => {
+  const onDocumentLoadError = (err) => {
+    console.error("PDF load error:", err);
     setLoadError(true);
+    setViewMode("native"); // Auto fallback to browser native embed if canvas worker fails
   };
 
-  // ── Fullscreen wrapper classes ────────────────────────────────────────────
-  const fsClasses = isFullscreen
-    ? "fixed inset-0 z-[300] bg-gray-950 flex flex-col overflow-hidden"
-    : "relative w-full";
+  const handlePageInputChange = (e) => {
+    setPageInput(e.target.value);
+  };
 
-  // ── If no PDF and only a Slides embed ────────────────────────────────────
+  const handlePageInputSubmit = (e) => {
+    if (e.key === "Enter" || e.type === "blur") {
+      const p = parseInt(pageInput, 10);
+      if (!isNaN(p) && p >= 1 && p <= (numPages || 1)) {
+        setCurrentPage(p);
+      } else {
+        setPageInput(String(currentPage));
+      }
+    }
+  };
+
+  // Perform text search across pages
+  const handleSearch = async (q) => {
+    if (!q || !q.trim() || !pdfDoc) {
+      setSearchMatches([]);
+      setCurrentMatchIdx(0);
+      return;
+    }
+    setSearching(true);
+    const cleanQ = q.trim().toLowerCase();
+    const matches = [];
+
+    try {
+      for (let i = 1; i <= pdfDoc.numPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const textContent = await page.getTextContent();
+        const text = textContent.items.map((item) => item.str).join(" ").toLowerCase();
+        if (text.includes(cleanQ)) {
+          matches.push(i);
+        }
+      }
+      setSearchMatches(matches);
+      setCurrentMatchIdx(0);
+      if (matches.length > 0) {
+        setCurrentPage(matches[0]);
+      }
+    } catch (e) {
+      console.error("PDF text search error", e);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const nextMatch = () => {
+    if (searchMatches.length === 0) return;
+    const nextIdx = (currentMatchIdx + 1) % searchMatches.length;
+    setCurrentMatchIdx(nextIdx);
+    setCurrentPage(searchMatches[nextIdx]);
+  };
+
+  const prevMatch = () => {
+    if (searchMatches.length === 0) return;
+    const prevIdx = (currentMatchIdx - 1 + searchMatches.length) % searchMatches.length;
+    setCurrentMatchIdx(prevIdx);
+    setCurrentPage(searchMatches[prevIdx]);
+  };
+
+  const fsClasses = isFullscreen
+    ? "fixed inset-0 z-[300] bg-zinc-950 flex flex-col overflow-hidden"
+    : "relative w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 shadow-md bg-white dark:bg-zinc-900";
+
+  // ── Mode: Only Google Slides provided ─────────────────────────────────────
   if (!pdfUrl && slidesEmbedUrl) {
     return (
-      <div className="w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-700 bg-black">
-        <div className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-zinc-800 text-xs text-gray-300 font-semibold">
-          <span>📊 Presentation (Google Slides)</span>
-          <a href={slidesEmbedUrl.replace("/embed", "/pub")} target="_blank" rel="noreferrer"
-            className="text-purple-400 hover:underline">Open ↗</a>
+      <div className="w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-700 bg-black shadow-md">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-900 border-b border-zinc-800 text-xs text-gray-300 font-bold">
+          <span className="flex items-center gap-2">📊 Presentation (Google Slides)</span>
+          <a
+            href={slidesEmbedUrl.replace("/embed", "/pub")}
+            target="_blank"
+            rel="noreferrer"
+            className="text-purple-400 hover:underline flex items-center gap-1"
+          >
+            Open in new tab ↗
+          </a>
         </div>
         <div className="w-full aspect-[16/9]">
           <iframe
@@ -103,81 +187,150 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
     );
   }
 
+  // ── Mode: No PDF or Slides ────────────────────────────────────────────────
   if (!pdfUrl) {
     return (
       <div className="w-full rounded-2xl border border-dashed border-gray-300 dark:border-zinc-700 flex flex-col items-center justify-center py-16 text-gray-400 text-sm gap-2">
         <span className="text-4xl">📄</span>
-        <span>No presentation uploaded yet.</span>
+        <span className="font-semibold">No presentation uploaded yet.</span>
       </div>
     );
   }
 
   return (
     <div ref={containerRef} className={fsClasses}>
-      {/* ── Toolbar ─────────────────────────────────────────────────────── */}
-      <div className={`flex items-center justify-between gap-3 px-4 py-2 ${isFullscreen ? "bg-gray-900 border-b border-zinc-800" : "bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-t-2xl"}`}>
-        {/* Left: title in fullscreen + Page counter */}
+      {/* ── Main Toolbar ───────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-gray-50 dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 text-xs select-none">
+        {/* Left: Title & Page Jump Input */}
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm">📄</span>
+          <span className="text-base">📄</span>
           {isFullscreen && (
-            <span className="text-xs font-semibold text-gray-300 truncate max-w-[200px]">{title}</span>
+            <span className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate max-w-[180px]">
+              {title}
+            </span>
           )}
           {numPages && (
-            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 whitespace-nowrap">
-              Page {currentPage} / {numPages}
-            </span>
+            <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 px-2 py-1 rounded-xl shadow-xs">
+              <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Page</span>
+              <input
+                type="number"
+                min={1}
+                max={numPages}
+                value={pageInput}
+                onChange={handlePageInputChange}
+                onKeyDown={handlePageInputSubmit}
+                onBlur={handlePageInputSubmit}
+                className="w-10 text-center bg-gray-100 dark:bg-zinc-700 font-bold text-gray-900 dark:text-white rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-purple-500"
+              />
+              <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">/ {numPages}</span>
+            </div>
           )}
         </div>
 
-        {/* Center: Up / Down arrow navigation */}
-        {numPages && !loadError && !useIframeFallback && (
+        {/* Center: Prev/Next Arrow Navigation */}
+        {numPages && viewMode === "canvas" && (
           <div className="flex items-center gap-1">
             <button
               onClick={goPrev}
               disabled={currentPage <= 1}
-              className="w-7 h-7 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-xs font-bold transition"
-              title="Previous Page / Up (ArrowUp)"
+              className="w-8 h-8 rounded-xl border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center font-bold transition"
+              title="Previous page (ArrowLeft)"
             >
-              ▲
+              ◀
             </button>
             <button
               onClick={goNext}
               disabled={currentPage >= (numPages || 1)}
-              className="w-7 h-7 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-xs font-bold transition"
-              title="Next Page / Down (ArrowDown)"
+              className="w-8 h-8 rounded-xl border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center font-bold transition"
+              title="Next page (ArrowRight)"
             >
-              ▼
+              ▶
             </button>
           </div>
         )}
 
-        {/* Right: controls */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* Zoom out */}
-          <button
-            onClick={() => setScale((s) => Math.max(0.5, +(s - 0.25).toFixed(2)))}
-            className="w-7 h-7 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center justify-center text-sm font-bold transition"
-            title="Zoom out"
-          >−</button>
-          <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 w-10 text-center">
-            {Math.round(scale * 100)}%
-          </span>
-          {/* Zoom in */}
-          <button
-            onClick={() => setScale((s) => Math.min(2.5, +(s + 0.25).toFixed(2)))}
-            className="w-7 h-7 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center justify-center text-sm font-bold transition"
-            title="Zoom in"
-          >+</button>
-
-          {/* Fallback toggle */}
-          {loadError && (
+        {/* Right: Controls (Search, Zoom, View Modes, Download, Fullscreen) */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Text Search Button */}
+          {viewMode === "canvas" && (
             <button
-              onClick={() => setUseIframeFallback(f => !f)}
-              className="px-2 py-1 rounded-lg border border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-[11px] font-bold transition"
+              onClick={() => setShowSearch((s) => !s)}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1 ${
+                showSearch
+                  ? "bg-purple-100 dark:bg-purple-950/50 border-purple-400 text-purple-700 dark:text-purple-300"
+                  : "border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-800"
+              }`}
+              title="Search text in document"
             >
-              {useIframeFallback ? "Canvas View" : "Embed Viewer"}
+              🔍 <span className="hidden sm:inline">Search</span>
             </button>
           )}
+
+          {/* Zoom Controls */}
+          {viewMode === "canvas" && (
+            <div className="flex items-center bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl p-0.5">
+              <button
+                onClick={() => setScale((s) => Math.max(0.5, +(s - 0.25).toFixed(2)))}
+                className="w-7 h-7 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 font-bold transition text-sm flex items-center justify-center"
+                title="Zoom Out"
+              >
+                −
+              </button>
+              <button
+                onClick={() => setScale(1.0)}
+                className="px-1.5 text-[11px] font-bold text-gray-600 dark:text-gray-300 hover:text-purple-600"
+                title="Reset Zoom"
+              >
+                {Math.round(scale * 100)}%
+              </button>
+              <button
+                onClick={() => setScale((s) => Math.min(2.5, +(s + 0.25).toFixed(2)))}
+                className="w-7 h-7 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 font-bold transition text-sm flex items-center justify-center"
+                title="Zoom In"
+              >
+                +
+              </button>
+            </div>
+          )}
+
+          {/* View Mode Switcher */}
+          <div className="flex items-center bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl p-0.5">
+            <button
+              onClick={() => setViewMode("canvas")}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${
+                viewMode === "canvas"
+                  ? "bg-purple-600 text-white shadow-xs"
+                  : "text-gray-600 dark:text-gray-400 hover:text-purple-600"
+              }`}
+              title="Interactive Slide View"
+            >
+              Slide
+            </button>
+            <button
+              onClick={() => setViewMode("native")}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${
+                viewMode === "native"
+                  ? "bg-purple-600 text-white shadow-xs"
+                  : "text-gray-600 dark:text-gray-400 hover:text-purple-600"
+              }`}
+              title="Native Browser PDF Viewer"
+            >
+              Native
+            </button>
+            {slidesEmbedUrl && (
+              <button
+                onClick={() => setViewMode("gslides")}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${
+                  viewMode === "gslides"
+                    ? "bg-purple-600 text-white shadow-xs"
+                    : "text-gray-600 dark:text-gray-400 hover:text-purple-600"
+                }`}
+                title="Google Slides View"
+              >
+                Slides
+              </button>
+            )}
+          </div>
 
           {/* Download */}
           <a
@@ -185,47 +338,92 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
             download
             target="_blank"
             rel="noreferrer"
-            className="w-7 h-7 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center justify-center transition"
+            className="w-8 h-8 rounded-xl border border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-800 flex items-center justify-center transition"
             title="Download PDF"
-          >⬇</a>
+          >
+            ⬇
+          </a>
 
-          {/* Fullscreen toggle */}
+          {/* Fullscreen */}
           <button
             onClick={() => setIsFullscreen((f) => !f)}
-            className="w-7 h-7 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center justify-center transition text-xs"
-            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-          >{isFullscreen ? "✕" : "⛶"}</button>
+            className="w-8 h-8 rounded-xl border border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-800 flex items-center justify-center transition text-xs font-bold"
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          >
+            {isFullscreen ? "✕" : "⛶"}
+          </button>
         </div>
       </div>
 
-      {/* ── Main viewer area ─────────────────────────────────────────────── */}
-      <div className={`flex ${isFullscreen ? "flex-1 overflow-hidden" : ""}`}>
-        {/* Slide canvas */}
-        <div
-          ref={pageWrapRef}
-          className={`flex-1 flex flex-col items-center justify-center overflow-auto min-h-[420px] ${isFullscreen ? "bg-gray-950 p-4" : "bg-gray-100 dark:bg-zinc-900/60 p-4 border-x border-gray-200 dark:border-zinc-700"}`}
-        >
-          {useIframeFallback || loadError ? (
-            <div className="w-full flex flex-col items-center justify-center py-4 space-y-3">
-              <div className="w-full h-[520px] rounded-xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white">
-                <iframe
-                  src={`https://docs.google.com/gview?url=${encodeURIComponent(pdfUrl)}&embedded=true`}
-                  title={title || "PDF Document"}
-                  className="w-full h-full border-0"
-                />
-              </div>
-              <div className="flex items-center gap-3 text-xs">
-                <a href={pdfUrl} target="_blank" rel="noreferrer" className="text-purple-600 dark:text-purple-400 font-semibold hover:underline">
-                  Open direct link ↗
-                </a>
-              </div>
+      {/* ── Search Bar Overlay ──────────────────────────────────────────────── */}
+      {showSearch && viewMode === "canvas" && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 dark:bg-purple-950/40 border-b border-purple-200 dark:border-purple-900/50 text-xs">
+          <input
+            type="text"
+            placeholder="Search keyword in PDF..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              handleSearch(e.target.value);
+            }}
+            autoFocus
+            className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 text-gray-800 dark:text-gray-200"
+          />
+          {searching && <span className="text-gray-400 text-[11px]">Searching...</span>}
+          {!searching && searchQuery && searchMatches.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-purple-700 dark:text-purple-300 font-bold text-[11px]">
+                {currentMatchIdx + 1} of {searchMatches.length} matches (Page {searchMatches[currentMatchIdx]})
+              </span>
+              <button
+                onClick={prevMatch}
+                className="w-6 h-6 rounded border border-purple-300 dark:border-purple-700 font-bold hover:bg-purple-200 dark:hover:bg-purple-900 text-purple-700 dark:text-purple-300"
+                title="Previous match"
+              >
+                ▲
+              </button>
+              <button
+                onClick={nextMatch}
+                className="w-6 h-6 rounded border border-purple-300 dark:border-purple-700 font-bold hover:bg-purple-200 dark:hover:bg-purple-900 text-purple-700 dark:text-purple-300"
+                title="Next match"
+              >
+                ▼
+              </button>
             </div>
-          ) : (
-            <Document
-              file={pdfUrl}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={onDocumentLoadError}
-              loading={<PageSkeleton width={pageWidth * scale} />}
+          )}
+          {!searching && searchQuery && searchMatches.length === 0 && (
+            <span className="text-red-500 text-[11px] font-semibold">No matches found</span>
+          )}
+          <button
+            onClick={() => {
+              setShowSearch(false);
+              setSearchQuery("");
+              setSearchMatches([]);
+            }}
+            className="text-gray-400 hover:text-gray-700 dark:hover:text-white font-bold ml-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ── Main Display Body ───────────────────────────────────────────────── */}
+      <div className={`flex flex-col flex-1 overflow-hidden ${isFullscreen ? "h-full" : ""}`}>
+        {/* Single Document Context Wrapper */}
+        <Document
+          file={pdfUrl}
+          onLoadSuccess={onDocumentLoadSuccess}
+          onLoadError={onDocumentLoadError}
+          loading={<PageSkeleton width={pageWidth * scale} />}
+          className="flex-1 flex flex-col min-h-0 overflow-hidden"
+        >
+          {/* Canvas View */}
+          {viewMode === "canvas" && !loadError && (
+            <div
+              ref={pageWrapRef}
+              className={`flex-1 flex flex-col items-center justify-start overflow-auto p-4 select-text ${
+                isFullscreen ? "bg-zinc-950" : "bg-gray-100 dark:bg-zinc-950/80 min-h-[460px]"
+              }`}
             >
               <Page
                 pageNumber={currentPage}
@@ -233,132 +431,81 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
                 renderAnnotationLayer
                 renderTextLayer
                 loading={<PageSkeleton width={pageWidth * scale} />}
-                className="shadow-xl rounded-lg overflow-hidden"
+                className="shadow-2xl rounded-xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white"
               />
-            </Document>
+            </div>
           )}
-        </div>
-      </div>
 
-      {/* ── Navigation bar (prev, dots, up/down, next) + thumbnail strip ─── */}
-      {!useIframeFallback && (
-        <div className={`${isFullscreen ? "bg-gray-900 border-t border-zinc-800" : "bg-gray-50 dark:bg-zinc-900 border border-t-0 border-gray-200 dark:border-zinc-700 rounded-b-2xl"}`}>
-          {/* Prev / Page indicator / Up Down / Next */}
-          <div className="flex items-center justify-between px-4 py-2">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={goPrev}
-                disabled={currentPage <= 1}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-300 dark:border-zinc-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
-              >
-                ◀ Prev
-              </button>
-              <button
-                onClick={goPrev}
-                disabled={currentPage <= 1}
-                className="px-2.5 py-1.5 rounded-xl border border-gray-300 dark:border-zinc-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                title="Up"
-              >
-                ▲
-              </button>
+          {/* Native Browser PDF Embed */}
+          {viewMode === "native" && (
+            <div className="flex-1 w-full h-[580px] bg-black">
+              <iframe
+                src={`${pdfUrl}#page=${currentPage}`}
+                title={title || "PDF Document"}
+                className="w-full h-full border-0"
+              />
             </div>
+          )}
 
-            {/* Progress dots (max 20 shown) */}
-            {numPages && numPages <= 20 && (
-              <div className="flex items-center gap-1">
-                {Array.from({ length: numPages }, (_, i) => i + 1).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setCurrentPage(p)}
-                    className={`rounded-full transition-all duration-200 ${
-                      p === currentPage
-                        ? "w-2.5 h-2.5 bg-purple-600"
-                        : "w-1.5 h-1.5 bg-gray-300 dark:bg-zinc-600 hover:bg-purple-400"
-                    }`}
-                    title={`Page ${p}`}
-                  />
-                ))}
-              </div>
-            )}
-            {numPages && numPages > 20 && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  min={1}
-                  max={numPages}
-                  value={currentPage}
-                  onChange={(e) => setCurrentPage(Number(e.target.value))}
-                  className="w-32 accent-purple-600"
-                />
-              </div>
-            )}
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={goNext}
-                disabled={currentPage >= (numPages || 1)}
-                className="px-2.5 py-1.5 rounded-xl border border-gray-300 dark:border-zinc-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                title="Down"
-              >
-                ▼
-              </button>
-              <button
-                onClick={goNext}
-                disabled={currentPage >= (numPages || 1)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-300 dark:border-zinc-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
-              >
-                Next ▶
-              </button>
+          {/* Google Slides View (when toggled or fallback) */}
+          {viewMode === "gslides" && slidesEmbedUrl && (
+            <div className="flex-1 w-full aspect-[16/9] bg-black">
+              <iframe
+                src={slidesEmbedUrl}
+                title={title || "Google Slides"}
+                className="w-full h-full border-0"
+                allowFullScreen
+              />
             </div>
-          </div>
+          )}
 
-          {/* Thumbnail strip */}
-          {numPages && numPages > 1 && (
+          {/* Google Docs GView Fallback */}
+          {viewMode === "gview" && (
+            <div className="flex-1 w-full h-[580px] bg-white">
+              <iframe
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(pdfUrl)}&embedded=true`}
+                title={title || "PDF Document"}
+                className="w-full h-full border-0"
+              />
+            </div>
+          )}
+
+          {/* Thumbnail Strip (Rendered INSIDE Document for zero re-fetches!) */}
+          {viewMode === "canvas" && numPages && numPages > 1 && (
             <div
               ref={thumbsRef}
-              className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-zinc-700"
+              className="px-4 py-3 bg-gray-50 dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 flex gap-2.5 overflow-x-auto scrollbar-thin flex-shrink-0"
             >
-              {Array.from({ length: Math.min(numPages, 30) }, (_, i) => i + 1).map((p) => (
+              {Array.from({ length: numPages }, (_, i) => i + 1).map((p) => (
                 <button
                   key={p}
                   data-page={p}
                   onClick={() => setCurrentPage(p)}
-                  className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                  className={`relative flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all duration-150 ${
                     p === currentPage
-                      ? "border-purple-600 shadow-md shadow-purple-500/20"
-                      : "border-gray-200 dark:border-zinc-700 opacity-60 hover:opacity-100 hover:border-purple-300"
+                      ? "border-purple-600 shadow-lg shadow-purple-500/20 scale-105"
+                      : "border-gray-200 dark:border-zinc-700 opacity-60 hover:opacity-100 hover:border-purple-400"
                   }`}
                   title={`Page ${p}`}
                 >
-                  {!thumbError[p] ? (
-                    <Document file={pdfUrl} loading={null} noData={null}>
-                      <Page
-                        pageNumber={p}
-                        width={64}
-                        renderAnnotationLayer={false}
-                        renderTextLayer={false}
-                        loading={
-                          <div className="w-16 h-20 bg-gray-200 dark:bg-zinc-800 animate-pulse rounded" />
-                        }
-                        onRenderError={() => setThumbError((prev) => ({ ...prev, [p]: true }))}
-                      />
-                    </Document>
-                  ) : (
-                    <div className="w-16 h-20 bg-gray-200 dark:bg-zinc-800 flex items-center justify-center text-[10px] text-gray-400 font-bold">
-                      {p}
-                    </div>
-                  )}
+                  <Page
+                    pageNumber={p}
+                    width={72}
+                    renderAnnotationLayer={false}
+                    renderTextLayer={false}
+                    loading={
+                      <div className="w-18 h-24 bg-gray-200 dark:bg-zinc-800 animate-pulse rounded" />
+                    }
+                  />
+                  <span className="absolute bottom-1 right-1 bg-black/70 text-white font-extrabold text-[9px] px-1 rounded">
+                    {p}
+                  </span>
                 </button>
               ))}
-              {numPages > 30 && (
-                <div className="flex-shrink-0 w-16 h-20 rounded-lg bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] text-gray-400 font-bold">
-                  +{numPages - 30}
-                </div>
-              )}
             </div>
           )}
-        </div>
-      )}
+        </Document>
+      </div>
     </div>
   );
 }
