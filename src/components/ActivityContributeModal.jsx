@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   collection, query, where, getDocs, orderBy, limit,
-  addDoc, serverTimestamp, runTransaction, doc, increment
+  addDoc, updateDoc, serverTimestamp, runTransaction, doc, increment
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase";
@@ -12,6 +12,16 @@ import { X, Search, Plus, Trash2, Link, BookOpen, FileText } from "lucide-react"
 import RichTextArea from "./RichTextArea";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+const formatSlidesEmbedUrl = (url) => {
+  if (!url) return "";
+  const trimmed = url.trim();
+  const match = trimmed.match(/docs\.google\.com\/presentation\/d\/(e\/[^\/]+|[^\/]+)/);
+  if (match && match[1]) {
+    return `https://docs.google.com/presentation/d/${match[1]}/embed`;
+  }
+  return trimmed;
+};
+
 const detectVideoPlatform = (url) => {
   if (!url) return null;
   if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
@@ -299,7 +309,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
     e.preventDefault();
     if (!user) { setError("Please sign in to contribute."); return; }
     if (!title.trim()) { setError("Title is required."); return; }
-    if (!pdfFile && !slidesEmbedUrl.trim() && !activityToEdit?.pdf_url) {
+    if (!pdfFile && !slidesEmbedUrl.trim() && !activityToEdit?.pdf_url && !activityToEdit?.slides_embed_url) {
       setError("Please upload a PDF or provide a Google Slides embed URL.");
       return;
     }
@@ -343,7 +353,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           body: body.trim(),
           cover_image_url: coverUrl,
           pdf_url: pdfUrl,
-          slides_embed_url: slidesEmbedUrl.trim(),
+          slides_embed_url: formatSlidesEmbedUrl(slidesEmbedUrl),
           subject: finalSubject,
           grade_group: gradeGroup,
           educator_notes: remarks.trim(),
@@ -375,7 +385,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           body: body.trim(),
           cover_image_url: coverUrl,
           pdf_url: pdfUrl,
-          slides_embed_url: slidesEmbedUrl.trim(),
+          slides_embed_url: formatSlidesEmbedUrl(slidesEmbedUrl),
           subject: finalSubject,
           grade_group: gradeGroup,
           educator_notes: remarks.trim(),

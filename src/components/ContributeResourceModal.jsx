@@ -669,6 +669,7 @@ export default function ContributeResourceModal({
         subjects={subjects}
         gradeGroups={gradeGroups}
         availableTags={availableTags}
+        activityToEdit={editingResource}
       />
     );
   }
