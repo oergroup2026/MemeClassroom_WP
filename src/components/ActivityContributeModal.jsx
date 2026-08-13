@@ -14,11 +14,30 @@ import RichTextArea from "./RichTextArea";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatSlidesEmbedUrl = (url) => {
   if (!url) return "";
-  const trimmed = url.trim();
-  const match = trimmed.match(/docs\.google\.com\/presentation\/d\/(e\/[^\/]+|[^\/]+)/);
-  if (match && match[1]) {
-    return `https://docs.google.com/presentation/d/${match[1]}/embed`;
+  let trimmed = url.trim();
+
+  // If user pasted an <iframe> HTML snippet, extract the src URL
+  if (trimmed.includes("<iframe")) {
+    const srcMatch = trimmed.match(/src=["']([^"']+)["']/i);
+    if (srcMatch && srcMatch[1]) {
+      trimmed = srcMatch[1].trim();
+    }
   }
+
+  // Google Slides format
+  const googleMatch = trimmed.match(/docs\.google\.com\/presentation\/d\/(e\/[^\/]+|[^\/]+)/);
+  if (googleMatch && googleMatch[1]) {
+    return `https://docs.google.com/presentation/d/${googleMatch[1]}/embed`;
+  }
+
+  // Canva format
+  if (trimmed.includes("canva.com/design/")) {
+    const [baseUrl] = trimmed.split("?");
+    const cleanPath = baseUrl.replace(/\/(edit|watch|present|view)$/, "/view");
+    const finalUrl = cleanPath.endsWith("/view") ? cleanPath : `${cleanPath}/view`;
+    return `${finalUrl}?embed`;
+  }
+
   return trimmed;
 };
 
@@ -310,7 +329,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
     if (!user) { setError("Please sign in to contribute."); return; }
     if (!title.trim()) { setError("Title is required."); return; }
     if (!pdfFile && !slidesEmbedUrl.trim() && !activityToEdit?.pdf_url && !activityToEdit?.slides_embed_url) {
-      setError("Please upload a PDF or provide a Google Slides embed URL.");
+      setError("Please upload a PDF or provide a Google Slides / Canva embed link.");
       return;
     }
 
@@ -508,7 +527,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           </div>
 
           <div className={sectionClass}>
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📄 Presentation (PDF or Google Slides)</h3>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📄 Presentation (PDF, Google Slides, or Canva)</h3>
             <div className="space-y-3">
               <div>
                 <label className={labelClass}>Upload PDF</label>
@@ -526,16 +545,25 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
                 />
                 {pdfName && <p className="text-[11px] text-purple-600 font-semibold mt-1">📄 {pdfName}</p>}
               </div>
-              <div className="text-center text-[10px] text-gray-400 font-bold uppercase">— OR —</div>
+
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-gray-200 dark:border-zinc-700"></div>
+                <span className="flex-shrink mx-3 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 text-[10px] font-extrabold uppercase tracking-wider">OR</span>
+                <div className="flex-grow border-t border-gray-200 dark:border-zinc-700"></div>
+              </div>
+
               <div>
-                <label className={labelClass}>Google Slides Embed URL</label>
+                <label className={labelClass}>Google Slides / Canva Embed Link</label>
                 <input
                   type="url"
                   value={slidesEmbedUrl}
                   onChange={e => setSlidesEmbedUrl(e.target.value)}
-                  placeholder="https://docs.google.com/presentation/d/.../embed"
+                  placeholder="https://docs.google.com/presentation/d/.../embed or https://www.canva.com/design/.../view"
                   className={inputClass}
                 />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Paste a Google Slides embed link or Canva presentation link/embed code.
+                </p>
               </div>
             </div>
           </div>
