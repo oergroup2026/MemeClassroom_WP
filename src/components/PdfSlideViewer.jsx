@@ -154,14 +154,25 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
     ? "fixed inset-0 z-[300] bg-zinc-950 flex flex-col overflow-hidden"
     : "relative w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 shadow-md bg-white dark:bg-zinc-900";
 
-  // ── CASE 1: Google Slides Embed (When no PDF is uploaded) ────────────────
+  // ── CASE 1: Google Slides / Canva Embed (When no PDF is uploaded) ────────────────
   if (!pdfUrl && slidesEmbedUrl) {
+    const isCanva = slidesEmbedUrl.includes("canva.com");
+    const isGoogle = slidesEmbedUrl.includes("docs.google.com");
+    const openUrl = isGoogle
+      ? slidesEmbedUrl.replace("/embed", "/pub")
+      : isCanva
+      ? slidesEmbedUrl.replace("?embed", "").replace("&embed", "")
+      : slidesEmbedUrl;
+    const providerLabel = isCanva ? "Canva" : isGoogle ? "Google Slides" : "";
+
     return (
       <div className="w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-700 bg-black shadow-md">
         <div className="flex items-center justify-between px-4 py-2.5 bg-gray-900 border-b border-zinc-800 text-xs text-gray-300 font-bold">
-          <span className="flex items-center gap-2">📊 Presentation</span>
+          <span className="flex items-center gap-2">
+            📊 Presentation {providerLabel && <span className="text-[10px] font-normal text-purple-400">({providerLabel})</span>}
+          </span>
           <a
-            href={slidesEmbedUrl.replace("/embed", "/pub")}
+            href={openUrl}
             target="_blank"
             rel="noreferrer"
             className="text-purple-400 hover:underline flex items-center gap-1"
@@ -175,6 +186,7 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
             title={title || "Presentation"}
             className="w-full h-full border-0"
             allowFullScreen
+            allow="fullscreen"
           />
         </div>
       </div>
