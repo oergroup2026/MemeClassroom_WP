@@ -96,7 +96,7 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
     if (!el) return;
     const obs = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
-      if (w) setPageWidth(Math.min(w - 32, 900));
+      if (w) setPageWidth(Math.min(w - 32, 720));
     });
     obs.observe(el);
     return () => obs.disconnect();
@@ -152,7 +152,7 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
 
   const fsClasses = isFullscreen
     ? "fixed inset-0 z-[300] bg-zinc-950 flex flex-col overflow-hidden"
-    : "relative w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 shadow-md bg-white dark:bg-zinc-900";
+    : "relative w-full max-w-4xl mx-auto rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 shadow-md bg-white dark:bg-zinc-900";
 
   // ── CASE 1: Google Slides / Canva Embed (When no PDF is uploaded) ────────────────
   if (!pdfUrl && slidesEmbedUrl) {
@@ -166,7 +166,7 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
     const providerLabel = isCanva ? "Canva" : isGoogle ? "Google Slides" : "";
 
     return (
-      <div className="w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-700 bg-black shadow-md">
+      <div className="w-full max-w-4xl mx-auto rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-700 bg-black shadow-md">
         <div className="flex items-center justify-between px-4 py-2.5 bg-gray-900 border-b border-zinc-800 text-xs text-gray-300 font-bold">
           <span className="flex items-center gap-2">
             📊 Presentation {providerLabel && <span className="text-[10px] font-normal text-purple-400">({providerLabel})</span>}
@@ -180,7 +180,7 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
             Open ↗
           </a>
         </div>
-        <div className="w-full aspect-[16/9]">
+        <div className="w-full aspect-[16/9] max-h-[480px] md:max-h-[500px]">
           <iframe
             src={slidesEmbedUrl}
             title={title || "Presentation"}
@@ -196,7 +196,7 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
   // ── CASE 2: No presentation uploaded at all ──────────────────────────────
   if (!pdfUrl) {
     return (
-      <div className="w-full rounded-2xl border border-dashed border-gray-300 dark:border-zinc-700 flex flex-col items-center justify-center py-16 text-gray-400 text-sm gap-2">
+      <div className="w-full max-w-4xl mx-auto rounded-2xl border border-dashed border-gray-300 dark:border-zinc-700 flex flex-col items-center justify-center py-12 text-gray-400 text-sm gap-2">
         <span className="text-4xl">📄</span>
         <span className="font-semibold">No presentation uploaded yet.</span>
       </div>
@@ -206,7 +206,7 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
   // ── CASE 3: Direct Native PDF Viewer Fallback (Loads PDF directly in page)
   if (loadError) {
     return (
-      <div className="w-full rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 shadow-md bg-white dark:bg-zinc-900">
+      <div className="w-full max-w-4xl mx-auto rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 shadow-md bg-white dark:bg-zinc-900">
         <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 text-xs select-none">
           <span className="font-bold text-gray-800 dark:text-gray-200">📄 Presentation</span>
           <a
@@ -219,7 +219,7 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
             Download PDF ⬇
           </a>
         </div>
-        <div className="w-full h-[640px] bg-zinc-900">
+        <div className="w-full h-[460px] md:h-[480px] bg-zinc-900">
           <iframe
             src={`${pdfUrl}#toolbar=1`}
             title={title || "PDF Presentation"}
@@ -346,7 +346,7 @@ export default function PdfSlideViewer({ pdfUrl, slidesEmbedUrl, title }) {
             <div
               ref={pageWrapRef}
               className={`flex-1 flex flex-col items-center justify-start overflow-auto p-4 select-text ${
-                isFullscreen ? "bg-zinc-950" : "bg-gray-100 dark:bg-zinc-950/80 min-h-[460px]"
+                isFullscreen ? "bg-zinc-950" : "bg-gray-100 dark:bg-zinc-950/80 h-[450px] md:h-[480px] max-h-[500px]"
               }`}
             >
               <Page

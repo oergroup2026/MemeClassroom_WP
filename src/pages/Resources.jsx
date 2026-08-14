@@ -2471,8 +2471,29 @@ const Resources = () => {
                         Clear All Filters
                       </button>
                     )}
-                    {user && (
-                      <button onClick={() => { resetUploadForm(); setShowUploadModal(true); }} className="border border-purple-600 text-purple-600 text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-purple-50 transition">
+                    {user ? (
+                      <button
+                        onClick={() => {
+                          if (activeTab === "activity") {
+                            setEditingActivity(null);
+                            setShowActivityModal(true);
+                          } else if (activeTab === "additional") {
+                            setShowExternalModal(true);
+                          } else {
+                            setContributeDefaultType(activeTab !== "all" ? activeTab : null);
+                            setEditingResource(null);
+                            setShowContributeModal(true);
+                          }
+                        }}
+                        className="border border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 text-xs font-bold px-4 py-2 rounded-xl transition"
+                      >
+                        Be the first to contribute →
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => navigate("/auth")}
+                        className="border border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 text-xs font-bold px-4 py-2 rounded-xl transition inline-block"
+                      >
                         Be the first to contribute →
                       </button>
                     )}
