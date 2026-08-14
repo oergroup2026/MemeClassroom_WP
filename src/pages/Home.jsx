@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { collection, getCountFromServer, query, where } from "firebase/firestore";
 import { db } from "../firebase";
+import MemeLiteracyBanner from "../components/MemeLiteracyBanner";
 
 // Inline SVG icons for feature cards — no broken alt="not" PNGs
 const LabIcon = () => (
@@ -163,6 +164,9 @@ const Home = () => {
           <div className="text-[10px] text-gray-400 uppercase tracking-widest mt-1 font-bold">CC Licensed</div>
         </div>
       </div>
+
+      {/* ── Meme Literacy Banner ─────────────────────────────────────────── */}
+      <MemeLiteracyBanner />
 
       {/* ── Feature Cards ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 text-left">
