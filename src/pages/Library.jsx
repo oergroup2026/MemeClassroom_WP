@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   collection,
@@ -105,6 +106,21 @@ const Library = () => {
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+
+  // Edit meme state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingMeme, setEditingMeme] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSubject, setEditSubject] = useState("Biology");
+  const [editCustomSubject, setEditCustomSubject] = useState("");
+  const [editGrade, setEditGrade] = useState("High School (9\u201310)");
+  const [editLanguage, setEditLanguage] = useState("English");
+  const [editCustomLanguage, setEditCustomLanguage] = useState("");
+  const [editKeywords, setEditKeywords] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [showCardMenuId, setShowCardMenuId] = useState(null);
+  const [showTrendsModal, setShowTrendsModal] = useState(false);
 
   const [filterSubjectSearch, setFilterSubjectSearch] = useState("");
   const [filterLanguageSearch, setFilterLanguageSearch] = useState("");
@@ -402,6 +418,14 @@ const Library = () => {
     });
     return () => unsubscribe();
   }, [user]);
+
+  // Close card dropdown menu when clicking outside
+  useEffect(() => {
+    if (!showCardMenuId) return;
+    const handleClose = () => setShowCardMenuId(null);
+    document.addEventListener('click', handleClose, true);
+    return () => document.removeEventListener('click', handleClose, true);
+  }, [showCardMenuId]);
 
   // 2. Multi-Variable Sidebar Filtering Logic
   useEffect(() => {
@@ -862,6 +886,48 @@ const Library = () => {
     }
   };
 
+  const openEditModal = (meme) => {
+    setEditingMeme(meme);
+    setEditTitle(meme.title || "");
+    setEditSubject(meme.subject || "Biology");
+    setEditCustomSubject("");
+    setEditGrade(meme.age_group || "High School (9\u201310)");
+    setEditLanguage(meme.language || "English");
+    setEditCustomLanguage("");
+    setEditKeywords(Array.isArray(meme.keywords) ? meme.keywords.join(", ") : (meme.keywords || ""));
+    setEditError("");
+    setShowEditModal(true);
+    setActiveMeme(null);
+    setShowCardMenuId(null);
+  };
+
+  const handleEditMemeSubmit = async (e) => {
+    e.preventDefault();
+    if (!user || !editingMeme) return;
+    setEditLoading(true);
+    setEditError("");
+    try {
+      const finalSubject = editSubject === "Other" ? (editCustomSubject.trim() || "Other") : editSubject;
+      const finalLanguage = editLanguage === "Other" ? (editCustomLanguage.trim() || "Other") : editLanguage;
+      const parsedKeywords = editKeywords ? editKeywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean) : [];
+      await updateDoc(doc(db, "memes", editingMeme.id), {
+        title: editTitle.trim() || editingMeme.title,
+        subject: finalSubject,
+        age_group: editGrade,
+        language: finalLanguage,
+        keywords: parsedKeywords,
+      });
+      setShowEditModal(false);
+      setEditingMeme(null);
+      showLibToast("Meme updated successfully!", "success");
+    } catch (err) {
+      console.error("Edit meme failed", err);
+      setEditError("Failed to update meme. Please try again.");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   // Helper to compute average criteria score
   const getAverageScore = (criteria) => {
     if (currentMemeRatings.length === 0) return 0;
@@ -1100,21 +1166,27 @@ const Library = () => {
         >
           <Flame className="w-3.5 h-3.5 text-orange-500 animate-pulse" /> Trending
         </button>
-        {["Exams", "Teachers", "Assignments", "Science", "Coding", "Relatable"].map((tag) => {
-          const isActive = subjectFilter === tag || appliedSearchQuery === tag;
-          return (
-            <button
-              key={tag}
-              onClick={() => {
-                setSubjectFilter(tag);
-                setAppliedSearchQuery("");
-              }}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${isActive ? "bg-purple-100 text-purple-750 dark:bg-purple-950/40 dark:text-purple-300" : "bg-white dark:bg-zinc-900 text-gray-500 hover:bg-gray-50 border border-gray-200 dark:border-zinc-800"}`}
-            >
-              {tag}
-            </button>
-          );
-        })}
+        {(() => {
+          const keywordCounts = {};
+          memes.forEach(m => {
+            const kws = Array.isArray(m.keywords) ? m.keywords : (m.keywords ? String(m.keywords).split(",").map(k => k.trim()).filter(Boolean) : []);
+            kws.forEach(k => { if (k) keywordCounts[k] = (keywordCounts[k] || 0) + 1; });
+          });
+          const topKeywords = Object.entries(keywordCounts).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k);
+          const displayTags = topKeywords.length > 0 ? topKeywords : ["Exams", "Teachers", "Assignments", "Science", "Coding", "Relatable"];
+          return displayTags.map((tag) => {
+            const isActive = appliedSearchQuery === tag;
+            return (
+              <button
+                key={tag}
+                onClick={() => { setAppliedSearchQuery(tag); setSubjectFilter(""); }}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${isActive ? "bg-purple-100 text-purple-750 dark:bg-purple-950/40 dark:text-purple-300" : "bg-white dark:bg-zinc-900 text-gray-500 hover:bg-gray-50 border border-gray-200 dark:border-zinc-800"}`}
+              >
+                #{tag}
+              </button>
+            );
+          });
+        })()}
         <button
           onClick={() => {
             setSubjectFilter("");
@@ -1309,9 +1381,45 @@ const Library = () => {
                         </div>
                       </div>
 
-                      <button className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1" title="Options">
-                        ⋮
-                      </button>
+                      <div className="relative">
+                        <button
+                          className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+                          title="Options"
+                          onClick={(e) => { e.stopPropagation(); setShowCardMenuId(showCardMenuId === meme.id ? null : meme.id); }}
+                        >
+                          ⋮
+                        </button>
+                        {showCardMenuId === meme.id && (
+                          <div
+                            className="absolute right-0 top-8 z-30 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl py-1 min-w-[135px]"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            {user && (meme.creator_id === user.uid || profile?.role === "admin") && (
+                              <>
+                                <button
+                                  onClick={() => openEditModal(meme)}
+                                  className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-purple-50 dark:hover:bg-purple-950/20 flex items-center gap-2"
+                                >
+                                  ✏️ Edit Meme
+                                </button>
+                                <button
+                                  onClick={() => { setShowCardMenuId(null); handleDeleteMeme(meme.id); }}
+                                  className="w-full text-left px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 flex items-center gap-2"
+                                >
+                                  🗑️ Delete
+                                </button>
+                                <div className="border-t border-gray-100 dark:border-zinc-800 my-0.5" />
+                              </>
+                            )}
+                            <button
+                              onClick={() => { setShowCardMenuId(null); handleFlagContent(meme.id); }}
+                              className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+                            >
+                              🚩 Report
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Card Body: Caption text & Media container */}
@@ -1323,7 +1431,7 @@ const Library = () => {
                       )}
 
                       {/* Media Image/Video Box — adaptive height, portrait & landscape friendly */}
-                      <div className="relative w-full bg-zinc-950 flex items-center justify-center overflow-hidden rounded-xl border border-gray-200/10 shadow-inner group" style={{ height: '210px' }}>
+                      <div className="relative w-full bg-zinc-950 rounded-xl border border-gray-200/10 shadow-inner group overflow-hidden" style={{ minHeight: '140px' }}>
                         {/* Hover View Details Overlay */}
                         <div
                           onClick={() => setActiveMeme(meme)}
@@ -1335,18 +1443,18 @@ const Library = () => {
                         </div>
 
                         {meme.format === "image" && (
-                          <img src={meme.media_url} alt={meme.title} className="w-full h-full object-contain" />
+                          <img src={meme.media_url} alt={meme.title} className="w-full h-auto max-h-[300px] object-contain block" />
                         )}
                         {meme.format === "video" && (
-                          <div className="w-full h-full">
+                          <div className="w-full">
                             <VideoWithCaptions meme={meme} />
                           </div>
                         )}
                         {meme.format === "gif" && (
-                          <img src={meme.media_url} alt={meme.title} className="w-full h-full object-contain" />
+                          <img src={meme.media_url} alt={meme.title} className="w-full h-auto max-h-[300px] object-contain block" />
                         )}
                         {meme.format === "audio" && (
-                          <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-indigo-950/20">
+                          <div className="w-full flex flex-col items-center justify-center p-3 text-center bg-indigo-950/20" style={{ minHeight: '140px' }}>
                             <span className="text-3xl mb-1.5">🎵</span>
                             <audio src={meme.media_url} controls className="w-full max-w-xs scale-90" />
                           </div>
@@ -1493,7 +1601,7 @@ const Library = () => {
           {/* Trending Now Card */}
           <div className="bg-white/40 dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl border border-gray-200/50 dark:border-zinc-800/40 shadow-md dark:shadow-black/25 hover:shadow-lg transition-all duration-300 space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
-              🔥 Trending Now
+              📚 Popular Subjects
             </h3>
             <div className="space-y-3">
               {(() => {
@@ -1522,7 +1630,7 @@ const Library = () => {
               })()}
             </div>
             <button
-              onClick={() => setSubjectFilter("")}
+              onClick={() => setShowTrendsModal(true)}
               className="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline block pt-1"
             >
               View all trends →
@@ -1598,18 +1706,18 @@ const Library = () => {
               </div>
 
               {/* Detail Preview Area — adaptive aspect ratio for landscape & portrait */}
-              <div className="bg-black rounded-xl overflow-hidden flex items-center justify-center mb-3 w-full" style={{ maxHeight: '55vh', minHeight: '200px' }}>
+              <div className="bg-black rounded-xl mb-3 w-full flex items-center justify-center" style={{ maxHeight: '60vh', overflow: 'hidden' }}>
                 {activeMeme.format === "image" && (
-                  <img src={activeMeme.media_url} alt={activeMeme.title} className="max-w-full max-h-full object-contain" />
+                  <img src={activeMeme.media_url} alt={activeMeme.title} className="w-full max-h-[60vh] object-contain block" />
                 )}
                 {activeMeme.format === "video" && (
                   <VideoWithCaptions meme={activeMeme} />
                 )}
                 {activeMeme.format === "gif" && (
-                  <img src={activeMeme.media_url} alt={activeMeme.title} className="max-w-full max-h-full object-contain" />
+                  <img src={activeMeme.media_url} alt={activeMeme.title} className="w-full max-h-[60vh] object-contain block" />
                 )}
                 {activeMeme.format === "audio" && (
-                  <audio src={activeMeme.media_url} controls className="w-full px-6" />
+                  <audio src={activeMeme.media_url} controls className="w-full px-6 py-4" />
                 )}
               </div>
 
@@ -1724,12 +1832,21 @@ const Library = () => {
                   <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-red-500 fill-current" /> {activeMeme.likes_count || 0} Likes</span>
                 </div>
                 {user && (activeMeme.creator_id === user.uid || profile?.role === "admin") && (
-                  <button
-                    onClick={() => handleDeleteMeme(activeMeme.id)}
-                    className="text-red-500 hover:text-red-750 hover:underline transition"
-                  >
-                    Delete Meme
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEditModal(activeMeme)}
+                      className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 hover:underline transition font-semibold"
+                    >
+                      ✏️ Edit
+                    </button>
+                    <span className="text-gray-300 dark:text-zinc-600">|</span>
+                    <button
+                      onClick={() => handleDeleteMeme(activeMeme.id)}
+                      className="text-red-500 hover:text-red-700 hover:underline transition"
+                    >
+                      🗑️ Delete
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -1997,14 +2114,16 @@ const Library = () => {
       )}
 
       {/* 3. DIRECT MEME UPLOAD MODAL */}
-      {showDirectUploadModal && (
-        <div 
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      {showDirectUploadModal && createPortal(
+        <div
+          className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"
           style={{ animation: 'modalBackdropFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+          onClick={() => setShowDirectUploadModal(false)}
         >
-          <div 
-            className={`w-full max-w-lg p-6 rounded-2xl overflow-y-auto max-h-[95vh] shadow-2xl ${containerClass} border border-gray-200/80 dark:border-zinc-800/80`}
+          <div
+            className="w-full max-w-lg p-6 rounded-2xl overflow-y-auto max-h-[90vh] shadow-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700"
             style={{ animation: 'modalContainerScaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+            onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-xl font-extrabold tracking-tight text-gray-900 dark:text-white">Direct Meme Upload</h2>
@@ -2171,7 +2290,330 @@ const Library = () => {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
+
+      {/* EDIT MEME MODAL */}
+      {showEditModal && editingMeme && createPortal(
+        <div
+          className="fixed inset-0 bg-black/65 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"
+          onClick={() => { setShowEditModal(false); setEditingMeme(null); }}
+        >
+          <div
+            className="w-full max-w-lg p-6 rounded-2xl overflow-y-auto max-h-[90vh] shadow-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-xl font-extrabold tracking-tight text-gray-900 dark:text-white">✏️ Edit Meme</h2>
+              <button
+                type="button"
+                onClick={() => { setShowEditModal(false); setEditingMeme(null); }}
+                className="text-gray-400 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
+              Update the details of your meme. The media file cannot be replaced.
+            </p>
+
+            {editError && (
+              <div className="mb-4 p-3 bg-rose-50 border border-rose-200 dark:bg-rose-950/20 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-semibold">
+                ⚠️ {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleEditMemeSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Meme Title</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  placeholder="e.g. Mitosis vs Meiosis"
+                  className="w-full px-3.5 py-2.5 border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200 placeholder-gray-400"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Subject</label>
+                  <select
+                    value={editSubject}
+                    onChange={e => setEditSubject(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200"
+                  >
+                    {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  {editSubject === "Other" && (
+                    <input
+                      type="text"
+                      placeholder="Type your subject..."
+                      className="w-full px-3 py-2.5 border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200 mt-2 placeholder-gray-400"
+                      value={editCustomSubject}
+                      onChange={e => setEditCustomSubject(e.target.value)}
+                      required
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Grade</label>
+                  <select
+                    value={editGrade}
+                    onChange={e => setEditGrade(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200"
+                  >
+                    {gradeGroups.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Language</label>
+                <select
+                  value={editLanguage}
+                  onChange={e => setEditLanguage(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200"
+                >
+                  {languages.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+                {editLanguage === "Other" && (
+                  <input
+                    type="text"
+                    placeholder="Type custom language..."
+                    className="w-full px-3 py-2.5 border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200 mt-2 placeholder-gray-400"
+                    value={editCustomLanguage}
+                    onChange={e => setEditCustomLanguage(e.target.value)}
+                    required
+                  />
+                )}
+              </div>
+
+              <div>
+                <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Topic / Keywords</label>
+                <input
+                  type="text"
+                  placeholder="e.g. cell division, mitosis, biology meme"
+                  value={editKeywords}
+                  onChange={e => setEditKeywords(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition text-xs font-semibold text-gray-800 dark:text-zinc-200 placeholder-gray-400"
+                />
+                <span className="text-[10px] text-gray-400 block mt-1.5">💡 Separate keywords with commas.</span>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4 border-t border-gray-100 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => { setShowEditModal(false); setEditingMeme(null); }}
+                  className="bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-200 px-4 py-2.5 rounded-xl font-bold transition text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-bold transition text-xs shadow-sm disabled:opacity-60"
+                >
+                  {editLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      , document.body)}
+
+      {/* TRENDS ANALYTICS MODAL */}
+      {showTrendsModal && createPortal(
+        <div
+          className="fixed inset-0 bg-black/70 z-[200] flex items-start justify-center p-4 overflow-y-auto backdrop-blur-sm"
+          onClick={() => setShowTrendsModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl my-6 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-zinc-700 overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-zinc-700 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                  📊 Meme Trends Analytics
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">Live insights from {memes.length} meme{memes.length !== 1 ? 's' : ''} in the library</p>
+              </div>
+              <button
+                onClick={() => setShowTrendsModal(false)}
+                className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Overview stat cards */}
+              {(() => {
+                const totalLikes = memes.reduce((sum, m) => sum + (m.likes_count || 0), 0);
+                const mostLiked = [...memes].sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0))[0];
+                const uniqueCreators = new Set(memes.map(m => m.creator_id)).size;
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-purple-50 dark:bg-purple-950/20 rounded-xl p-3 text-center">
+                      <div className="text-2xl font-extrabold text-purple-600 dark:text-purple-400">{memes.length}</div>
+                      <div className="text-[10px] text-gray-500 font-semibold mt-0.5">Total Memes</div>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-950/20 rounded-xl p-3 text-center">
+                      <div className="text-2xl font-extrabold text-red-500">{totalLikes}</div>
+                      <div className="text-[10px] text-gray-500 font-semibold mt-0.5">Total Likes</div>
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-950/20 rounded-xl p-3 text-center">
+                      <div className="text-2xl font-extrabold text-blue-500">{uniqueCreators}</div>
+                      <div className="text-[10px] text-gray-500 font-semibold mt-0.5">Contributors</div>
+                    </div>
+                    <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-3 text-center">
+                      <div className="text-xs font-extrabold text-amber-600 dark:text-amber-400 truncate px-1">{mostLiked?.title?.slice(0, 14) || '—'}{mostLiked?.title?.length > 14 ? '…' : ''}</div>
+                      <div className="text-[10px] text-gray-500 font-semibold mt-0.5">Most Liked</div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Subject distribution */}
+              {(() => {
+                const counts = {};
+                memes.forEach(m => { if (m.subject) counts[m.subject] = (counts[m.subject] || 0) + 1; });
+                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+                const max = sorted[0]?.[1] || 1;
+                if (sorted.length === 0) return <p className="text-xs text-gray-400 italic">No subject data available.</p>;
+                return (
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-zinc-300 mb-3 flex items-center gap-1.5">📚 Memes by Subject</h3>
+                    <div className="space-y-2">
+                      {sorted.slice(0, 8).map(([subject, count]) => (
+                        <div key={subject} className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-gray-600 dark:text-zinc-400 w-24 shrink-0 truncate">{subject}</span>
+                          <div className="flex-1 bg-gray-100 dark:bg-zinc-800 rounded-full h-5 overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-end pr-1.5 transition-all duration-700"
+                              style={{ width: `${Math.max(8, (count / max) * 100)}%` }}
+                            >
+                              <span className="text-[8px] text-white font-bold">{count}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Language + Format side by side */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {/* Language */}
+                {(() => {
+                  const counts = {};
+                  memes.forEach(m => { if (m.language) counts[m.language] = (counts[m.language] || 0) + 1; });
+                  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+                  const max = sorted[0]?.[1] || 1;
+                  if (sorted.length === 0) return null;
+                  return (
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-zinc-300 mb-3">🌐 By Language</h3>
+                      <div className="space-y-2">
+                        {sorted.slice(0, 6).map(([lang, count]) => (
+                          <div key={lang} className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-gray-600 dark:text-zinc-400 w-16 shrink-0 truncate">{lang}</span>
+                            <div className="flex-1 bg-gray-100 dark:bg-zinc-800 rounded-full h-4 overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full" style={{ width: `${Math.max(8, (count / max) * 100)}%` }} />
+                            </div>
+                            <span className="text-[10px] text-gray-400 tabular-nums w-5 text-right shrink-0">{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Format / Type */}
+                {(() => {
+                  const counts = {};
+                  memes.forEach(m => { if (m.format) counts[m.format] = (counts[m.format] || 0) + 1; });
+                  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+                  const formatEmoji = { image: '🖼️', video: '🎦', gif: '🎞️', audio: '🎧' };
+                  if (sorted.length === 0) return null;
+                  return (
+                    <div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-zinc-300 mb-3">🎥 By Format / Type</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {sorted.map(([format, count]) => (
+                          <div key={format} className="bg-gray-50 dark:bg-zinc-800 rounded-xl px-3 py-2.5 flex flex-col items-center min-w-[60px] border border-gray-100 dark:border-zinc-700">
+                            <span className="text-xl">{formatEmoji[format] || '📄'}</span>
+                            <span className="text-[10px] font-bold text-gray-700 dark:text-zinc-300 capitalize mt-1">{format}</span>
+                            <span className="text-sm font-extrabold text-purple-600 dark:text-purple-400">{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Grade distribution */}
+              {(() => {
+                const counts = {};
+                memes.forEach(m => { if (m.age_group) counts[m.age_group] = (counts[m.age_group] || 0) + 1; });
+                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+                const max = sorted[0]?.[1] || 1;
+                if (sorted.length === 0) return null;
+                return (
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-zinc-300 mb-3">🎓 By Grade</h3>
+                    <div className="space-y-2">
+                      {sorted.map(([grade, count]) => (
+                        <div key={grade} className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-gray-600 dark:text-zinc-400 w-36 shrink-0 truncate">{grade}</span>
+                          <div className="flex-1 bg-gray-100 dark:bg-zinc-800 rounded-full h-4 overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full" style={{ width: `${Math.max(8, (count / max) * 100)}%` }} />
+                          </div>
+                          <span className="text-[10px] text-gray-400 tabular-nums w-5 text-right shrink-0">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Top Keywords */}
+              {(() => {
+                const counts = {};
+                memes.forEach(m => {
+                  const kws = Array.isArray(m.keywords) ? m.keywords : (m.keywords ? String(m.keywords).split(",").map(k => k.trim()).filter(Boolean) : []);
+                  kws.forEach(k => { if (k) counts[k] = (counts[k] || 0) + 1; });
+                });
+                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 24);
+                if (sorted.length === 0) return null;
+                return (
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-zinc-300 mb-3">🏷️ Top Keywords</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {sorted.map(([kw, count]) => (
+                        <button
+                          key={kw}
+                          onClick={() => { setAppliedSearchQuery(kw); setShowTrendsModal(false); }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 transition border border-purple-200 dark:border-purple-800"
+                          title={`Click to filter by \"${kw}\"`}
+                        >
+                          #{kw}
+                          <span className="bg-purple-600 text-white rounded-full px-1 text-[8px] font-bold leading-none py-0.5">{count}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-2">Click any keyword to filter the meme library.</p>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      , document.body)}
 
       <style>{`
         @keyframes modalBackdropFadeIn {
