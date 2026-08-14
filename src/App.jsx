@@ -16,6 +16,7 @@ import Admin from './pages/Admin';
 import Auth from './pages/Auth';
 import About from './pages/About';
 import NotFound from './pages/NotFound';
+import MemeLiteracyTest from './pages/MemeLiteracyTest';
 import { useUdl } from './context/UdlContext';
 
 function App() {
@@ -59,6 +60,7 @@ function App() {
           {/* Public Routes accessible without authentication */}
           <Route path="/lab" element={<Lab />} />
           <Route path="/staffroom" element={<Staffroom />} />
+          <Route path="/meme-literacy-test" element={<MemeLiteracyTest />} />
           
           <Route path="/profile" element={
             <ProtectedRoute allowedRoles={['student', 'teacher', 'expert', 'admin']}>
