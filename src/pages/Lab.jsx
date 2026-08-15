@@ -28,8 +28,10 @@ import { compileVideoMeme } from "../utils/videoCompiler";
 import LibraryPickerModal from "../components/LibraryPickerModal";
 import GiphySearch from "../components/GiphySearch";
 import AudiogramCanvas from "../components/AudiogramCanvas";
-import RichTextArea from "../components/RichTextArea";
 import { useToast } from "../components/ToastNotification";
+import { extractDominantColors } from "../utils/colorUtils";
+import { generateMemeCaptions } from "../services/geminiClient";
+import AiQuotaModal from "../components/AiQuotaModal";
 import html2canvas from "html2canvas";
 
 // ── Format tab icon map ───────────────────────────────────────────────────────
@@ -332,6 +334,17 @@ const Lab = () => {
   }, [setTextLayersWithHistory]);
   const [selectedTextId, setSelectedTextId] = useState(null);
   const [editingTextId, setEditingTextId] = useState(null);
+  const [suggestedColors, setSuggestedColors] = useState(["#FFFFFF", "#000000", "#FFD700", "#FF4500", "#9333EA"]);
+
+  // Extract color palette whenever image/media source updates
+  useEffect(() => {
+    const src = images[0] || gifUrl || null;
+    if (src) {
+      extractDominantColors(src).then((colors) => {
+        if (colors && colors.length) setSuggestedColors(colors);
+      });
+    }
+  }, [images, gifUrl]);
 
   // --- General Modals & Alert States ---
   const [activeControlTab, setActiveControlTab] = useState("media");
@@ -354,6 +367,46 @@ const Lab = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [autoSaveToast, setAutoSaveToast] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // --- AI Meme Caption Generator State ---
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiPromptTopic, setAiPromptTopic] = useState("");
+  const [aiCaptions, setAiCaptions] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const handleGenerateAiCaptions = async () => {
+    setAiLoading(true);
+    try {
+      const activeSub = subject === "Other" ? customSubject : subject;
+      const resText = await generateMemeCaptions({
+        subject: activeSub || "General",
+        topic: aiPromptTopic || title || "High school classroom humor",
+        tone: "witty & educational"
+      });
+      // Parse numbered list
+      const lines = resText
+        .split("\n")
+        .map(l => l.replace(/^\d+\.\s*["']?/, "").replace(/["']$/, "").trim())
+        .filter(l => l.length > 5);
+      setAiCaptions(lines.length ? lines : [resText]);
+    } catch (err) {
+      if (err.message === "QUOTA_EXCEEDED") {
+        setShowAiModal(true);
+      } else {
+        setAlertMessage(err.message || "Failed to generate AI captions.");
+      }
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const applyAiCaption = (captionText) => {
+    if (activeTextLayer) {
+      updateTextLayer("text", captionText);
+    } else {
+      addTextLayer(captionText);
+    }
+  };
 
   // --- Week 6: ffmpeg.wasm trim state ---
   const [isTrimming, setIsTrimming] = useState(false);
@@ -2263,6 +2316,57 @@ const Lab = () => {
                   Add Text Layer
                 </button>
 
+                {/* AI Caption & Punchline Generator */}
+                <div className="p-3 bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200 dark:border-purple-800/60 rounded-xl space-y-2 mb-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                      ✨ AI Meme Punchlines
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowAiModal(true)}
+                      className="text-[9px] text-purple-600 dark:text-purple-400 font-bold hover:underline"
+                    >
+                      Credits / Key
+                    </button>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="e.g. Gravity, cell division, test anxiety…"
+                      value={aiPromptTopic}
+                      onChange={e => setAiPromptTopic(e.target.value)}
+                      className="flex-1 px-2.5 py-1 text-xs rounded-lg border border-purple-200 dark:border-purple-800 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    />
+                    <button
+                      type="button"
+                      disabled={aiLoading}
+                      onClick={handleGenerateAiCaptions}
+                      className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 active:scale-95 disabled:opacity-50 text-white font-bold text-xs transition shrink-0"
+                    >
+                      {aiLoading ? "Thinking…" : "Generate"}
+                    </button>
+                  </div>
+
+                  {aiCaptions.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[9px] text-gray-500 dark:text-gray-400 block font-medium">
+                        Click a suggestion to apply:
+                      </span>
+                      {aiCaptions.map((cap, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => applyAiCaption(cap)}
+                          className="w-full text-left p-2 rounded-lg bg-white dark:bg-zinc-900 hover:bg-purple-100/60 dark:hover:bg-purple-950/40 border border-purple-100 dark:border-purple-900 text-[11px] text-gray-700 dark:text-zinc-200 transition font-normal"
+                        >
+                          "{cap}"
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Layer list */}
                 {textLayers.length > 0 && (
                   <div className="space-y-1 mb-2">
@@ -2363,6 +2467,31 @@ const Lab = () => {
                         />
                       </div>
                     </div>
+
+                    {/* Suggested Palette Swatches */}
+                    {suggestedColors && suggestedColors.length > 0 && (
+                      <div>
+                        <span className="block text-[9px] text-gray-400 uppercase tracking-wider mb-1 font-bold">
+                          ✨ Suggested from image
+                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {suggestedColors.map((hex, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => updateTextLayer("color", hex)}
+                              style={{ backgroundColor: hex }}
+                              className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 shadow-sm ${
+                                activeTextLayer.color?.toLowerCase() === hex?.toLowerCase()
+                                  ? "ring-2 ring-purple-600 ring-offset-1 border-white"
+                                  : "border-gray-300 dark:border-zinc-700"
+                              }`}
+                              title={`Set text color to ${hex}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Font Size */}
                     <div>
@@ -3738,6 +3867,12 @@ const Lab = () => {
           }
           setImages(prev => [...prev, mediaUrl]);
         }}
+      />
+
+      {/* AI QUOTA & AD-GATE MODAL */}
+      <AiQuotaModal
+        isOpen={showAiModal}
+        onClose={() => setShowAiModal(false)}
       />
 
     </div>

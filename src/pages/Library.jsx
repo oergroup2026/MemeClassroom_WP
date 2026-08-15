@@ -27,6 +27,10 @@ import RichTextArea from "../components/RichTextArea";
 import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
 
 import { trackCustomSubmission } from "../utils/taxonomyUtils";
+import { fuzzySearch } from "../utils/searchUtils";
+import TtsSpeakerButton from "../components/TtsSpeakerButton";
+import { explainMemeWithVision } from "../services/geminiClient";
+import AiQuotaModal from "../components/AiQuotaModal";
 import {
   Search,
   Flame,
@@ -96,6 +100,31 @@ const Library = () => {
   // Likes map for the current user
   const [userLikesMap, setUserLikesMap] = useState({});
   const [userSavesMap, setUserSavesMap] = useState({});
+
+  // AI Vision & Alt-Text Explanation state
+  const [aiExplanationMap, setAiExplanationMap] = useState({});
+  const [aiExplainingId, setAiExplainingId] = useState(null);
+  const [showAiQuotaModal, setShowAiQuotaModal] = useState(false);
+
+  const handleGenerateExplanation = async (meme) => {
+    if (!meme) return;
+    if (aiExplanationMap[meme.id]) return; // already generated
+    setAiExplainingId(meme.id);
+    try {
+      const text = await explainMemeWithVision({
+        title: meme.title || "Classroom Meme"
+      });
+      setAiExplanationMap(prev => ({ ...prev, [meme.id]: text }));
+    } catch (err) {
+      if (err.message === "QUOTA_EXCEEDED") {
+        setShowAiQuotaModal(true);
+      } else {
+        console.error("AI explanation failed", err);
+      }
+    } finally {
+      setAiExplainingId(null);
+    }
+  };
 
   // Direct Upload fields
   const [uploadTitle, setUploadTitle] = useState("");
@@ -438,13 +467,12 @@ const Library = () => {
     let result = memes;
 
     if (appliedSearchQuery.trim()) {
-      const q = appliedSearchQuery.toLowerCase().trim();
-      result = result.filter(m =>
-        m.title?.toLowerCase().includes(q) ||
-        (Array.isArray(m.keywords)
-          ? m.keywords.some(k => k.toLowerCase().includes(q))
-          : String(m.keywords || "").toLowerCase().includes(q))
-      );
+      result = fuzzySearch(result, appliedSearchQuery, [
+        { field: "title", weight: 3 },
+        { field: "subject", weight: 2 },
+        { field: "keywords", weight: 2 },
+        { field: "language", weight: 1 }
+      ]);
     }
     if (subjectFilter) {
       result = result.filter(m => m.subject === subjectFilter);
@@ -1817,6 +1845,13 @@ const Library = () => {
                   />
                 </button>
 
+                {/* TTS Listen Aloud */}
+                <TtsSpeakerButton
+                  text={`${activeMeme.title}. Subject: ${activeMeme.subject || ""}. ${activeMeme.description || ""}`}
+                  id={`meme-${activeMeme.id}`}
+                  size="sm"
+                />
+
                 {/* Flag */}
                 <button
                   onClick={() => handleFlagContent(activeMeme.id)}
@@ -1856,6 +1891,35 @@ const Library = () => {
                       🗑️ Delete
                     </button>
                   </div>
+                )}
+              </div>
+
+              {/* AI Vision & Alt-Text Explanation Box */}
+              <div className="p-3 bg-purple-50/60 dark:bg-purple-950/25 border border-purple-200/80 dark:border-purple-800/50 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                    ✨ AI Visual Analysis & Alt-Text
+                  </span>
+                  {!aiExplanationMap[activeMeme.id] && (
+                    <button
+                      type="button"
+                      disabled={aiExplainingId === activeMeme.id}
+                      onClick={() => handleGenerateExplanation(activeMeme)}
+                      className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition shadow-sm active:scale-95"
+                    >
+                      {aiExplainingId === activeMeme.id ? "Analyzing…" : "Analyze Meme"}
+                    </button>
+                  )}
+                </div>
+
+                {aiExplanationMap[activeMeme.id] ? (
+                  <div className="text-xs text-gray-700 dark:text-zinc-300 space-y-1.5 whitespace-pre-line leading-relaxed bg-white/70 dark:bg-zinc-900/60 p-2.5 rounded-lg border border-purple-100 dark:border-purple-900/40">
+                    {aiExplanationMap[activeMeme.id]}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-gray-400">
+                    Generate classroom-safe accessibility alt-text, conceptual breakdowns, and discussion prompts.
+                  </p>
                 )}
               </div>
             </div>
@@ -2634,6 +2698,12 @@ const Library = () => {
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
       `}</style>
+      {/* AI Quota & Ad-Gate Modal */}
+      <AiQuotaModal
+        isOpen={showAiQuotaModal}
+        onClose={() => setShowAiQuotaModal(false)}
+      />
+
     </div>
   );
 };

@@ -14,6 +14,7 @@ import {
 import PdfSlideViewer from "../components/PdfSlideViewer";
 import FormattedText from "../components/FormattedText";
 import ActivityContributeModal from "../components/ActivityContributeModal";
+import TtsSpeakerButton from "../components/TtsSpeakerButton";
 
 import { useToast } from "../components/ToastNotification";
 
@@ -442,6 +443,10 @@ export default function ActivityDetail() {
             <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? "fill-current" : ""}`} strokeWidth={1.5} />
             {isBookmarked ? "Saved" : "Save"}
           </button>
+          <TtsSpeakerButton
+            text={`${activity.title}. ${activity.overview || activity.body || ""}`}
+            id={`activity-${id}`}
+          />
           <button onClick={handleShare}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-300 dark:border-zinc-700 text-xs font-bold text-gray-500 hover:border-green-300 hover:text-green-600 transition"
           >

@@ -21,6 +21,7 @@ import { useAuth } from "../context/AuthContext";
 import { X, FileText, Image as ImageIcon, Link, BookOpen, User } from "lucide-react";
 import ActivityContributeModal from "./ActivityContributeModal";
 import RichTextArea from "./RichTextArea";
+import ReadabilityIndicator from "./ReadabilityIndicator";
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 const trackCustomSubmission = async (type, name) => {
@@ -195,6 +196,7 @@ const ArticleForm = ({ form, setForm, subjects, gradeGroups }) => (
         <label className={labelClass}>Description / Abstract *</label>
         <RichTextArea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
           rows={3} placeholder="Provide a detailed description..." />
+        <ReadabilityIndicator text={form.body} className="mt-2" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -296,6 +298,7 @@ const CourseForm = ({ form, setForm, subjects, gradeGroups }) => (
         <label className={labelClass}>Description *</label>
         <RichTextArea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
           rows={3} placeholder="What will learners gain from this course?" />
+        <ReadabilityIndicator text={form.body} className="mt-2" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -386,6 +389,7 @@ const StoryForm = ({ form, setForm }) => (
         <RichTextArea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
           rows={3}
           placeholder="How this template originated (movie, TV show, game, viral event) and how it gained popularity..." />
+        <ReadabilityIndicator text={form.body} className="mt-2" />
       </div>
     </Section>
 
@@ -445,6 +449,7 @@ const OtherForm = ({ form, setForm, subjects, gradeGroups }) => (
         <label className={labelClass}>Description *</label>
         <RichTextArea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
           rows={3} placeholder="Describe this resource..." />
+        <ReadabilityIndicator text={form.body} className="mt-2" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>

@@ -12,6 +12,8 @@ import {
   DIMENSION_META,
   getLevel,
 } from "../data/memeTestQuestions";
+import { explainQuizMistake } from "../services/geminiClient";
+import AiQuotaModal from "../components/AiQuotaModal";
 
 // Option Button
 const OptionButton = ({ text, index, mode, selected, isCorrect, isWrong, onClick }) => {
@@ -171,6 +173,31 @@ const MemeLiteracyTest = () => {
   const [lastAnswer, setLastAnswer] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [resultSaved, setResultSaved] = useState(false);
+  const [aiCoachingText, setAiCoachingText] = useState("");
+  const [aiCoachingLoading, setAiCoachingLoading] = useState(false);
+  const [showAiQuotaModal, setShowAiQuotaModal] = useState(false);
+
+  const handleGetAiCoaching = async (q, lastAns) => {
+    if (!q || !lastAns) return;
+    setAiCoachingLoading(true);
+    try {
+      const text = await explainQuizMistake({
+        questionTitle: q.question_text,
+        selectedOption: q.options[lastAns.selected] || "None",
+        correctOption: q.options[q.correct_index] || "Correct Option",
+        explanation: q.explanation || ""
+      });
+      setAiCoachingText(text);
+    } catch (err) {
+      if (err.message === "QUOTA_EXCEEDED") {
+        setShowAiQuotaModal(true);
+      } else {
+        console.error("AI coaching error:", err);
+      }
+    } finally {
+      setAiCoachingLoading(false);
+    }
+  };
 
   useEffect(() => {
     const q = query(collection(db, "literacy_tests"), where("is_active", "==", true));
@@ -233,6 +260,19 @@ const MemeLiteracyTest = () => {
         badge_icon: passed && testMeta?.badge_icon ? testMeta.badge_icon : null,
         completed_at: serverTimestamp(),
       });
+      // Also award a literacy badge document when the user passes and a badge is configured
+      if (passed && testMeta?.badge_label) {
+        await addDoc(collection(db, "literacy_badges"), {
+          user_id: user.uid,
+          test_id: testId,
+          test_title: testMeta?.title || "",
+          badge_label: testMeta.badge_label,
+          badge_icon: testMeta?.badge_icon || "🏅",
+          score_pct: overallPct,
+          pass_threshold: testMeta?.pass_threshold ?? 60,
+          awarded_at: serverTimestamp(),
+        });
+      }
       setResultSaved(true);
     } catch (e) { console.error("Save result failed:", e); }
   };
@@ -247,6 +287,7 @@ const MemeLiteracyTest = () => {
   };
 
   const handleNext = () => {
+    setAiCoachingText("");
     if (currentQ + 1 >= testQuestions.length) { saveResult([...answers]); setPhase("results"); }
     else { setCurrentQ(q => q + 1); setSelectedOption(null); setLastAnswer(null); setPhase("question"); }
   };
@@ -369,6 +410,35 @@ const MemeLiteracyTest = () => {
               <p className="text-sm text-gray-700 dark:text-zinc-300 leading-relaxed">{question.explanation}</p>
             </div>
           )}
+
+          {/* AI Pedagogical Coach */}
+          <div className="p-3.5 bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200 dark:border-purple-800/60 rounded-xl space-y-2 mb-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
+                ✨ AI Literacy Coach
+              </span>
+              {!aiCoachingText && (
+                <button
+                  type="button"
+                  disabled={aiCoachingLoading}
+                  onClick={() => handleGetAiCoaching(question, lastAnswer)}
+                  className="px-3 py-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition shadow-sm active:scale-95"
+                >
+                  {aiCoachingLoading ? "Thinking…" : "Explain Nuance"}
+                </button>
+              )}
+            </div>
+
+            {aiCoachingText ? (
+              <div className="text-xs text-purple-950 dark:text-purple-200 bg-white/80 dark:bg-zinc-900/80 p-3 rounded-lg border border-purple-100 dark:border-purple-900/40 leading-relaxed">
+                {aiCoachingText}
+              </div>
+            ) : (
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                Want deeper guidance? Get instant AI coaching on the visual rhetoric of this question.
+              </p>
+            )}
+          </div>
           <button onClick={handleNext} className="w-full py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md transition-all hover:-translate-y-0.5">
             {currentQ + 1 >= testQuestions.length ? "See My Results &#8594;" : "Next Question &#8594;"}
           </button>
@@ -379,6 +449,12 @@ const MemeLiteracyTest = () => {
       {phase === "results" && scores && (
         <ResultsPhase overallPct={scores.overallPct} dimPcts={scores.dimPcts} totalCorrect={scores.totalCorrect} totalQuestions={testQuestions.length} activeDimensions={activeDimensions} testMeta={testMeta} onRestart={() => navigate("/meme-literacy-test")} resultSaved={resultSaved} />
       )}
+
+      {/* AI Quota & Ad-Gate Modal */}
+      <AiQuotaModal
+        isOpen={showAiQuotaModal}
+        onClose={() => setShowAiQuotaModal(false)}
+      />
     </div>
   );
 };

@@ -23,6 +23,7 @@ import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
 import RichTextArea from "../components/RichTextArea";
+import AdminAnalyticsDashboard from "../components/AdminAnalyticsDashboard";
 import { DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 
 const Admin = () => {
@@ -1620,57 +1621,12 @@ const Admin = () => {
 
       {/* TAB CONTENT A: SYSTEM ANALYTICS */}
       {activeTab === "analytics" && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className={`p-5 text-center ${containerClass}`}>
-              <span className="text-xl block mb-1">👥</span>
-              <span className="text-[10px] font-bold text-gray-400 uppercase">Total Users</span>
-              <span className="text-3xl font-extrabold block mt-2">{users.length}</span>
-            </div>
-            <div className={`p-5 text-center ${containerClass}`}>
-              <span className="text-xl block mb-1">🧪</span>
-              <span className="text-[10px] font-bold text-gray-400 uppercase">Total Memes</span>
-              <span className="text-3xl font-extrabold block mt-2">{memes.length}</span>
-            </div>
-            <div className={`p-5 text-center ${containerClass}`}>
-              <span className="text-xl block mb-1">📄</span>
-              <span className="text-[10px] font-bold text-gray-400 uppercase">Total Resources</span>
-              <span className="text-3xl font-extrabold block mt-2">{resources.length}</span>
-            </div>
-            <div className={`p-5 text-center ${containerClass}`}>
-              <span className="text-xl block mb-1">🏳️</span>
-              <span className="text-[10px] font-bold text-gray-400 uppercase">Pending Flags</span>
-              <span className="text-3xl font-extrabold block mt-2 text-red-500">{flags.length}</span>
-            </div>
-            <div className={`p-5 text-center ${containerClass}`}>
-              <span className="text-xl block mb-1">💾</span>
-              <span className="text-[10px] font-bold text-gray-400 uppercase">Storage saved</span>
-              <span className="text-3xl font-extrabold block mt-2 text-indigo-600">
-                {pruningLog.space_saved_mb ? pruningLog.space_saved_mb.toFixed(1) : "0"} MB
-              </span>
-            </div>
-          </div>
-
-          <div className={`p-6 ${containerClass}`}>
-            <h3 className="text-sm font-extrabold mb-4 border-b pb-2 uppercase tracking-wider text-gray-400">
-              Users Demographics Breakdowns
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
-              {[
-                { label: "Students", val: users.filter(u => u.role === "student").length, color: "text-purple-650" },
-                { label: "Teachers", val: users.filter(u => u.role === "teacher").length, color: "text-indigo-600" },
-                { label: "Experts", val: users.filter(u => u.role === "expert").length, color: "text-green-600" },
-                { label: "Managers", val: users.filter(u => u.role === "manager").length, color: "text-amber-600" },
-                { label: "Admins", val: users.filter(u => u.role === "admin").length, color: "text-red-500" }
-              ].map((roleRow, idx) => (
-                <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-150 dark:border-gray-800">
-                  <span className="block text-[10px] font-bold text-gray-400 uppercase">{roleRow.label}</span>
-                  <span className={`text-xl font-extrabold mt-1 block ${roleRow.color}`}>{roleRow.val}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <AdminAnalyticsDashboard
+          users={users}
+          memes={memes}
+          resources={resources}
+          literacyTests={literacyTests}
+        />
       )}
 
       {/* TAB CONTENT B: MODERATION & APPROVAL QUEUES */}
