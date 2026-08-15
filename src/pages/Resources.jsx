@@ -15,8 +15,7 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
-  increment,
-  runTransaction
+  increment
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase";
@@ -28,6 +27,7 @@ import { SUBJECTS, GRADE_GROUPS, RESOURCE_TYPES, DEFAULT_TOOL_SECTIONS } from ".
 import ActivityContributeModal from "../components/ActivityContributeModal";
 import ContributeResourceModal from "../components/ContributeResourceModal";
 import FormattedText from "../components/FormattedText";
+import { trackCustomSubmission } from "../utils/taxonomyUtils";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 12;
@@ -52,46 +52,6 @@ const MOCK_FEATURED = [
     author_id: "admin"
   }
 ];
-
-const trackCustomSubmission = async (type, name) => {
-  if (!name || !name.trim()) return;
-  const cleanName = name.trim();
-  const docId = `${type}_${cleanName.toLowerCase()}`;
-  const counterRef = doc(db, "custom_counts", docId);
-  const taxRef = doc(db, "configs", "taxonomy");
-
-  try {
-    await runTransaction(db, async (transaction) => {
-      const counterSnap = await transaction.get(counterRef);
-      const taxSnap = await transaction.get(taxRef);
-
-      let count = 1;
-      if (counterSnap.exists()) {
-        count = (counterSnap.data().count || 0) + 1;
-      }
-      transaction.set(counterRef, { name: cleanName, count, type }, { merge: true });
-
-      if (count >= 10 && taxSnap.exists()) {
-        const taxData = taxSnap.data();
-        if (type === "subject") {
-          const subjects = taxData.subjects || [];
-          const exists = subjects.some(s => s.toLowerCase() === cleanName.toLowerCase());
-          if (!exists) {
-            const otherIdx = subjects.indexOf("Other");
-            if (otherIdx !== -1) {
-              subjects.splice(otherIdx, 0, cleanName);
-            } else {
-              subjects.push(cleanName);
-            }
-            transaction.update(taxRef, { subjects });
-          }
-        }
-      }
-    });
-  } catch (err) {
-    console.error("Error tracking custom submission", err);
-  }
-};
 
 
 // ─── Toast Component ──────────────────────────────────────────────────────────
@@ -549,6 +509,150 @@ const ExternalToolThumbnail = ({ src, title, destinationUrl }) => {
         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         onError={() => setImgError(true)}
       />
+    </div>
+  );
+};
+
+// ─── Literacy Tests Tab Content ──────────────────────────────────────────────
+const LiteracyTestsTabContent = ({ navigate }) => {
+  const [tests, setTests] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, "literacy_tests"), where("is_active", "==", true));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
+        setTests(list);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Failed to load literacy tests:", err);
+        setLoading(false);
+      }
+    );
+    return () => unsub();
+  }, []);
+
+  const diffColors = {
+    beginner: "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300",
+    intermediate: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
+    advanced: "bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300",
+    expert: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
+  };
+
+  return (
+    <div className="space-y-6 pt-2 pb-12">
+      {/* Featured Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white p-6 sm:p-8 shadow-lg shadow-purple-500/10">
+        <div className="relative z-10 max-w-2xl space-y-3">
+          <span className="inline-block bg-white/20 backdrop-blur-md text-purple-100 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
+            Interactive Assessments
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            Standardised Meme Literacy Assessments
+          </h2>
+          <p className="text-sm text-purple-100/90 leading-relaxed">
+            Test your critical meme literacy across media awareness, rhetorical intent, visual semiotics, and contextual verification. Earn verifiable badges and test your comprehension!
+          </p>
+          <div className="pt-2 flex flex-wrap gap-3">
+            <button
+              onClick={() => navigate("/meme-literacy-test")}
+              className="bg-white text-purple-700 font-extrabold px-5 py-2.5 rounded-xl text-xs hover:bg-purple-50 transition shadow-md flex items-center gap-2"
+            >
+              🚀 Launch Test Center
+            </button>
+          </div>
+        </div>
+        <div className="absolute right-4 bottom-4 text-7xl sm:text-8xl opacity-15 pointer-events-none select-none">
+          🧪
+        </div>
+      </div>
+
+      {/* Tests Grid */}
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-9 h-9 rounded-full border-4 border-purple-500/30 border-t-purple-500 animate-spin" />
+        </div>
+      ) : tests.length === 0 ? (
+        <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 p-8">
+          <span className="text-5xl">🧪</span>
+          <h3 className="text-lg font-bold text-gray-800 dark:text-zinc-200 mt-3">
+            Standard Assessment Available
+          </h3>
+          <p className="text-sm text-gray-400 mt-1 max-w-md mx-auto">
+            Take our foundational 10-question Meme Literacy Assessment to measure your skills and earn your certification badge.
+          </p>
+          <button
+            onClick={() => navigate("/meme-literacy-test")}
+            className="mt-5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-6 py-3 rounded-xl transition"
+          >
+            Take Standard Test →
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {tests.map((test) => (
+            <div
+              key={test.id}
+              onClick={() => navigate(`/meme-literacy-test/${test.id}`)}
+              className="group cursor-pointer bg-white dark:bg-zinc-900 border border-gray-200/80 dark:border-zinc-800 rounded-2xl p-5 hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-xl hover:shadow-purple-500/5 hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-start gap-3 mb-3">
+                  <span className="text-3xl leading-none">{test.badge_icon || "🧪"}</span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-extrabold text-gray-900 dark:text-white text-base group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors leading-snug">
+                      {test.title}
+                    </h3>
+                    {test.category && (
+                      <span className="text-xs text-gray-400 dark:text-zinc-500 block mt-0.5">
+                        {test.category}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {test.description && (
+                  <p className="text-xs text-gray-500 dark:text-zinc-400 leading-relaxed line-clamp-3 mb-4">
+                    {test.description}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full capitalize ${
+                      diffColors[test.difficulty] || diffColors.beginner
+                    }`}
+                  >
+                    {test.difficulty}
+                  </span>
+                  <span className="text-[10px] text-gray-500 dark:text-zinc-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full font-medium">
+                    {test.question_count || 0} Questions
+                  </span>
+                  <span className="text-[10px] text-gray-500 dark:text-zinc-400 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full font-medium">
+                    Pass: {test.pass_threshold || 60}%
+                  </span>
+                  {test.badge_label && (
+                    <span className="text-[10px] font-bold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">
+                      {test.badge_icon} {test.badge_label}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-xs font-bold text-purple-600 dark:text-purple-400 group-hover:text-purple-700 transition">
+                  <span>Start Assessment</span>
+                  <span className="group-hover:translate-x-1 transition-transform">→</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -1494,6 +1598,7 @@ const Resources = () => {
     { id: "course", label: "Courses" },
     { id: "stories", label: "Meme Stories" },
     { id: "additional", label: "🔧 Additional Resources" },
+    { id: "literacy_tests", label: "🧪 Literacy Tests" },
   ];
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -1596,6 +1701,12 @@ const Resources = () => {
             subtitle: "Explore tools for meme creation, media literacy, and curated open educational resources.",
             ctaLabel: "+ Add Resource Link",
             handler: () => setShowExternalModal(true)
+          },
+          literacy_tests: {
+            title: "Meme Literacy Tests",
+            subtitle: "Assess and develop your critical meme literacy skills with interactive, standardised tests.",
+            ctaLabel: null,
+            handler: null
           }
         };
         const headerInfo = TAB_HEADER_MAP[activeTab] || TAB_HEADER_MAP.all;
@@ -1610,7 +1721,7 @@ const Resources = () => {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-              {user ? (
+              {headerInfo.ctaLabel && (user ? (
                 <button
                   onClick={headerInfo.handler}
                   className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5"
@@ -1619,7 +1730,7 @@ const Resources = () => {
                 </button>
               ) : (
                 <a href="/auth" className={btnClass}>Sign in to Contribute</a>
-              )}
+              ))}
             </div>
           </div>
         );
@@ -2504,6 +2615,10 @@ const Resources = () => {
           </div>
       )}
 
+      {/* ── LITERACY TESTS TAB ──────────────────────────────────────────────── */}
+      {activeTab === "literacy_tests" && (
+        <LiteracyTestsTabContent navigate={navigate} />
+      )}
       {/* ── PENDING APPROVAL POPUP (Activity tab) ───────────────────────────── */}
       {showActivityPendingPopup && createPortal(
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4" onClick={() => setShowActivityPendingPopup(false)}>
