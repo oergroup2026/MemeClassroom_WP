@@ -25,7 +25,10 @@ import {
 } from "firebase/storage";
 import { auth, db, storage } from "../firebase";
 
-const DEV_MODE = false;
+// DEV_MODE bypasses authentication for local sandbox testing.
+// To enable: create a .env.local file and add VITE_DEV_MODE=true
+// It will NEVER activate in production builds (import.meta.env.DEV is false there).
+const DEV_MODE = import.meta.env.DEV === true && import.meta.env.VITE_DEV_MODE === "true";
 
 const AuthContext = createContext();
 

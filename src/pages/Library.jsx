@@ -49,7 +49,10 @@ import {
   AlertCircle,
   Lock,
   Share2,
-  Shuffle
+  Shuffle,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 
 const Library = () => {
@@ -422,9 +425,12 @@ const Library = () => {
   // Close card dropdown menu when clicking outside
   useEffect(() => {
     if (!showCardMenuId) return;
-    const handleClose = () => setShowCardMenuId(null);
-    document.addEventListener('click', handleClose, true);
-    return () => document.removeEventListener('click', handleClose, true);
+    const handleClose = (e) => {
+      if (e.target && e.target.closest && e.target.closest(`[data-card-menu="${showCardMenuId}"]`)) return;
+      setShowCardMenuId(null);
+    };
+    document.addEventListener('click', handleClose);
+    return () => document.removeEventListener('click', handleClose);
   }, [showCardMenuId]);
 
   // 2. Multi-Variable Sidebar Filtering Logic
@@ -862,16 +868,20 @@ const Library = () => {
     try {
       await deleteDoc(doc(db, "memes", memeId));
       if (user) {
-        const statsDocRef = doc(db, "user_stats", user.uid);
-        await setDoc(statsDocRef, {
-          memes_created_count: increment(-1)
-        }, { merge: true });
+        try {
+          const statsDocRef = doc(db, "user_stats", user.uid);
+          await setDoc(statsDocRef, {
+            memes_created_count: increment(-1)
+          }, { merge: true });
+        } catch (statsErr) {
+          console.warn("Could not update user stats", statsErr);
+        }
       }
       setActiveMeme(null);
-      alert("Meme deleted successfully.");
+      showLibToast("Meme deleted successfully.", "success");
     } catch (e) {
       console.error("Failed to delete meme", e);
-      alert("Failed to delete meme. Please try again.");
+      showLibToast("Failed to delete meme. Please try again.", "error");
     }
   };
 
@@ -1026,20 +1036,20 @@ const Library = () => {
       )}
 
       {/* Flag Popup */}
-      {showFlagPopup && (
-        <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4" onClick={() => setShowFlagPopup(false)}>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl p-8 max-w-sm text-center space-y-4" onClick={e => e.stopPropagation()}>
+      {showFlagPopup && createPortal(
+        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-xs" onClick={() => setShowFlagPopup(false)}>
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl shadow-2xl p-8 max-w-sm text-center space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex justify-center text-purple-650 dark:text-purple-400"><Flag className="w-12 h-12 animate-bounce" /></div>
             <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">Report Submitted</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
               Thank you for reporting. This content will only be removed upon admin review and approval.
             </p>
-            <button onClick={() => setShowFlagPopup(false)} className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">
+            <button onClick={() => setShowFlagPopup(false)} className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition shadow-sm">
               Got it
             </button>
           </div>
         </div>
-      )}
+      , document.body)}
 
       <style>{`
         .gallery-header-title {
@@ -1188,17 +1198,11 @@ const Library = () => {
           });
         })()}
         <button
-          onClick={() => {
-            setSubjectFilter("");
-            setGradeFilter("");
-            setLanguageFilter("");
-            setFormatFilter("");
-            setSearchQuery("");
-            setAppliedSearchQuery("");
-          }}
-          className="text-xs text-purple-600 dark:text-purple-400 font-bold hover:underline ml-2"
+          onClick={() => setShowTrendsModal(true)}
+          className="text-xs text-purple-600 dark:text-purple-400 font-bold hover:underline ml-2 whitespace-nowrap"
+          title="View all trending topics & analytics"
         >
-          View all
+          View all →
         </button>
       </div>
 
@@ -1210,11 +1214,13 @@ const Library = () => {
             onClick={() => setShowFilters(v => !v)}
             className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${
               showFilters
-                ? "bg-purple-600 text-white border-purple-600"
+                ? "bg-purple-600 text-white border-purple-600 shadow-sm"
                 : "border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
             }`}
           >
-            &#9881; Filters {showFilters ? "&#9650;" : "&#9660;"}
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span>Filters</span>
+            {showFilters ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
 
           {/* Sort inline */}
@@ -1381,7 +1387,7 @@ const Library = () => {
                         </div>
                       </div>
 
-                      <div className="relative">
+                      <div className="relative" data-card-menu={meme.id}>
                         <button
                           className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
                           title="Options"
@@ -1397,14 +1403,16 @@ const Library = () => {
                             {user && (meme.creator_id === user.uid || profile?.role === "admin") && (
                               <>
                                 <button
-                                  onClick={() => openEditModal(meme)}
-                                  className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-purple-50 dark:hover:bg-purple-950/20 flex items-center gap-2"
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setShowCardMenuId(null); openEditModal(meme); }}
+                                  className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-purple-50 dark:hover:bg-purple-950/20 flex items-center gap-2 transition"
                                 >
                                   ✏️ Edit Meme
                                 </button>
                                 <button
-                                  onClick={() => { setShowCardMenuId(null); handleDeleteMeme(meme.id); }}
-                                  className="w-full text-left px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 flex items-center gap-2"
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setShowCardMenuId(null); handleDeleteMeme(meme.id); }}
+                                  className="w-full text-left px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 flex items-center gap-2 transition"
                                 >
                                   🗑️ Delete
                                 </button>
@@ -1412,8 +1420,9 @@ const Library = () => {
                               </>
                             )}
                             <button
-                              onClick={() => { setShowCardMenuId(null); handleFlagContent(meme.id); }}
-                              className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setShowCardMenuId(null); handleFlagContent(meme.id); }}
+                              className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 flex items-center gap-2 transition"
                             >
                               🚩 Report
                             </button>

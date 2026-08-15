@@ -1138,7 +1138,10 @@ const Lab = () => {
 
     // --- CASE B: PUBLISH TO COMMUNITY LIBRARY FLOW (Require authentication & fields metadata validation) ---
     if (!user) {
-      setAlertMessage("You must be logged in to publish creations to the library.");
+      setAlertMessage(
+        "To contribute to the library and build credibility as an educator, you need to sign in — it only takes a moment. " +
+        "You can still create and download your meme without signing in!"
+      );
       return;
     }
     if (!title.trim()) {

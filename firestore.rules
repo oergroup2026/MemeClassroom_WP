@@ -161,9 +161,32 @@ service cloud.firestore {
 
     // ─── Flags (Reports) ─────────────────────────────────────────────────────
     match /flags/{flagId} {
-      allow read: if isAdmin();
+      allow read: if request.auth != null && (resource.data.reporter_id == request.auth.uid || isAdmin());
       allow create: if request.auth != null && request.resource.data.reporter_id == request.auth.uid;
       allow update, delete: if isAdmin();
     }
+
+    // ─── Literacy Tests ────────────────────────────────────────────────────────
+    // Active tests are publicly readable; only admins can create/update/delete.
+    match /literacy_tests/{testId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── Literacy Test Questions ───────────────────────────────────────────────
+    // Questions are publicly readable (needed to run the quiz); only admins can write.
+    match /literacy_test_questions/{questionId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── Literacy Test Results ────────────────────────────────────────────────
+    // Users can write only their own results; they can read their own results; admins see all.
+    match /literacy_test_results/{resultId} {
+      allow read: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
   }
 }

@@ -15,31 +15,7 @@ import PdfSlideViewer from "../components/PdfSlideViewer";
 import FormattedText from "../components/FormattedText";
 import ActivityContributeModal from "../components/ActivityContributeModal";
 
-// ─── Toast helper ─────────────────────────────────────────────────────────────
-const useToast = () => {
-  const [toast, setToast] = React.useState(null);
-  const show = (message, type = "info") => setToast({ message, type, id: Date.now() });
-  const dismiss = () => setToast(null);
-  return { toast, show, dismiss };
-};
-const Toast = ({ toast, dismiss }) => {
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(dismiss, 4000);
-    return () => clearTimeout(t);
-  }, [toast, dismiss]);
-  if (!toast) return null;
-  const colors = {
-    info: "bg-indigo-600", success: "bg-green-600",
-    warning: "bg-yellow-500 text-gray-900", error: "bg-red-600"
-  };
-  return (
-    <div className={`fixed bottom-6 right-6 z-[200] flex items-start gap-3 px-5 py-4 rounded-xl shadow-2xl text-white text-sm font-semibold max-w-sm ${colors[toast.type]}`}>
-      <span className="flex-1">{toast.message}</span>
-      <button onClick={dismiss} className="opacity-70 hover:opacity-100 font-bold text-lg leading-none">×</button>
-    </div>
-  );
-};
+import { useToast } from "../components/ToastNotification";
 
 // ─── Pending Approval Popup ───────────────────────────────────────────────────
 const PendingApprovalPopup = ({ onClose }) => (
@@ -156,7 +132,8 @@ export default function ActivityDetail() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { highContrastMode } = useUdl();
-  const { toast, show: showToast, dismiss } = useToast();
+  const toast = useToast();
+  const showToast = toast;
 
   const [activity, setActivity] = useState(null);
   const [authorName, setAuthorName] = useState("Contributor");
@@ -424,7 +401,7 @@ export default function ActivityDetail() {
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 space-y-6">
-      {toast && <Toast toast={toast} dismiss={dismiss} />}
+      {/* Toast notifications are rendered by the shared ToastProvider */}
       {showPendingPopup && <PendingApprovalPopup onClose={() => setShowPendingPopup(false)} />}
       {showFlagConfirm && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4" onClick={() => setShowFlagConfirm(false)}>

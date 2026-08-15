@@ -55,6 +55,32 @@ const Admin = () => {
   const [pruningLog, setPruningLog] = useState({ pruned_count: 0, space_saved_mb: 0 });
   const [taxonomy, setTaxonomy] = useState({ subjects: [], grades: [] });
 
+  // ─── Literacy Tests State ────────────────────────────────────────────────────
+  const [literacyTests, setLiteracyTests] = useState([]);
+  const [literacyQuestions, setLiteracyQuestions] = useState([]);
+  const [ltActiveTestId, setLtActiveTestId] = useState(null); // which test's questions are being edited
+  const [ltView, setLtView] = useState("list"); // "list" | "questions" | "new_test" | "new_question" | "edit_test" | "edit_question"
+  const [ltSaving, setLtSaving] = useState(false);
+  // Test form fields
+  const [ltfTitle, setLtfTitle] = useState("");
+  const [ltfDesc, setLtfDesc] = useState("");
+  const [ltfDifficulty, setLtfDifficulty] = useState("beginner");
+  const [ltfCategory, setLtfCategory] = useState("");
+  const [ltfBadgeIcon, setLtfBadgeIcon] = useState("🏅");
+  const [ltfBadgeLabel, setLtfBadgeLabel] = useState("");
+  const [ltfPassThreshold, setLtfPassThreshold] = useState(60);
+  const [ltfIsActive, setLtfIsActive] = useState(true);
+  // Question form fields
+  const [ltqEditId, setLtqEditId] = useState(null); // null = new
+  const [ltqText, setLtqText] = useState("");
+  const [ltqDimension, setLtqDimension] = useState("");
+  const [ltqOptions, setLtqOptions] = useState(["", "", "", ""]);
+  const [ltqCorrectIdx, setLtqCorrectIdx] = useState(0);
+  const [ltqExplanation, setLtqExplanation] = useState("");
+  const [ltqMemeUrl, setLtqMemeUrl] = useState("");
+  const [ltqMemeFile, setLtqMemeFile] = useState(null);
+  const [ltqOrder, setLtqOrder] = useState(0);
+
   // Filtering / Search States (User Directory)
   const [userSearch, setUserSearch] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("");
@@ -312,6 +338,20 @@ const Admin = () => {
       setStafroomAllReplies(list);
     });
 
+    // 14. Literacy Tests
+    const ltTestsUnsub = onSnapshot(collection(db, "literacy_tests"), (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
+      setLiteracyTests(list);
+    });
+
+    // 15. Literacy Test Questions
+    const ltQuestionsUnsub = onSnapshot(collection(db, "literacy_test_questions"), (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (a.order || 0) - (b.order || 0));
+      setLiteracyQuestions(list);
+    });
+
     return () => {
       uUnsub();
       mUnsub();
@@ -326,6 +366,8 @@ const Admin = () => {
       attUnsub();
       allPostsUnsub();
       allRepliesUnsub();
+      ltTestsUnsub();
+      ltQuestionsUnsub();
     };
   }, []);
 
@@ -1385,6 +1427,135 @@ const Admin = () => {
     return matchesSearch && matchesRole;
   });
 
+  // ─── Literacy Tests CRUD Handlers ────────────────────────────────────────────
+
+  const ltResetTestForm = () => {
+    setLtfTitle(""); setLtfDesc(""); setLtfDifficulty("beginner");
+    setLtfCategory(""); setLtfBadgeIcon("🏅"); setLtfBadgeLabel("");
+    setLtfPassThreshold(60); setLtfIsActive(true);
+  };
+  const ltResetQuestionForm = () => {
+    setLtqEditId(null); setLtqText(""); setLtqDimension("");
+    setLtqOptions(["", "", "", ""]); setLtqCorrectIdx(0);
+    setLtqExplanation(""); setLtqMemeUrl(""); setLtqMemeFile(null); setLtqOrder(0);
+  };
+
+  const handleLtSaveTest = async (editId = null) => {
+    if (!ltfTitle.trim()) { triggerAlert("Test title is required.", "error"); return; }
+    setLtSaving(true);
+    try {
+      const data = {
+        title: ltfTitle.trim(), description: ltfDesc.trim(),
+        difficulty: ltfDifficulty, category: ltfCategory.trim(),
+        badge_icon: ltfBadgeIcon, badge_label: ltfBadgeLabel.trim(),
+        pass_threshold: Number(ltfPassThreshold), is_active: ltfIsActive,
+        updated_at: serverTimestamp(),
+      };
+      if (editId) {
+        await updateDoc(doc(db, "literacy_tests", editId), data);
+        triggerAlert("Test updated successfully.");
+      } else {
+        await addDoc(collection(db, "literacy_tests"), { ...data, question_count: 0, created_at: serverTimestamp(), created_by: user.uid });
+        triggerAlert("New test created!");
+      }
+      ltResetTestForm();
+      setLtView("list");
+    } catch (e) { triggerAlert(e.message || "Save failed.", "error"); }
+    finally { setLtSaving(false); }
+  };
+
+  const handleLtDeleteTest = (testId, testTitle) => {
+    openConfirm({
+      title: "Delete Test?",
+      message: `Permanently delete "${testTitle}"? All questions for this test will also be deleted.`,
+      variant: "danger", confirmLabel: "Delete Test",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          // Delete all questions for this test first
+          const qSnap = await getDocs(query(collection(db, "literacy_test_questions"), where("test_id", "==", testId)));
+          await Promise.all(qSnap.docs.map(d => deleteDoc(d.ref)));
+          await deleteDoc(doc(db, "literacy_tests", testId));
+          triggerAlert("Test and all its questions deleted.");
+          if (ltActiveTestId === testId) { setLtActiveTestId(null); setLtView("list"); }
+        } catch (e) { triggerAlert(e.message || "Delete failed.", "error"); }
+      }
+    });
+  };
+
+  const handleLtSaveQuestion = async () => {
+    if (!ltqText.trim() || ltqOptions.some(o => !o.trim())) {
+      triggerAlert("Question text and all 4 options are required.", "error"); return;
+    }
+    if (!ltActiveTestId) { triggerAlert("No test selected.", "error"); return; }
+    setLtSaving(true);
+    try {
+      let memeImageUrl = ltqMemeUrl;
+      if (ltqMemeFile) {
+        const storageRef = ref(storage, `literacy_test_memes/${ltActiveTestId}/${ltqEditId || Date.now()}`);
+        const snap = await uploadBytes(storageRef, ltqMemeFile);
+        memeImageUrl = await getDownloadURL(snap.ref);
+      }
+      const data = {
+        test_id: ltActiveTestId,
+        question_text: ltqText.trim(),
+        dimension: ltqDimension.trim(),
+        options: ltqOptions.map(o => o.trim()),
+        correct_index: ltqCorrectIdx,
+        explanation: ltqExplanation.trim(),
+        meme_image_url: memeImageUrl,
+        order: Number(ltqOrder),
+        updated_at: serverTimestamp(),
+      };
+      if (ltqEditId) {
+        await updateDoc(doc(db, "literacy_test_questions", ltqEditId), data);
+        triggerAlert("Question updated.");
+      } else {
+        await addDoc(collection(db, "literacy_test_questions"), { ...data, created_at: serverTimestamp() });
+        // Increment question_count on parent test
+        const qCount = literacyQuestions.filter(q => q.test_id === ltActiveTestId).length + 1;
+        await updateDoc(doc(db, "literacy_tests", ltActiveTestId), { question_count: qCount });
+        triggerAlert("Question added!");
+      }
+      ltResetQuestionForm();
+      setLtView("questions");
+    } catch (e) { triggerAlert(e.message || "Save failed.", "error"); }
+    finally { setLtSaving(false); }
+  };
+
+  const handleLtDeleteQuestion = (qId) => {
+    openConfirm({
+      title: "Delete Question?",
+      message: "Permanently delete this question from the test?",
+      variant: "danger", confirmLabel: "Delete",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "literacy_test_questions", qId));
+          const qCount = Math.max(0, literacyQuestions.filter(q => q.test_id === ltActiveTestId).length - 1);
+          if (ltActiveTestId) await updateDoc(doc(db, "literacy_tests", ltActiveTestId), { question_count: qCount });
+          triggerAlert("Question deleted.");
+        } catch (e) { triggerAlert(e.message || "Delete failed.", "error"); }
+      }
+    });
+  };
+
+  const handleLtEditTestPrefill = (test) => {
+    setLtfTitle(test.title || ""); setLtfDesc(test.description || "");
+    setLtfDifficulty(test.difficulty || "beginner"); setLtfCategory(test.category || "");
+    setLtfBadgeIcon(test.badge_icon || "🏅"); setLtfBadgeLabel(test.badge_label || "");
+    setLtfPassThreshold(test.pass_threshold ?? 60); setLtfIsActive(test.is_active !== false);
+    setLtView("edit_test"); setLtActiveTestId(test.id);
+  };
+
+  const handleLtEditQuestionPrefill = (q) => {
+    setLtqEditId(q.id); setLtqText(q.question_text || "");
+    setLtqDimension(q.dimension || ""); setLtqOptions(q.options?.length === 4 ? q.options : ["", "", "", ""]);
+    setLtqCorrectIdx(q.correct_index ?? 0); setLtqExplanation(q.explanation || "");
+    setLtqMemeUrl(q.meme_image_url || ""); setLtqMemeFile(null); setLtqOrder(q.order ?? 0);
+    setLtView("edit_question");
+  };
+
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 space-y-8">
       {/* Confirm dialog */}
@@ -1429,7 +1600,8 @@ const Admin = () => {
           { id: "users", label: "User Directory", roles: ["admin", "manager"] },
           { id: "content", label: "Content Manager", roles: ["admin"] },
           { id: "marketing", label: "Monetization & Ads", roles: ["admin"] },
-          { id: "taxonomy", label: "System Taxonomy", roles: ["admin"] }
+          { id: "taxonomy", label: "System Taxonomy", roles: ["admin"] },
+          { id: "literacy_tests", label: "🧪 Literacy Tests", roles: ["admin"] }
         ]
           .filter(tab => tab.roles.includes(profile?.role))
           .map(tab => (
@@ -3710,6 +3882,223 @@ const Admin = () => {
 
         </div>
       )}
+
+      {/* TAB CONTENT: LITERACY TESTS */}
+      {activeTab === "literacy_tests" && (() => {
+        const ltInputClass = `w-full px-3 py-2 rounded-lg border text-sm ${containerClass} border-gray-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-purple-500`;
+        const ltBtnPrimary = "bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition";
+        const ltBtnGhost = "border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 font-bold px-4 py-2 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-zinc-800 transition";
+        const ltBtnDanger = "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 font-bold px-3 py-1.5 rounded-lg text-xs hover:bg-red-100 dark:hover:bg-red-950/40 transition";
+        const ltSectionClass = `${containerClass} rounded-2xl p-5 space-y-4`;
+
+        const activeTests = literacyTests.filter(t => t.is_active);
+        const currentTestQuestions = literacyQuestions.filter(q => q.test_id === ltActiveTestId);
+        const currentTest = literacyTests.find(t => t.id === ltActiveTestId);
+
+        const DIFFICULTY_OPTIONS = [
+          { value: "beginner", label: "🌱 Beginner" },
+          { value: "intermediate", label: "🔍 Intermediate" },
+          { value: "advanced", label: "🎓 Advanced" },
+          { value: "expert", label: "🏛️ Expert" },
+        ];
+
+        const TestForm = ({ editId }) => (
+          <div className={ltSectionClass}>
+            <div className="flex items-center gap-3 mb-1">
+              <button onClick={() => { ltResetTestForm(); setLtView("list"); }} className={ltBtnGhost}>← Back to Tests</button>
+              <h3 className="text-base font-extrabold">{editId ? "Edit Test" : "New Test"}</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Test Title *</label>
+                <input value={ltfTitle} onChange={e => setLtfTitle(e.target.value)} className={ltInputClass} placeholder="e.g. Critical Meme Literacy Assessment" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Category / Subject</label>
+                <input value={ltfCategory} onChange={e => setLtfCategory(e.target.value)} className={ltInputClass} placeholder="e.g. Media Literacy, Biology" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 mb-1">Description</label>
+                <textarea value={ltfDesc} onChange={e => setLtfDesc(e.target.value)} rows={3} className={ltInputClass} placeholder="Brief description of what this test assesses..." />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Difficulty Level</label>
+                <select value={ltfDifficulty} onChange={e => setLtfDifficulty(e.target.value)} className={ltInputClass}>
+                  {DIFFICULTY_OPTIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Pass Threshold (%)</label>
+                <input type="number" min={0} max={100} value={ltfPassThreshold} onChange={e => setLtfPassThreshold(e.target.value)} className={ltInputClass} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Badge Icon (emoji)</label>
+                <input value={ltfBadgeIcon} onChange={e => setLtfBadgeIcon(e.target.value)} className={ltInputClass} placeholder="🏅" maxLength={4} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Badge Label</label>
+                <input value={ltfBadgeLabel} onChange={e => setLtfBadgeLabel(e.target.value)} className={ltInputClass} placeholder="e.g. Meme Scholar, Media Critic" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <input type="checkbox" id="lt-active" checked={ltfIsActive} onChange={e => setLtfIsActive(e.target.checked)} className="w-4 h-4 accent-purple-600" />
+              <label htmlFor="lt-active" className="text-sm font-semibold text-gray-700 dark:text-zinc-200">Active (visible to users on the test page)</label>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => handleLtSaveTest(editId || null)} disabled={ltSaving} className={ltBtnPrimary}>
+                {ltSaving ? "Saving…" : editId ? "Save Changes" : "Create Test"}
+              </button>
+              <button onClick={() => { ltResetTestForm(); setLtView("list"); }} className={ltBtnGhost}>Cancel</button>
+            </div>
+          </div>
+        );
+
+        const QuestionForm = ({ editId }) => (
+          <div className={ltSectionClass}>
+            <div className="flex items-center gap-3 mb-1">
+              <button onClick={() => { ltResetQuestionForm(); setLtView("questions"); }} className={ltBtnGhost}>← Back to Questions</button>
+              <h3 className="text-base font-extrabold">{editId ? "Edit Question" : "Add Question"}</h3>
+              {currentTest && <span className="text-xs text-gray-400 dark:text-zinc-500">— {currentTest.title}</span>}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 mb-1">Question Text *</label>
+                <textarea value={ltqText} onChange={e => setLtqText(e.target.value)} rows={3} className={ltInputClass} placeholder="What does this meme suggest about its audience?" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Dimension / Tag</label>
+                <input value={ltqDimension} onChange={e => setLtqDimension(e.target.value)} className={ltInputClass} placeholder="e.g. Critical Analysis, Context Awareness" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Display Order</label>
+                <input type="number" min={0} value={ltqOrder} onChange={e => setLtqOrder(e.target.value)} className={ltInputClass} />
+              </div>
+              {/* Meme Image */}
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 mb-1">Meme Image (URL or upload)</label>
+                <div className="flex gap-2">
+                  <input value={ltqMemeUrl} onChange={e => setLtqMemeUrl(e.target.value)} className={ltInputClass} placeholder="https://… or upload below" />
+                  <label className="flex-shrink-0 cursor-pointer flex items-center gap-1 border border-dashed border-gray-300 dark:border-zinc-600 rounded-lg px-3 py-2 text-xs font-semibold text-gray-500 dark:text-zinc-400 hover:border-purple-400 hover:text-purple-600 transition">
+                    📁 Upload
+                    <input type="file" accept="image/*,video/*,image/gif" className="hidden" onChange={e => { setLtqMemeFile(e.target.files[0] || null); if (e.target.files[0]) setLtqMemeUrl(URL.createObjectURL(e.target.files[0])); }} />
+                  </label>
+                </div>
+                {ltqMemeUrl && <img src={ltqMemeUrl} alt="preview" className="mt-2 max-h-32 rounded-lg border border-gray-200 dark:border-zinc-700 object-contain" />}
+              </div>
+              {/* 4 Options */}
+              {[0, 1, 2, 3].map(i => (
+                <div key={i}>
+                  <label className="block text-xs font-bold text-gray-500 mb-1 flex items-center gap-2">
+                    {["A", "B", "C", "D"][i]} Option *
+                    <input type="radio" name="lt-correct" checked={ltqCorrectIdx === i} onChange={() => setLtqCorrectIdx(i)} className="ml-auto accent-green-600" title="Mark as correct answer" />
+                    <span className="text-green-600 text-[10px]">Correct?</span>
+                  </label>
+                  <input value={ltqOptions[i]} onChange={e => { const o = [...ltqOptions]; o[i] = e.target.value; setLtqOptions(o); }} className={ltInputClass} placeholder={`Option ${["A","B","C","D"][i]}`} />
+                </div>
+              ))}
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-gray-500 mb-1">Explanation (shown after answering)</label>
+                <textarea value={ltqExplanation} onChange={e => setLtqExplanation(e.target.value)} rows={3} className={ltInputClass} placeholder="Explain why the correct answer is right, with media literacy context…" />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => handleLtSaveQuestion()} disabled={ltSaving} className={ltBtnPrimary}>
+                {ltSaving ? "Saving…" : editId ? "Save Question" : "Add Question"}
+              </button>
+              <button onClick={() => { ltResetQuestionForm(); setLtView("questions"); }} className={ltBtnGhost}>Cancel</button>
+            </div>
+          </div>
+        );
+
+        return (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-extrabold">🧪 Literacy Tests</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{literacyTests.length} tests · {literacyQuestions.length} total questions</p>
+              </div>
+              {(ltView === "list") && (
+                <button onClick={() => { ltResetTestForm(); setLtView("new_test"); }} className={ltBtnPrimary}>+ New Test</button>
+              )}
+              {(ltView === "questions") && (
+                <button onClick={() => { ltResetQuestionForm(); setLtView("new_question"); }} className={ltBtnPrimary}>+ Add Question</button>
+              )}
+            </div>
+
+            {/* LIST VIEW */}
+            {ltView === "list" && (
+              <div className={ltSectionClass}>
+                {literacyTests.length === 0 && <p className="text-sm text-gray-400 italic text-center py-8">No tests created yet. Click "+ New Test" to create the first one.</p>}
+                <div className="space-y-3">
+                  {literacyTests.map(test => (
+                    <div key={test.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/50 hover:border-purple-300 dark:hover:border-purple-800 transition">
+                      <span className="text-2xl">{test.badge_icon || "🧪"}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-extrabold text-sm text-gray-800 dark:text-zinc-100 truncate">{test.title}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${test.is_active ? "bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400" : "bg-gray-200 dark:bg-zinc-800 text-gray-500"}`}>
+                            {test.is_active ? "Active" : "Inactive"}
+                          </span>
+                          <span className="text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full capitalize">{test.difficulty}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">{test.question_count || 0} questions · Pass at {test.pass_threshold || 60}%{test.category ? ` · ${test.category}` : ""}</p>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={() => { setLtActiveTestId(test.id); setLtView("questions"); }} className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline px-2 py-1 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/20 transition">📝 Questions</button>
+                        <button onClick={() => handleLtEditTestPrefill(test)} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition">✏️ Edit</button>
+                        <button onClick={() => handleLtDeleteTest(test.id, test.title)} className={ltBtnDanger}>🗑️</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* QUESTIONS VIEW */}
+            {ltView === "questions" && (
+              <div className={ltSectionClass}>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => { setLtActiveTestId(null); setLtView("list"); }} className={ltBtnGhost}>← All Tests</button>
+                  {currentTest && (
+                    <div>
+                      <span className="font-extrabold text-sm">{currentTest.badge_icon} {currentTest.title}</span>
+                      <span className="ml-2 text-xs text-gray-400">({currentTestQuestions.length} questions)</span>
+                    </div>
+                  )}
+                </div>
+                {currentTestQuestions.length === 0 && <p className="text-sm text-gray-400 italic text-center py-6">No questions yet. Click "+ Add Question" to add the first one.</p>}
+                <div className="space-y-2">
+                  {currentTestQuestions.map((q, idx) => (
+                    <div key={q.id} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/50">
+                      <span className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-extrabold">{idx + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 dark:text-zinc-100 leading-snug line-clamp-2">{q.question_text}</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {q.dimension && <span className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">{q.dimension}</span>}
+                          <span className="text-[10px] text-gray-400">✓ {q.options?.[q.correct_index] || "?"}</span>
+                          {q.meme_image_url && <span className="text-[10px] text-emerald-600 dark:text-emerald-400">🖼️ Has meme</span>}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={() => { setLtActiveTestId(q.test_id); handleLtEditQuestionPrefill(q); }} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition">✏️</button>
+                        <button onClick={() => handleLtDeleteQuestion(q.id)} className={ltBtnDanger}>🗑️</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* FORMS */}
+            {(ltView === "new_test") && <TestForm editId={null} />}
+            {(ltView === "edit_test") && <TestForm editId={ltActiveTestId} />}
+            {(ltView === "new_question") && <QuestionForm editId={null} />}
+            {(ltView === "edit_question") && <QuestionForm editId={ltqEditId} />}
+          </div>
+        );
+      })()}
+
     </div>
   );
 };

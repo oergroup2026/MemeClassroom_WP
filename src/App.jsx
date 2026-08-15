@@ -61,6 +61,7 @@ function App() {
           <Route path="/lab" element={<Lab />} />
           <Route path="/staffroom" element={<Staffroom />} />
           <Route path="/meme-literacy-test" element={<MemeLiteracyTest />} />
+          <Route path="/meme-literacy-test/:testId" element={<MemeLiteracyTest />} />
           
           <Route path="/profile" element={
             <ProtectedRoute allowedRoles={['student', 'teacher', 'expert', 'admin']}>
