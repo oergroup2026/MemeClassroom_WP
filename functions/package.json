@@ -1,0 +1,21 @@
+{
+  "name": "functions",
+  "description": "MemeClassroom Firebase Cloud Functions – Notifications System",
+  "scripts": {
+    "lint": "eslint .",
+    "build": "echo No build step needed for CommonJS",
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^5.0.0"
+  },
+  "private": true
+}

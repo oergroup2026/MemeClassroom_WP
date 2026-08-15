@@ -188,5 +188,23 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // ─── Literacy Badges ──────────────────────────────────────────────────────
+    // Users earn badges on passing tests; they can read their own; admins see all.
+    match /literacy_badges/{badgeId} {
+      allow read: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── Notifications ────────────────────────────────────────────────────────
+    // Users can read and mark-as-read their own notifications only.
+    // Cloud Functions (service account) create/delete — not direct client writes.
+    match /notifications/{notifId} {
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow update: if request.auth != null && resource.data.user_id == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create, delete: if false; // Written only by Cloud Functions service account
+    }
+
   }
 }

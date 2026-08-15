@@ -10,6 +10,7 @@ import { useAuth } from "../context/AuthContext";
 import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
 import { X, Search, Plus, Trash2, Link, BookOpen, FileText } from "lucide-react";
 import RichTextArea from "./RichTextArea";
+import ReadabilityIndicator from "./ReadabilityIndicator";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatSlidesEmbedUrl = (url) => {
@@ -481,6 +482,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
             <div>
               <label className={labelClass}>Short Description</label>
               <RichTextArea value={body} onChange={e => setBody(e.target.value)} rows={3} />
+              <ReadabilityIndicator text={body} className="mt-2" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

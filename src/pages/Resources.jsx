@@ -28,6 +28,8 @@ import ActivityContributeModal from "../components/ActivityContributeModal";
 import ContributeResourceModal from "../components/ContributeResourceModal";
 import FormattedText from "../components/FormattedText";
 import { trackCustomSubmission } from "../utils/taxonomyUtils";
+import { fuzzySearch } from "../utils/searchUtils";
+import TtsSpeakerButton from "../components/TtsSpeakerButton";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 12;
@@ -286,6 +288,11 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, act
               {res.file_url.includes("firebasestorage.googleapis.com") ? "📄 Open PDF ↗" : "🔗 Visit Website ↗"}
             </a>
           )}
+          <TtsSpeakerButton
+            text={`${res.title}. ${res.body || ""}`}
+            id={`resource-${res.id}`}
+            size="sm"
+          />
           <div className="flex items-center gap-4 ml-auto">
             <button
               onClick={onLike}
@@ -1051,22 +1058,14 @@ const Resources = () => {
 
     // Search
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      result = result.filter((r) => {
-        return (
-          r.title?.toLowerCase().includes(q) ||
-          r.body?.toLowerCase().includes(q) ||
-          r.usage_context?.toLowerCase().includes(q) ||
-          r.educational_use?.toLowerCase().includes(q) ||
-          r.meme_name?.toLowerCase().includes(q) ||
-          r.subject?.toLowerCase().includes(q) ||
-          r.publisher_name?.toLowerCase().includes(q) ||
-          r.type?.toLowerCase().includes(q) ||
-          (Array.isArray(r.keywords)
-            ? r.keywords.some((k) => k.toLowerCase().includes(q))
-            : String(r.keywords || "").toLowerCase().includes(q))
-        );
-      });
+      result = fuzzySearch(result, searchQuery, [
+        { field: "title", weight: 3 },
+        { field: "body", weight: 1.5 },
+        { field: "subject", weight: 2 },
+        { field: "keywords", weight: 2 },
+        { field: "publisher_name", weight: 1 },
+        { field: "meme_name", weight: 2 }
+      ]);
     }
 
     // Sort
@@ -2095,6 +2094,8 @@ const Resources = () => {
             );
           })}
         </div>
+      ) : activeTab === "literacy_tests" ? (
+        <LiteracyTestsTabContent navigate={navigate} />
       ) : (
 
 

@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 
 import { useToast } from "../components/ToastNotification";
+import TtsSpeakerButton from "../components/TtsSpeakerButton";
 
 // ─── Section block ─────────────────────────────────────────────────────────────
 const Section = ({ icon: Icon, label, colorClass, children }) => (
@@ -456,6 +457,11 @@ export default function MemeStoryDetail() {
             <Bookmark className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""}`} strokeWidth={1.5} />
             <span>{isBookmarked ? "Saved" : "Save"}</span>
           </button>
+
+          <TtsSpeakerButton
+            text={`${story.title}. Background Story: ${story.body || ""}. Typical Usage: ${story.usage_context || ""}. Educational Context: ${story.educational_use || ""}`}
+            id={`story-${id}`}
+          />
 
           <button
             onClick={handleShare}

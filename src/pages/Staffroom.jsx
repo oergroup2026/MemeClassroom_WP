@@ -28,6 +28,8 @@ import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
 import FormattedText from "../components/FormattedText";
+import { fuzzySearch } from "../utils/searchUtils";
+import TtsSpeakerButton from "../components/TtsSpeakerButton";
 import { 
   ThumbsUp, 
   MessageSquare, 
@@ -1104,18 +1106,17 @@ const Staffroom = () => {
         ) return false;
       }
       if (topicFilter && !t.body?.toLowerCase().includes(topicFilter.toLowerCase())) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const bodyMatch = (t.body || "").toLowerCase().includes(q);
-        const titleMatch = (t.title || "").toLowerCase().includes(q);
-        const author = userCache[t.author_id]?.name || "";
-        const authorMatch = author.toLowerCase().includes(q);
-        const linkedMeme = availableMemes.find((m) => m.id === t.meme_id);
-        const memeMatch = linkedMeme ? linkedMeme.title.toLowerCase().includes(q) : false;
-        if (!bodyMatch && !titleMatch && !authorMatch && !memeMatch) return false;
-      }
       return true;
     });
+
+    if (searchQuery.trim()) {
+      list = fuzzySearch(list, searchQuery, [
+        { field: "title", weight: 3 },
+        { field: "body", weight: 2 },
+        { field: "subject", weight: 1.5 },
+        { field: "post_type", weight: 1 }
+      ]);
+    }
 
     // Sort
     list = list.sort((a, b) => {
@@ -1529,6 +1530,13 @@ const Staffroom = () => {
                             })()}
                           </div>
                         </div>
+
+                        {/* Text to Speech */}
+                        <TtsSpeakerButton
+                          text={`${thread.title}. ${thread.body}`}
+                          id={`thread-${thread.id}`}
+                          size="sm"
+                        />
 
                         {/* Bookmark */}
                         <button
