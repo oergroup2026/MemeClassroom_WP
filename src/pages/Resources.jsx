@@ -30,6 +30,7 @@ import FormattedText from "../components/FormattedText";
 import { trackCustomSubmission } from "../utils/taxonomyUtils";
 import { fuzzySearch } from "../utils/searchUtils";
 import TtsSpeakerButton from "../components/TtsSpeakerButton";
+import SmartSearchBar from "../components/SmartSearchBar";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 12;
@@ -693,6 +694,23 @@ const Resources = () => {
   const [gradeFilter, setGradeFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("newest");
+
+  // Sync ?q= from URL (e.g. from global Navbar search)
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) {
+      setSearchQuery(q);
+    }
+  }, [searchParams]);
+
+  // Enriched resources for smart predictive search
+  const enrichedResources = React.useMemo(() => {
+    return resources.map((r) => ({
+      ...r,
+      _type: r.type || "resource",
+      _authorName: displayCache[r.author_id]?.name || ""
+    }));
+  }, [resources, displayCache]);
 
   // ── Taxonomy (from Firestore, fallback to constants)
   const [subjects, setSubjects] = useState(SUBJECTS);
@@ -1752,35 +1770,26 @@ const Resources = () => {
         ))}
       </div>
 
-      {/* ── Shared Search Bar (rendered for all tabs) ────────────────────────── */}
-      <form
-        onSubmit={(e) => { e.preventDefault(); }}
-        className="w-full flex items-center bg-white dark:bg-zinc-900 px-4 py-2 rounded-full border border-gray-200 dark:border-zinc-800 shadow-md dark:shadow-black/25 focus-within:shadow-lg focus-within:shadow-purple-500/10 dark:focus-within:shadow-black/40 focus-within:ring-2 focus-within:ring-purple-500 transition-all duration-300 my-5"
-      >
-        <Search className="w-4 h-4 text-gray-400 mr-3 flex-shrink-0" />
-        <input
-          type="text"
+      {/* ── Shared Smart Search Bar (rendered for all tabs) ────────────────────────── */}
+      <div className="w-full my-5">
+        <SmartSearchBar
+          items={enrichedResources}
+          fieldWeights={[
+            { field: "title", weight: 3 },
+            { field: "body", weight: 1.5 },
+            { field: "subject", weight: 2 },
+            { field: "keywords", weight: 2 },
+            { field: "publisher_name", weight: 1 },
+            { field: "meme_name", weight: 2 },
+            { field: "_authorName", weight: 1 }
+          ]}
           placeholder={activeTab === "additional" ? "Search tools by title, description, category..." : "Search by title, keywords, subject, publisher..."}
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-transparent border-0 text-sm focus:outline-none dark:text-white placeholder-gray-400 py-1"
+          onChange={setSearchQuery}
+          voiceEnabled={true}
+          size="md"
         />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => setSearchQuery("")}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm px-2 flex-shrink-0 transition"
-          >
-            ✕
-          </button>
-        )}
-        <button
-          type="submit"
-          className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs p-2 rounded-full transition flex items-center justify-center w-8 h-8 shrink-0 ml-2"
-        >
-          <Search className="w-4 h-4" />
-        </button>
-      </form>
+      </div>
 
       {/* ── ADDITIONAL RESOURCES TAB ────────────────────────────────────────── */}
       {activeTab === "additional" ? (

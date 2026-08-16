@@ -6,6 +6,7 @@ import {
   collection,
   query,
   where,
+  limit,
   onSnapshot,
   updateDoc,
   doc,
@@ -13,6 +14,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import SmartSearchBar from "./SmartSearchBar";
 import {
   BookOpen,
   FlaskConical,
@@ -49,7 +51,58 @@ const Navbar = () => {
   //   { id: 4, text: "🔥 Got Stuck ? View our tutorials or contact our team !  ", read: false, time: "1 hours ago" }
   // ]);
   const [notifications, setNotifications] = useState([]);
+  const [globalIndex, setGlobalIndex] = useState([]);
   const navigate = useNavigate();
+
+  // ── Firestore: Load global search items once on mount ─────────────────────
+  useEffect(() => {
+    let isMounted = true;
+    const fetchGlobalItems = async () => {
+      try {
+        const [memesSnap, resourcesSnap, threadsSnap] = await Promise.all([
+          getDocs(query(collection(db, "memes"), where("visibility", "==", "public"), limit(30))),
+          getDocs(query(collection(db, "resources"), limit(30))),
+          getDocs(query(collection(db, "threads"), limit(30)))
+        ]);
+
+        if (!isMounted) return;
+
+        const combined = [
+          ...memesSnap.docs.map((d) => ({ id: d.id, ...d.data(), _type: "meme" })),
+          ...resourcesSnap.docs.map((d) => ({ id: d.id, ...d.data(), _type: d.data().type || "resource" })),
+          ...threadsSnap.docs.map((d) => ({ id: d.id, ...d.data(), _type: d.data().post_type || "thread" }))
+        ];
+        setGlobalIndex(combined);
+      } catch (e) {
+        console.warn("Could not populate global search index", e);
+      }
+    };
+
+    fetchGlobalItems();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleGlobalSuggestionSelect = (suggestion) => {
+    const item = suggestion.item || {};
+    const type = item._type || item.type || item.format || "";
+    if (type === "meme" || type === "image" || type === "video" || type === "gif" || type === "audio") {
+      navigate(`/library?q=${encodeURIComponent(suggestion.label)}`);
+    } else if (type === "resource" || type === "article" || type === "research_paper" || type === "activity" || type === "stories") {
+      navigate(`/resources?q=${encodeURIComponent(suggestion.label)}`);
+    } else {
+      navigate(`/staffroom?q=${encodeURIComponent(suggestion.label)}`);
+    }
+    setMobileMenuOpen(false);
+  };
+
+  const handleGlobalSearch = (queryStr) => {
+    if (queryStr && queryStr.trim()) {
+      navigate(`/library?q=${encodeURIComponent(queryStr.trim())}`);
+      setMobileMenuOpen(false);
+    }
+  };
 
   // ── Firestore: real-time notifications ────────────────────────────────────
   useEffect(() => {
@@ -153,16 +206,33 @@ const Navbar = () => {
   return (
     <nav className="border-b bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-850 dark:text-zinc-100 transition-all duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 relative">
-          <div className="flex items-center">
+        <div className="flex justify-between items-center h-16 gap-3">
+          <div className="flex items-center gap-3 lg:gap-4 flex-shrink-0">
             {/* Logo */}
             <Link to="/" style={{ fontFamily: "'Pacifico', cursive" }} className="flex-shrink-0 flex items-center text-xl text-purple-600 dark:text-purple-400">
               MemeClassroom
             </Link>
+
+            {/* Desktop Global Search */}
+            <div className="hidden lg:block w-56 xl:w-72">
+              <SmartSearchBar
+                items={globalIndex}
+                fieldWeights={[
+                  { field: "title", weight: 3 },
+                  { field: "subject", weight: 2 },
+                  { field: "keywords", weight: 2 }
+                ]}
+                placeholder="Search everything..."
+                onSuggestionSelect={handleGlobalSuggestionSelect}
+                onSearch={handleGlobalSearch}
+                voiceEnabled={true}
+                size="sm"
+              />
+            </div>
           </div>
 
-          {/* Desktop Navigation Links - Centered */}
-          <div className="hidden md:flex absolute left-1/2 transform -translate-x-1/2 md:space-x-6 md:items-stretch h-16">
+          {/* Desktop Navigation Links */}
+          <div className="hidden md:flex md:space-x-3 lg:space-x-5 md:items-stretch h-16">
             {renderNavLinks()}
           </div>
 
@@ -311,8 +381,26 @@ const Navbar = () => {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-2 pt-2 pb-3 space-y-1">
-          {renderNavLinks(true)}
+        <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-3 pt-3 pb-4 space-y-3">
+          {/* Mobile Global Search */}
+          <div className="pb-1 border-b border-gray-150 dark:border-zinc-800">
+            <SmartSearchBar
+              items={globalIndex}
+              fieldWeights={[
+                { field: "title", weight: 3 },
+                { field: "subject", weight: 2 },
+                { field: "keywords", weight: 2 }
+              ]}
+              placeholder="Search everything..."
+              onSuggestionSelect={handleGlobalSuggestionSelect}
+              onSearch={handleGlobalSearch}
+              voiceEnabled={true}
+              size="sm"
+            />
+          </div>
+          <div className="space-y-1">
+            {renderNavLinks(true)}
+          </div>
           {!user && (
             <div className="pt-4 pb-2 border-t border-gray-200 dark:border-gray-800 flex flex-col space-y-2 px-3">
               <Link

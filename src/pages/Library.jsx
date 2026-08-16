@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import SmartSearchBar from "../components/SmartSearchBar";
 import {
   collection,
   query,
@@ -29,6 +30,7 @@ import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
 import { trackCustomSubmission } from "../utils/taxonomyUtils";
 import { fuzzySearch } from "../utils/searchUtils";
 import TtsSpeakerButton from "../components/TtsSpeakerButton";
+import ReadabilityIndicator from "../components/ReadabilityIndicator";
 import { explainMemeWithVision } from "../services/geminiClient";
 import AiQuotaModal from "../components/AiQuotaModal";
 import {
@@ -71,12 +73,31 @@ const Library = () => {
   const [userCache, setUserCache] = useState({});
 
   // Sidebar Filter Options
+  const [searchParams] = useSearchParams();
   const [subjectFilter, setSubjectFilter] = useState("");
   const [gradeFilter, setGradeFilter] = useState("");
   const [languageFilter, setLanguageFilter] = useState("");
   const [formatFilter, setFormatFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
+
+  // Sync ?q= from URL (e.g. from global Navbar search)
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) {
+      setSearchQuery(q);
+      setAppliedSearchQuery(q);
+    }
+  }, [searchParams]);
+
+  // Enriched metadata for predictive search
+  const enrichedMemes = useMemo(() => {
+    return memes.map((m) => ({
+      ...m,
+      _type: m.format || "meme",
+      _authorName: userCache[m.creator_id]?.name || ""
+    }));
+  }, [memes, userCache]);
   const [allRatings, setAllRatings] = useState([]);
   const [sortBy, setSortBy] = useState("newest");
   const [showFilters, setShowFilters] = useState(false);
@@ -1156,41 +1177,30 @@ const Library = () => {
           <p className="text-xs text-gray-500 mt-1">Discover and evaluate humor-based classroom assets.</p>
         </div>
 
-        {/* Search Bar Form */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setAppliedSearchQuery(searchQuery);
-          }}
-          className="flex-grow max-w-md flex items-center bg-white dark:bg-zinc-900 px-4 py-1.5 rounded-full border border-gray-200 dark:border-zinc-800 shadow-md dark:shadow-black/25 focus-within:shadow-lg focus-within:shadow-purple-500/10 dark:focus-within:shadow-black/40 focus-within:ring-2 focus-within:ring-purple-500 transition-all duration-300"
-        >
-          <Search className="w-4 h-4 text-gray-400 mr-2" />
-          <input
-            type="text"
+        {/* Smart Predictive Search Bar */}
+        <div className="flex-grow max-w-md">
+          <SmartSearchBar
+            items={enrichedMemes}
+            fieldWeights={[
+              { field: "title", weight: 3 },
+              { field: "subject", weight: 2 },
+              { field: "keywords", weight: 2 },
+              { field: "language", weight: 1 },
+              { field: "_authorName", weight: 1.5 },
+              { field: "age_group", weight: 1 }
+            ]}
             placeholder="Search memes, topics or keywords..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-transparent border-0 text-xs focus:outline-none dark:text-white placeholder-gray-400 py-1.5"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery("");
+            onChange={(val) => {
+              setSearchQuery(val);
+              if (!val.trim()) {
                 setAppliedSearchQuery("");
-              }}
-              className="text-gray-400 hover:text-gray-600 text-xs px-2"
-            >
-              ✕
-            </button>
-          )}
-          <button
-            type="submit"
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs p-2 rounded-full transition flex items-center justify-center w-8 h-8 shrink-0"
-          >
-            <Search className="w-4 h-4" />
-          </button>
-        </form>
+              }
+            }}
+            onSearch={(val) => setAppliedSearchQuery(val)}
+            voiceEnabled={true}
+          />
+        </div>
       </div>
 
       {/* Horizontal tag filter bar */}
@@ -2101,6 +2111,7 @@ const Library = () => {
                         rows={2}
                         required
                       />
+                      <ReadabilityIndicator text={newExpertComment} className="mt-1.5" />
                       <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-1.5 rounded-xl transition">
                         Submit Expert Comment
                       </button>

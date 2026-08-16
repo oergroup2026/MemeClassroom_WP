@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import SmartSearchBar from "../components/SmartSearchBar";
 import {
   collection,
   query,
@@ -28,6 +29,7 @@ import { SUBJECTS, GRADE_GROUPS } from "../constants/taxonomy";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
 import FormattedText from "../components/FormattedText";
+import ReadabilityIndicator from "../components/ReadabilityIndicator";
 import { fuzzySearch } from "../utils/searchUtils";
 import TtsSpeakerButton from "../components/TtsSpeakerButton";
 import { 
@@ -174,12 +176,31 @@ const Staffroom = () => {
   const [userBadges, setUserBadges] = useState([]);
 
   // ── Filters & search ─────────────────────────────────────────────────────
+  const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
   const [gradeFilter, setGradeFilter] = useState("");
   const [topicFilter, setTopicFilter] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [sortMode, setSortMode] = useState("newest"); // "newest" | "upvoted" | "discussed"
+
+  // Sync ?q= from URL (e.g. from global Navbar search)
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) {
+      setSearchQuery(q);
+    }
+  }, [searchParams]);
+
+  // Enriched threads for search suggestions
+  const enrichedThreads = useMemo(() => {
+    return threads.map((t) => ({
+      ...t,
+      _type: t.post_type || "thread",
+      _authorName: userCache[t.author_id]?.name || "",
+      _linkedMemeTitle: availableMemes.find((m) => m.id === t.meme_id)?.title || ""
+    }));
+  }, [threads, userCache, availableMemes]);
 
   // Bookmarks (localStorage)
   const [bookmarkedIds, setBookmarkedIds] = useState(() => {
@@ -1401,17 +1422,23 @@ const Staffroom = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
-              <input
-                type="text"
-                placeholder="Search threads…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`px-3 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  highContrastMode
-                    ? "bg-zinc-950 border-zinc-800 text-white placeholder-zinc-600"
-                    : "bg-white border-gray-200 text-gray-800 placeholder-gray-400"
-                }`}
-              />
+              <div className="w-full">
+                <SmartSearchBar
+                  items={enrichedThreads}
+                  fieldWeights={[
+                    { field: "title", weight: 3 },
+                    { field: "body", weight: 2 },
+                    { field: "subject", weight: 1.5 },
+                    { field: "_authorName", weight: 1.5 },
+                    { field: "_linkedMemeTitle", weight: 1.5 }
+                  ]}
+                  placeholder="Search threads…"
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  voiceEnabled={true}
+                  size="sm"
+                />
+              </div>
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
@@ -1989,6 +2016,7 @@ const Staffroom = () => {
                     {composeBody ? renderMarkdown(composeBody) : <span className="text-gray-400 italic">Nothing written yet.</span>}
                   </div>
                 )}
+                <ReadabilityIndicator text={composeBody} className="mt-2" />
                 <p className="text-[10px] text-gray-400 mt-1">{composeBody.length} characters</p>
               </div>
 

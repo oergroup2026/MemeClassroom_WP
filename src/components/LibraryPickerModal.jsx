@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { SUBJECTS } from "../constants/taxonomy";
+import { fuzzySearch } from "../utils/searchUtils";
 
 const LibraryPickerModal = ({ isOpen, onClose, onSelect }) => {
   const [memes, setMemes] = useState([]);
@@ -39,12 +40,20 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect }) => {
 
   if (!isOpen) return null;
 
-  const filteredMemes = memes.filter((meme) => {
-    const matchesSearch = meme.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (meme.keywords && meme.keywords.some(k => k.toLowerCase().includes(searchQuery.toLowerCase())));
-    const matchesSubject = !subjectFilter || meme.subject === subjectFilter;
-    return matchesSearch && matchesSubject;
-  });
+  const filteredMemes = useMemo(() => {
+    let result = memes;
+    if (subjectFilter) {
+      result = result.filter((meme) => meme.subject === subjectFilter);
+    }
+    if (searchQuery.trim()) {
+      result = fuzzySearch(result, searchQuery, [
+        { field: "title", weight: 3 },
+        { field: "subject", weight: 2 },
+        { field: "keywords", weight: 2 }
+      ]);
+    }
+    return result;
+  }, [memes, subjectFilter, searchQuery]);
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
