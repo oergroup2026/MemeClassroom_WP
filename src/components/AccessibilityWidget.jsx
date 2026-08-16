@@ -56,6 +56,7 @@ export default function AccessibilityWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('vision');
   const [guideY, setGuideY] = useState(200);
+  const [voiceLang, setVoiceLang] = useState(() => localStorage.getItem("memeclassroom_voice_lang") || "en-IN");
   const speechHandlers = useRef({ over: null, out: null, focus: null });
 
   const {
@@ -496,6 +497,43 @@ export default function AccessibilityWidget() {
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Voice Search Language selector */}
+                <div style={{ paddingTop: '12px', borderTop: '1px solid rgba(0,0,0,0.06)', marginTop: '12px' }}>
+                  <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#1e1b4b', marginBottom: '2px' }}>
+                    🎙️ Voice Search Language
+                  </div>
+                  <div style={{ fontSize: '10.5px', color: '#6b7280', marginBottom: '8px' }}>
+                    Preferred speech recognition language for smart search
+                  </div>
+                  <select
+                    value={voiceLang}
+                    onChange={(e) => {
+                      setVoiceLang(e.target.value);
+                      localStorage.setItem("memeclassroom_voice_lang", e.target.value);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '7px 10px',
+                      borderRadius: '8px',
+                      border: '1.5px solid rgba(99,102,241,0.25)',
+                      background: '#fff',
+                      fontSize: '11.5px',
+                      fontWeight: 600,
+                      color: '#374151',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    <option value="en-IN">English (India) — en-IN</option>
+                    <option value="hi-IN">हिंदी (Hindi) — hi-IN</option>
+                    <option value="ml-IN">മലയാളം (Malayalam) — ml-IN</option>
+                    <option value="ta-IN">தமிழ் (Tamil) — ta-IN</option>
+                    <option value="te-IN">తెలుగు (Telugu) — te-IN</option>
+                    <option value="en-US">English (US/Global) — en-US</option>
+                  </select>
                 </div>
               </div>
             )}
