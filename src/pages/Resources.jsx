@@ -31,6 +31,9 @@ import { trackCustomSubmission } from "../utils/taxonomyUtils";
 import { fuzzySearch } from "../utils/searchUtils";
 import TtsSpeakerButton from "../components/TtsSpeakerButton";
 import SmartSearchBar from "../components/SmartSearchBar";
+import { useTour } from "../hooks/useTour";
+import TourOverlay from "../components/TourOverlay";
+import PageHelpPanel from "../components/PageHelpPanel";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 12;
@@ -672,6 +675,20 @@ const Resources = () => {
   const { openUserModal } = useUserModal();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Interactive Tour Hook
+  const {
+    isTourOpen,
+    currentStep,
+    totalSteps,
+    currentStepData,
+    pageTitle,
+    hasSkippedTour,
+    nextStep,
+    prevStep,
+    skipTour,
+    resetTour,
+  } = useTour("resources");
 
   // ── Tab state (reads from URL ?tab= for deep-linking from MoreResources redirect)
   const initialTab = searchParams.get("tab") || "all";
@@ -1740,13 +1757,14 @@ const Resources = () => {
             <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
               {headerInfo.ctaLabel && (user ? (
                 <button
+                  id="resources-contribute-btn"
                   onClick={headerInfo.handler}
                   className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5"
                 >
                   {headerInfo.ctaLabel}
                 </button>
               ) : (
-                <a href="/auth" className={btnClass}>Sign in to Contribute</a>
+                <a id="resources-contribute-btn" href="/auth" className={btnClass}>Sign in to Contribute</a>
               ))}
             </div>
           </div>
@@ -1754,7 +1772,7 @@ const Resources = () => {
       })()}
 
       {/* ── Category Tabs ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800 pb-2 mt-4">
+      <div id="resources-type-tabs" className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800 pb-2 mt-4">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -2218,7 +2236,7 @@ const Resources = () => {
           )}
 
           {/* ── Resources Grid (3-column) ──────────────────────────────────────────── */}
-          <div>
+          <div id="resources-viewer-area">
               {paginatedResources
                 .filter(res => {
                   if (activeTab !== "activity" || !activityTagFilter) return true;
@@ -2784,6 +2802,25 @@ const Resources = () => {
         </div>,
         document.body
       )}
+      {/* Interactive First-Time Tour */}
+      <TourOverlay
+        isOpen={isTourOpen}
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        stepData={currentStepData}
+        pageTitle={pageTitle}
+        onNext={nextStep}
+        onPrev={prevStep}
+        onSkip={skipTour}
+      />
+
+      {/* Floating Page Help Panel */}
+      <PageHelpPanel
+        pageKey="resources"
+        onRestartTour={resetTour}
+        hasSkippedTour={hasSkippedTour}
+      />
+
     </div>
     </div>
   );

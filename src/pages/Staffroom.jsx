@@ -32,6 +32,9 @@ import FormattedText from "../components/FormattedText";
 import ReadabilityIndicator from "../components/ReadabilityIndicator";
 import { fuzzySearch } from "../utils/searchUtils";
 import TtsSpeakerButton from "../components/TtsSpeakerButton";
+import { useTour } from "../hooks/useTour";
+import TourOverlay from "../components/TourOverlay";
+import PageHelpPanel from "../components/PageHelpPanel";
 import { 
   ThumbsUp, 
   MessageSquare, 
@@ -125,6 +128,20 @@ const Staffroom = () => {
   const { openUserModal } = useUserModal();
   const navigate = useNavigate();
   const toast = useToast();
+
+  // Interactive Tour Hook
+  const {
+    isTourOpen,
+    currentStep,
+    totalSteps,
+    currentStepData,
+    pageTitle,
+    hasSkippedTour,
+    nextStep,
+    prevStep,
+    skipTour,
+    resetTour,
+  } = useTour("staffroom");
 
   // ── Core data states ─────────────────────────────────────────────────────
   const [threads, setThreads] = useState([]);
@@ -1230,6 +1247,7 @@ const Staffroom = () => {
         </div>
         <div className="mt-4 sm:mt-0">
           <button
+            id="staffroom-composer"
             onClick={() => {
               if (user) {
                 openCompose("story");
@@ -1338,7 +1356,7 @@ const Staffroom = () => {
 
           {/* Composer shortcut bar */}
           {user && (
-            <div className="p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_30px_-6px_rgba(0,0,0,0.1)] border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl transition-all duration-300">
+            <div id="staffroom-composer-box" className="p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_30px_-6px_rgba(0,0,0,0.1)] border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl transition-all duration-300">
               <div className="flex items-center gap-3">
                 <img
                   src={profile?.avatar_url || `/avatar${(user.uid.length % 5) + 1}.png`}
@@ -1373,7 +1391,7 @@ const Staffroom = () => {
           )}
 
           {/* Filters + Sort */}
-          <div className={`p-4 space-y-3.5 ${containerClass}`}>
+          <div id="staffroom-filter-tabs" className={`p-4 space-y-3.5 ${containerClass}`}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
                 {[
@@ -1463,7 +1481,7 @@ const Staffroom = () => {
           </div>
 
           {/* Thread cards */}
-          <div className="space-y-4">
+          <div id="staffroom-feed" className="space-y-4">
             {feedLoading ? (
               <>
                 <SkeletonCard />
@@ -2321,6 +2339,25 @@ const Staffroom = () => {
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
       `}</style>
+      {/* Interactive First-Time Tour */}
+      <TourOverlay
+        isOpen={isTourOpen}
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        stepData={currentStepData}
+        pageTitle={pageTitle}
+        onNext={nextStep}
+        onPrev={prevStep}
+        onSkip={skipTour}
+      />
+
+      {/* Floating Page Help Panel */}
+      <PageHelpPanel
+        pageKey="staffroom"
+        onRestartTour={resetTour}
+        hasSkippedTour={hasSkippedTour}
+      />
+
     </div>
   );
 };

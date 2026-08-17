@@ -33,6 +33,9 @@ import { extractDominantColors } from "../utils/colorUtils";
 import { generateMemeCaptions } from "../services/geminiClient";
 import AiQuotaModal from "../components/AiQuotaModal";
 import html2canvas from "html2canvas";
+import { useTour } from "../hooks/useTour";
+import TourOverlay from "../components/TourOverlay";
+import PageHelpPanel from "../components/PageHelpPanel";
 
 // ── Format tab icon map ───────────────────────────────────────────────────────
 const TAB_ICONS = {
@@ -63,6 +66,20 @@ const Lab = () => {
   const { highContrastMode, fontSizeAdjustment } = useUdl();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  // Interactive Tour Hook
+  const {
+    isTourOpen,
+    currentStep,
+    totalSteps,
+    currentStepData,
+    pageTitle,
+    hasSkippedTour,
+    nextStep,
+    prevStep,
+    skipTour,
+    resetTour,
+  } = useTour("lab");
 
   // Tab State: "image" | "video" | "gif" | "audio"
   const [activeTab, setActiveTab] = useState("image");
@@ -1539,6 +1556,7 @@ const Lab = () => {
             <span className="hidden sm:inline">Guide</span>
           </button>
           <button
+            id="lab-publish-btn"
             onClick={() => setShowSaveModal(true)}
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition text-xs flex items-center gap-1.5"
           >
@@ -1591,7 +1609,7 @@ const Lab = () => {
         }`}>
 
           {/* Format Tab Row — Image / Video / GIF / Audio */}
-          <div className={`px-3 pt-3 pb-2 border-b border-gray-100 dark:border-zinc-800`}>
+          <div id="lab-format-tabs" className={`px-3 pt-3 pb-2 border-b border-gray-100 dark:border-zinc-800`}>
             <div className={`flex gap-1 p-1 rounded-lg bg-gray-100 dark:bg-zinc-800`}>
               {[("image"), ("video"), ("gif"), ("audio")].map((tab) => (
                 <button
@@ -1678,7 +1696,7 @@ const Lab = () => {
                   });
 
                   return (
-                    <div className="space-y-2">
+                    <div id="lab-template-picker" className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">Templates</span>
                         {templateSearchQuery && (
@@ -2317,7 +2335,7 @@ const Lab = () => {
                 </button>
 
                 {/* AI Caption & Punchline Generator */}
-                <div className="p-3 bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200 dark:border-purple-800/60 rounded-xl space-y-2 mb-2">
+                <div id="lab-ai-btn" className="p-3 bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200 dark:border-purple-800/60 rounded-xl space-y-2 mb-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-300 flex items-center gap-1">
                       ✨ AI Meme Punchlines
@@ -2675,7 +2693,7 @@ const Lab = () => {
             />
 
             {/* Canvas Preview Area */}
-            <div className="relative z-10 w-full flex flex-col items-center">
+            <div id="lab-canvas-area" className="relative z-10 w-full flex flex-col items-center">
               <div 
                 ref={canvasContainerRef}
                 className={`relative w-full max-w-[480px] ${ASPECT_RATIOS[canvasAspect]?.css || "aspect-square"} flex items-center justify-center select-none shadow-xl border ${
@@ -3873,6 +3891,25 @@ const Lab = () => {
       <AiQuotaModal
         isOpen={showAiModal}
         onClose={() => setShowAiModal(false)}
+      />
+
+      {/* Interactive First-Time Tour */}
+      <TourOverlay
+        isOpen={isTourOpen}
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        stepData={currentStepData}
+        pageTitle={pageTitle}
+        onNext={nextStep}
+        onPrev={prevStep}
+        onSkip={skipTour}
+      />
+
+      {/* Floating Page Help Panel */}
+      <PageHelpPanel
+        pageKey="lab"
+        onRestartTour={resetTour}
+        hasSkippedTour={hasSkippedTour}
       />
 
     </div>

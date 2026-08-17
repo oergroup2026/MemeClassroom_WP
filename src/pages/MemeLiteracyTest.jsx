@@ -14,6 +14,9 @@ import {
 } from "../data/memeTestQuestions";
 import { explainQuizMistake } from "../services/geminiClient";
 import AiQuotaModal from "../components/AiQuotaModal";
+import { useTour } from "../hooks/useTour";
+import TourOverlay from "../components/TourOverlay";
+import PageHelpPanel from "../components/PageHelpPanel";
 
 // Option Button
 const OptionButton = ({ text, index, mode, selected, isCorrect, isWrong, onClick }) => {
@@ -57,7 +60,7 @@ const ProgressHeader = ({ current, total, dimension, onBack }) => {
   const pct = Math.round((current / total) * 100);
   const meta = DIMENSION_META[dimension] || {};
   return (
-    <div className="mb-6">
+    <div id="literacy-progress-header" className="mb-6">
       <div className="flex items-center justify-between mb-2">
         <button onClick={onBack} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300 transition-colors">&#8592; Exit Test</button>
         <span className="text-xs font-bold text-gray-500 tabular-nums">{current} / {total}</span>
@@ -161,6 +164,20 @@ const MemeLiteracyTest = () => {
   const navigate = useNavigate();
   const { testId } = useParams();
   const { user } = useAuth();
+
+  // Interactive Tour Hook
+  const {
+    isTourOpen,
+    currentStep,
+    totalSteps,
+    currentStepData,
+    pageTitle,
+    hasSkippedTour,
+    nextStep,
+    prevStep,
+    skipTour,
+    resetTour,
+  } = useTour("memeLiteracyTest");
 
   const [availableTests, setAvailableTests] = useState([]);
   const [launcherLoading, setLauncherLoading] = useState(true);
@@ -317,11 +334,28 @@ const MemeLiteracyTest = () => {
           ) : availableTests.length === 0 ? (
             <div className="text-center py-16"><span className="text-5xl">&#128221;</span><p className="mt-4 text-gray-500 font-semibold">No tests available yet.</p><p className="text-sm text-gray-400 mt-1">Check back soon!</p></div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div id="literacy-test-cards" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {availableTests.map(t => <TestCard key={t.id} test={t} onClick={() => navigate(`/meme-literacy-test/${t.id}`)} />)}
             </div>
           )}
         </div>
+
+        {/* Interactive First-Time Tour & Page Help for Launcher */}
+        <TourOverlay
+          isOpen={isTourOpen}
+          currentStep={currentStep}
+          totalSteps={totalSteps}
+          stepData={currentStepData}
+          pageTitle={pageTitle}
+          onNext={nextStep}
+          onPrev={prevStep}
+          onSkip={skipTour}
+        />
+        <PageHelpPanel
+          pageKey="memeLiteracyTest"
+          onRestartTour={resetTour}
+          hasSkippedTour={hasSkippedTour}
+        />
       </div>
     );
   }
@@ -412,7 +446,7 @@ const MemeLiteracyTest = () => {
           )}
 
           {/* AI Pedagogical Coach */}
-          <div className="p-3.5 bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200 dark:border-purple-800/60 rounded-xl space-y-2 mb-4">
+          <div id="literacy-ai-feedback" className="p-3.5 bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200 dark:border-purple-800/60 rounded-xl space-y-2 mb-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-extrabold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
                 ✨ AI Literacy Coach
@@ -455,6 +489,26 @@ const MemeLiteracyTest = () => {
         isOpen={showAiQuotaModal}
         onClose={() => setShowAiQuotaModal(false)}
       />
+
+      {/* Interactive First-Time Tour */}
+      <TourOverlay
+        isOpen={isTourOpen}
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        stepData={currentStepData}
+        pageTitle={pageTitle}
+        onNext={nextStep}
+        onPrev={prevStep}
+        onSkip={skipTour}
+      />
+
+      {/* Floating Page Help Panel */}
+      <PageHelpPanel
+        pageKey="memeLiteracyTest"
+        onRestartTour={resetTour}
+        hasSkippedTour={hasSkippedTour}
+      />
+
     </div>
   );
 };

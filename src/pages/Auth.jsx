@@ -233,34 +233,59 @@ const Auth = () => {
             </div>
 
             <form onSubmit={handleOnboardingSubmit} className="space-y-4">
+              {/* Role quick selector */}
               <div>
-                <label className={labelClass}>I am a…</label>
-                <select value={role} onChange={(e) => setRole(e.target.value)} className={inputClass} required>
-                  <option value="student">Student</option>
-                  <option value="teacher">Teacher / Educator</option>
-                </select>
-                <p className="text-[10px] text-gray-400 mt-1">Admin and Expert roles require manual verification.</p>
+                <label className={labelClass}>I am joining as a…</label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  {[
+                    { id: "teacher", label: "Teacher / Educator", icon: "👩‍🏫", desc: "Teaching & lesson planning" },
+                    { id: "student", label: "Student / Learner", icon: "🎓", desc: "Learning & exploring memes" },
+                  ].map((item) => (
+                    <button
+                      type="button"
+                      key={item.id}
+                      onClick={() => setRole(item.id)}
+                      className={`p-3 text-left rounded-xl border-2 transition-all flex flex-col justify-between ${
+                        role === item.id
+                          ? "border-purple-600 bg-purple-50/70 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 shadow-sm"
+                          : "border-gray-200 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-800/40 text-gray-700 dark:text-zinc-300 hover:border-purple-300"
+                      }`}
+                    >
+                      <span className="text-xl mb-1">{item.icon}</span>
+                      <span className="text-xs font-bold block">{item.label}</span>
+                      <span className="text-[10px] text-gray-400 dark:text-zinc-500 mt-0.5">{item.desc}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
+              {/* Institution quick selection */}
               <div>
-                <label className={labelClass}>Institution Name</label>
+                <label className={labelClass}>School / College / Organization</label>
+                {/* Common answer quick chips */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {["School / High School", "University / College", "Independent Educator", "Self Learner"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setInstitution(preset)}
+                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition ${
+                        institution === preset
+                          ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                          : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border-gray-200 dark:border-zinc-700 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="text"
-                  placeholder="e.g. Oakridge High School"
+                  placeholder="Or type specific name (e.g. Oakridge High School)"
                   value={institution}
                   onChange={(e) => setInstitution(e.target.value)}
                   className={inputClass}
                   required
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Upload ID Card <span className="font-normal normal-case text-gray-400">(optional — helps verification)</span></label>
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  onChange={handleFileChange}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
                 />
               </div>
 
@@ -376,13 +401,13 @@ const Auth = () => {
                 </button>
               </form>
             ) : (
-              /* REGISTER FORM — simplified, defers location to profile */
+              /* REGISTER FORM — Simplified with quick selectable common answers */
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
-                  <label className={labelClass}>Full Name</label>
+                  <label className={labelClass}>Your Name</label>
                   <input
                     type="text"
-                    placeholder="Jane Doe"
+                    placeholder="e.g. Jane Doe"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className={inputClass}
@@ -424,20 +449,55 @@ const Auth = () => {
                   </div>
                 </div>
 
+                {/* Role quick selector */}
                 <div>
-                  <label className={labelClass}>I am a…</label>
-                  <select value={role} onChange={(e) => setRole(e.target.value)} className={inputClass} required>
-                    <option value="student">Student</option>
-                    <option value="teacher">Teacher / Educator</option>
-                  </select>
-                  <p className="text-[10px] text-gray-400 mt-1">Admin and Expert roles require manual verification.</p>
+                  <label className={labelClass}>I am joining as a…</label>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    {[
+                      { id: "teacher", label: "Teacher / Educator", icon: "👩‍🏫", desc: "Teaching & lesson planning" },
+                      { id: "student", label: "Student / Learner", icon: "🎓", desc: "Learning & exploring memes" },
+                    ].map((item) => (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => setRole(item.id)}
+                        className={`p-3 text-left rounded-xl border-2 transition-all flex flex-col justify-between ${
+                          role === item.id
+                            ? "border-purple-600 bg-purple-50/70 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 shadow-sm"
+                            : "border-gray-200 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-800/40 text-gray-700 dark:text-zinc-300 hover:border-purple-300"
+                        }`}
+                      >
+                        <span className="text-xl mb-1">{item.icon}</span>
+                        <span className="text-xs font-bold block">{item.label}</span>
+                        <span className="text-[10px] text-gray-400 dark:text-zinc-500 mt-0.5">{item.desc}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
+                {/* Institution quick selection */}
                 <div>
-                  <label className={labelClass}>Institution Name</label>
+                  <label className={labelClass}>School / College / Organization</label>
+                  {/* Common answer quick chips */}
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {["School / High School", "University / College", "Independent Educator", "Self Learner"].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setInstitution(preset)}
+                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition ${
+                          institution === preset
+                            ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                            : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border-gray-200 dark:border-zinc-700 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
                   <input
                     type="text"
-                    placeholder="e.g. Oakridge High School"
+                    placeholder="Or type specific name (e.g. Oakridge High School)"
                     value={institution}
                     onChange={(e) => setInstitution(e.target.value)}
                     className={inputClass}
@@ -445,21 +505,10 @@ const Auth = () => {
                   />
                 </div>
 
-                <div>
-                  <label className={labelClass}>Upload ID Card <span className="font-normal normal-case text-gray-400">(optional)</span></label>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
-                  />
-                  <p className="text-[10px] text-gray-400 mt-1">You can also complete your location details later from your profile.</p>
-                </div>
-
                 <button type="submit" disabled={loading} className={buttonClass}>
-                  {loading ? "Creating Account…" : "Create Account"}
+                  {loading ? "Creating Account…" : "Create Free Account →"}
                 </button>
-                <p className="bg-white dark:bg-gray-800 px-2 text-gray-400 text-sm text-center">Did Once? Click on SignIn to get started!</p>
+                <p className="px-2 text-gray-400 text-xs text-center">Already registered? Click "Sign In" above.</p>
               </form>
             )}
 

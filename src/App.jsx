@@ -17,6 +17,7 @@ import Auth from './pages/Auth';
 import About from './pages/About';
 import NotFound from './pages/NotFound';
 import MemeLiteracyTest from './pages/MemeLiteracyTest';
+import WelcomeModal from './components/WelcomeModal';
 import { useUdl } from './context/UdlContext';
 
 function App() {
@@ -82,6 +83,7 @@ function App() {
       </main>
       <div id="app-footer"><Footer /></div>
       <AccessibilityWidget />
+      <WelcomeModal />
     </div>
   );
 }
