@@ -33,6 +33,9 @@ import TtsSpeakerButton from "../components/TtsSpeakerButton";
 import ReadabilityIndicator from "../components/ReadabilityIndicator";
 import { explainMemeWithVision } from "../services/geminiClient";
 import AiQuotaModal from "../components/AiQuotaModal";
+import { useTour } from "../hooks/useTour";
+import TourOverlay from "../components/TourOverlay";
+import PageHelpPanel from "../components/PageHelpPanel";
 import {
   Search,
   Flame,
@@ -66,6 +69,20 @@ const Library = () => {
   const { highContrastMode } = useUdl();
   const { openUserModal } = useUserModal();
   const navigate = useNavigate();
+
+  // Interactive Tour Hook
+  const {
+    isTourOpen,
+    currentStep,
+    totalSteps,
+    currentStepData,
+    pageTitle,
+    hasSkippedTour,
+    nextStep,
+    prevStep,
+    skipTour,
+    resetTour,
+  } = useTour("library");
 
   // Memes list & filtering state
   const [memes, setMemes] = useState([]);
@@ -1178,7 +1195,7 @@ const Library = () => {
         </div>
 
         {/* Smart Predictive Search Bar */}
-        <div className="flex-grow max-w-md">
+        <div id="library-search-bar" className="flex-grow max-w-md">
           <SmartSearchBar
             items={enrichedMemes}
             fieldWeights={[
@@ -1245,7 +1262,7 @@ const Library = () => {
       </div>
 
       {/* ── Horizontal Filter Bar ──────────────────────────────────────────── */}
-      <div className="mb-5 space-y-3">
+      <div id="library-filter-sidebar" className="mb-5 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           {/* Filters toggle */}
           <button
@@ -1374,6 +1391,7 @@ const Library = () => {
         <div className="space-y-5 min-w-0">
           {/* Share a meme with the classroom container */}
           <div
+            id="library-ai-explain-info"
             onClick={() => user ? setShowDirectUploadModal(true) : navigate("/auth")}
             className="bg-white/40 dark:bg-zinc-900/40 backdrop-blur-sm p-4 rounded-2xl border border-gray-200/50 dark:border-zinc-800/40 shadow-md dark:shadow-black/20 hover:shadow-lg cursor-pointer transition-all duration-300 select-none flex items-center justify-between gap-4"
           >
@@ -1399,7 +1417,7 @@ const Library = () => {
           </div>
 
           {filteredMemes.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div id="library-meme-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredMemes.map((meme) => {
                 const isLiked = !!userLikesMap[meme.id];
                 const isSaved = !!userSavesMap[meme.id];
@@ -2712,7 +2730,26 @@ const Library = () => {
       {/* AI Quota & Ad-Gate Modal */}
       <AiQuotaModal
         isOpen={showAiQuotaModal}
-        onClose={() => setShowAiQuotaModal(false)}
+        onClose={() => setShowAiModal(false)}
+      />
+
+      {/* Interactive First-Time Tour */}
+      <TourOverlay
+        isOpen={isTourOpen}
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        stepData={currentStepData}
+        pageTitle={pageTitle}
+        onNext={nextStep}
+        onPrev={prevStep}
+        onSkip={skipTour}
+      />
+
+      {/* Floating Page Help Panel */}
+      <PageHelpPanel
+        pageKey="library"
+        onRestartTour={resetTour}
+        hasSkippedTour={hasSkippedTour}
       />
 
     </div>

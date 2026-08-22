@@ -42,6 +42,9 @@ import {
   Sparkles,
   FolderOpen
 } from "lucide-react";
+import { useTour } from "../hooks/useTour";
+import TourOverlay from "../components/TourOverlay";
+import PageHelpPanel from "../components/PageHelpPanel";
 
 
 const MILESTONES = [0, 1, 5, 10, 25, 50];
@@ -97,6 +100,20 @@ const Profile = () => {
   const { highContrastMode } = useUdl();
   const navigate = useNavigate();
   const toast = useToast();
+
+  // Interactive Tour Hook
+  const {
+    isTourOpen,
+    currentStep,
+    totalSteps,
+    currentStepData,
+    pageTitle,
+    hasSkippedTour,
+    nextStep,
+    prevStep,
+    skipTour,
+    resetTour,
+  } = useTour("profile");
 
   // Tab selections: "my-memes" | "my-drafts" | "bookmarks" | "my-resources" | "saved-resources"
   const [activeTab, setActiveTab] = useState("my-memes");
@@ -1043,7 +1060,7 @@ const Profile = () => {
 
       {/* 1. Profile Demographics Card Header */}
       {profile && (
-        <div className={`p-8 md:p-10 relative overflow-hidden ${containerClass}`}>
+        <div id="profile-avatar-card" className={`p-8 md:p-10 relative overflow-hidden ${containerClass}`}>
           {/* Top-left abstract shape */}
           <div className="absolute top-0 left-0 w-64 h-40 pointer-events-none select-none z-0">
             <svg viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-purple-100/75 dark:text-purple-950/20">
@@ -1189,7 +1206,7 @@ const Profile = () => {
       </div>
 
       {/* 3. Automatic 5-Category Badge progression matrix */}
-      <div className={`p-6 ${containerClass}`}>
+      <div id="profile-xp-meter" className={`p-6 ${containerClass}`}>
         <h3 className="text-sm font-bold uppercase tracking-wider border-b border-gray-100 dark:border-gray-800 pb-2 mb-6 text-gray-900 dark:text-white">
           Milestone Progression Badges
         </h3>
@@ -1308,7 +1325,7 @@ const Profile = () => {
       </div>
 
       {/* 4. Portfolio folder tab selector */}
-      <div className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-800 pb-2">
+      <div id="profile-collections-tabs" className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-800 pb-2">
         <button
           onClick={() => setActiveTab("my-memes")}
           className={`px-4 py-2 text-sm font-bold border-b-2 transition ${activeTab === "my-memes"
@@ -1569,6 +1586,25 @@ const Profile = () => {
           </div>
         </div>
       )}
+
+      {/* Interactive First-Time Tour */}
+      <TourOverlay
+        isOpen={isTourOpen}
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        stepData={currentStepData}
+        pageTitle={pageTitle}
+        onNext={nextStep}
+        onPrev={prevStep}
+        onSkip={skipTour}
+      />
+
+      {/* Floating Page Help Panel */}
+      <PageHelpPanel
+        pageKey="profile"
+        onRestartTour={resetTour}
+        hasSkippedTour={hasSkippedTour}
+      />
 
     </div>
   );
