@@ -12,7 +12,9 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
-  runTransaction
+  runTransaction,
+  orderBy,
+  limit
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { sendPasswordResetEmail } from "firebase/auth";
@@ -56,12 +58,31 @@ const Admin = () => {
   const [pruningLog, setPruningLog] = useState({ pruned_count: 0, space_saved_mb: 0 });
   const [taxonomy, setTaxonomy] = useState({ subjects: [], grades: [] });
 
-  // ─── Literacy Tests State ────────────────────────────────────────────────────
   const [literacyTests, setLiteracyTests] = useState([]);
   const [literacyQuestions, setLiteracyQuestions] = useState([]);
-  const [ltActiveTestId, setLtActiveTestId] = useState(null); // which test's questions are being edited
-  const [ltView, setLtView] = useState("list"); // "list" | "questions" | "new_test" | "new_question" | "edit_test" | "edit_question"
+  const [ltActiveTestId, setLtActiveTestId] = useState(null);
+  const [ltView, setLtView] = useState("list");
   const [ltSaving, setLtSaving] = useState(false);
+
+  // ─── Hero Cards State ────────────────────────────────────────────────────────
+  const [heroCardsList, setHeroCardsList] = useState([]);
+  const [heroCardsLoading, setHeroCardsLoading] = useState(false);
+  const [hcView, setHcView] = useState("list"); // "list" | "form"
+  const [hcEditId, setHcEditId] = useState(null); // null = new
+  const [hcSaving, setHcSaving] = useState(false);
+  // Form fields
+  const [hcfPillar, setHcfPillar] = useState("pedagogy");
+  const [hcfType, setHcfType] = useState("");
+  const [hcfTitle, setHcfTitle] = useState("");
+  const [hcfSnippet, setHcfSnippet] = useState("");
+  const [hcfSource, setHcfSource] = useState("");
+  const [hcfHref, setHcfHref] = useState("/resources");
+  const [hcfMediaType, setHcfMediaType] = useState("none"); // "none" | "image" | "video"
+  const [hcfMediaUrl, setHcfMediaUrl] = useState("");
+  const [hcfMediaFile, setHcfMediaFile] = useState(null);
+  const [hcfOrder, setHcfOrder] = useState(0);
+  const [hcfActive, setHcfActive] = useState(true);
+
   // Test form fields
   const [ltfTitle, setLtfTitle] = useState("");
   const [ltfDesc, setLtfDesc] = useState("");
@@ -1602,7 +1623,8 @@ const Admin = () => {
           { id: "content", label: "Content Manager", roles: ["admin"] },
           { id: "marketing", label: "Monetization & Ads", roles: ["admin"] },
           { id: "taxonomy", label: "System Taxonomy", roles: ["admin"] },
-          { id: "literacy_tests", label: "🧪 Literacy Tests", roles: ["admin"] }
+          { id: "literacy_tests", label: "🧪 Literacy Tests", roles: ["admin"] },
+          { id: "hero_cards", label: "🏠 Hero Cards", roles: ["admin"] },
         ]
           .filter(tab => tab.roles.includes(profile?.role))
           .map(tab => (
@@ -4051,6 +4073,349 @@ const Admin = () => {
             {(ltView === "edit_test") && <TestForm editId={ltActiveTestId} />}
             {(ltView === "new_question") && <QuestionForm editId={null} />}
             {(ltView === "edit_question") && <QuestionForm editId={ltqEditId} />}
+          </div>
+        );
+      })()}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          TAB: HERO CARDS — admin-managed rotating cards on the homepage
+          ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "hero_cards" && (() => {
+        // Fetch hero cards on mount when this tab is active
+        const fetchHeroCards = async () => {
+          setHeroCardsLoading(true);
+          try {
+            const { getDocs: gd, query: q2, collection: col2, orderBy: ob } = await import("firebase/firestore");
+            const snap = await gd(q2(col2(db, "heroCards"), ob("order", "asc")));
+            setHeroCardsList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+          } catch (e) {
+            triggerAlert("Failed to load hero cards: " + e.message, "error");
+          } finally {
+            setHeroCardsLoading(false);
+          }
+        };
+
+        const hcResetForm = () => {
+          setHcEditId(null);
+          setHcfPillar("pedagogy");
+          setHcfType("");
+          setHcfTitle("");
+          setHcfSnippet("");
+          setHcfSource("");
+          setHcfHref("/resources");
+          setHcfMediaType("none");
+          setHcfMediaUrl("");
+          setHcfMediaFile(null);
+          setHcfOrder(heroCardsList.length);
+          setHcfActive(true);
+        };
+
+        const hcPrefillForm = (card) => {
+          setHcEditId(card.id);
+          setHcfPillar(card.pillar || "pedagogy");
+          setHcfType(card.type || "");
+          setHcfTitle(card.title || "");
+          setHcfSnippet(card.snippet || "");
+          setHcfSource(card.source || "");
+          setHcfHref(card.href || "/resources");
+          setHcfMediaType(card.mediaType || "none");
+          setHcfMediaUrl(card.mediaUrl || "");
+          setHcfMediaFile(null);
+          setHcfOrder(card.order ?? 0);
+          setHcfActive(card.active ?? true);
+          setHcView("form");
+        };
+
+        const handleHcSave = async (e) => {
+          e.preventDefault();
+          if (!hcfTitle.trim() || !hcfSnippet.trim()) {
+            triggerAlert("Title and snippet are required.", "error");
+            return;
+          }
+          setHcSaving(true);
+          try {
+            let mediaUrl = hcfMediaUrl;
+            // Upload image file if provided
+            if (hcfMediaType === "image" && hcfMediaFile) {
+              const storageRef = ref(storage, `heroCards/${hcEditId || Date.now()}_${hcfMediaFile.name}`);
+              const snap = await uploadBytes(storageRef, hcfMediaFile);
+              mediaUrl = await getDownloadURL(snap.ref);
+            }
+            const label = hcfPillar === "pedagogy" ? "🎓 Memes as Pedagogy" : "🔍 Critical Literacy";
+            const data = {
+              pillar: hcfPillar,
+              label,
+              type: hcfType.trim(),
+              title: hcfTitle.trim(),
+              snippet: hcfSnippet.trim(),
+              source: hcfSource.trim(),
+              href: hcfHref.trim(),
+              mediaType: hcfMediaType,
+              mediaUrl: mediaUrl.trim(),
+              order: Number(hcfOrder),
+              active: hcfActive,
+              updatedAt: serverTimestamp(),
+            };
+            if (hcEditId) {
+              await updateDoc(doc(db, "heroCards", hcEditId), data);
+              triggerAlert("Hero card updated!");
+            } else {
+              await addDoc(collection(db, "heroCards"), { ...data, createdAt: serverTimestamp(), createdBy: user.uid });
+              triggerAlert("Hero card created!");
+            }
+            hcResetForm();
+            setHcView("list");
+            // Re-fetch
+            const snap2 = await getDocs(query(collection(db, "heroCards"), orderBy("order", "asc")));
+            setHeroCardsList(snap2.docs.map(d => ({ id: d.id, ...d.data() })));
+          } catch (e) {
+            triggerAlert(e.message || "Save failed.", "error");
+          } finally {
+            setHcSaving(false);
+          }
+        };
+
+        const handleHcDelete = (card) => {
+          openConfirm({
+            title: "Delete Hero Card?",
+            message: `Permanently delete "${card.title}"? It will no longer appear on the homepage.`,
+            variant: "danger",
+            confirmLabel: "Delete Card",
+            onConfirm: async () => {
+              closeConfirm();
+              try {
+                await deleteDoc(doc(db, "heroCards", card.id));
+                setHeroCardsList(prev => prev.filter(c => c.id !== card.id));
+                triggerAlert("Hero card deleted.");
+              } catch (e) { triggerAlert(e.message || "Delete failed.", "error"); }
+            }
+          });
+        };
+
+        const handleHcToggleActive = async (card) => {
+          try {
+            await updateDoc(doc(db, "heroCards", card.id), { active: !card.active, updatedAt: serverTimestamp() });
+            setHeroCardsList(prev => prev.map(c => c.id === card.id ? { ...c, active: !c.active } : c));
+          } catch (e) { triggerAlert(e.message || "Toggle failed.", "error"); }
+        };
+
+        const handleHcReorder = async (cardId, direction) => {
+          const idx = heroCardsList.findIndex(c => c.id === cardId);
+          if ((direction === "up" && idx === 0) || (direction === "down" && idx === heroCardsList.length - 1)) return;
+          const newList = [...heroCardsList];
+          const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+          [newList[idx], newList[swapIdx]] = [newList[swapIdx], newList[idx]];
+          // Write new order values
+          const updates = newList.map((c, i) => updateDoc(doc(db, "heroCards", c.id), { order: i }));
+          await Promise.all(updates);
+          setHeroCardsList(newList.map((c, i) => ({ ...c, order: i })));
+        };
+
+        return (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className={`p-5 ${containerClass} flex items-center justify-between`}>
+              <div>
+                <h2 className="text-base font-extrabold text-gray-900 dark:text-white">🏠 Homepage Hero Cards</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Manage the rotating research/insight cards shown on the homepage hero section. Supports text, images, and YouTube embeds.</p>
+              </div>
+              <div className="flex gap-2">
+                {hcView === "list" && (
+                  <>
+                    <button onClick={() => { fetchHeroCards(); }} className={btnClass("gray")}>
+                      ↺ Refresh
+                    </button>
+                    <button onClick={() => { hcResetForm(); setHcView("form"); }} className={btnClass("purple")}>
+                      + Add Card
+                    </button>
+                  </>
+                )}
+                {hcView === "form" && (
+                  <button onClick={() => { setHcView("list"); hcResetForm(); }} className={btnClass("gray")}>
+                    ← Back to List
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ── LIST VIEW ── */}
+            {hcView === "list" && (
+              <div className={containerClass}>
+                {heroCardsLoading && (
+                  <div className="p-8 text-center text-xs text-gray-400">Loading cards…</div>
+                )}
+                {!heroCardsLoading && heroCardsList.length === 0 && (
+                  <div className="p-8 text-center">
+                    <p className="text-sm text-gray-500">No hero cards yet.</p>
+                    <p className="text-xs text-gray-400 mt-1">The homepage will show fallback cards until you add some here.</p>
+                    <button onClick={() => { hcResetForm(); setHcView("form"); }} className={`mt-3 ${btnClass("purple")}`}>+ Add First Card</button>
+                  </div>
+                )}
+                {!heroCardsLoading && heroCardsList.length > 0 && (
+                  <div className="divide-y divide-gray-100 dark:divide-zinc-800">
+                    {heroCardsList.map((card, idx) => (
+                      <div key={card.id} className="flex items-center gap-3 p-4">
+                        {/* Reorder */}
+                        <div className="flex flex-col gap-0.5">
+                          <button onClick={() => handleHcReorder(card.id, "up")} disabled={idx === 0} className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30" aria-label="Move up">▲</button>
+                          <button onClick={() => handleHcReorder(card.id, "down")} disabled={idx === heroCardsList.length - 1} className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30" aria-label="Move down">▼</button>
+                        </div>
+                        {/* Pillar indicator */}
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          card.pillar === "pedagogy"
+                            ? "bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300"
+                            : "bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"
+                        }`}>
+                          {card.pillar === "pedagogy" ? "🎓 Pedagogy" : "🔍 Literacy"}
+                        </span>
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{card.title}</p>
+                          <p className="text-[11px] text-gray-400 truncate">{card.type} · {card.source}</p>
+                          {card.mediaType !== "none" && card.mediaUrl && (
+                            <span className="text-[10px] text-indigo-500">{card.mediaType === "image" ? "🖼️ Image" : "▶️ Video"}</span>
+                          )}
+                        </div>
+                        {/* Active toggle */}
+                        <button
+                          onClick={() => handleHcToggleActive(card)}
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-full border transition ${
+                            card.active
+                              ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-600 dark:text-green-400"
+                              : "bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-400"
+                          }`}
+                        >
+                          {card.active ? "● Live" : "○ Hidden"}
+                        </button>
+                        {/* Actions */}
+                        <button onClick={() => hcPrefillForm(card)} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition">✏️ Edit</button>
+                        <button onClick={() => handleHcDelete(card)} className={btnClass("red")}>🗑️</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── FORM VIEW (Add / Edit) ── */}
+            {hcView === "form" && (
+              <form onSubmit={handleHcSave} className={`${containerClass} p-6 space-y-5`}>
+                <h3 className="text-sm font-extrabold text-gray-900 dark:text-white">
+                  {hcEditId ? "Edit Hero Card" : "Add New Hero Card"}
+                </h3>
+
+                {/* Row: Pillar + Type */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Pillar *</label>
+                    <select value={hcfPillar} onChange={e => setHcfPillar(e.target.value)} className={inputClass}>
+                      <option value="pedagogy">🎓 Memes as Pedagogy</option>
+                      <option value="literacy">🔍 Critical Literacy</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Type label (e.g. Research, Finding)</label>
+                    <input value={hcfType} onChange={e => setHcfType(e.target.value)} placeholder="Research" className={inputClass} />
+                  </div>
+                </div>
+
+                {/* Title */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Title *</label>
+                  <input value={hcfTitle} onChange={e => setHcfTitle(e.target.value)} required placeholder="Card headline" className={inputClass} />
+                </div>
+
+                {/* Snippet */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Snippet / Quote *</label>
+                  <textarea value={hcfSnippet} onChange={e => setHcfSnippet(e.target.value)} required rows={3} placeholder="Short insight, statistic, or quote to show on the card" className={inputClass} />
+                </div>
+
+                {/* Row: Source + Link */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Source / Citation</label>
+                    <input value={hcfSource} onChange={e => setHcfSource(e.target.value)} placeholder="Journal name, Year" className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Internal link (e.g. /resources)</label>
+                    <input value={hcfHref} onChange={e => setHcfHref(e.target.value)} placeholder="/resources" className={inputClass} />
+                  </div>
+                </div>
+
+                {/* Row: Order + Active */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Display order (0 = first)</label>
+                    <input type="number" value={hcfOrder} onChange={e => setHcfOrder(e.target.value)} min={0} className={inputClass} />
+                  </div>
+                  <div className="flex items-end gap-3 pb-1">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input type="checkbox" checked={hcfActive} onChange={e => setHcfActive(e.target.checked)} className="w-4 h-4 accent-purple-600" />
+                      <span className="text-xs font-bold text-gray-600 dark:text-gray-400">Active (visible on homepage)</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Media Type */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">Media</label>
+                  <div className="flex gap-3">
+                    {["none", "image", "video"].map(t => (
+                      <button key={t} type="button" onClick={() => { setHcfMediaType(t); setHcfMediaUrl(""); setHcfMediaFile(null); }}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold border transition ${
+                          hcfMediaType === t
+                            ? "bg-purple-600 text-white border-purple-600"
+                            : "bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-500 dark:text-gray-400 hover:border-purple-400"
+                        }`}>
+                        {t === "none" ? "No media" : t === "image" ? "🖼️ Image" : "▶️ YouTube Video"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Image fields */}
+                {hcfMediaType === "image" && (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400">Image — upload a file OR paste a URL</label>
+                    <input type="file" accept="image/*" onChange={e => { setHcfMediaFile(e.target.files[0] || null); setHcfMediaUrl(""); }}
+                      className="text-xs file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100" />
+                    <p className="text-[10px] text-gray-400">— or —</p>
+                    <input value={hcfMediaUrl} onChange={e => { setHcfMediaUrl(e.target.value); setHcfMediaFile(null); }} placeholder="https://…image.jpg" className={inputClass} />
+                    {(hcfMediaUrl || hcfMediaFile) && (
+                      <div className="rounded-xl overflow-hidden max-h-32">
+                        <img src={hcfMediaFile ? URL.createObjectURL(hcfMediaFile) : hcfMediaUrl} alt="preview" className="w-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Video fields */}
+                {hcfMediaType === "video" && (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400">YouTube URL (youtu.be/… or youtube.com/watch?v=…)</label>
+                    <input value={hcfMediaUrl} onChange={e => setHcfMediaUrl(e.target.value)} placeholder="https://youtu.be/dQw4w9WgXcQ" className={inputClass} />
+                    {(() => {
+                      const ytMatch = hcfMediaUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([A-Za-z0-9_-]{11})/);
+                      const vid = ytMatch?.[1];
+                      return vid ? (
+                        <div className="rounded-xl overflow-hidden aspect-video max-w-xs">
+                          <iframe src={`https://www.youtube.com/embed/${vid}`} title="Preview" className="w-full h-full border-0" allowFullScreen />
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+
+                {/* Submit */}
+                <div className="flex gap-3 pt-2">
+                  <button type="submit" disabled={hcSaving} className={btnClass("purple")}>
+                    {hcSaving ? "Saving…" : hcEditId ? "Update Card" : "Create Card"}
+                  </button>
+                  <button type="button" onClick={() => { setHcView("list"); hcResetForm(); }} className={btnClass("gray")}>Cancel</button>
+                </div>
+              </form>
+            )}
           </div>
         );
       })()}

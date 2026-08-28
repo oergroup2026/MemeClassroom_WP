@@ -7,7 +7,8 @@ import {
   query, 
   where, 
   getDocs, 
-  limit 
+  limit,
+  orderBy
 } from "firebase/firestore";
 import { db } from "../firebase";
 import MemeLiteracyBanner from "../components/MemeLiteracyBanner";
@@ -40,6 +41,37 @@ const Home = () => {
   const [featuredMemes, setFeaturedMemes] = useState([]);
   const [currentMemeIndex, setCurrentMemeIndex] = useState(0);
   const [showMoreTools, setShowMoreTools] = useState(false);
+  const [researchIndex, setResearchIndex] = useState(0);
+  const [heroCards, setHeroCards] = useState([]);
+
+  // Fallback cards shown when Firestore has no hero cards yet
+  const FALLBACK_HERO_CARDS = [
+    {
+      id: "fallback-1",
+      pillar: "pedagogy",
+      label: "🎓 Memes as Pedagogy",
+      type: "Research",
+      title: "Memes as Multimodal Texts in the Classroom",
+      snippet: "Students who created subject-specific memes demonstrated significantly deeper recall of key concepts than those who took traditional notes.",
+      source: "Journal of Digital Pedagogy, 2021",
+      href: "/resources",
+      mediaType: "none",
+    },
+    {
+      id: "fallback-2",
+      pillar: "literacy",
+      label: "🔍 Critical Literacy",
+      type: "Finding",
+      title: "Memes Spread Faster Than Fact-Checks",
+      snippet: "A single misleading meme can reach 10× more people than the correction. Teaching students to interrogate visual rhetoric is now a core literacy skill.",
+      source: "MIT Media Lab, 2022",
+      href: "/meme-literacy-test",
+      mediaType: "none",
+    },
+  ];
+
+  // Derived: use Firestore cards or fallbacks
+  const researchCards = heroCards.length > 0 ? heroCards : FALLBACK_HERO_CARDS;
 
   // Fetch real counts & top memes from Firestore
   useEffect(() => {
@@ -77,6 +109,19 @@ const Home = () => {
         } catch (memeErr) {
           console.warn("Featured memes fetch note:", memeErr);
         }
+
+        // 3. Fetch admin-curated hero cards
+        try {
+          const cardsSnap = await getDocs(
+            query(collection(db, "heroCards"), where("active", "==", true), orderBy("order", "asc"))
+          );
+          if (isMounted && !cardsSnap.empty) {
+            setHeroCards(cardsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          }
+        } catch (cardErr) {
+          // Silently fall back to hardcoded defaults
+          console.warn("Hero cards fetch note:", cardErr);
+        }
       } catch (err) {
         console.error("Home stats fetch failed", err);
       }
@@ -96,6 +141,15 @@ const Home = () => {
     }, 5000);
     return () => clearInterval(interval);
   }, [featuredMemes.length]);
+
+  // Auto-rotate research/hero cards every 4.5 seconds
+  useEffect(() => {
+    if (researchCards.length === 0) return;
+    const interval = setInterval(() => {
+      setResearchIndex((prev) => (prev + 1) % researchCards.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [researchCards.length]);
 
   const fmt = (n) => (n === null ? "—" : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 
@@ -141,126 +195,162 @@ const Home = () => {
               world, they belong in your curriculum.
             </p>
 
-            {/* CTAs */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2">
-              <Link
-                to="/resources"
-                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold px-7 py-3 rounded-xl shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] inline-flex items-center gap-2 text-sm"
+            {/* CTAs: scroll to homepage sections or navigate to Meme Literacy Test */}
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3.5 pt-2">
+              <a
+                href="#get-started"
+                onClick={e => { e.preventDefault(); document.getElementById('get-started')?.scrollIntoView({ behavior: 'smooth' }); }}
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold px-6 py-3 rounded-xl shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] inline-flex items-center gap-2 text-sm cursor-pointer"
               >
-                <BookOpenCheck className="w-4 h-4" />
-                <span>Explore Teaching Resources</span>
+                <Compass className="w-4 h-4" />
+                <span>Where to Start?</span>
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </a>
+
+              <a
+                href="#why-memes"
+                onClick={e => { e.preventDefault(); document.getElementById('why-memes')?.scrollIntoView({ behavior: 'smooth' }); }}
+                className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-800 dark:text-zinc-100 hover:bg-gray-50 dark:hover:bg-zinc-700/80 font-bold px-6 py-3 rounded-xl shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] inline-flex items-center gap-2 text-sm cursor-pointer"
+              >
+                <BrainCircuit className="w-4 h-4 text-amber-500" />
+                <span>Why Memes?</span>
+              </a>
 
               <Link
-                to="/library"
-                className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-800 dark:text-zinc-100 hover:bg-gray-50 dark:hover:bg-zinc-700/80 font-bold px-7 py-3 rounded-xl shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] inline-flex items-center gap-2 text-sm"
+                to="/meme-literacy-test"
+                className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40 font-bold px-6 py-3 rounded-xl shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] inline-flex items-center gap-2 text-sm"
               >
-                <BookOpen className="w-4 h-4 text-indigo-500" />
-                <span>Browse Meme Library</span>
+                <Award className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>Meme Literacy Test</span>
               </Link>
-
-              <Link
-                to="/about"
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 font-semibold px-2 py-3 transition-colors"
-              >
-                Learn our philosophy →
-              </Link>
-            </div>
-
-            {/* Trust highlights */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-xs text-gray-500 dark:text-gray-400 pt-2">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-green-500" /> Research-Backed Pedagogy
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-green-500" /> Open Educational Resource
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-green-500" /> Safe for Classrooms
-              </span>
             </div>
           </div>
 
-          {/* Right Column: Live Community Meme Card Preview */}
-          <div className="lg:col-span-5 flex justify-center">
-            <div className="w-full max-w-sm rounded-2xl border border-gray-200/70 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md p-4 shadow-xl shadow-black/5 dark:shadow-black/25 relative">
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-2.5 mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-ping" />
-                  <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Community Showcase
+          {/* Right Column: Research & Insight Panel */}
+          <div className="lg:col-span-5 flex justify-center items-start">
+            <div className="w-full max-w-sm">
+              {/* Panel header */}
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                  From the Research
+                </span>
+                {/* Dot indicators */}
+                <div className="flex gap-1.5">
+                  {researchCards.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setResearchIndex(i)}
+                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                        i === researchIndex
+                          ? researchCards[researchIndex].pillar === "pedagogy"
+                            ? "bg-purple-500 w-4"
+                            : "bg-amber-500 w-4"
+                          : "bg-gray-300 dark:bg-zinc-600"
+                      }`}
+                      aria-label={`Card ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Animated card */}
+              <div
+                key={researchIndex}
+                className={`rounded-2xl border p-5 shadow-lg transition-all duration-500 ${
+                  researchCards[researchIndex].pillar === "pedagogy"
+                    ? "bg-gradient-to-br from-purple-50 to-indigo-50/60 dark:from-purple-950/40 dark:to-indigo-950/30 border-purple-200/70 dark:border-purple-800/50"
+                    : "bg-gradient-to-br from-amber-50 to-orange-50/60 dark:from-amber-950/40 dark:to-orange-950/30 border-amber-200/70 dark:border-amber-800/50"
+                } animate-fadeIn`}
+                style={{ animation: "fadeSlideIn 0.4s ease" }}
+              >
+                {/* Pillar tag + type */}
+                <div className="flex items-center justify-between mb-3">
+                  <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    researchCards[researchIndex].pillar === "pedagogy"
+                      ? "bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300"
+                      : "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300"
+                  }`}>
+                    {researchCards[researchIndex].label}
+                  </span>
+                  <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    {researchCards[researchIndex].type}
                   </span>
                 </div>
-                <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-md">
-                  {activeMeme?.subject || "Education"}
-                </span>
-              </div>
 
-              {/* Meme Display Area */}
-              <div className="min-h-[240px] max-h-[290px] rounded-xl overflow-hidden bg-gray-100 dark:bg-zinc-800 flex items-center justify-center relative group">
-                {activeMeme && (activeMeme.image_url || activeMeme.media_url || activeMeme.url) ? (
-                  <img
-                    src={activeMeme.image_url || activeMeme.media_url || activeMeme.url}
-                    alt={activeMeme.title || "Community Educational Meme"}
-                    className="w-full h-full object-contain max-h-[290px]"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="p-6 text-center space-y-2">
-                    <div className="text-4xl">🎭</div>
-                    <p className="text-xs font-bold text-gray-700 dark:text-zinc-200">
-                      "When you explain a complex formula using a single meme"
-                    </p>
-                    <p className="text-[10px] text-gray-400">
-                      Visual humor + core concept = instant recall
-                    </p>
+                {/* Title */}
+                <h3 className="font-extrabold text-sm text-gray-900 dark:text-white leading-snug mb-2">
+                  {researchCards[researchIndex].title}
+                </h3>
+
+                {/* Media: image or YouTube embed */}
+                {researchCards[researchIndex].mediaType === "image" && researchCards[researchIndex].mediaUrl && (
+                  <div className="rounded-xl overflow-hidden mb-3 max-h-40">
+                    <img
+                      src={researchCards[researchIndex].mediaUrl}
+                      alt={researchCards[researchIndex].title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
                   </div>
                 )}
+                {researchCards[researchIndex].mediaType === "video" && researchCards[researchIndex].mediaUrl && (() => {
+                  const ytMatch = researchCards[researchIndex].mediaUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([A-Za-z0-9_-]{11})/);
+                  const videoId = ytMatch?.[1];
+                  return videoId ? (
+                    <div className="rounded-xl overflow-hidden mb-3 aspect-video">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${videoId}`}
+                        title={researchCards[researchIndex].title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="w-full h-full border-0"
+                      />
+                    </div>
+                  ) : null;
+                })()}
 
-                {/* Navigation controls if multiple */}
-                {featuredMemes.length > 1 && (
-                  <div className="absolute inset-x-0 bottom-2 flex justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCurrentMemeIndex((prev) => (prev - 1 + featuredMemes.length) % featuredMemes.length);
-                      }}
-                      className="p-1 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm"
-                      aria-label="Previous meme"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCurrentMemeIndex((prev) => (prev + 1) % featuredMemes.length);
-                      }}
-                      className="p-1 rounded-full bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm"
-                      aria-label="Next meme"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
+                {/* Snippet */}
+                <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-3">
+                  &ldquo;{researchCards[researchIndex].snippet}&rdquo;
+                </p>
 
-              {/* Meme Card Details */}
-              <div className="mt-3 flex items-center justify-between text-xs">
-                <div className="truncate pr-2">
-                  <p className="font-bold text-gray-900 dark:text-zinc-100 truncate">
-                    {activeMeme?.title || "Classroom Discussion Starter"}
-                  </p>
-                  <p className="text-[11px] text-gray-400">
-                    Grade: {activeMeme?.grade_group || "All Levels"}
-                  </p>
+                {/* Source + link */}
+                <div className="flex items-center justify-between pt-3 border-t border-black/5 dark:border-white/5">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">
+                    — {researchCards[researchIndex].source}
+                  </span>
+                  <Link
+                    to={researchCards[researchIndex].href}
+                    className={`text-[10px] font-bold inline-flex items-center gap-1 hover:underline ${
+                      researchCards[researchIndex].pillar === "pedagogy"
+                        ? "text-purple-600 dark:text-purple-400"
+                        : "text-amber-600 dark:text-amber-400"
+                    }`}
+                  >
+                    Explore <ExternalLink className="w-3 h-3" />
+                  </Link>
                 </div>
-                <Link
-                  to="/library"
-                  className="text-purple-600 dark:text-purple-400 font-bold hover:underline whitespace-nowrap flex-shrink-0 text-xs inline-flex items-center gap-1"
+              </div>
+
+              {/* Nav arrows */}
+              <div className="flex items-center justify-between mt-3 px-1">
+                <button
+                  onClick={() => setResearchIndex((prev) => (prev - 1 + researchCards.length) % researchCards.length)}
+                  className="p-1.5 rounded-full bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shadow-sm transition"
+                  aria-label="Previous"
                 >
-                  Explore <ExternalLink className="w-3 h-3" />
-                </Link>
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">
+                  {researchIndex + 1} / {researchCards.length}
+                </span>
+                <button
+                  onClick={() => setResearchIndex((prev) => (prev + 1) % researchCards.length)}
+                  className="p-1.5 rounded-full bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 shadow-sm transition"
+                  aria-label="Next"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           </div>
@@ -314,7 +404,7 @@ const Home = () => {
       {/* ──────────────────────────────────────────────────────────────────────────
           SECTION 3: WHY MEMES IN THE CLASSROOM? (The Pedagogical Core)
           ────────────────────────────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto w-full px-4">
+      <section id="why-memes" className="max-w-5xl mx-auto w-full px-4 scroll-mt-20">
         <div className="text-center max-w-2xl mx-auto mb-8 space-y-2">
           <span className="text-xs font-bold uppercase tracking-widest text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 px-3 py-1 rounded-full">
             Pedagogy & Digital Culture
@@ -393,70 +483,60 @@ const Home = () => {
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────────
-          SECTION 4: WHAT MAKES MEMECLASSROOM DIFFERENT? (Comparison Table/Card)
+          SECTION 4: THE ROLE OF MEMECLASSROOM (An Enabler, Not a Walled Garden)
           ────────────────────────────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto w-full px-4">
-        <div className="space-y-6">
-          <div className="text-center max-w-xl mx-auto space-y-2">
+        <div className="space-y-8">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1 rounded-full">
+              Our Role & Philosophy
+            </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white">
-              Why Not Just Search Memes on the Web?
+              An Enabler to Learn, Integrate & Reflect
             </h2>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              MemeClassroom isn't a random image dump. It is an educator-curated learning environment.
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-zinc-300 leading-relaxed">
+              MemeClassroom is not a one-stop app that limits where you find content. You are free to discover memes and articles anywhere across the internet. This space exists to help you <strong className="text-gray-800 dark:text-zinc-100">learn with, on, and about memes</strong>, bring them into classrooms with pedagogical intent, and openly share experiences and reflections with fellow educators.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Random Internet */}
-            <div className="p-6 rounded-2xl bg-gray-50/80 dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 space-y-4">
-              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-extrabold text-sm">
-                <XCircle className="w-5 h-5 text-red-500" />
-                <span>Random Internet Memes</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Card 1: Learn With, On & About */}
+            <div className="p-6 rounded-2xl bg-white/70 dark:bg-zinc-900/60 border border-gray-200/70 dark:border-zinc-800/70 shadow-sm space-y-3 hover:border-purple-300 dark:hover:border-purple-700/60 transition-all duration-200">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200/60 dark:border-purple-800/40 flex items-center justify-center text-purple-600 dark:text-purple-400 font-bold">
+                <BookOpenCheck className="w-5 h-5" />
               </div>
-              <ul className="space-y-3 text-xs text-gray-600 dark:text-gray-400">
-                <li className="flex items-start gap-2">
-                  <span className="text-red-500 font-bold">•</span>
-                  <span>Untagged, no subject or grade filtering</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-500 font-bold">•</span>
-                  <span>High risk of age-inappropriate content</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-500 font-bold">•</span>
-                  <span>No lesson plans or pedagogical context</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-500 font-bold">•</span>
-                  <span>Zero educator feedback or peer ratings</span>
-                </li>
-              </ul>
+              <h3 className="font-extrabold text-sm text-gray-900 dark:text-white">
+                Learn With, On & About Memes
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                Understand memes as multimodal cultural artifacts. Learn how they communicate, why they carry cognitive value, and how to deconstruct their rhetorical framing and hidden agendas.
+              </p>
             </div>
 
-            {/* MemeClassroom Community */}
-            <div className="p-6 rounded-2xl bg-purple-50/70 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/50 shadow-md space-y-4">
-              <div className="flex items-center gap-2 text-purple-900 dark:text-purple-200 font-extrabold text-sm">
-                <CheckCircle2 className="w-5 h-5 text-green-500" />
-                <span>MemeClassroom Community</span>
+            {/* Card 2: Pedagogical Scaffolding */}
+            <div className="p-6 rounded-2xl bg-white/70 dark:bg-zinc-900/60 border border-gray-200/70 dark:border-zinc-800/70 shadow-sm space-y-3 hover:border-indigo-300 dark:hover:border-indigo-700/60 transition-all duration-200">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-800/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
+                <Compass className="w-5 h-5" />
               </div>
-              <ul className="space-y-3 text-xs text-purple-950 dark:text-purple-200/90 font-medium">
-                <li className="flex items-start gap-2">
-                  <span className="text-green-600 font-bold">✓</span>
-                  <span>Strictly organized by subject, topic, and grade level</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-600 font-bold">✓</span>
-                  <span>Peer-rated for accuracy and classroom suitability</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-600 font-bold">✓</span>
-                  <span>Backed by discussion threads, lesson activities, and research</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-600 font-bold">✓</span>
-                  <span>Remix-friendly with built-in multi-format Meme Lab</span>
-                </li>
-              </ul>
+              <h3 className="font-extrabold text-sm text-gray-900 dark:text-white">
+                Pedagogical Integration
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                Ground your meme usage in real classroom pedagogy. Access lesson plans, discussion starters, activity guides, and creation rubrics that make abstract concepts accessible and engaging.
+              </p>
+            </div>
+
+            {/* Card 3: Sharing & Reflecting */}
+            <div className="p-6 rounded-2xl bg-white/70 dark:bg-zinc-900/60 border border-gray-200/70 dark:border-zinc-800/70 shadow-sm space-y-3 hover:border-amber-300 dark:hover:border-amber-700/60 transition-all duration-200">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-800/40 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold">
+                <Users className="w-5 h-5" />
+              </div>
+              <h3 className="font-extrabold text-sm text-gray-900 dark:text-white">
+                Share Experiences & Reflect
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                Connect with educators to exchange what worked in class, reflect on student discussions, remix templates in the Lab, and contribute insights back to a collaborative community.
+              </p>
             </div>
           </div>
         </div>
@@ -465,7 +545,7 @@ const Home = () => {
       {/* ──────────────────────────────────────────────────────────────────────────
           SECTION 5: HOW IT WORKS (3-Step Visual Journey)
           ────────────────────────────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto w-full px-4">
+      <section id="get-started" className="max-w-5xl mx-auto w-full px-4 scroll-mt-20">
         <div className="text-center max-w-xl mx-auto mb-8 space-y-2">
           <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1 rounded-full">
             How to Get Started
@@ -474,7 +554,7 @@ const Home = () => {
             Your Journey in MemeClassroom
           </h2>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-            From understanding the research to building critical skills in your students.
+            From understanding the pedagogical theory to bringing practice into class and reflecting together.
           </p>
         </div>
 
@@ -514,11 +594,11 @@ const Home = () => {
               3
             </div>
             <h3 className="font-extrabold text-base mb-1 text-gray-900 dark:text-white">
-              Build Critical Skills
+              Share & Reflect
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-              Run the <strong className="text-gray-700 dark:text-gray-300">Meme Literacy Test</strong> with your students to develop 
-              media decoding skills. Share outcomes and strategies in the <strong className="text-gray-700 dark:text-gray-300">Staffroom</strong>.
+              Share classroom experiences and lesson outcomes in the <strong className="text-gray-700 dark:text-gray-300">Staffroom</strong>. 
+              Exchange insights with fellow educators to continuously refine your teaching practice.
             </p>
           </div>
         </div>
@@ -826,11 +906,10 @@ const Home = () => {
           
           <div className="relative z-10 max-w-2xl mx-auto space-y-4">
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Ready to Make Memes Work in Your Classroom?
+              Ready to Learn, Teach & Reflect with Memes?
             </h2>
             <p className="text-xs sm:text-sm text-purple-100 leading-relaxed">
-              Whether you're here to teach <em>with</em> memes or teach students to <em>think critically about</em> them — 
-              MemeClassroom has the resources, tools, and community to support you.
+              Explore how to use memes pedagogically, critically examine digital culture with your students, and share your classroom reflections with a supportive educator community.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
               <Link
@@ -838,14 +917,14 @@ const Home = () => {
                 className="bg-white text-purple-700 hover:bg-gray-100 font-bold px-6 py-3 rounded-xl shadow transition text-xs sm:text-sm inline-flex items-center gap-2"
               >
                 <BookOpenCheck className="w-4 h-4" />
-                Explore Lesson Plans & Research
+                Explore Lesson Plans & Reads
               </Link>
               <Link
-                to="/meme-literacy-test"
+                to="/staffroom"
                 className="bg-purple-800/80 hover:bg-purple-900 text-white border border-purple-400/40 font-bold px-6 py-3 rounded-xl transition text-xs sm:text-sm inline-flex items-center gap-2"
               >
-                <BrainCircuit className="w-4 h-4" />
-                Test Your Meme Literacy
+                <MessageSquare className="w-4 h-4" />
+                Join Staffroom Discussions
               </Link>
             </div>
           </div>
