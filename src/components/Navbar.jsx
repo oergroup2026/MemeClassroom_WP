@@ -161,10 +161,10 @@ const Navbar = () => {
 
   const renderNavLinks = (mobile = false) => {
     const links = [
+      { to: "/resources", label: "Resources", Icon: BookOpenCheck },
       { to: "/library", label: "Library", Icon: BookOpen },
       { to: "/lab", label: "Lab", Icon: FlaskConical },
       { to: "/staffroom", label: "Staffroom", Icon: MessageSquare },
-      { to: "/resources", label: "Resources", Icon: BookOpenCheck },
       { to: "/about", label: "About", Icon: Info },
     ];
 
