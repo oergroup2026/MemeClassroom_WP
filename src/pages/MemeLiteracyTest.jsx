@@ -12,6 +12,8 @@ import {
   DIMENSION_META,
   getLevel,
 } from "../data/memeTestQuestions";
+import { basicQuestions } from "../data/memeTestQuestionsBasic";
+import { LOCAL_TESTS } from "../data/localTestCatalogue";
 import { explainQuizMistake } from "../services/geminiClient";
 import AiQuotaModal from "../components/AiQuotaModal";
 import { useTour } from "../hooks/useTour";
@@ -217,19 +219,64 @@ const MemeLiteracyTest = () => {
   };
 
   useEffect(() => {
+    // Always show local tests first, then append any active Firebase tests
     const q = query(collection(db, "literacy_tests"), where("is_active", "==", true));
     const unsub = onSnapshot(q, snap => {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
-      setAvailableTests(list);
+      const firestoreTests = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
+      const firestoreTitles = new Set(firestoreTests.map(t => (t.title || "").trim().toLowerCase()));
+      // If a Firestore test matches a local test's title, prefer the Firestore version so admin edits take effect
+      const filteredLocal = LOCAL_TESTS.filter(lt => !firestoreTitles.has((lt.title || "").trim().toLowerCase()));
+      setAvailableTests([...firestoreTests, ...filteredLocal]);
       setLauncherLoading(false);
-    }, () => setLauncherLoading(false));
+    }, () => {
+      // On error (e.g. permission denied), still show local tests
+      setAvailableTests([...LOCAL_TESTS]);
+      setLauncherLoading(false);
+    });
     return () => unsub();
   }, []);
 
   useEffect(() => {
     if (!testId) return;
-    setLoadingTest(true);
     setPhase("intro"); setCurrentQ(0); setAnswers([]); setSelectedOption(null); setLastAnswer(null); setResultSaved(false);
+
+    // ── Local-only tests: load from bundled data, skip Firebase ──────────────
+    if (testId === "local-basic") {
+      const meta = LOCAL_TESTS.find(t => t.id === "local-basic");
+      setTestMeta(meta || null);
+      setTestQuestions(basicQuestions.map((q, i) => ({
+        id: q.id || `basic-${i}`,
+        question_text: q.question,
+        options: q.options,
+        correct_index: q.correctIndex,
+        explanation: q.explanation,
+        meme_image_url: q.memeUrl,
+        dimension: q.dimension,
+        order: i,
+      })));
+      setLoadingTest(false);
+      return;
+    }
+
+    if (testId === "local-advanced") {
+      const meta = LOCAL_TESTS.find(t => t.id === "local-advanced");
+      setTestMeta(meta || null);
+      setTestQuestions(localQuestions.map((q, i) => ({
+        id: `adv-${i}`,
+        question_text: q.question,
+        options: q.options,
+        correct_index: q.correctIndex,
+        explanation: q.explanation,
+        meme_image_url: q.memeUrl,
+        dimension: q.dimension,
+        order: i,
+      })));
+      setLoadingTest(false);
+      return;
+    }
+
+    // ── Firebase-sourced tests ────────────────────────────────────────────────
+    setLoadingTest(true);
     const load = async () => {
       try {
         const snapMeta = await getDocs(query(collection(db, "literacy_tests"), where("__name__", "==", testId)));
