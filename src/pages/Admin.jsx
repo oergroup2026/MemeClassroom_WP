@@ -27,6 +27,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import RichTextArea from "../components/RichTextArea";
 import AdminAnalyticsDashboard from "../components/AdminAnalyticsDashboard";
 import { DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
+import { basicQuestions } from "../data/memeTestQuestionsBasic";
 
 const Admin = () => {
   const { user, profile } = useAuth();
@@ -1576,6 +1577,62 @@ const Admin = () => {
     setLtqCorrectIdx(q.correct_index ?? 0); setLtqExplanation(q.explanation || "");
     setLtqMemeUrl(q.meme_image_url || ""); setLtqMemeFile(null); setLtqOrder(q.order ?? 0);
     setLtView("edit_question");
+  };
+
+  const handleSeedStarterTest = async () => {
+    setLtSaving(true);
+    try {
+      // Check if starter test already exists in database
+      const existingStarter = literacyTests.find(t => t.title?.toLowerCase().includes("starter") || t.is_starter_test);
+      if (existingStarter) {
+        setLtActiveTestId(existingStarter.id);
+        setLtView("questions");
+        triggerAlert("Starter test already exists in database! Opening its questions for editing.");
+        setLtSaving(false);
+        return;
+      }
+
+      // Create test document
+      const testData = {
+        title: "Meme Literacy Starter",
+        description: "New to meme literacy? Start here. 15 simple questions that cover the basics — what memes mean, why people share them, and how to spot when they might be misleading.",
+        difficulty: "beginner",
+        category: "Foundations",
+        badge_icon: "🌱",
+        badge_label: "Meme Starter",
+        pass_threshold: 60,
+        is_active: true,
+        is_starter_test: true,
+        question_count: basicQuestions.length,
+        created_at: serverTimestamp(),
+        created_by: user?.uid || "admin",
+      };
+      const testRef = await addDoc(collection(db, "literacy_tests"), testData);
+
+      // Create all 15 basic questions in Firestore
+      const promises = basicQuestions.map((q, i) => {
+        return addDoc(collection(db, "literacy_test_questions"), {
+          test_id: testRef.id,
+          question_text: q.question,
+          dimension: q.dimension || "General",
+          options: q.options,
+          correct_index: q.correctIndex,
+          explanation: q.explanation || "",
+          meme_image_url: q.memeUrl || "",
+          order: i,
+          created_at: serverTimestamp(),
+        });
+      });
+      await Promise.all(promises);
+      setLtActiveTestId(testRef.id);
+      setLtView("questions");
+      triggerAlert("🌱 Starter Meme Literacy Test imported to database! You can now edit any question, image, or answer.");
+    } catch (e) {
+      console.error(e);
+      triggerAlert(e.message || "Failed to seed starter test.", "error");
+    } finally {
+      setLtSaving(false);
+    }
   };
 
   return (
@@ -3991,13 +4048,23 @@ const Admin = () => {
         return (
           <div className="space-y-5">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <h2 className="text-xl font-extrabold">🧪 Literacy Tests</h2>
                 <p className="text-xs text-gray-400 mt-0.5">{literacyTests.length} tests · {literacyQuestions.length} total questions</p>
               </div>
               {(ltView === "list") && (
-                <button onClick={() => { ltResetTestForm(); setLtView("new_test"); }} className={ltBtnPrimary}>+ New Test</button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={handleSeedStarterTest} 
+                    disabled={ltSaving} 
+                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold px-3.5 py-2 rounded-lg text-xs transition flex items-center gap-1.5 shadow-sm"
+                    title="Import or open the built-in 15-question starter test for editing"
+                  >
+                    🌱 {ltSaving ? "Importing..." : "Seed Starter Test"}
+                  </button>
+                  <button onClick={() => { ltResetTestForm(); setLtView("new_test"); }} className={ltBtnPrimary}>+ New Test</button>
+                </div>
               )}
               {(ltView === "questions") && (
                 <button onClick={() => { ltResetQuestionForm(); setLtView("new_question"); }} className={ltBtnPrimary}>+ Add Question</button>
@@ -4007,7 +4074,30 @@ const Admin = () => {
             {/* LIST VIEW */}
             {ltView === "list" && (
               <div className={ltSectionClass}>
-                {literacyTests.length === 0 && <p className="text-sm text-gray-400 italic text-center py-8">No tests created yet. Click "+ New Test" to create the first one.</p>}
+                {literacyTests.length === 0 ? (
+                  <div className="p-6 rounded-2xl border-2 border-dashed border-purple-200 dark:border-purple-800/50 bg-purple-50/50 dark:bg-purple-950/20 text-center space-y-3">
+                    <span className="text-4xl block">🌱</span>
+                    <h3 className="font-extrabold text-base text-gray-800 dark:text-zinc-100">Ready to customize the Starter Assessment?</h3>
+                    <p className="text-xs text-gray-500 dark:text-zinc-400 max-w-md mx-auto">
+                      Import the built-in 15-question Meme Literacy Starter Test into your database. Once imported, you can customize any question, change answer options, and upload or link your own meme images.
+                    </p>
+                    <div className="flex justify-center gap-3 pt-1">
+                      <button 
+                        onClick={handleSeedStarterTest} 
+                        disabled={ltSaving} 
+                        className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md transition flex items-center gap-2"
+                      >
+                        🌱 {ltSaving ? "Importing Questions..." : "Import Starter Test to Database"}
+                      </button>
+                      <button 
+                        onClick={() => { ltResetTestForm(); setLtView("new_test"); }} 
+                        className={ltBtnGhost}
+                      >
+                        + Create Blank Test
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="space-y-3">
                   {literacyTests.map(test => (
                     <div key={test.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/50 hover:border-purple-300 dark:hover:border-purple-800 transition">
