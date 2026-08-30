@@ -215,7 +215,7 @@ export async function compileVideoMeme({
   textLayers = [],
   videoCaptions = "",
   videoTrimStart = 0,
-  videoTrimEnd = 15,
+  videoTrimEnd = 30,
   aspectRatio = "1:1",
   canvasBg = "#1e293b",
   onProgress
