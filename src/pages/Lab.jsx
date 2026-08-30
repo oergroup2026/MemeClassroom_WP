@@ -298,9 +298,9 @@ const Lab = () => {
   // --- Video Tab State ---
   const [videoUrl, setVideoUrl] = useState(MEDIA_SAMPLES?.video?.[0]?.url || "");
   const [videoFile, setVideoFile] = useState(null); // Raw File object
-  const [videoDuration, setVideoDuration] = useState(15);
+  const [videoDuration, setVideoDuration] = useState(30);
   const [videoTrimStart, setVideoTrimStart] = useState(0);
-  const [videoTrimEnd, setVideoTrimEnd] = useState(15);
+  const [videoTrimEnd, setVideoTrimEnd] = useState(30);
   // Phase 2E: timed captions — one per line, format: "0:02 – Caption text"
   const [videoCaptions, setVideoCaptions] = useState("");
   const [activeVideoCaptionText, setActiveVideoCaptionText] = useState("");
@@ -537,8 +537,8 @@ const Lab = () => {
     videoElement.src = URL.createObjectURL(file);
     videoElement.onloadedmetadata = () => {
       window.URL.revokeObjectURL(videoElement.src);
-      if (videoElement.duration >= 15) {
-        setAlertMessage("Video memes must be under 15 seconds");
+      if (videoElement.duration > 30) {
+        setAlertMessage("Video memes must be under 30 seconds");
         setVideoUrl("");
         setVideoFile(null);
       } else {
@@ -728,7 +728,7 @@ const Lab = () => {
     const handleLoadedMetadata = () => {
       if (video.duration) {
         setVideoDuration(video.duration);
-        if (videoTrimEnd === 15 || videoTrimEnd > video.duration) {
+        if (videoTrimEnd === 30 || videoTrimEnd > video.duration) {
           setVideoTrimEnd(video.duration);
         }
       }
@@ -822,30 +822,205 @@ const Lab = () => {
     }
   };
 
-  const handleTimelineMouseDown = (e, type) => {
-    e.preventDefault();
-    if (!timelineTrackRef.current) return;
-    const rect = timelineTrackRef.current.getBoundingClientRect();
-    const updateTime = (clientX) => {
-      const offset = clientX - rect.left;
-      const pct = Math.max(0, Math.min(1, offset / rect.width));
-      const targetTime = pct * videoDuration;
-      if (type === "start") {
-        setVideoTrimStart(Math.min(targetTime, videoTrimEnd - 0.5));
-      } else if (type === "end") {
-        setVideoTrimEnd(Math.max(targetTime, videoTrimStart + 0.5));
+  // --- Video Splitting States & Handlers ---
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [splitLoading, setSplitLoading] = useState(false);
+  const [splitProgress, setSplitProgress] = useState("");
+
+  const handleSplitVideoAtCurrentTime = () => {
+    if (!videoUrl) {
+      setAlertMessage("Please load a video first.");
+      return;
+    }
+    // Verify that current time is strictly between trim start and end with a 0.5s margin
+    if (videoCurrentTime <= videoTrimStart + 0.5 || videoCurrentTime >= videoTrimEnd - 0.5) {
+      setAlertMessage("Playhead must be at least 0.5s away from the trim handles to split.");
+      return;
+    }
+    setShowSplitModal(true);
+  };
+
+  const handleKeepLeftPart = () => {
+    setVideoTrimEnd(videoCurrentTime);
+    if (videoPlayerRef.current) {
+      videoPlayerRef.current.currentTime = videoTrimStart;
+    }
+    setShowSplitModal(false);
+    setAutoSaveToast("Trimmed to left part!");
+    setTimeout(() => setAutoSaveToast(""), 3000);
+  };
+
+  const handleKeepRightPart = () => {
+    setVideoTrimStart(videoCurrentTime);
+    if (videoPlayerRef.current) {
+      videoPlayerRef.current.currentTime = videoCurrentTime;
+    }
+    setShowSplitModal(false);
+    setAutoSaveToast("Trimmed to right part!");
+    setTimeout(() => setAutoSaveToast(""), 3000);
+  };
+
+  const handleDownloadBothParts = async () => {
+    setSplitLoading(true);
+    setSplitProgress("Initializing FFmpeg...");
+    try {
+      let fileToTrim = videoFile;
+      if (!fileToTrim && videoUrl) {
+        setSplitProgress("Fetching source video...");
+        const response = await fetch(videoUrl);
+        const blob = await response.blob();
+        fileToTrim = new File([blob], "source.mp4", { type: "video/mp4" });
       }
-    };
-    const handleMouseMove = (moveEvent) => {
-      updateTime(moveEvent.clientX);
-    };
-    const handleMouseUp = () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    updateTime(e.clientX);
+
+      if (!fileToTrim) throw new Error("No video file found.");
+
+      setSplitProgress("Trimming Part 1 (Left)...");
+      const part1Blob = await trimVideo(
+        fileToTrim, 
+        videoTrimStart, 
+        videoCurrentTime,
+        (p) => setSplitProgress(`Trimming Part 1: ${Math.round(p * 100)}%`)
+      );
+
+      setSplitProgress("Trimming Part 2 (Right)...");
+      const part2Blob = await trimVideo(
+        fileToTrim, 
+        videoCurrentTime, 
+        videoTrimEnd,
+        (p) => setSplitProgress(`Trimming Part 2: ${Math.round(p * 100)}%`)
+      );
+
+      setSplitProgress("Triggering downloads...");
+      const downloadBlob = (blob, filename) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
+      const baseName = title.trim() || "meme_split";
+      downloadBlob(part1Blob, `${baseName}_part1.mp4`);
+      downloadBlob(part2Blob, `${baseName}_part2.mp4`);
+
+      setShowSplitModal(false);
+      setAutoSaveToast("Successfully split and downloaded both parts!");
+      setTimeout(() => setAutoSaveToast(""), 4000);
+    } catch (err) {
+      console.error(err);
+      setAlertMessage(err.message || "Failed to split and download video.");
+    } finally {
+      setSplitLoading(false);
+      setSplitProgress("");
+    }
+  };
+
+  const handleSaveBothPartsAsDrafts = async () => {
+    if (!user) {
+      setAlertMessage("You must be logged in to save drafts.");
+      return;
+    }
+    setSplitLoading(true);
+    setSplitProgress("Initializing FFmpeg...");
+    try {
+      let fileToTrim = videoFile;
+      if (!fileToTrim && videoUrl) {
+        setSplitProgress("Fetching source video...");
+        const response = await fetch(videoUrl);
+        const blob = await response.blob();
+        fileToTrim = new File([blob], "source.mp4", { type: "video/mp4" });
+      }
+
+      if (!fileToTrim) throw new Error("No video file found.");
+
+      setSplitProgress("Trimming Part 1...");
+      const part1Blob = await trimVideo(
+        fileToTrim, 
+        videoTrimStart, 
+        videoCurrentTime,
+        (p) => setSplitProgress(`Trimming Part 1: ${Math.round(p * 100)}%`)
+      );
+
+      setSplitProgress("Trimming Part 2...");
+      const part2Blob = await trimVideo(
+        fileToTrim, 
+        videoCurrentTime, 
+        videoTrimEnd,
+        (p) => setSplitProgress(`Trimming Part 2: ${Math.round(p * 100)}%`)
+      );
+
+      setSplitProgress("Uploading Part 1...");
+      const storageRef1 = ref(storage, `memes/${user.uid}_part1_${Date.now()}.mp4`);
+      const snapshot1 = await uploadBytes(storageRef1, part1Blob);
+      const url1 = await getDownloadURL(snapshot1.ref);
+
+      setSplitProgress("Uploading Part 2...");
+      const storageRef2 = ref(storage, `memes/${user.uid}_part2_${Date.now()}.mp4`);
+      const snapshot2 = await uploadBytes(storageRef2, part2Blob);
+      const url2 = await getDownloadURL(snapshot2.ref);
+
+      const allCaptions = parseCaptionLines(videoCaptions);
+      const leftCaptions = allCaptions
+        .filter(c => c.time >= videoTrimStart && c.time < videoCurrentTime)
+        .map(c => ({ time: c.time - videoTrimStart, text: c.text }));
+      const rightCaptions = allCaptions
+        .filter(c => c.time >= videoCurrentTime && c.time <= videoTrimEnd)
+        .map(c => ({ time: c.time - videoCurrentTime, text: c.text }));
+
+      setSplitProgress("Saving Part 1 draft...");
+      const finalSubject = subject === "Other" ? (customSubject.trim() || "Other") : subject;
+      const finalLanguage = language === "Other" ? (customLanguage.trim() || "Other") : language;
+      const parsedKeywords = keywords ? keywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean) : [];
+      
+      const draftName = title.trim() || "Meme Video";
+      await addDoc(collection(db, "memes"), {
+        creator_id: user.uid,
+        title: `${draftName} (Part 1)`,
+        subject: finalSubject,
+        age_group: ageGroup,
+        format: "video",
+        language: finalLanguage,
+        keywords: parsedKeywords,
+        visibility: "draft",
+        media_url: url1,
+        media_urls_json: "[]",
+        text_layers_json: JSON.stringify(textLayers),
+        captions_json: JSON.stringify(leftCaptions),
+        template_id: templateId || "",
+        created_at: serverTimestamp()
+      });
+
+      setSplitProgress("Saving Part 2 draft...");
+      await addDoc(collection(db, "memes"), {
+        creator_id: user.uid,
+        title: `${draftName} (Part 2)`,
+        subject: finalSubject,
+        age_group: ageGroup,
+        format: "video",
+        language: finalLanguage,
+        keywords: parsedKeywords,
+        visibility: "draft",
+        media_url: url2,
+        media_urls_json: "[]",
+        text_layers_json: JSON.stringify(textLayers),
+        captions_json: JSON.stringify(rightCaptions),
+        template_id: templateId || "",
+        created_at: serverTimestamp()
+      });
+
+      setShowSplitModal(false);
+      setAutoSaveToast("Saved both parts to your library drafts!");
+      setTimeout(() => setAutoSaveToast(""), 4000);
+    } catch (err) {
+      console.error(err);
+      setAlertMessage(err.message || "Failed to split and save drafts.");
+    } finally {
+      setSplitLoading(false);
+      setSplitProgress("");
+    }
   };
 
   // --- Background Auto-Save Worker (30 Seconds) ---
@@ -1589,7 +1764,7 @@ const Lab = () => {
                 style={{ width: `${Math.round(ffmpegProgress * 100)}%` }}
               />
             </div>
-            <p className="text-gray-400 text-xs">{Math.round(ffmpegProgress * 100)}% — this may take 15–30 seconds</p>
+            <p className="text-gray-400 text-xs">{Math.round(ffmpegProgress * 100)}% — this may take approx. {Math.round(videoTrimEnd - videoTrimStart)}–{Math.round((videoTrimEnd - videoTrimStart) * 2)} seconds</p>
           </div>
         </div>
       )}
@@ -1997,7 +2172,7 @@ const Lab = () => {
                         <svg className="w-6 h-6 text-gray-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
-                        <span className="text-[11px] text-gray-500">Drop video or <span className="text-purple-600 font-semibold">browse</span> (&lt;15s)</span>
+                        <span className="text-[11px] text-gray-500">Drop video or <span className="text-purple-600 font-semibold">browse</span> (&lt;30s)</span>
                       </div>
 
                       <div>
@@ -3118,6 +3293,15 @@ const Lab = () => {
                               <span>➕</span>
                               <span>Add Subtitle at Playhead</span>
                             </button>
+                            <button
+                              type="button"
+                              onClick={handleSplitVideoAtCurrentTime}
+                              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-purple-650 text-white font-bold text-[10px] transition flex items-center gap-1 border border-zinc-700 hover:border-purple-500 active:scale-95"
+                              title="Split video clip at current playhead position"
+                            >
+                              <span>✂️</span>
+                              <span>Split at Playhead</span>
+                            </button>
                           </div>
                         </div>
 
@@ -3201,23 +3385,6 @@ const Lab = () => {
                             }
                           </div>
 
-                          {/* Trim Start Handle */}
-                          <div 
-                            className="no-snap absolute top-0 bottom-0 w-2.5 bg-purple-600 hover:bg-purple-500 cursor-ew-resize flex items-center justify-center border-r border-black/40 shadow-md"
-                            style={{ left: `${(videoTrimStart / videoDuration) * 100}%` }}
-                            onMouseDown={(e) => handleTimelineMouseDown(e, "start")}
-                          >
-                            <div className="w-[1px] h-3 bg-white/50" />
-                          </div>
-
-                          {/* Trim End Handle */}
-                          <div 
-                            className="no-snap absolute top-0 bottom-0 w-2.5 bg-purple-600 hover:bg-purple-500 cursor-ew-resize flex items-center justify-center border-l border-black/40 shadow-md"
-                            style={{ left: `${(videoTrimEnd / videoDuration) * 100}%`, transform: 'translateX(-100%)' }}
-                            onMouseDown={(e) => handleTimelineMouseDown(e, "end")}
-                          >
-                            <div className="w-[1px] h-3 bg-white/50" />
-                          </div>
 
                           {/* Red Playhead line */}
                           <div 
@@ -3886,6 +4053,79 @@ const Lab = () => {
           setImages(prev => [...prev, mediaUrl]);
         }}
       />
+
+      {/* VIDEO SPLITTING MODAL */}
+      {showSplitModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white dark:bg-zinc-900 border border-gray-150 dark:border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 relative animate-scaleIn">
+            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+              <span>✂️</span> Split Video Clip
+            </h3>
+            <p className="text-xs text-gray-550 dark:text-zinc-400 mb-6">
+              Split the video at the current playhead position: <strong className="text-purple-600 font-mono">{videoCurrentTime.toFixed(1)}s</strong>.
+            </p>
+
+            {splitLoading ? (
+              <div className="py-6 flex flex-col items-center justify-center gap-3">
+                <div className="w-8 h-8 border-3 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-gray-600 dark:text-zinc-300 font-medium">{splitProgress}</span>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleKeepLeftPart}
+                    className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/60 hover:bg-purple-50 dark:hover:bg-purple-950/20 hover:border-purple-300 transition text-center"
+                  >
+                    <span className="text-lg mb-1">👈</span>
+                    <span className="text-xs font-bold text-gray-800 dark:text-zinc-200">Keep Left Part</span>
+                    <span className="text-[10px] text-gray-500 mt-0.5">{videoTrimStart.toFixed(1)}s – {videoCurrentTime.toFixed(1)}s</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleKeepRightPart}
+                    className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/60 hover:bg-purple-50 dark:hover:bg-purple-950/20 hover:border-purple-300 transition text-center"
+                  >
+                    <span className="text-lg mb-1">👉</span>
+                    <span className="text-xs font-bold text-gray-800 dark:text-zinc-200">Keep Right Part</span>
+                    <span className="text-[10px] text-gray-500 mt-0.5">{videoCurrentTime.toFixed(1)}s – {videoTrimEnd.toFixed(1)}s</span>
+                  </button>
+                </div>
+
+                <div className="pt-2 space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleDownloadBothParts}
+                    className="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 active:scale-95 shadow-md shadow-purple-500/10"
+                  >
+                    <span>⬇️</span> Download Both Parts
+                  </button>
+
+                  {user && (
+                    <button
+                      type="button"
+                      onClick={handleSaveBothPartsAsDrafts}
+                      className="w-full py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
+                    >
+                      <span>📁</span> Save Both as Library Drafts
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowSplitModal(false)}
+                    className="w-full py-2 px-4 rounded-xl border border-gray-250 dark:border-zinc-800 text-gray-600 dark:text-zinc-400 font-semibold text-xs hover:bg-gray-50 dark:hover:bg-zinc-800 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* AI QUOTA & AD-GATE MODAL */}
       <AiQuotaModal
