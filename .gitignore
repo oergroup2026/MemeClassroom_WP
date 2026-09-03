@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+.firebase
 
 # Environment variable files — never commit real keys
 .env
