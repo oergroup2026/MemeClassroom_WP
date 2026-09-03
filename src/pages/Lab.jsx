@@ -3671,6 +3671,19 @@ const Lab = () => {
             {/* Clearer Call-To-Action (CTA) Grid */}
             {user ? (
               <div className="flex flex-col gap-2 mt-6 border-t pt-4 border-gray-100 dark:border-zinc-800">
+                {/* CC licence disclosure — users must see this before publishing */}
+                <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center leading-relaxed px-2">
+                  By publishing, you release this meme under the{" "}
+                  <a
+                    href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-500 hover:underline font-semibold"
+                  >
+                    CC BY-NC-SA 4.0
+                  </a>{" "}
+                  licence — others may share and adapt it non-commercially with attribution.
+                </p>
                 <button
                   type="button"
                   onClick={() => handlePublishSubmit(true)}

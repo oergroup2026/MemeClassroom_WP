@@ -1,9 +1,116 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
+
+    // ── Helper functions ─────────────────────────────────────────────────────
+
+    // True only when the request comes from a signed-in user
+    function isLoggedIn() {
+      return request.auth != null;
     }
+
+    // True only when the request comes from files that start with one of
+    // the allowed MIME types (e.g. "image/jpeg", "image/png")
+    function isImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isVideoType() {
+      return request.resource.contentType.matches('video/.*');
+    }
+
+    function isAudioType() {
+      return request.resource.contentType.matches('audio/.*');
+    }
+
+    function isDocumentType() {
+      // PDF and common office formats
+      return request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/msword') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*') ||
+             request.resource.contentType.matches('application/vnd.ms-.*');
+    }
+
+    // Size helpers (in bytes)
+    function maxMB(n) {
+      return n * 1024 * 1024;
+    }
+
+    // ── ID Card uploads ──────────────────────────────────────────────────────
+    // Only the owning user may upload their own ID card.
+    // Reads are fully blocked from the client — only Cloud Functions /
+    // Admin SDK (which bypass these rules) may read ID cards.
+    // This prevents any client, including admins in the browser, from
+    // directly downloading a raw ID card file.
+    match /id_cards/{fileName} {
+      allow read: if false;  // Admin access is via Firebase Admin SDK, not client SDK
+      allow write: if isLoggedIn()
+        && isImageType()
+        && request.resource.size <= maxMB(5)
+        && fileName.matches(request.auth.uid + '_id');  // user can only upload their own
+    }
+
+    // ── User avatar / profile photo ──────────────────────────────────────────
+    match /users/{userId}/avatar/{fileName} {
+      allow read: if true;
+      allow write: if isLoggedIn()
+        && request.auth.uid == userId
+        && isImageType()
+        && request.resource.size <= maxMB(5);
+    }
+
+    // ── Meme media (images, GIFs, video clips, audio audiograms) ────────────
+    match /memes/{allPaths=**} {
+      allow read: if true;
+      allow write: if isLoggedIn()
+        && (isImageType() || isVideoType() || isAudioType())
+        && request.resource.size <= maxMB(100);
+    }
+
+    // ── Meme templates ──────────────────────────────────────────────────────
+    match /templates/{allPaths=**} {
+      allow read: if true;
+      allow write: if isLoggedIn()
+        && (isImageType() || isVideoType())
+        && request.resource.size <= maxMB(20);
+    }
+
+    // ── Resource thumbnails & attachments ───────────────────────────────────
+    match /resources/{allPaths=**} {
+      allow read: if true;
+      allow write: if isLoggedIn()
+        && (isImageType() || isVideoType() || isAudioType() || isDocumentType())
+        && request.resource.size <= maxMB(50);
+    }
+
+    // ── Staffroom post attachments ───────────────────────────────────────────
+    // Documents (PDF, Word, PowerPoint), images only — no executables
+    match /staffroom/{allPaths=**} {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn()
+        && (isImageType() || isDocumentType())
+        && request.resource.size <= maxMB(20);
+    }
+
+    // ── Admin uploads (sponsored ads, marketing assets, etc.) ───────────────
+    match /admin/{allPaths=**} {
+      allow read: if true;
+      allow write: if isLoggedIn()
+        && (isImageType() || isVideoType() || isAudioType())
+        && request.resource.size <= maxMB(100);
+    }
+
+    // ── Lab / canvas exports ─────────────────────────────────────────────────
+    // Images exported from the meme canvas editor
+    match /lab_exports/{allPaths=**} {
+      allow read: if true;
+      allow write: if isLoggedIn()
+        && isImageType()
+        && request.resource.size <= maxMB(10);
+    }
+
+    // ── Fallback: deny all other paths ───────────────────────────────────────
+    // Any path not explicitly matched above is denied by default.
+    // This makes the rules "allowlist" style — new paths must be deliberately added.
   }
 }

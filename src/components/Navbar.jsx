@@ -6,6 +6,7 @@ import {
   collection,
   query,
   where,
+  orderBy,
   limit,
   onSnapshot,
   updateDoc,
@@ -110,16 +111,18 @@ const Navbar = () => {
       setNotifications([]);
       return;
     }
+    // Fetch the 20 most recent notifications server-side; display caps at 10 in the UI.
+    // Using orderBy + limit avoids reading the entire notification history on every page load.
     const q = query(
       collection(db, "notifications"),
-      where("user_id", "==", user.uid)
+      where("user_id", "==", user.uid),
+      orderBy("created_at", "desc"),
+      limit(20)
     );
     const unsub = onSnapshot(q, (snap) => {
       const list = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
-      // Newest first
-      list.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
-      setNotifications(list.slice(0, 10)); // cap at 10
+      setNotifications(list.slice(0, 10)); // cap display at 10
     });
     return () => unsub();
   }, [user]);

@@ -54,7 +54,7 @@ const About = () => {
           </h2>
           <div className="bg-white/20 dark:bg-black/20 p-2 rounded-lg border border-gray-200/30">
             <img
-              src="/Meme Pedagogy.png"
+              src="/meme-pedagogy.jpg"
               alt="Meme Pedagogy Framework Graphic"
               className="mx-auto rounded-md shadow-sm max-h-[350px] object-contain"
             />

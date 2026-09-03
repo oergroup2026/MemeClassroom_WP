@@ -18,6 +18,8 @@ import About from './pages/About';
 import NotFound from './pages/NotFound';
 import MemeLiteracyTest from './pages/MemeLiteracyTest';
 import WelcomeModal from './components/WelcomeModal';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import { useUdl } from './context/UdlContext';
 
 function App() {
@@ -76,6 +78,10 @@ function App() {
               <Admin />
             </ProtectedRoute>
           } />
+
+          {/* Legal pages */}
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
 
           {/* Catch-all 404 */}
           <Route path="*" element={<NotFound />} />
