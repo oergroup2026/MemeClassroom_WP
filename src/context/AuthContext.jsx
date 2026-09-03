@@ -177,9 +177,7 @@ export const AuthProvider = ({ children }) => {
     // Check redirect result to capture redirect sign-in errors
     getRedirectResult(auth)
       .then((result) => {
-        if (result?.user) {
-          console.log("Successfully authenticated via redirect:", result.user.email);
-        }
+        // Redirect sign-in succeeded — no action needed here; onAuthStateChanged handles profile load
       })
       .catch((error) => {
         console.error("Firebase redirect sign-in error:", error);

@@ -70,6 +70,22 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link
+                  to="/privacy"
+                  className="text-xs text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition"
+                >
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/terms"
+                  className="text-xs text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition"
+                >
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
                 <a
                   href="mailto:memeclassroom@gmail.com"
                   className="text-xs text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition"

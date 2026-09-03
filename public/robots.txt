@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Allow: /library
+Allow: /resources
+Allow: /about
+Allow: /meme-literacy-test
+Allow: /auth
+
+# Disallow personal and privileged pages
+Disallow: /profile
+Disallow: /admin
+
+# Disallow internal redirect pages
+Disallow: /more-resources
+
+Sitemap: https://memeclassroom-98d2b.web.app/sitemap.xml

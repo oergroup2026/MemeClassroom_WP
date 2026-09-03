@@ -1,15 +1,25 @@
 @echo off
+setlocal
+cd /d "%~dp0"
+
 echo ===================================================
-echo   MemeClassroom - Building and Deploying to Firebase
+echo   MemeClassroom - Build & Deploy to Firebase
 echo ===================================================
 echo.
 
-:: Check if user is logged into Firebase
-echo [1/3] Checking Firebase authentication status...
-call npx firebase-tools login
+:: 1. Firebase Login Check
+echo [1/3] Ensuring Firebase authentication...
+call firebase login
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo [ERROR] Firebase login failed or was cancelled.
+    pause
+    exit /b %ERRORLEVEL%
+)
 
+:: 2. Production Build
 echo.
-echo [2/3] Building the production application (Vite)...
+echo [2/3] Building production assets (Vite)...
 call npm run build
 if %ERRORLEVEL% neq 0 (
     echo.
@@ -18,9 +28,10 @@ if %ERRORLEVEL% neq 0 (
     exit /b %ERRORLEVEL%
 )
 
+:: 3. Deploy everything
 echo.
-echo [3/3] Deploying build output and Firestore/Storage configurations to Firebase...
-call npx firebase-tools deploy
+echo [3/3] Deploying Hosting, Rules (Firestore & Storage), and Cloud Functions...
+call firebase deploy --only hosting,firestore:rules,storage,functions
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [ERROR] Firebase deployment failed!
@@ -30,8 +41,8 @@ if %ERRORLEVEL% neq 0 (
 
 echo.
 echo ===================================================
-echo   SUCCESS! Your app is live at:
-echo   https://memeclassroom-98d2b.web.app/
+echo   SUCCESS! Deployment Complete!
+echo   Your live app: https://memeclassroom-98d2b.web.app/
 echo ===================================================
 echo.
 pause
