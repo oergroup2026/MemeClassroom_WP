@@ -8,7 +8,13 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithRedirect,
-  getRedirectResult
+  getRedirectResult,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink as firebaseSignInWithEmailLink,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  setPersistence
 } from "firebase/auth";
 import {
   doc,
@@ -105,12 +111,54 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Handle email/password sign in
-  const signInWithEmail = async (email, password) => {
+  // rememberMe=true → LOCAL persistence (survives browser restart)
+  // rememberMe=false → SESSION persistence (cleared when tab closes)
+  const signInWithEmail = async (email, password, rememberMe = true) => {
+    const persistenceMode = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+    await setPersistence(auth, persistenceMode);
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       setLoading(false);
       return userCredential.user;
+    } catch (error) {
+      setLoading(false);
+      throw error;
+    }
+  };
+
+  // ── Magic Link Sign-In ──────────────────────────────────────────────────────
+
+  // Send a passwordless sign-in link to email
+  const sendMagicLink = async (email) => {
+    const actionCodeSettings = {
+      url: `${window.location.origin}/auth`,
+      handleCodeInApp: true,
+    };
+    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+    // Persist email locally so we can complete sign-in on return
+    window.localStorage.setItem("mcEmailForSignIn", email);
+  };
+
+  // Returns true if the given URL is a valid email sign-in link
+  const isMagicLinkUrl = (url) => isSignInWithEmailLink(auth, url);
+
+  // Complete the magic link sign-in flow (called after user clicks link in email)
+  const completeMagicLinkSignIn = async (url, rememberMe = true) => {
+    if (!isSignInWithEmailLink(auth, url)) {
+      throw new Error("Not a valid sign-in link.");
+    }
+    const storedEmail = window.localStorage.getItem("mcEmailForSignIn");
+    if (!storedEmail) {
+      throw new Error("EMAIL_NEEDED");
+    }
+    const persistenceMode = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+    await setPersistence(auth, persistenceMode);
+    setLoading(true);
+    try {
+      const result = await firebaseSignInWithEmailLink(auth, storedEmail, url);
+      window.localStorage.removeItem("mcEmailForSignIn");
+      return result.user;
     } catch (error) {
       setLoading(false);
       throw error;
@@ -250,7 +298,10 @@ export const AuthProvider = ({ children }) => {
       signInWithGoogle,
       completeGoogleOnboarding,
       signOut,
-      resetPassword
+      resetPassword,
+      sendMagicLink,
+      completeMagicLinkSignIn,
+      isMagicLinkUrl,
     }}>
       {children}
     </AuthContext.Provider>

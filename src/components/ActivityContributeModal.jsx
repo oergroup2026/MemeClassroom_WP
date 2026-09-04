@@ -689,9 +689,14 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
         </form>
 
         <div className="px-6 py-4 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between gap-3 flex-shrink-0">
-          <p className="text-[10px] text-gray-400">
-            {isEditing ? "✏️ Updating activity" : "⏳ Will be posted live with a \"Pending Approval\" badge"}
-          </p>
+          <div className="flex-1">
+            <p className="text-[10px] text-gray-400">
+              {isEditing ? "✏️ Updating activity" : "⏳ Will be posted live with a \"Pending Approval\" badge"}
+            </p>
+            <p className="text-[10px] text-purple-600/80 dark:text-purple-400/80 font-medium">
+              📚 Shared under Creative Commons CC BY-NC-SA 4.0 for non-commercial educational instruction.
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onClose}
               className="px-4 py-2 text-xs font-bold border border-gray-300 dark:border-zinc-700 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition text-gray-600 dark:text-gray-300">

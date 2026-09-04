@@ -3671,19 +3671,24 @@ const Lab = () => {
             {/* Clearer Call-To-Action (CTA) Grid */}
             {user ? (
               <div className="flex flex-col gap-2 mt-6 border-t pt-4 border-gray-100 dark:border-zinc-800">
-                {/* CC licence disclosure — users must see this before publishing */}
-                <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center leading-relaxed px-2">
-                  By publishing, you release this meme under the{" "}
-                  <a
-                    href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-purple-500 hover:underline font-semibold"
-                  >
-                    CC BY-NC-SA 4.0
-                  </a>{" "}
-                  licence — others may share and adapt it non-commercially with attribution.
-                </p>
+                {/* CC licence & Educational Fair Use disclosure */}
+                <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 text-center space-y-1">
+                  <p className="text-[10px] text-gray-600 dark:text-gray-300 leading-relaxed">
+                    💡 <strong>Educational Fair Use:</strong> Memes created here are for non-commercial learning, teaching, and criticism (Indian Copyright Act Sec 52 & Fair Use).
+                  </p>
+                  <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-relaxed">
+                    Published under{" "}
+                    <a
+                      href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-500 hover:underline font-semibold"
+                    >
+                      CC BY-NC-SA 4.0
+                    </a>{" "}
+                    — others may share and remix non-commercially with attribution.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => handlePublishSubmit(true)}
