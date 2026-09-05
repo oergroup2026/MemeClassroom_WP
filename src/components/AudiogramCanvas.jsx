@@ -134,7 +134,11 @@ async function drawAudiogramCard({
     const badgeY = 20;
     ctx.fillStyle = accentColor || "#a78bfa";
     ctx.beginPath();
-    ctx.roundRect(badgeX, badgeY, badgeW, 20, 10);
+    if (typeof ctx.roundRect === "function") {
+      ctx.roundRect(badgeX, badgeY, badgeW, 20, 10);
+    } else {
+      ctx.rect(badgeX, badgeY, badgeW, 20);
+    }
     ctx.fill();
     ctx.fillStyle = "#ffffff";
     ctx.textBaseline = "middle";
@@ -165,7 +169,11 @@ async function drawAudiogramCard({
     ctx.fillStyle = barGrad;
 
     ctx.beginPath();
-    ctx.roundRect(x, y, barW, barH, 2);
+    if (typeof ctx.roundRect === "function") {
+      ctx.roundRect(x, y, barW, barH, 2);
+    } else {
+      ctx.rect(x, y, barW, barH);
+    }
     ctx.fill();
   });
 

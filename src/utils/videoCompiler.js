@@ -25,6 +25,7 @@ async function compileVideoMemeCanvas({
   height,
   scale,
   canvasBg,
+  subtitlePosition = "bottom",
   onProgress
 }) {
   return new Promise((resolve, reject) => {
@@ -184,7 +185,13 @@ async function compileVideoMemeCanvas({
               }
               lines.push(line.trim());
               const blockH = lines.length * (size + 6 * scale);
-              const by = height - 60 * scale - blockH;
+              let by = height - 60 * scale - blockH;
+              if (subtitlePosition === "top") {
+                by = 40 * scale;
+              } else if (subtitlePosition === "middle") {
+                by = (height - blockH) / 2;
+              }
+
               lines.forEach((l, i) => {
                 const ly = by + (i + 1) * (size + 4 * scale);
                 ctx.strokeStyle = "#000000";
@@ -218,6 +225,7 @@ export async function compileVideoMeme({
   videoTrimEnd = 30,
   aspectRatio = "1:1",
   canvasBg = "#1e293b",
+  subtitlePosition = "bottom",
   onProgress
 }) {
   // 1. Setup layout dimensions
@@ -339,7 +347,12 @@ export async function compileVideoMeme({
       lines.push(line.trim());
 
       const blockH = lines.length * (subtitleFontSize + 6 * scale);
-      const by = height - 60 * scale - blockH;
+      let by = height - 60 * scale - blockH;
+      if (subtitlePosition === "top") {
+        by = 40 * scale;
+      } else if (subtitlePosition === "middle") {
+        by = (height - blockH) / 2;
+      }
 
       lines.forEach((l, lineIdx) => {
         const ly = by + (lineIdx + 1) * (subtitleFontSize + 4 * scale);
@@ -472,6 +485,7 @@ export async function compileVideoMeme({
       height,
       scale,
       canvasBg,
+      subtitlePosition,
       onProgress
     });
   }

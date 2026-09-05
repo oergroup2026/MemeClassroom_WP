@@ -75,7 +75,7 @@ const TourOverlay = ({
     };
   }, [isOpen, stepData]);
 
-  if (!isOpen || !stepData) return null;
+  if (!isOpen || !stepData || typeof document === 'undefined' || !document.body) return null;
 
   const isLastStep = currentStep === totalSteps - 1;
 
