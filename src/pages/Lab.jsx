@@ -459,9 +459,10 @@ const Lab = () => {
   const canvasContainerRef = useRef(null);
   const videoPlayerRef = useRef(null);
   const timelineTrackRef = useRef(null);
-  const [videoCurrentTime, setVideoCurrentTime] = useState(0);
-  const audioPlayerRef = useRef(null);
   const dragInfoRef = useRef({ isDragging: false, textId: null, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
+  const resizeInfoRef = useRef({ isResizing: false, handle: null, textId: null, startX: 0, startY: 0, startFontSize: 24 });
+  const [activeTool, setActiveTool] = useState("text"); // "select" | "text" | "media" | "video" | "templates" | "filters" | "layers"
+  const [showRightInspector, setShowRightInspector] = useState(true);
 
   // Drag and Drop files upload state
   const [isDragOverDropzone, setIsDragOverDropzone] = useState(false);
@@ -601,7 +602,53 @@ const Lab = () => {
     };
   };
 
+  const handleResizePointerDown = (e, textId, handle) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedTextId(textId);
+    const layer = textLayers.find(l => l.id === textId);
+    if (!layer) return;
+
+    resizeInfoRef.current = {
+      isResizing: true,
+      handle: handle,
+      textId: textId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startFontSize: layer.fontSize || 24
+    };
+  };
+
   const handlePointerMove = (e) => {
+    if (resizeInfoRef.current.isResizing) {
+      const rInfo = resizeInfoRef.current;
+      const deltaX = e.clientX - rInfo.startX;
+      const deltaY = e.clientY - rInfo.startY;
+
+      let delta = 0;
+      if (rInfo.handle === "se") {
+        delta = deltaX + deltaY;
+      } else if (rInfo.handle === "sw") {
+        delta = -deltaX + deltaY;
+      } else if (rInfo.handle === "ne") {
+        delta = deltaX - deltaY;
+      } else if (rInfo.handle === "nw") {
+        delta = -deltaX - deltaY;
+      }
+
+      const newFontSize = Math.max(10, Math.min(180, Math.round(rInfo.startFontSize + delta * 0.3)));
+
+      setTextLayers(prev =>
+        prev.map(layer => {
+          if (layer.id === rInfo.textId) {
+            return { ...layer, fontSize: newFontSize };
+          }
+          return layer;
+        })
+      );
+      return;
+    }
+
     if (!dragInfoRef.current.isDragging) return;
     const info = dragInfoRef.current;
     
@@ -624,6 +671,31 @@ const Lab = () => {
 
   const handlePointerUp = () => {
     dragInfoRef.current.isDragging = false;
+    resizeInfoRef.current.isResizing = false;
+  };
+
+  const moveLayerUp = (id) => {
+    setTextLayers(prev => {
+      const idx = prev.findIndex(l => l.id === id);
+      if (idx <= 0) return prev;
+      const copy = [...prev];
+      const temp = copy[idx];
+      copy[idx] = copy[idx - 1];
+      copy[idx - 1] = temp;
+      return copy;
+    });
+  };
+
+  const moveLayerDown = (id) => {
+    setTextLayers(prev => {
+      const idx = prev.findIndex(l => l.id === id);
+      if (idx === -1 || idx >= prev.length - 1) return prev;
+      const copy = [...prev];
+      const temp = copy[idx];
+      copy[idx] = copy[idx + 1];
+      copy[idx + 1] = temp;
+      return copy;
+    });
   };
 
   const addTextLayer = () => {
@@ -1720,24 +1792,171 @@ const Lab = () => {
   return (
     <div className="max-w-6xl mx-auto py-2 px-4" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
       
-      {/* Toolbar row — action buttons only */}
-      <div className="flex items-center justify-end gap-2 mb-4">
+      {/* ── TOP PHOTOSHOP CONTROL OPTIONS BAR ─────────────────────────── */}
+      <div className="bg-slate-900 border border-slate-800 text-white rounded-xl p-2.5 mb-3 flex flex-wrap items-center justify-between gap-3 shadow-lg select-none">
+        {/* Left section: Studio Logo + Format Quick Pills */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-600/30 border border-purple-500/50 rounded-lg text-xs font-black tracking-wider text-purple-300">
+            <span>🎨</span>
+            <span>MEME STUDIO</span>
+          </div>
+
+          <div className="h-4 w-px bg-slate-800 hidden sm:block" />
+
+          {/* Quick Format tabs */}
+          <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+            {[("image"), ("video"), ("gif"), ("audio")].map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => { setActiveTab(tab); setAlertMessage(""); }}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold capitalize transition flex items-center gap-1 ${
+                  activeTab === tab
+                    ? "bg-purple-600 text-white shadow"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                {TAB_ICONS[tab]}
+                <span className="capitalize">{tab}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Center section: Active Layer Contextual Control Bar */}
+        <div className="flex items-center gap-2 overflow-x-auto py-0.5 max-w-full">
+          {activeTextLayer ? (
+            <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700 px-3 py-1 rounded-lg text-xs">
+              <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Text Layer</span>
+              
+              {/* Font family picker */}
+              <select
+                value={activeTextLayer.fontFamily || "Impact"}
+                onChange={(e) => updateTextLayer("fontFamily", e.target.value)}
+                className="bg-slate-900 border border-slate-700 text-white text-[11px] rounded px-1.5 py-0.5 focus:outline-none"
+              >
+                <option value="Impact">Impact</option>
+                <option value="Arial">Arial Black</option>
+                <option value="Comic Sans MS">Comic Sans</option>
+                <option value="Courier New">Courier</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Trebuchet MS">Trebuchet</option>
+              </select>
+
+              {/* Font size */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-slate-400">Size</span>
+                <input
+                  type="number"
+                  min="10"
+                  max="180"
+                  value={activeTextLayer.fontSize || 24}
+                  onChange={(e) => updateTextLayer("fontSize", parseInt(e.target.value) || 24)}
+                  className="w-12 bg-slate-900 border border-slate-700 text-white text-[11px] text-center rounded py-0.5"
+                />
+              </div>
+
+              {/* Text color */}
+              <label className="flex items-center gap-1 cursor-pointer" title="Text Color">
+                <span className="text-[10px] text-slate-400">Color</span>
+                <input
+                  type="color"
+                  value={activeTextLayer.color || "#FFFFFF"}
+                  onChange={(e) => updateTextLayer("color", e.target.value)}
+                  className="w-5 h-5 rounded cursor-pointer border border-slate-700 p-0 bg-transparent"
+                />
+              </label>
+
+              {/* Layer re-order */}
+              <div className="flex items-center gap-0.5 pl-1 border-l border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => moveLayerUp(activeTextLayer.id)}
+                  title="Move Up"
+                  className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-[10px] font-bold"
+                >▲</button>
+                <button
+                  type="button"
+                  onClick={() => moveLayerDown(activeTextLayer.id)}
+                  title="Move Down"
+                  className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-[10px] font-bold"
+                >▼</button>
+              </div>
+
+              {/* Duplicate & Delete */}
+              <button
+                type="button"
+                onClick={duplicateSelectedText}
+                className="px-2 py-0.5 bg-purple-600/40 hover:bg-purple-600 text-purple-200 hover:text-white rounded text-[10px] font-bold"
+              >
+                Copy
+              </button>
+              <button
+                type="button"
+                onClick={deleteSelectedText}
+                className="px-2 py-0.5 bg-red-600/40 hover:bg-red-600 text-red-200 hover:text-white rounded text-[10px] font-bold"
+              >
+                Delete
+              </button>
+            </div>
+          ) : activeTab === "video" ? (
+            <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700 px-3 py-1 rounded-lg text-xs">
+              <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Video Studio</span>
+              <span className="text-[11px] text-slate-300 font-mono">
+                Trim: {videoTrimStart.toFixed(1)}s – {videoTrimEnd.toFixed(1)}s
+              </span>
+              <button
+                type="button"
+                onClick={handleSplitVideoAtCurrentTime}
+                className="px-2 py-0.5 bg-amber-600/40 hover:bg-amber-600 text-amber-200 hover:text-white rounded text-[10px] font-bold flex items-center gap-1"
+              >
+                <span>✂️ Split</span>
+              </button>
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-400 italic">
+              Select any text layer on canvas to customize font, colors & scaling
+            </div>
+          )}
+        </div>
+
+        {/* Right section: Global Actions */}
+        <div className="flex items-center gap-2">
+          {/* Undo / Redo */}
+          <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+            <button
+              type="button"
+              onClick={undoTextLayers}
+              disabled={!canUndo}
+              title="Undo (Ctrl+Z)"
+              className="px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-30"
+            >↩</button>
+            <button
+              type="button"
+              onClick={redoTextLayers}
+              disabled={!canRedo}
+              title="Redo (Ctrl+Y)"
+              className="px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-30"
+            >↪</button>
+          </div>
+
           <button
-            onClick={() => setShowTutorialModal(true)}
-            title="Tutorial & Guidelines"
-            className="flex items-center gap-1.5 border border-gray-200 dark:border-zinc-700 hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 text-gray-500 dark:text-gray-400 hover:text-purple-600 text-xs font-semibold px-3 py-2 rounded-lg transition"
+            type="button"
+            onClick={() => setShowAiModal(true)}
+            className="bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/50 font-bold text-xs px-3 py-1.5 rounded-lg transition flex items-center gap-1"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01"/></svg>
-            <span className="hidden sm:inline">Guide</span>
+            <span>⚡ AI Punchlines</span>
           </button>
+
           <button
-            id="lab-publish-btn"
+            type="button"
             onClick={() => setShowSaveModal(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition text-xs flex items-center gap-1.5"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-4 py-1.5 rounded-lg shadow transition flex items-center gap-1.5"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             <span>Export</span>
           </button>
+        </div>
       </div>
 
       {alertMessage && (
@@ -2919,6 +3138,30 @@ const Lab = () => {
                         />
                       ) : (
                         layer.text
+                      )}
+                      {selectedTextId === layer.id && (
+                        <>
+                          <div
+                            onPointerDown={(e) => handleResizePointerDown(e, layer.id, "nw")}
+                            className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-purple-600 border-2 border-white rounded-full cursor-nw-resize z-30 shadow-md hover:scale-125 transition"
+                            title="Drag to resize text font size"
+                          />
+                          <div
+                            onPointerDown={(e) => handleResizePointerDown(e, layer.id, "ne")}
+                            className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-purple-600 border-2 border-white rounded-full cursor-ne-resize z-30 shadow-md hover:scale-125 transition"
+                            title="Drag to resize text font size"
+                          />
+                          <div
+                            onPointerDown={(e) => handleResizePointerDown(e, layer.id, "sw")}
+                            className="absolute -bottom-1.5 -left-1.5 w-3.5 h-3.5 bg-purple-600 border-2 border-white rounded-full cursor-sw-resize z-30 shadow-md hover:scale-125 transition"
+                            title="Drag to resize text font size"
+                          />
+                          <div
+                            onPointerDown={(e) => handleResizePointerDown(e, layer.id, "se")}
+                            className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 bg-purple-600 border-2 border-white rounded-full cursor-se-resize z-30 shadow-md hover:scale-125 transition"
+                            title="Drag to resize text font size"
+                          />
+                        </>
                       )}
                     </div>
                   ))}

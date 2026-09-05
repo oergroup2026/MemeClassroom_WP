@@ -91,6 +91,7 @@ const Library = () => {
 
   // Sidebar Filter Options
   const [searchParams] = useSearchParams();
+  const [activeFeed, setActiveFeed] = useState("all"); // "all" | "trending" | "liked" | "saved"
   const [subjectFilter, setSubjectFilter] = useState("");
   const [gradeFilter, setGradeFilter] = useState("");
   const [languageFilter, setLanguageFilter] = useState("");
@@ -504,6 +505,15 @@ const Library = () => {
   useEffect(() => {
     let result = memes;
 
+    // Social Media Feed Filter
+    if (activeFeed === "liked") {
+      result = user ? result.filter(m => Boolean(userLikesMap[m.id])) : [];
+    } else if (activeFeed === "saved") {
+      result = user ? result.filter(m => Boolean(userSavesMap[m.id])) : [];
+    } else if (activeFeed === "trending") {
+      result = [...result].sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0));
+    }
+
     if (appliedSearchQuery.trim()) {
       result = fuzzySearch(result, appliedSearchQuery, [
         { field: "title", weight: 3 },
@@ -549,7 +559,7 @@ const Library = () => {
     }
 
     setFilteredMemes(result);
-  }, [appliedSearchQuery, subjectFilter, gradeFilter, languageFilter, formatFilter, sortBy, memes, allRatings]);
+  }, [activeFeed, userLikesMap, userSavesMap, user, appliedSearchQuery, subjectFilter, gradeFilter, languageFilter, formatFilter, sortBy, memes, allRatings]);
 
   // Load All Comments & Ratings for the Active Expanded Meme
   useEffect(() => {
@@ -1190,8 +1200,8 @@ const Library = () => {
       {/* Page Title & Search Header Section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-6">
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white font-sans gallery-header-title">Explore Memes</h1>
-          <p className="text-xs text-gray-500 mt-1">Discover and evaluate humor-based classroom assets.</p>
+          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white font-sans gallery-header-title">Meme Library</h1>
+          <p className="text-xs text-gray-500 mt-1">Discover, evaluate and curate educational memes and classroom assets.</p>
         </div>
 
         {/* Smart Predictive Search Bar */}
@@ -1220,180 +1230,261 @@ const Library = () => {
         </div>
       </div>
 
-      {/* Horizontal tag filter bar */}
-      <div className="flex flex-wrap items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-none select-none">
-        <button
-          onClick={() => {
-            setSubjectFilter("");
-            setAppliedSearchQuery("");
-          }}
-          className={`px-4 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 ${(!subjectFilter && !appliedSearchQuery) ? "bg-purple-100 text-purple-750 dark:bg-purple-950/40 dark:text-purple-300" : "bg-white dark:bg-zinc-900 text-gray-500 hover:bg-gray-50 border border-gray-200 dark:border-zinc-800"}`}
-        >
-          <Flame className="w-3.5 h-3.5 text-orange-500 animate-pulse" /> Trending
-        </button>
-        {(() => {
-          const keywordCounts = {};
-          memes.forEach(m => {
-            const kws = Array.isArray(m.keywords) ? m.keywords : (m.keywords ? String(m.keywords).split(",").map(k => k.trim()).filter(Boolean) : []);
-            kws.forEach(k => { if (k) keywordCounts[k] = (keywordCounts[k] || 0) + 1; });
-          });
-          const topKeywords = Object.entries(keywordCounts).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k);
-          const displayTags = topKeywords.length > 0 ? topKeywords : ["Exams", "Teachers", "Assignments", "Science", "Coding", "Relatable"];
-          return displayTags.map((tag) => {
-            const isActive = appliedSearchQuery === tag;
-            return (
+      {/* Main 2-Column Responsive Layout: Left Sidebar (Sort & Filters) + Right Main Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-start">
+        
+        {/* ── LEFT SIDEBAR: Feeds, Sort & Tag Filters ──────────────────────────── */}
+        <aside id="library-filter-sidebar" className="lg:sticky lg:top-20 space-y-5 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-md p-4 rounded-2xl border border-gray-200/50 dark:border-zinc-800/40 shadow-md">
+          
+          {/* 1. Social Feeds Nav ("I Like" Feed) */}
+          <div>
+            <h4 className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2 px-1">
+              Social Feeds
+            </h4>
+            <div className="space-y-1">
               <button
-                key={tag}
-                onClick={() => { setAppliedSearchQuery(tag); setSubjectFilter(""); }}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${isActive ? "bg-purple-100 text-purple-750 dark:bg-purple-950/40 dark:text-purple-300" : "bg-white dark:bg-zinc-900 text-gray-500 hover:bg-gray-50 border border-gray-200 dark:border-zinc-800"}`}
+                onClick={() => { setActiveFeed("all"); setSubjectFilter(""); setAppliedSearchQuery(""); }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                  activeFeed === "all"
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-gray-600 dark:text-zinc-300 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                }`}
               >
-                #{tag}
+                <span className="flex items-center gap-2">🌐 All Memes</span>
+                <span className="text-[10px] opacity-80 tabular-nums">{memes.length}</span>
               </button>
-            );
-          });
-        })()}
-        <button
-          onClick={() => setShowTrendsModal(true)}
-          className="text-xs text-purple-600 dark:text-purple-400 font-bold hover:underline ml-2 whitespace-nowrap"
-          title="View all trending topics & analytics"
-        >
-          View all →
-        </button>
-      </div>
 
-      {/* ── Horizontal Filter Bar ──────────────────────────────────────────── */}
-      <div id="library-filter-sidebar" className="mb-5 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Filters toggle */}
-          <button
-            onClick={() => setShowFilters(v => !v)}
-            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${
-              showFilters
-                ? "bg-purple-600 text-white border-purple-600 shadow-sm"
-                : "border-gray-300 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Filters</span>
-            {showFilters ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
+              <button
+                onClick={() => { setActiveFeed("trending"); setSubjectFilter(""); setAppliedSearchQuery(""); }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                  activeFeed === "trending"
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-gray-600 dark:text-zinc-300 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                }`}
+              >
+                <span className="flex items-center gap-2">🔥 Trending</span>
+                <Flame className="w-3.5 h-3.5 text-orange-500 animate-pulse" />
+              </button>
 
-          {/* Sort inline */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
-          >
-            <option value="newest">Newest</option>
-            <option value="likes">Most Popular</option>
-            <option value="rating">Highest Rated</option>
-          </select>
+              {/* Social Media "I Like" Feed */}
+              <button
+                onClick={() => { setActiveFeed("liked"); setSubjectFilter(""); setAppliedSearchQuery(""); }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                  activeFeed === "liked"
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-gray-600 dark:text-zinc-300 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                }`}
+              >
+                <span className="flex items-center gap-2">❤️ I Like Feed</span>
+                {user && (
+                  <span className="bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-300 text-[9px] font-extrabold px-2 py-0.5 rounded-full">
+                    {Object.keys(userLikesMap).length}
+                  </span>
+                )}
+              </button>
 
-          {/* Active filter pills */}
-          {subjectFilter && (
-            <span className="flex items-center gap-1 bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">
-              {subjectFilter}
-              <button onClick={() => setSubjectFilter("")} className="ml-0.5 hover:text-purple-900 font-extrabold">x</button>
-            </span>
-          )}
-          {gradeFilter && (
-            <span className="flex items-center gap-1 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800">
-              {gradeFilter}
-              <button onClick={() => setGradeFilter("")} className="ml-0.5 hover:text-indigo-900 font-extrabold">x</button>
-            </span>
-          )}
-          {languageFilter && (
-            <span className="flex items-center gap-1 bg-teal-100 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-teal-200 dark:border-teal-800">
-              {languageFilter}
-              <button onClick={() => setLanguageFilter("")} className="ml-0.5 hover:text-teal-900 font-extrabold">x</button>
-            </span>
-          )}
-          {formatFilter && (
-            <span className="flex items-center gap-1 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800">
-              {formatFilter}
-              <button onClick={() => setFormatFilter("")} className="ml-0.5 hover:text-amber-900 font-extrabold">x</button>
-            </span>
-          )}
-          {(subjectFilter || gradeFilter || languageFilter || formatFilter) && (
-            <button
-              onClick={() => { setSubjectFilter(""); setGradeFilter(""); setLanguageFilter(""); setFormatFilter(""); setSearchQuery(""); setAppliedSearchQuery(""); }}
-              className="text-[10px] font-bold text-red-500 hover:underline"
-            >
-              Clear all
-            </button>
-          )}
-
-          {/* Direct Upload button — moved here from sidebar */}
-          {user && (
-            <button
-              onClick={() => setShowDirectUploadModal(true)}
-              className="ml-auto text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition shadow-sm"
-            >
-              + Upload Meme
-            </button>
-          )}
-        </div>
-
-        {/* Expandable filter panel */}
-        {showFilters && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-sm">
-            <div>
-              <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Subject</label>
-              <input
-                type="text"
-                placeholder="Search..."
-                value={filterSubjectSearch}
-                onChange={(e) => setFilterSubjectSearch(e.target.value)}
-                className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
-              />
-              <select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)} className={inputClass}>
-                <option value="">All Subjects</option>
-                {subjects.filter(s => s !== "Other" && s.toLowerCase().includes(filterSubjectSearch.toLowerCase())).map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <button
+                onClick={() => { setActiveFeed("saved"); setSubjectFilter(""); setAppliedSearchQuery(""); }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                  activeFeed === "saved"
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-gray-600 dark:text-zinc-300 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                }`}
+              >
+                <span className="flex items-center gap-2">📥 Saved Feed</span>
+                {user && (
+                  <span className="bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-300 text-[9px] font-extrabold px-2 py-0.5 rounded-full">
+                    {Object.keys(userSavesMap).length}
+                  </span>
+                )}
+              </button>
             </div>
+          </div>
+
+          <hr className="border-gray-200/50 dark:border-zinc-800/40" />
+
+          {/* 2. Sort Options Sidebar (Sort as a sidebar) */}
+          <div>
+            <h4 className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2 px-1 flex items-center justify-between">
+              <span>Sort By</span>
+              <SlidersHorizontal className="w-3 h-3" />
+            </h4>
+            <div className="space-y-1">
+              {[
+                { id: "newest", label: "🆕 Newest First" },
+                { id: "likes", label: "🔥 Most Popular" },
+                { id: "rating", label: "⭐ Highest Rated" }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setSortBy(opt.id)}
+                  className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                    sortBy === opt.id
+                      ? "bg-purple-100 dark:bg-purple-950/50 text-purple-750 dark:text-purple-300 font-bold border border-purple-200/60 dark:border-purple-800/60"
+                      : "text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800/50"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <hr className="border-gray-200/50 dark:border-zinc-800/40" />
+
+          {/* 3. Subject Tag Pills Cloud (Subject into tags) */}
+          <div>
+            <h4 className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2 px-1">
+              🏷️ Subject Tags
+            </h4>
+            <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-1 scrollbar-none">
+              <button
+                onClick={() => setSubjectFilter("")}
+                className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition ${
+                  !subjectFilter
+                    ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                    : "bg-gray-50 dark:bg-zinc-800/60 text-gray-600 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                }`}
+              >
+                #All
+              </button>
+              {subjects.filter(s => s !== "Other").map(s => {
+                const isSelected = subjectFilter === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setSubjectFilter(isSelected ? "" : s)}
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition ${
+                      isSelected
+                        ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                        : "bg-gray-50 dark:bg-zinc-800/60 text-gray-600 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                    }`}
+                  >
+                    #{s}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <hr className="border-gray-200/50 dark:border-zinc-800/40" />
+
+          {/* 4. Grade & Format Selectors */}
+          <div className="space-y-3">
             <div>
-              <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Grade</label>
-              <select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)} className={inputClass}>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">
+                Grade / Age Group
+              </label>
+              <select
+                value={gradeFilter}
+                onChange={(e) => setGradeFilter(e.target.value)}
+                className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+              >
                 <option value="">All Grades</option>
                 {gradeGroups.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Language</label>
-              <input
-                type="text"
-                placeholder="Search..."
-                value={filterLanguageSearch}
-                onChange={(e) => setFilterLanguageSearch(e.target.value)}
-                className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
-              />
-              <select value={languageFilter} onChange={(e) => setLanguageFilter(e.target.value)} className={inputClass}>
-                <option value="">All Languages</option>
-                {languages.filter(l => l !== "Other" && l.toLowerCase().includes(filterLanguageSearch.toLowerCase())).map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Format</label>
-              <select value={formatFilter} onChange={(e) => setFormatFilter(e.target.value)} className={inputClass}>
-                <option value="">All Formats</option>
-                <option value="image">Image</option>
-                <option value="video">Video</option>
-                <option value="gif">GIF</option>
-                <option value="audio">Audio</option>
-              </select>
-            </div>
-          </div>
-        )}
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_200px] gap-5 items-start">
-        {/* Main Feed Column */}
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">
+                Media Format
+              </label>
+              <select
+                value={formatFilter}
+                onChange={(e) => setFormatFilter(e.target.value)}
+                className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+              >
+                <option value="">All Formats</option>
+                <option value="image">🖼️ Image</option>
+                <option value="video">🎥 Video</option>
+                <option value="gif">🎞️ GIF</option>
+                <option value="audio">🎵 Audio</option>
+              </select>
+            </div>
+
+            {(subjectFilter || gradeFilter || languageFilter || formatFilter || appliedSearchQuery) && (
+              <button
+                onClick={() => { setSubjectFilter(""); setGradeFilter(""); setLanguageFilter(""); setFormatFilter(""); setSearchQuery(""); setAppliedSearchQuery(""); setActiveFeed("all"); }}
+                className="w-full text-[11px] font-bold py-1.5 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 border border-red-200 dark:border-red-900/40 transition text-center"
+              >
+                Reset All Filters
+              </button>
+            )}
+          </div>
+
+          {/* Upload Meme CTA */}
+          {user && (
+            <button
+              onClick={() => setShowDirectUploadModal(true)}
+              className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-95"
+            >
+              + Upload Meme
+            </button>
+          )}
+        </aside>
+
+        {/* ── RIGHT COLUMN: Main Feed Column ─────────────────────────────────── */}
         <div className="space-y-5 min-w-0">
-          {/* Share a meme with the classroom container */}
+          
+          {/* Quick Hashtag Trends Row */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none select-none">
+            {(() => {
+              const keywordCounts = {};
+              memes.forEach(m => {
+                const kws = Array.isArray(m.keywords) ? m.keywords : (m.keywords ? String(m.keywords).split(",").map(k => k.trim()).filter(Boolean) : []);
+                kws.forEach(k => { if (k) keywordCounts[k] = (keywordCounts[k] || 0) + 1; });
+              });
+              const topKeywords = Object.entries(keywordCounts).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k);
+              const displayTags = topKeywords.length > 0 ? topKeywords : ["Exams", "Teachers", "Assignments", "Science", "Coding", "Relatable"];
+              return displayTags.map((tag) => {
+                const isActive = appliedSearchQuery === tag;
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => { setAppliedSearchQuery(tag); setSubjectFilter(""); }}
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition shrink-0 ${isActive ? "bg-purple-600 text-white" : "bg-white dark:bg-zinc-900 text-gray-600 dark:text-zinc-300 hover:bg-gray-100 border border-gray-200 dark:border-zinc-800"}`}
+                  >
+                    #{tag}
+                  </button>
+                );
+              });
+            })()}
+            <button
+              onClick={() => setShowTrendsModal(true)}
+              className="text-[11px] text-purple-600 dark:text-purple-400 font-bold hover:underline ml-auto shrink-0 whitespace-nowrap"
+            >
+              View Trends →
+            </button>
+          </div>
+
+          {/* Social Feed Banner Indicator */}
+          {activeFeed === "liked" && (
+            <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-2xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">❤️</span>
+                <div>
+                  <h4 className="font-extrabold text-red-700 dark:text-red-400">Social Media "I Like" Feed</h4>
+                  <p className="text-gray-500 text-[11px]">
+                    {user ? `Showing ${filteredMemes.length} memes you have liked.` : "Sign in to view your personalized liked memes feed."}
+                  </p>
+                </div>
+              </div>
+              {!user && (
+                <button
+                  onClick={() => navigate("/auth")}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs"
+                >
+                  Sign In
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Share a meme prompt */}
           <div
             id="library-ai-explain-info"
             onClick={() => user ? setShowDirectUploadModal(true) : navigate("/auth")}
-            className="bg-white/40 dark:bg-zinc-900/40 backdrop-blur-sm p-4 rounded-2xl border border-gray-200/50 dark:border-zinc-800/40 shadow-md dark:shadow-black/20 hover:shadow-lg cursor-pointer transition-all duration-300 select-none flex items-center justify-between gap-4"
+            className="bg-white/40 dark:bg-zinc-900/40 backdrop-blur-sm p-4 rounded-2xl border border-gray-200/50 dark:border-zinc-800/40 shadow-md hover:shadow-lg cursor-pointer transition-all duration-300 select-none flex items-center justify-between gap-4"
           >
             <div className="flex items-center gap-3">
               <img
@@ -1404,18 +1495,19 @@ const Library = () => {
               <span className="text-gray-400 text-xs font-medium">Share a meme with the classroom...</span>
             </div>
             <div className="flex items-center gap-3 text-gray-400 mr-2">
-              <span title="Add Image" className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg">
+              <span title="Add Image" className="hover:text-purple-600 transition-colors p-1 rounded-lg">
                 <Image className="w-5 h-5" />
               </span>
-              <span title="Add GIF" className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg">
+              <span title="Add GIF" className="hover:text-purple-600 transition-colors p-1 rounded-lg">
                 <Camera className="w-5 h-5" />
               </span>
-              <span title="Add Emoji" className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg">
+              <span title="Add Emoji" className="hover:text-purple-600 transition-colors p-1 rounded-lg">
                 <Smile className="w-5 h-5" />
               </span>
             </div>
           </div>
 
+          {/* Meme Cards Grid */}
           {filteredMemes.length > 0 ? (
             <div id="library-meme-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredMemes.map((meme) => {
@@ -1426,7 +1518,8 @@ const Library = () => {
 
                 return (
                   <div key={meme.id} className="flex flex-col h-full bg-white/45 dark:bg-zinc-900/45 backdrop-blur-sm border border-gray-200/50 dark:border-zinc-800/40 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
-                    {/* Card Header: Avatar & Option Menu */}
+                    
+                    {/* Card Header: Avatar, Name & 3-Dots Menu (Item 5) */}
                     <div className="flex items-center justify-between p-4 border-b border-gray-100/50 dark:border-zinc-800/40">
                       <div
                         onClick={(e) => { e.stopPropagation(); openUserModal(meme.creator_id); }}
@@ -1443,6 +1536,7 @@ const Library = () => {
                         </div>
                       </div>
 
+                      {/* 3-Dots Dropdown Options Menu (Item 5) */}
                       <div className="relative" data-card-menu={meme.id}>
                         <button
                           className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
@@ -1453,15 +1547,88 @@ const Library = () => {
                         </button>
                         {showCardMenuId === meme.id && (
                           <div
-                            className="absolute right-0 top-8 z-30 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl py-1 min-w-[135px]"
+                            className="absolute right-0 top-8 z-30 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl py-1 min-w-[160px]"
                             onClick={e => e.stopPropagation()}
                           >
+                            {/* Bookmark / Save */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowCardMenuId(null);
+                                handleSaveToggle(meme);
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-purple-50 dark:hover:bg-purple-950/20 flex items-center gap-2 transition"
+                            >
+                              <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'text-amber-500 fill-current' : 'text-gray-400'}`} />
+                              <span>{isSaved ? 'Bookmarked' : 'Bookmark'}</span>
+                            </button>
+
+                            {/* Share */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowCardMenuId(null);
+                                handleShare(meme);
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-purple-50 dark:hover:bg-purple-950/20 flex items-center gap-2 transition"
+                            >
+                              <Share2 className="w-3.5 h-3.5 text-gray-400" />
+                              <span>Share Link</span>
+                            </button>
+
+                            {/* Download */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowCardMenuId(null);
+                                if (meme.format === "image" || meme.format === "gif") {
+                                  downloadMemeWithWatermark(meme.media_url, meme.title);
+                                } else {
+                                  handleMediaDownload(meme.media_url, meme.title);
+                                }
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-purple-50 dark:hover:bg-purple-950/20 flex items-center gap-2 transition"
+                            >
+                              <Download className="w-3.5 h-3.5 text-gray-400" />
+                              <span>Download</span>
+                            </button>
+
+                            {/* Remix */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowCardMenuId(null);
+                                navigate(`/lab?templateId=${meme.id}`);
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-purple-50 dark:hover:bg-purple-950/20 flex items-center gap-2 transition"
+                            >
+                              <Shuffle className="w-3.5 h-3.5 text-purple-500" />
+                              <span>Remix in Lab</span>
+                            </button>
+
+                            <div className="border-t border-gray-100 dark:border-zinc-800 my-0.5" />
+
+                            {/* Flag / Report */}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setShowCardMenuId(null); handleFlagContent(meme.id); }}
+                              className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 flex items-center gap-2 transition"
+                            >
+                              <Flag className="w-3.5 h-3.5 text-gray-400" />
+                              <span>Report Content</span>
+                            </button>
+
                             {user && (meme.creator_id === user.uid || profile?.role === "admin") && (
                               <>
+                                <div className="border-t border-gray-100 dark:border-zinc-800 my-0.5" />
                                 <button
                                   type="button"
                                   onClick={(e) => { e.stopPropagation(); setShowCardMenuId(null); openEditModal(meme); }}
-                                  className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-700 dark:text-zinc-200 hover:bg-purple-50 dark:hover:bg-purple-950/20 flex items-center gap-2 transition"
+                                  className="w-full text-left px-3 py-2 text-xs font-semibold text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/20 flex items-center gap-2 transition"
                                 >
                                   ✏️ Edit Meme
                                 </button>
@@ -1472,16 +1639,8 @@ const Library = () => {
                                 >
                                   🗑️ Delete
                                 </button>
-                                <div className="border-t border-gray-100 dark:border-zinc-800 my-0.5" />
                               </>
                             )}
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setShowCardMenuId(null); handleFlagContent(meme.id); }}
-                              className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800 flex items-center gap-2 transition"
-                            >
-                              🚩 Report
-                            </button>
                           </div>
                         )}
                       </div>
@@ -1495,7 +1654,7 @@ const Library = () => {
                         </p>
                       )}
 
-                      {/* Media Image/Video Box — adaptive height, portrait & landscape friendly */}
+                      {/* Media Image/Video Box */}
                       <div className="relative w-full bg-zinc-950 rounded-xl border border-gray-200/10 shadow-inner group overflow-hidden" style={{ minHeight: '140px' }}>
                         {/* Hover View Details Overlay */}
                         <div
@@ -1526,17 +1685,24 @@ const Library = () => {
                         )}
                       </div>
 
-                      {/* Subject, Grade & Rating pill row */}
+                      {/* Subject Tag Pill (Item 4: Subject into tags) */}
                       <div className="flex items-start justify-between gap-1.5 mt-3.5">
-                        <div className="flex flex-wrap items-center gap-1 min-w-0 flex-1">
-                          <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold shadow-sm ${getSubjectTagClass(meme.subject)}`}>
-                            {meme.subject}
-                          </span>
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
+                          {meme.subject && (
+                            <button
+                              onClick={() => { setSubjectFilter(meme.subject); setActiveFeed("all"); }}
+                              className={`text-[9px] px-2.5 py-0.5 rounded-full font-bold shadow-xs transition hover:scale-105 ${getSubjectTagClass(meme.subject)}`}
+                              title={`Filter by #${meme.subject}`}
+                            >
+                              #{meme.subject}
+                            </button>
+                          )}
                           <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 text-[8px] px-2 py-0.5 rounded-full font-bold">
                             {meme.age_group}
                           </span>
                         </div>
-                        {/* Rating — anchored top right */}
+
+                        {/* Rating pill */}
                         <button
                           onClick={() => setActiveMeme(meme)}
                           className="shrink-0 flex items-center gap-1 text-yellow-500 hover:text-yellow-600 hover:scale-110 active:scale-95 transition-all bg-yellow-50/50 dark:bg-yellow-950/20 px-1.5 py-0.5 rounded-full border border-yellow-200/50 dark:border-yellow-800/40"
@@ -1554,79 +1720,41 @@ const Library = () => {
                       </div>
                     </div>
 
-                    {/* Card Footer: 7-icon action row — outline/minimalistic style */}
-                    <div className="px-3 pb-3 pt-2 border-t border-gray-100/50 dark:border-zinc-800/40">
-                      <div className="flex items-center justify-between text-gray-400 dark:text-gray-500">
-
+                    {/* Streamlined Card Footer: Primary metrics (Like, Comment, Details) */}
+                    <div className="px-4 py-2.5 border-t border-gray-100/50 dark:border-zinc-800/40 bg-gray-50/30 dark:bg-zinc-900/30">
+                      <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
                         {/* 1. Like */}
                         <button
                           onClick={() => user
                             ? handleLikeToggle(meme.id, meme.creator_id)
                             : showLibToast("Sign in to like memes.", "info")}
-                          className={`flex items-center gap-0.5 hover:scale-110 active:scale-95 transition-all ${isLiked ? 'text-red-500' : 'hover:text-red-500'}`}
+                          className={`flex items-center gap-1 hover:scale-110 active:scale-95 transition-all ${isLiked ? 'text-red-500 font-bold' : 'hover:text-red-500'}`}
                           title="Like"
                         >
                           <Heart
-                            className={`w-[15px] h-[15px] ${isLiked ? 'fill-current' : ''} ${animatingHeartMemeId === meme.id ? 'heart-pop-active' : ''}`}
+                            className={`w-4 h-4 ${isLiked ? 'fill-current' : ''} ${animatingHeartMemeId === meme.id ? 'heart-pop-active' : ''}`}
                             strokeWidth={1.5}
                           />
-                          <span className="text-[9px] font-bold tabular-nums">{meme.likes_count || 0}</span>
+                          <span className="text-xs font-bold tabular-nums">{meme.likes_count || 0}</span>
                         </button>
 
                         {/* 2. Comment */}
                         <button
                           onClick={() => setActiveMeme(meme)}
-                          className="hover:text-blue-500 hover:scale-110 active:scale-95 transition-all"
-                          title="Comment"
+                          className="flex items-center gap-1 hover:text-purple-600 hover:scale-110 active:scale-95 transition-all"
+                          title="Comments"
                         >
-                          <MessageSquare className="w-[15px] h-[15px]" strokeWidth={1.5} />
+                          <MessageSquare className="w-4 h-4" strokeWidth={1.5} />
+                          <span className="text-xs font-bold">Comments</span>
                         </button>
 
-                        {/* 3. Share */}
+                        {/* 3. View Details */}
                         <button
-                          onClick={() => handleShare(meme)}
-                          className="hover:text-green-500 hover:scale-110 active:scale-95 transition-all"
-                          title="Share"
+                          onClick={() => setActiveMeme(meme)}
+                          className="text-[10px] font-extrabold text-purple-600 dark:text-purple-400 hover:underline"
                         >
-                          <Share2 className="w-[15px] h-[15px]" strokeWidth={1.5} />
+                          Details →
                         </button>
-
-                        {/* 4. Download */}
-                        <button
-                          onClick={() => {
-                            if (meme.format === "image" || meme.format === "gif") {
-                              downloadMemeWithWatermark(meme.media_url, meme.title);
-                            } else {
-                              handleMediaDownload(meme.media_url, meme.title);
-                            }
-                          }}
-                          className="hover:text-indigo-500 hover:scale-110 active:scale-95 transition-all"
-                          title="Download"
-                        >
-                          <Download className="w-[15px] h-[15px]" strokeWidth={1.5} />
-                        </button>
-
-                        {/* 5. Remix / Customise */}
-                        <button
-                          onClick={() => navigate(`/lab?templateId=${meme.id}`)}
-                          className="hover:text-purple-500 hover:scale-110 active:scale-95 transition-all"
-                          title="Remix"
-                        >
-                          <Shuffle className="w-[15px] h-[15px]" strokeWidth={1.5} />
-                        </button>
-
-                        {/* 6. Bookmark */}
-                        <button
-                          onClick={() => handleSaveToggle(meme)}
-                          className={`hover:scale-110 active:scale-95 transition-all ${isSaved ? 'text-amber-500' : 'hover:text-amber-500'}`}
-                          title="Bookmark"
-                        >
-                          <Bookmark
-                            className={`w-[15px] h-[15px] ${isSaved ? 'fill-current' : ''}`}
-                            strokeWidth={1.5}
-                          />
-                        </button>
-
                       </div>
                     </div>
                   </div>
@@ -1637,11 +1765,11 @@ const Library = () => {
             <div className="bg-white/40 dark:bg-zinc-900/40 backdrop-blur-sm border border-gray-200/50 dark:border-zinc-800/40 rounded-2xl p-12 text-center text-gray-500 shadow-md flex flex-col items-center justify-center">
               <div className="flex justify-center text-gray-400 mb-3"><Flag className="w-12 h-12" /></div>
               <h3 className="text-lg font-extrabold text-gray-900 dark:text-white mb-2">No matching memes found</h3>
-              <p className="text-xs text-gray-400">Try broadening your subject, grade or format choices.</p>
+              <p className="text-xs text-gray-400">Try broadening your subject tags, grade or format choices.</p>
             </div>
           )}
 
-          {/* Create. Share. Inspire. banner */}
+          {/* Banner */}
           <div className="bg-gradient-to-r from-yellow-500/10 via-amber-500/10 to-orange-500/10 border border-amber-200/50 dark:border-amber-800/30 p-5 rounded-2xl flex items-center justify-between gap-4 shadow-md hover:shadow-lg transition-all duration-300 select-none">
             <div className="flex items-center gap-3">
               <span className="text-3xl">⭐</span>
@@ -1658,97 +1786,6 @@ const Library = () => {
                 Upload Meme
               </button>
             )}
-          </div>
-        </div>
-
-        {/* Right Sidebar: Trending & Top Creators */}
-        <div className="space-y-5">
-          {/* Trending Now Card */}
-          <div className="bg-white/40 dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl border border-gray-200/50 dark:border-zinc-800/40 shadow-md dark:shadow-black/25 hover:shadow-lg transition-all duration-300 space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
-              📚 Popular Subjects
-            </h3>
-            <div className="space-y-3">
-              {(() => {
-                const subjectCounts = {};
-                memes.forEach(m => {
-                  if (m.subject) subjectCounts[m.subject] = (subjectCounts[m.subject] || 0) + 1;
-                });
-                const sortedSubjects = Object.entries(subjectCounts)
-                  .sort((a, b) => b[1] - a[1])
-                  .slice(0, 5);
-
-                if (sortedSubjects.length === 0) {
-                  return <p className="text-[10px] text-gray-400 italic">No trends available.</p>;
-                }
-
-                return sortedSubjects.map(([subject, count]) => (
-                  <div
-                    key={subject}
-                    onClick={() => setSubjectFilter(subject)}
-                    className="flex justify-between items-center text-xs font-semibold cursor-pointer hover:text-purple-650 transition"
-                  >
-                    <span className="text-gray-705 dark:text-zinc-350">{subject}</span>
-                    <span className="text-gray-400 text-[10px] tabular-nums">{count} {count === 1 ? 'meme' : 'memes'}</span>
-                  </div>
-                ));
-              })()}
-            </div>
-            <button
-              onClick={() => setShowTrendsModal(true)}
-              className="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline block pt-1"
-            >
-              View all trends →
-            </button>
-          </div>
-
-          {/* Top Creators Card */}
-          <div className="bg-white/40 dark:bg-zinc-900/40 backdrop-blur-sm p-5 rounded-2xl border border-gray-200/50 dark:border-zinc-800/40 shadow-md dark:shadow-black/25 hover:shadow-lg transition-all duration-300 space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
-              🏆 Top Creators
-            </h3>
-            <div className="space-y-3">
-              {(() => {
-                const creatorCounts = {};
-                memes.forEach(m => {
-                  if (m.creator_id) creatorCounts[m.creator_id] = (creatorCounts[m.creator_id] || 0) + 1;
-                });
-                const sortedCreators = Object.entries(creatorCounts)
-                  .sort((a, b) => b[1] - a[1])
-                  .slice(0, 3);
-
-                if (sortedCreators.length === 0) {
-                  return <p className="text-[10px] text-gray-400 italic">No creators active yet.</p>;
-                }
-
-                return sortedCreators.map(([creatorId, count]) => {
-                  const creatorInfo = userCache[creatorId] || { name: creatorId === "admin" ? "Admin" : "Contributor" };
-                  return (
-                    <div
-                      key={creatorId}
-                      onClick={() => openUserModal(creatorId)}
-                      className="flex items-center justify-between text-xs font-semibold cursor-pointer hover:text-purple-650 transition"
-                    >
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={creatorInfo.avatar_url || "/avatar1.png"}
-                          alt={creatorInfo.name}
-                          className="w-6 h-6 rounded-full object-cover border border-purple-100"
-                        />
-                        <span className="text-gray-750 dark:text-zinc-350 truncate max-w-[100px]">{creatorInfo.name}</span>
-                      </div>
-                      <span className="text-gray-400 text-[10px] tabular-nums">{count} {count === 1 ? 'meme' : 'memes'}</span>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-            <button
-              onClick={() => navigate("/staffroom")}
-              className="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline block pt-1"
-            >
-              View leaderboard →
-            </button>
           </div>
         </div>
       </div>
