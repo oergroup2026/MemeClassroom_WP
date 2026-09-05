@@ -70,11 +70,35 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link
+                  to="/privacy"
+                  className="text-xs text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition"
+                >
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/terms"
+                  className="text-xs text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition"
+                >
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="/terms#fair-use"
+                  className="text-xs text-amber-600 dark:text-amber-400 hover:underline transition font-medium"
+                >
+                  Fair Use & OER Notice ↗
+                </a>
+              </li>
+              <li>
                 <a
                   href="mailto:memeclassroom@gmail.com"
                   className="text-xs text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 transition"
                 >
-                  Contact Us
+                  Contact Grievance Officer
                 </a>
               </li>
             </ul>
@@ -82,13 +106,14 @@ const Footer = () => {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-2">
+        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="text-[10px] text-gray-400">
             © {year} MemeClassroom. Built for educators, by educators.
           </p>
-          <p className="text-[10px] text-gray-400">
-            Powered by Open Pedagogy principles
-          </p>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-50 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 text-[10px] text-gray-500 dark:text-gray-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Open Educational Resource (OER) · Indian Copyright Act Sec 52 & Fair Use · CC BY-NC-SA 4.0</span>
+          </div>
         </div>
       </div>
     </footer>

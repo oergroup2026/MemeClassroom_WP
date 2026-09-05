@@ -2,9 +2,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper: any signed-in user
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+
+    // Helper: the requesting user owns this document
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
     // Helper: check if the requesting user has admin role
     function isAdmin() {
-      return request.auth != null && 
+      return request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -17,28 +27,31 @@ service cloud.firestore {
     }
 
     // ─── Users ──────────────────────────────────────────────────────────────
+    // Profiles require authentication to read — prevents anonymous visitors from
+    // scraping email addresses, id_card_url, or other personal details.
+    // Admins can read and write any profile; users can only write their own.
     match /users/{userId} {
-      allow read: if true;
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn() && (isOwner(userId) || isAdmin());
     }
 
     // ─── Memes ──────────────────────────────────────────────────────────────
-    // Public memes are readable by all users (including unauthenticated guests).
+    // Public memes are readable by all (including guests browsing the library).
     // Private/draft memes are only readable by their creator or admin.
     match /memes/{memeId} {
       allow read: if resource.data.visibility == "public" || (
-        request.auth != null && (
+        isLoggedIn() && (
           resource.data.creator_id == request.auth.uid ||
           isAdmin()
         )
       );
-      allow create: if request.auth != null && request.resource.data.creator_id == request.auth.uid;
-      allow update: if request.auth != null && (
-        resource.data.creator_id == request.auth.uid || 
+      allow create: if isLoggedIn() && request.resource.data.creator_id == request.auth.uid;
+      allow update: if isLoggedIn() && (
+        resource.data.creator_id == request.auth.uid ||
         isAdmin() ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count', 'flag_count'])
       );
-      allow delete: if request.auth != null && (
+      allow delete: if isLoggedIn() && (
         resource.data.creator_id == request.auth.uid || isAdmin()
       );
     }
@@ -49,12 +62,12 @@ service cloud.firestore {
     // Only admins can approve, update status, or delete templates.
     match /templates/{templateId} {
       allow read: if resource.data.status == "approved" || (
-        request.auth != null && (
+        isLoggedIn() && (
           resource.data.creator_id == request.auth.uid ||
           isAdmin()
         )
       );
-      allow create: if request.auth != null;
+      allow create: if isLoggedIn();
       allow update, delete: if isAdmin();
     }
 
@@ -62,7 +75,7 @@ service cloud.firestore {
     // Authenticated users can write counts; only admin reads all counts.
     match /custom_counts/{docId} {
       allow read: if isAdmin();
-      allow write: if request.auth != null;
+      allow write: if isLoggedIn();
     }
 
     // ─── Shared Config (taxonomy, etc.) ─────────────────────────────────────
@@ -73,96 +86,96 @@ service cloud.firestore {
 
     // ─── User Stats ──────────────────────────────────────────────────────────
     match /user_stats/{userId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && (request.auth.uid == userId || isAdmin());
-      allow update: if request.auth != null && (
-        request.auth.uid == userId || 
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn() && (isOwner(userId) || isAdmin());
+      allow update: if isLoggedIn() && (
+        isOwner(userId) ||
         isAdmin() ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total_likes_received'])
       );
-      allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow delete: if isLoggedIn() && (isOwner(userId) || isAdmin());
     }
 
     // ─── Comments ───────────────────────────────────────────────────────────
     match /comments/{commentId} {
       allow read: if true;
-      allow create, update: if request.auth != null && (
+      allow create, update: if isLoggedIn() && (
         !request.resource.data.keys().hasAll(['is_expert_comment']) ||
         request.resource.data.is_expert_comment != true ||
         isExpertOrAdmin()
       );
-      allow delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow delete: if isLoggedIn() && resource.data.user_id == request.auth.uid;
       allow delete: if isAdmin();
     }
 
     // ─── Staffroom Posts ─────────────────────────────────────────────────────
     match /staffroom_posts/{postId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && (
-        resource.data.author_id == request.auth.uid || 
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn();
+      allow update: if isLoggedIn() && (
+        resource.data.author_id == request.auth.uid ||
         isAdmin() ||
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['title', 'body', 'author_id', 'post_type', 'attachment_url', 'attachment_name', 'created_at', 'subject', 'grade', 'is_solved', 'is_announcement'])
       );
-      allow delete: if request.auth != null && resource.data.author_id == request.auth.uid;
+      allow delete: if isLoggedIn() && resource.data.author_id == request.auth.uid;
       allow delete: if isAdmin();
     }
 
     // ─── Staffroom Replies ───────────────────────────────────────────────────
     match /staffroom_replies/{replyId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && (resource.data.author_id == request.auth.uid || isAdmin());
-      allow delete: if request.auth != null && resource.data.author_id == request.auth.uid;
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn();
+      allow update: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
+      allow delete: if isLoggedIn() && resource.data.author_id == request.auth.uid;
       allow delete: if isAdmin() || isExpertOrAdmin();
     }
 
     // ─── Resources ───────────────────────────────────────────────────────────
     match /resources/{resourceId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (resource.data.author_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn();
+      allow update, delete: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
     }
 
     // ─── External Links / Additional Tools ────────────────────────────────────
     match /external_links/{linkId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (resource.data.contributor_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn();
+      allow update, delete: if isLoggedIn() && (resource.data.contributor_id == request.auth.uid || isAdmin());
     }
 
     // ─── Saves (Bookmarks) ───────────────────────────────────────────────────
     match /saves/{saveId} {
-      allow read: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
-      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
-      allow update, delete: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow read: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
     }
 
     // ─── Resource Likes ──────────────────────────────────────────────────────
     match /resource_likes/{likeId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
-      allow update, delete: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
     }
 
     // ─── Likes ───────────────────────────────────────────────────────────────
     match /likes/{likeId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
-      allow delete: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
     }
 
     // ─── Ratings ─────────────────────────────────────────────────────────────
     match /ratings/{ratingId} {
       allow read: if true;
-      allow create, update: if request.auth != null && request.resource.data.user_id == request.auth.uid;
-      allow delete: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create, update: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
     }
 
     // ─── Flags (Reports) ─────────────────────────────────────────────────────
     match /flags/{flagId} {
-      allow read: if request.auth != null && (resource.data.reporter_id == request.auth.uid || isAdmin());
-      allow create: if request.auth != null && request.resource.data.reporter_id == request.auth.uid;
+      allow read: if isLoggedIn() && (resource.data.reporter_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn() && request.resource.data.reporter_id == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
@@ -183,16 +196,16 @@ service cloud.firestore {
     // ─── Literacy Test Results ────────────────────────────────────────────────
     // Users can write only their own results; they can read their own results; admins see all.
     match /literacy_test_results/{resultId} {
-      allow read: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
-      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      allow read: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
     // ─── Literacy Badges ──────────────────────────────────────────────────────
     // Users earn badges on passing tests; they can read their own; admins see all.
     match /literacy_badges/{badgeId} {
-      allow read: if request.auth != null && (resource.data.user_id == request.auth.uid || isAdmin());
-      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      allow read: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
@@ -200,8 +213,8 @@ service cloud.firestore {
     // Users can read and mark-as-read their own notifications only.
     // Cloud Functions (service account) create/delete — not direct client writes.
     match /notifications/{notifId} {
-      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
-      allow update: if request.auth != null && resource.data.user_id == request.auth.uid
+      allow read: if isLoggedIn() && resource.data.user_id == request.auth.uid;
+      allow update: if isLoggedIn() && resource.data.user_id == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
       allow create, delete: if false; // Written only by Cloud Functions service account
     }

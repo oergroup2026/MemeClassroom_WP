@@ -52,9 +52,9 @@ const About = () => {
           <h2 className="text-xs uppercase tracking-widest font-black text-gray-400 mb-4">
             Educational Framework & Theory
           </h2>
-          <div className="bg-white/20 dark:bg-black/20 p-2 rounded-lg border border-gray-200/30">
+          <div className="bg-white dark:bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
             <img
-              src="/Meme Pedagogy.png"
+              src="/meme-pedagogy.png"
               alt="Meme Pedagogy Framework Graphic"
               className="mx-auto rounded-md shadow-sm max-h-[350px] object-contain"
             />

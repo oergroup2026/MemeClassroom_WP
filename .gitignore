@@ -11,6 +11,15 @@ node_modules
 dist
 dist-ssr
 *.local
+.firebase
+
+# Environment variable files — never commit real keys
+.env
+.env.*
+!.env.example
+
+# Development/debug scripts — should never be committed
+check_db_temp.js
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +31,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+Thumbs.db

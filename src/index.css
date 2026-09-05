@@ -5,6 +5,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Auth page step-transition animations ─────────────────────────────────── */
+@keyframes auth-slide-in-right {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes auth-slide-in-left {
+  from { opacity: 0; transform: translateX(-28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.auth-slide-in-right { animation: auth-slide-in-right 0.22s cubic-bezier(0.16,1,0.3,1) both; }
+.auth-slide-in-left  { animation: auth-slide-in-left  0.22s cubic-bezier(0.16,1,0.3,1) both; }
+
 :root {
   --text: #374151; /* slate gray body */
   --text-h: #0f172a; /* deep navy/black headings */

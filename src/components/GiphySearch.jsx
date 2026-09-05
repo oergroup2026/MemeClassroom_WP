@@ -6,9 +6,14 @@ const GiphySearch = ({ onSelect }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY || "dc6zaTOxFJmzC";
+  // Production key must be set via VITE_GIPHY_API_KEY in .env.local
+  // Get a free key at: https://developers.giphy.com
+  const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY || "";
 
   useEffect(() => {
+    // If no API key is configured, skip the fetch and show setup notice
+    if (!GIPHY_API_KEY) return;
+
     // Load trending GIFs initially
     const fetchTrending = async () => {
       setLoading(true);
@@ -22,17 +27,17 @@ const GiphySearch = ({ onSelect }) => {
         setGifs(json.data || []);
       } catch (err) {
         console.error(err);
-        setError("Could not load Giphy trends. Verify API key.");
+        setError("Could not load Giphy trends. Check your VITE_GIPHY_API_KEY.");
       } finally {
         setLoading(false);
       }
     };
     fetchTrending();
-  }, []);
+  }, [GIPHY_API_KEY]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    if (!query.trim() || !GIPHY_API_KEY) return;
     setLoading(true);
     setError("");
     try {
@@ -46,11 +51,36 @@ const GiphySearch = ({ onSelect }) => {
       setGifs(json.data || []);
     } catch (err) {
       console.error(err);
-      setError("Giphy search failed. Check network or key.");
+      setError("Giphy search failed. Check network or your API key.");
     } finally {
       setLoading(false);
     }
   };
+
+  // No API key configured — show a clear message instead of failing silently
+  if (!GIPHY_API_KEY) {
+    return (
+      <div className="space-y-2 py-4 text-center">
+        <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+          ⚙️ Giphy GIF search is not configured
+        </p>
+        <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed max-w-xs mx-auto">
+          To enable GIF search, add <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">VITE_GIPHY_API_KEY</code> to your{" "}
+          <code className="bg-gray-100 dark:bg-zinc-800 px-1 rounded">.env.local</code> file.{" "}
+          Get a free key at{" "}
+          <a
+            href="https://developers.giphy.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-600 dark:text-purple-400 underline"
+          >
+            developers.giphy.com
+          </a>
+          .
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -71,7 +101,7 @@ const GiphySearch = ({ onSelect }) => {
       </form>
 
       <span className="block text-[9px] text-gray-400 font-semibold italic">
-        🔒 Classroom Filter Enabled (Rating: G). Verify licensing before publishing.
+        🔒 Classroom Filter Enabled (Rating: G). GIFs are third-party content — verify licensing before publishing.
       </span>
 
       {error && (
