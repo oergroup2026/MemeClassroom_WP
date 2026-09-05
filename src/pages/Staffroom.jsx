@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SmartSearchBar from "../components/SmartSearchBar";
 import {
@@ -2148,9 +2149,18 @@ const Staffroom = () => {
       )}
 
       {/* ── MEME DETAIL MODAL ── */}
-      {activeMeme && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Meme Detail">
-          <div className={`w-full max-w-4xl p-6 rounded-xl overflow-y-auto max-h-[90vh] grid grid-cols-1 md:grid-cols-2 gap-6 ${containerClass}`}>
+      {activeMeme && createPortal(
+        <div
+          className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Meme Detail"
+          onClick={() => setActiveMeme(null)}
+        >
+          <div
+            className={`w-full max-w-4xl p-6 rounded-xl overflow-y-auto max-h-[90vh] grid grid-cols-1 md:grid-cols-2 gap-6 ${containerClass}`}
+            onClick={e => e.stopPropagation()}
+          >
 
             {/* Left: media + ratings */}
             <div>
@@ -2324,7 +2334,8 @@ const Staffroom = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Subject tag CSS */}

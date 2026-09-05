@@ -36,6 +36,7 @@ import html2canvas from "html2canvas";
 import { useTour } from "../hooks/useTour";
 import TourOverlay from "../components/TourOverlay";
 import PageHelpPanel from "../components/PageHelpPanel";
+import ClassicVideoEditor from "../components/ClassicVideoEditor";
 
 // ── Format tab icon map ───────────────────────────────────────────────────────
 const TAB_ICONS = {
@@ -424,6 +425,45 @@ const Lab = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [autoSaveToast, setAutoSaveToast] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Hotkey listener for video studio playback (Space, Left/Right arrows, M key)
+  useEffect(() => {
+    if (activeTab !== "video") return;
+    const handleKeyDown = (e) => {
+      // Ignore key events when typing in inputs or textareas
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        const video = videoPlayerRef.current;
+        if (video) {
+          if (video.paused) video.play().catch(() => {});
+          else video.pause();
+        }
+      } else if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        const video = videoPlayerRef.current;
+        if (video) {
+          const target = Math.max(0, video.currentTime - 0.5);
+          video.currentTime = target;
+          setVideoCurrentTime(target);
+        }
+      } else if (e.code === "ArrowRight") {
+        e.preventDefault();
+        const video = videoPlayerRef.current;
+        if (video) {
+          const target = Math.min(videoDuration, video.currentTime + 0.5);
+          video.currentTime = target;
+          setVideoCurrentTime(target);
+        }
+      } else if (e.code === "KeyM") {
+        e.preventDefault();
+        setVideoMuted(prev => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeTab, videoDuration]);
 
   // --- AI Meme Caption Generator State ---
   const [showAiModal, setShowAiModal] = useState(false);
@@ -1839,34 +1879,39 @@ const Lab = () => {
   const activeTextLayer = textLayers.find(l => l.id === selectedTextId);
 
   return (
-    <div className="max-w-6xl mx-auto py-2 px-4" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
+    <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 py-3 flex flex-col min-h-[calc(100vh-70px)]" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
       
-      {/* ── TOP PHOTOSHOP CONTROL OPTIONS BAR ─────────────────────────── */}
-      <div className="bg-slate-900 border border-slate-800 text-white rounded-xl p-2.5 mb-3 flex flex-wrap items-center justify-between gap-3 shadow-lg select-none">
-        {/* Left section: Studio Logo + Format Quick Pills */}
+      {/* ── TOP STUDIO WORKBENCH NAVIGATION BAR ─────────────────────────── */}
+      <div className="bg-slate-950/95 border border-slate-800/90 text-white rounded-2xl p-3 mb-4 flex flex-wrap items-center justify-between gap-4 shadow-2xl backdrop-blur-xl select-none">
+        {/* Left section: Studio Brand + Single Unified Editor Selection Menu */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-600/30 border border-purple-500/50 rounded-lg text-xs font-black tracking-wider text-purple-300">
-            <span>🎨</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-950/80 border border-purple-600/60 rounded-xl text-xs font-black tracking-wider text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+            <span className="text-sm">🎨</span>
             <span>MEME STUDIO</span>
           </div>
 
-          <div className="h-4 w-px bg-slate-800 hidden sm:block" />
+          <div className="h-5 w-px bg-slate-800 hidden sm:block" />
 
-          {/* Quick Format tabs */}
-          <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
-            {[("image"), ("video"), ("gif"), ("audio")].map((tab) => (
+          {/* Unified Editor Selection Menu */}
+          <div className="flex bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-inner gap-1">
+            {[
+              { id: "image", label: "Image", icon: TAB_ICONS["image"] },
+              { id: "video", label: "Video", icon: TAB_ICONS["video"] },
+              { id: "gif", label: "GIF", icon: TAB_ICONS["gif"] },
+              { id: "audio", label: "Audio", icon: TAB_ICONS["audio"] }
+            ].map((tab) => (
               <button
-                key={tab}
+                key={tab.id}
                 type="button"
-                onClick={() => { setActiveTab(tab); setAlertMessage(""); }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-bold capitalize transition flex items-center gap-1 ${
-                  activeTab === tab
-                    ? "bg-purple-600 text-white shadow"
-                    : "text-slate-400 hover:text-white"
+                onClick={() => { setActiveTab(tab.id); setAlertMessage(""); }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
+                  activeTab === tab.id
+                    ? "bg-purple-600 text-white shadow-[0_0_12px_rgba(147,51,234,0.6)] scale-[1.03]"
+                    : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60"
                 }`}
               >
-                {TAB_ICONS[tab]}
-                <span className="capitalize">{tab}</span>
+                <span className="text-sm">{tab.icon}</span>
+                <span className="capitalize font-semibold">{tab.label}</span>
               </button>
             ))}
           </div>
@@ -1875,14 +1920,14 @@ const Lab = () => {
         {/* Center section: Active Layer Contextual Control Bar */}
         <div className="flex items-center gap-2 overflow-x-auto py-0.5 max-w-full">
           {activeTextLayer ? (
-            <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700 px-3 py-1 rounded-lg text-xs">
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs shadow-inner">
               <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Text Layer</span>
               
               {/* Font family picker */}
               <select
                 value={activeTextLayer.fontFamily || "Impact"}
                 onChange={(e) => updateTextLayer("fontFamily", e.target.value)}
-                className="bg-slate-900 border border-slate-700 text-white text-[11px] rounded px-1.5 py-0.5 focus:outline-none"
+                className="bg-slate-950 border border-slate-700 text-white text-[11px] rounded-lg px-2 py-1 focus:outline-none"
               >
                 <option value="Impact">Impact</option>
                 <option value="Arial">Arial Black</option>
@@ -1901,7 +1946,7 @@ const Lab = () => {
                   max="180"
                   value={activeTextLayer.fontSize || 24}
                   onChange={(e) => updateTextLayer("fontSize", parseInt(e.target.value) || 24)}
-                  className="w-12 bg-slate-900 border border-slate-700 text-white text-[11px] text-center rounded py-0.5"
+                  className="w-12 bg-slate-950 border border-slate-700 text-white text-[11px] text-center rounded-lg py-1"
                 />
               </div>
 
@@ -1917,18 +1962,18 @@ const Lab = () => {
               </label>
 
               {/* Layer re-order */}
-              <div className="flex items-center gap-0.5 pl-1 border-l border-slate-700">
+              <div className="flex items-center gap-1 pl-1 border-l border-slate-800">
                 <button
                   type="button"
                   onClick={() => moveLayerUp(activeTextLayer.id)}
                   title="Move Up"
-                  className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-[10px] font-bold"
+                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[10px] font-bold"
                 >▲</button>
                 <button
                   type="button"
                   onClick={() => moveLayerDown(activeTextLayer.id)}
                   title="Move Down"
-                  className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-[10px] font-bold"
+                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[10px] font-bold"
                 >▼</button>
               </div>
 
@@ -1936,27 +1981,24 @@ const Lab = () => {
               <button
                 type="button"
                 onClick={duplicateSelectedText}
-                className="px-2 py-0.5 bg-purple-600/40 hover:bg-purple-600 text-purple-200 hover:text-white rounded text-[10px] font-bold"
+                className="px-2.5 py-1 bg-purple-900/60 hover:bg-purple-600 text-purple-200 hover:text-white rounded-lg text-[10px] font-bold transition"
               >
                 Copy
               </button>
               <button
                 type="button"
                 onClick={deleteSelectedText}
-                className="px-2 py-0.5 bg-red-600/40 hover:bg-red-600 text-red-200 hover:text-white rounded text-[10px] font-bold"
+                className="px-2.5 py-1 bg-red-950/60 hover:bg-red-600 text-red-200 hover:text-white rounded-lg text-[10px] font-bold transition"
               >
                 Delete
               </button>
             </div>
           ) : activeTab === "video" ? (
-            <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700 px-3 py-1 rounded-lg text-xs">
-              <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Video Studio</span>
-              <span className="text-[11px] text-slate-300 font-mono">
-                Trim Bounds: {videoTrimStart.toFixed(1)}s – {videoTrimEnd.toFixed(1)}s
-              </span>
+            <div className="flex items-center gap-2 bg-purple-950/40 border border-purple-800/50 px-3 py-1.5 rounded-xl text-xs">
+              <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Video Studio Active</span>
             </div>
           ) : (
-            <div className="text-[11px] text-slate-400 italic">
+            <div className="text-xs text-slate-400 italic">
               Select any text layer on canvas to customize font, colors & scaling
             </div>
           )}
@@ -1965,27 +2007,27 @@ const Lab = () => {
         {/* Right section: Global Actions */}
         <div className="flex items-center gap-2">
           {/* Undo / Redo */}
-          <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+          <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 gap-1">
             <button
               type="button"
               onClick={undoTextLayers}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
-              className="px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-30"
+              className="px-2.5 py-1 text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-30 rounded hover:bg-slate-800 transition"
             >↩</button>
             <button
               type="button"
               onClick={redoTextLayers}
               disabled={!canRedo}
               title="Redo (Ctrl+Y)"
-              className="px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-30"
+              className="px-2.5 py-1 text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-30 rounded hover:bg-slate-800 transition"
             >↪</button>
           </div>
 
           <button
             type="button"
             onClick={() => setShowAiModal(true)}
-            className="bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/50 font-bold text-xs px-3 py-1.5 rounded-lg transition flex items-center gap-1"
+            className="bg-purple-600/30 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/50 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow"
           >
             <span>⚡ AI Punchlines</span>
           </button>
@@ -1993,9 +2035,9 @@ const Lab = () => {
           <button
             type="button"
             onClick={() => setShowSaveModal(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-4 py-1.5 rounded-lg shadow transition flex items-center gap-1.5"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-lg transition flex items-center gap-1.5 active:scale-95"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             <span>Export</span>
           </button>
         </div>
@@ -2025,43 +2067,26 @@ const Lab = () => {
                 style={{ width: `${Math.round(ffmpegProgress * 100)}%` }}
               />
             </div>
-            <p className="text-gray-400 text-xs">{Math.round(ffmpegProgress * 100)}% — this may take approx. {Math.round(videoTrimEnd - videoTrimStart)}–{Math.round((videoTrimEnd - videoTrimStart) * 2)} seconds</p>
+            <p className="text-gray-400 text-xs">{Math.round(ffmpegProgress * 100)}% — processing media</p>
           </div>
         </div>
       )}
 
-            {/* Unified SaaS Workbench Card */}
-      <div className={`flex flex-col lg:flex-row h-auto lg:h-[730px] rounded-2xl overflow-hidden shadow-2xl border ${
+      {/* Unified SaaS Workbench Card */}
+      <div className={`flex-1 flex flex-col lg:flex-row min-h-[calc(100vh-160px)] w-full rounded-2xl overflow-hidden shadow-2xl border ${
         highContrastMode 
           ? "bg-zinc-950 border-zinc-800 text-white" 
           : "bg-white border-gray-200 text-gray-800"
       }`}>
         
         {/* 1. LEFT SIDEBAR */}
-        <div className={`w-full lg:w-[285px] border-r flex flex-col shrink-0 h-[420px] lg:h-full ${
+        <div className={`w-full lg:w-[310px] border-r flex flex-col shrink-0 h-auto lg:h-full ${
           highContrastMode
             ? "bg-zinc-900 border-zinc-800 text-white"
             : "bg-white border-gray-100 text-gray-800"
         }`}>
 
-          {/* Format Tab Row — Image / Video / GIF / Audio */}
-          <div id="lab-format-tabs" className={`px-3 pt-3 pb-2 border-b border-gray-100 dark:border-zinc-800`}>
-            <div className={`flex gap-1 p-1 rounded-lg bg-gray-100 dark:bg-zinc-800`}>
-              {[("image"), ("video"), ("gif"), ("audio")].map((tab) => (
-                <button
-                  type="button"
-                  key={tab}
-                  onClick={() => { setActiveTab(tab); setAlertMessage(""); }}
-                  className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[11px] font-bold transition ${
-                    activeTab === tab ? "bg-white dark:bg-zinc-700 text-purple-700 dark:text-zinc-200 shadow-sm" : "text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-                  }`}
-                >
-                  {TAB_ICONS[tab]}
-                  <span className="capitalize hidden sm:inline">{tab}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+
 
           {/* Tool Switcher — Media / Text */}
           <div className={`px-3 py-2 border-b border-gray-100 dark:border-zinc-800`}>
@@ -2390,227 +2415,26 @@ const Lab = () => {
 
                 {activeTab === "video" && (
                   <div className="space-y-4">
-                    {/* Header + Sub-tab Selector */}
                     <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
                       <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Video Studio Engine</h3>
                       {videoUrl && (
                         <span className="text-[10px] bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300 font-bold px-2 py-0.5 rounded-full">
-                          Loaded
+                          Active
                         </span>
                       )}
                     </div>
 
-                    {/* Sub-tab Pills */}
-                    <div className="grid grid-cols-3 gap-1 bg-gray-100 dark:bg-zinc-900 p-1 rounded-xl">
-                      {[
-                        { id: "assets", label: "🎬 Media", desc: "Source" },
-                        { id: "trim", label: "✂️ Trim", desc: "Crop" },
-                        { id: "subtitles", label: "💬 Captions", desc: "Subtitles" },
-                      ].map((tab) => (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          onClick={() => setVideoSubTab(tab.id)}
-                          className={`py-1.5 px-2 rounded-lg text-center transition flex flex-col items-center justify-center ${
-                            videoSubTab === tab.id
-                              ? "bg-white dark:bg-zinc-800 text-purple-700 dark:text-purple-300 font-bold shadow-sm"
-                              : "text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 font-medium"
-                          }`}
-                        >
-                          <span className="text-[11px]">{tab.label}</span>
-                        </button>
-                      ))}
+                    <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800/40 space-y-2">
+                      <p className="font-extrabold text-xs text-purple-900 dark:text-purple-300">
+                        🎬 Classic NLE Studio
+                      </p>
+                      <p className="text-[11px] text-purple-700 dark:text-purple-400 leading-relaxed">
+                        Use the interactive Video Studio on the right to upload media, adjust aspect ratios, and manage subtitle tracks.
+                      </p>
                     </div>
-
-                    {/* SUB-TAB 1: MEDIA & ASPECT */}
-                    {videoSubTab === "assets" && (
-                      <div className="space-y-4 pt-1">
-                        <div 
-                          onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
-                          onDragLeave={() => setIsDragOverDropzone(false)}
-                          onDrop={handleDropzoneDrop}
-                          className={`border-2 border-dashed rounded-xl text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[92px] ${
-                            isDragOverDropzone
-                              ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/20"
-                              : (highContrastMode 
-                                  ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
-                                  : "border-gray-200 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/30")
-                          }`}
-                        >
-                          <input 
-                            type="file" 
-                            accept="video/*" 
-                            onChange={handleVideoUpload} 
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                          />
-                          <svg className="w-6 h-6 text-gray-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                          <span className="text-[11px] text-gray-500">Drop video clip or <span className="text-purple-600 font-semibold">browse</span></span>
-                        </div>
-
-                        <div>
-                          <span className="block text-[10px] font-bold uppercase tracking-wider mb-2 text-gray-400">Stock Media Presets</span>
-                          <div className="flex flex-wrap gap-2">
-                            {MEDIA_SAMPLES.video.map((sample, idx) => (
-                              <button
-                                key={sample.id}
-                                type="button"
-                                onClick={() => selectMediaPreset(sample.url, "video", 15)}
-                                className="text-[11px] bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition active:scale-95"
-                              >
-                                Sample {idx + 1}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
-                          <span className="block text-[10px] font-bold uppercase tracking-wider mb-2 text-gray-400">Aspect Ratio Preset</span>
-                          <div className="grid grid-cols-4 gap-1.5">
-                            {[
-                              { label: "16:9", icon: "📺", val: "16:9" },
-                              { label: "9:16", icon: "📱", val: "9:16" },
-                              { label: "1:1", icon: "🔲", val: "1:1" },
-                              { label: "4:3", icon: "📼", val: "4:3" }
-                            ].map((opt) => (
-                              <button
-                                key={opt.val}
-                                type="button"
-                                onClick={() => setAspectRatio(opt.val)}
-                                className={`text-[10px] font-bold p-2 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 ${
-                                  aspectRatio === opt.val
-                                    ? "bg-purple-600 text-white border-purple-600 shadow-sm"
-                                    : "bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 active:scale-95"
-                                }`}
-                              >
-                                <span className="text-sm">{opt.icon}</span>
-                                <span>{opt.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* SUB-TAB 2: TRIM & SPLIT */}
-                    {videoSubTab === "trim" && (
-                      <div className="space-y-4 pt-1">
-                        <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-xl border border-purple-100 dark:border-purple-900/40 space-y-2">
-                          <div className="flex items-center justify-between text-xs font-bold text-purple-900 dark:text-purple-300">
-                            <span>Active Clip Duration</span>
-                            <span className="font-mono text-purple-600 dark:text-purple-400">{(videoTrimEnd - videoTrimStart).toFixed(1)}s</span>
-                          </div>
-                          <div className="w-full bg-purple-200 dark:bg-purple-900 h-1.5 rounded-full overflow-hidden">
-                            <div 
-                              className="bg-purple-600 h-full rounded-full transition-all"
-                              style={{ width: `${Math.min(100, ((videoTrimEnd - videoTrimStart) / Math.max(1, videoDuration)) * 100)}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-3 text-xs font-semibold">
-                          <div>
-                            <div className="flex justify-between text-gray-600 dark:text-gray-400 mb-1">
-                              <span>Start Marker</span>
-                              <span className="text-purple-600 dark:text-purple-400 font-mono">{formatTime(videoTrimStart)} ({videoTrimStart.toFixed(1)}s)</span>
-                            </div>
-                            <input 
-                              type="range" 
-                              min="0" 
-                              max={videoTrimEnd} 
-                              step="0.1"
-                              value={videoTrimStart}
-                              onChange={(e) => setVideoTrimStart(parseFloat(e.target.value))}
-                              className="w-full accent-purple-600 h-1.5 bg-gray-200 dark:bg-zinc-800 rounded-lg cursor-pointer"
-                            />
-                          </div>
-
-                          <div>
-                            <div className="flex justify-between text-gray-600 dark:text-gray-400 mb-1">
-                              <span>End Marker</span>
-                              <span className="text-purple-600 dark:text-purple-400 font-mono">{formatTime(videoTrimEnd)} ({videoTrimEnd.toFixed(1)}s)</span>
-                            </div>
-                            <input 
-                              type="range" 
-                              min={videoTrimStart} 
-                              max={videoDuration} 
-                              step="0.1"
-                              value={videoTrimEnd}
-                              onChange={(e) => setVideoTrimEnd(parseFloat(e.target.value))}
-                              className="w-full accent-purple-600 h-1.5 bg-gray-200 dark:bg-zinc-800 rounded-lg cursor-pointer"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="pt-2 flex flex-col gap-2">
-                          <button
-                            type="button"
-                            onClick={() => { setVideoTrimStart(0); setVideoTrimEnd(videoDuration); }}
-                            className="w-full py-1.5 px-3 rounded-xl border border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-600 dark:text-gray-400 font-semibold text-[11px] transition text-center"
-                          >
-                            Reset Trim Bounds
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* SUB-TAB 3: TIMED SUBTITLES */}
-                    {videoSubTab === "subtitles" && (
-                      <div className="space-y-4 pt-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Subtitle Overlay List</span>
-                          <button
-                            type="button"
-                            onClick={handleAddCaptionAtCurrentTime}
-                            className="text-xs text-purple-600 dark:text-purple-400 font-bold hover:underline flex items-center gap-1"
-                          >
-                            <span>➕ Add at Playhead</span>
-                          </button>
-                        </div>
-
-                        <textarea
-                          value={videoCaptions}
-                          onChange={(e) => setVideoCaptions(e.target.value)}
-                          placeholder={`0:01 – Subtitle line 1\n0:05 – Subtitle line 2\n0:10 – Final punchline`}
-                          rows={6}
-                          className={`w-full text-xs rounded-xl border px-3 py-2.5 font-mono resize-y focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                            highContrastMode
-                              ? "bg-zinc-900 border-zinc-700 text-white placeholder-zinc-600"
-                              : "bg-white border-gray-200 text-gray-800 placeholder-gray-400"
-                          }`}
-                        />
-                        <p className="text-[10px] text-gray-400 leading-normal">
-                          Format: <code className="bg-gray-100 dark:bg-zinc-800 px-1 py-0.5 rounded">MM:SS – Caption text</code> (One per line).
-                        </p>
-
-                        <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-2">
-                          <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">Subtitle Position on Canvas</span>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            {[
-                              { id: "bottom", label: "Bottom" },
-                              { id: "middle", label: "Center" },
-                              { id: "top", label: "Top" },
-                            ].map((pos) => (
-                              <button
-                                key={pos.id}
-                                type="button"
-                                onClick={() => setSubtitlePosition(pos.id)}
-                                className={`py-1 px-2 text-[10px] font-bold rounded-lg border text-center transition ${
-                                  subtitlePosition === pos.id
-                                    ? "bg-purple-600 text-white border-purple-600"
-                                    : "bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
-                                }`}
-                              >
-                                {pos.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
+
 
                 {activeTab === "gif" && (
                   <div className="space-y-5">
@@ -3184,7 +3008,7 @@ const Lab = () => {
           </div>
 
           {/* Drawing Workspace Canvas Container */}
-          <div className="flex-grow overflow-y-auto flex flex-col items-center justify-center p-6 relative">
+          <div className="w-full h-full flex-grow overflow-y-auto flex flex-col items-center justify-center p-3 sm:p-6 relative">
             {/* Subtle dot grid */}
             <div 
               className={`absolute inset-0 pointer-events-none ${highContrastMode ? "opacity-[0.08]" : "opacity-[0.15]"}`}
@@ -3197,16 +3021,59 @@ const Lab = () => {
             />
 
             {/* Canvas Preview Area */}
-            <div id="lab-canvas-area" className="relative z-10 w-full flex flex-col items-center">
-              <div 
-                ref={canvasContainerRef}
-                className={`relative w-full max-w-[480px] ${ASPECT_RATIOS[canvasAspect]?.css || "aspect-square"} flex items-center justify-center select-none shadow-xl border ${
-                  highContrastMode 
-                    ? "bg-zinc-900 border-zinc-800" 
-                    : "border-slate-950"
-                } rounded-2xl overflow-hidden`}
-                style={{ backgroundColor: canvasBg }}
-              >
+            <div id="lab-canvas-area" className="relative z-10 w-full h-full flex flex-col items-center justify-center">
+              {activeTab === "video" ? (
+                <div className="w-full h-full min-h-[640px] shadow-2xl rounded-2xl overflow-hidden border border-zinc-800 flex flex-col">
+                  <ClassicVideoEditor
+                    videoUrl={videoUrl}
+                    videoFile={videoFile}
+                    videoDuration={videoDuration}
+                    videoCurrentTime={videoCurrentTime}
+                    setVideoCurrentTime={setVideoCurrentTime}
+                    videoTrimStart={videoTrimStart}
+                    setVideoTrimStart={setVideoTrimStart}
+                    videoTrimEnd={videoTrimEnd}
+                    setVideoTrimEnd={setVideoTrimEnd}
+                    videoCaptions={videoCaptions}
+                    setVideoCaptions={setVideoCaptions}
+                    activeVideoCaptionText={activeVideoCaptionText}
+                    aspectRatio={aspectRatio}
+                    setAspectRatio={setAspectRatio}
+                    videoSubTab={videoSubTab}
+                    setVideoSubTab={setVideoSubTab}
+                    videoMuted={videoMuted}
+                    setVideoMuted={setVideoMuted}
+                    videoLoop={videoLoop}
+                    setVideoLoop={setVideoLoop}
+                    subtitlePosition={subtitlePosition}
+                    setSubtitlePosition={setSubtitlePosition}
+                    videoPlayerRef={videoPlayerRef}
+                    timelineTrackRef={timelineTrackRef}
+                    handleVideoUpload={handleVideoUpload}
+                    selectMediaPreset={selectMediaPreset}
+                    handleAddCaptionAtCurrentTime={handleAddCaptionAtCurrentTime}
+                    handleDeleteCaptionIndex={handleDeleteCaptionIndex}
+                    handleEditCaptionText={handleEditCaptionText}
+                    handleSplitVideoAtCurrentTime={handleSplitVideoAtCurrentTime}
+                    parseCaptionLines={parseCaptionLines}
+                    formatTime={formatTime}
+                    rebuildCaptionsString={rebuildCaptionsString}
+                    handleDropzoneDrop={handleDropzoneDrop}
+                    isDragOverDropzone={isDragOverDropzone}
+                    setIsDragOverDropzone={setIsDragOverDropzone}
+                    MEDIA_SAMPLES={MEDIA_SAMPLES}
+                  />
+                </div>
+              ) : (
+                <div 
+                  ref={canvasContainerRef}
+                  className={`relative w-full max-w-[680px] lg:max-w-[760px] max-h-[78vh] ${ASPECT_RATIOS[canvasAspect]?.css || "aspect-square"} flex items-center justify-center select-none shadow-2xl border ${
+                    highContrastMode 
+                      ? "bg-zinc-900 border-zinc-800" 
+                      : "border-slate-950"
+                  } rounded-2xl overflow-hidden transition-all duration-300`}
+                  style={{ backgroundColor: canvasBg }}
+                >
                 {/* Draggable Text Overlays Layer wrapper */}
                 <div className="absolute inset-0 z-20 pointer-events-none">
                   {textLayers.map((layer) => (
@@ -3557,299 +3424,6 @@ const Lab = () => {
                   </div>
                 )}
 
-                {activeTab === "video" && (
-                  <div className="w-full h-full flex flex-col bg-zinc-950 text-white select-none">
-                    {/* Top Section: Large Cinema Video Preview Canvas */}
-                    <div className="flex-1 min-h-0 relative flex items-center justify-center bg-zinc-950/90 p-6 overflow-hidden">
-                      {videoUrl ? (
-                        <div className="relative w-full h-full flex items-center justify-center">
-                          <div 
-                            className="relative bg-black border-2 border-zinc-800/80 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden flex items-center justify-center transition-all duration-300 rounded-2xl"
-                            style={{
-                              aspectRatio: aspectRatio === "16:9" ? "16/9" : aspectRatio === "9:16" ? "9/16" : aspectRatio === "1:1" ? "1/1" : "4/3",
-                              maxHeight: "100%",
-                              maxWidth: "100%",
-                              width: aspectRatio === "9:16" ? "auto" : "100%",
-                              height: aspectRatio === "9:16" ? "100%" : "auto"
-                            }}
-                          >
-                            {/* Floating Aspect Ratio Badge */}
-                            <div className="absolute top-4 left-4 px-2.5 py-1 bg-black/70 backdrop-blur-md rounded-lg border border-white/10 text-xs font-mono text-zinc-200 font-extrabold z-20 flex items-center gap-2 pointer-events-none shadow-md">
-                              <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse" />
-                              <span>{aspectRatio} STUDIO</span>
-                            </div>
-
-                            <video 
-                              ref={videoPlayerRef}
-                              src={videoUrl} 
-                              controls={false}
-                              className="w-full h-full object-contain pointer-events-none" 
-                            />
-
-                            {/* Live Subtitle Overlay */}
-                            {activeVideoCaptionText && (
-                              <div 
-                                className={`absolute left-1/2 -translate-x-1/2 px-5 py-2.5 bg-black/85 text-white text-base font-extrabold rounded-xl shadow-2xl border border-zinc-700/80 text-center max-w-[85%] select-none pointer-events-none z-30 transition-all ${
-                                  subtitlePosition === "top"
-                                    ? "top-8"
-                                    : subtitlePosition === "middle"
-                                      ? "top-1/2 -translate-y-1/2"
-                                      : "bottom-8"
-                                }`}
-                              >
-                                {activeVideoCaptionText}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center p-12 text-center text-gray-400 w-full h-full">
-                          <div className="mb-4 text-purple-400">
-                            <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                          </div>
-                          <p className="font-extrabold text-base mb-1 text-zinc-200">Video Studio Canvas</p>
-                          <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
-                            Select a stock sample or drop your video clip to start editing in studio mode.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Bottom Section: Professional Timeline & Playback Controls */}
-                    {videoUrl && (
-                      <div className="bg-zinc-900 border-t border-zinc-800 p-4 space-y-3 z-30 shrink-0">
-                        {/* Transport Bar */}
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-2.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const video = videoPlayerRef.current;
-                                if (!video) return;
-                                if (video.paused) video.play().catch(() => {});
-                                else video.pause();
-                              }}
-                              className="w-9 h-9 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center font-bold text-sm transition active:scale-95 shadow-md"
-                              title="Play / Pause"
-                            >
-                              {videoPlayerRef.current && !videoPlayerRef.current.paused ? "⏸" : "▶"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const video = videoPlayerRef.current;
-                                if (!video) return;
-                                video.pause();
-                                video.currentTime = videoTrimStart;
-                              }}
-                              className="w-9 h-9 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 flex items-center justify-center font-bold text-xs transition active:scale-95 border border-zinc-700"
-                              title="Stop & Reset"
-                            >
-                              ⏹
-                            </button>
-                            
-                            {/* Mute Toggle */}
-                            <button
-                              type="button"
-                              onClick={() => setVideoMuted(!videoMuted)}
-                              className={`w-9 h-9 rounded-full flex items-center justify-center text-sm transition active:scale-95 border ${
-                                videoMuted
-                                  ? "bg-amber-950/50 text-amber-400 border-amber-800"
-                                  : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700"
-                              }`}
-                              title={videoMuted ? "Unmute Audio" : "Mute Audio"}
-                            >
-                              {videoMuted ? "🔇" : "🔊"}
-                            </button>
-
-                            {/* Loop Toggle */}
-                            <button
-                              type="button"
-                              onClick={() => setVideoLoop(!videoLoop)}
-                              className={`w-9 h-9 rounded-full flex items-center justify-center text-sm transition active:scale-95 border ${
-                                videoLoop
-                                  ? "bg-purple-950/60 text-purple-300 border-purple-700 font-bold"
-                                  : "bg-zinc-800 hover:bg-zinc-700 text-zinc-500 border-zinc-700"
-                              }`}
-                              title={videoLoop ? "Looping Enabled" : "Looping Disabled"}
-                            >
-                              🔁
-                            </button>
-
-                            <span className="text-xs font-mono text-zinc-300 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800 font-bold">
-                              {formatTime(videoCurrentTime)} / {formatTime(videoDuration)}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2.5">
-                            <button
-                              type="button"
-                              onClick={handleAddCaptionAtCurrentTime}
-                              className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-purple-600 text-white font-bold text-xs transition flex items-center gap-1.5 border border-zinc-700 hover:border-purple-500 active:scale-95 shadow-sm"
-                            >
-                              <span>💬</span>
-                              <span>Add Subtitle</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleSplitVideoAtCurrentTime}
-                              className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md active:scale-95"
-                              title="Split video clip at current playhead position"
-                            >
-                              <span>✂️</span>
-                              <span>Split at Playhead</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Interactive Timeline Panel */}
-                        <div 
-                          ref={timelineTrackRef}
-                          className="relative h-20 bg-zinc-950 rounded-xl border border-zinc-800 overflow-hidden cursor-crosshair select-none shadow-inner"
-                          onClick={(e) => {
-                            if (e.target.closest(".no-snap")) return;
-                            const rect = timelineTrackRef.current.getBoundingClientRect();
-                            const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                            const targetTime = pct * videoDuration;
-                            if (videoPlayerRef.current) {
-                              videoPlayerRef.current.currentTime = targetTime;
-                              setVideoCurrentTime(targetTime);
-                            }
-                          }}
-                        >
-                          {/* Timeline Ruler Tick Markers */}
-                          <div className="absolute inset-x-0 top-0 h-4 border-b border-zinc-900 flex items-center justify-between px-2 text-[9px] font-mono text-zinc-500 pointer-events-none">
-                            <span>0:00</span>
-                            <span>{formatTime(videoDuration * 0.25)}</span>
-                            <span>{formatTime(videoDuration * 0.5)}</span>
-                            <span>{formatTime(videoDuration * 0.75)}</span>
-                            <span>{formatTime(videoDuration)}</span>
-                          </div>
-
-                          {/* Visual Audio/Video Waveform Bars */}
-                          <div className="absolute inset-x-0 top-5 bottom-8 flex items-center justify-around opacity-25 pointer-events-none px-1">
-                            {Array.from({ length: 72 }).map((_, i) => (
-                              <div 
-                                key={i} 
-                                className="w-[2px] bg-purple-400 rounded-full" 
-                                style={{ height: `${25 + Math.sin(i * 0.35) * 75}%` }}
-                              />
-                            ))}
-                          </div>
-
-                          {/* Trimmed Active Video Range Highlight */}
-                          <div 
-                            className="absolute top-4 bottom-8 bg-purple-500/20 border-l-2 border-r-2 border-purple-500"
-                            style={{
-                              left: `${(videoTrimStart / videoDuration) * 100}%`,
-                              width: `${((videoTrimEnd - videoTrimStart) / videoDuration) * 100}%`
-                            }}
-                          >
-                            {/* Left Trim Handle Button */}
-                            <div 
-                              className="no-snap absolute top-0 -left-2.5 bottom-0 w-5 bg-purple-600 hover:bg-purple-500 rounded-l cursor-ew-resize flex items-center justify-center text-[9px] text-white font-bold shadow-md z-20"
-                              title="Drag Start Trim Marker"
-                              onPointerDown={(e) => {
-                                e.stopPropagation();
-                                const trackRect = timelineTrackRef.current.getBoundingClientRect();
-                                const onMove = (me) => {
-                                  const pct = Math.max(0, Math.min(videoTrimEnd / videoDuration, (me.clientX - trackRect.left) / trackRect.width));
-                                  setVideoTrimStart(parseFloat((pct * videoDuration).toFixed(1)));
-                                };
-                                const onUp = () => {
-                                  window.removeEventListener("pointermove", onMove);
-                                  window.removeEventListener("pointerup", onUp);
-                                };
-                                window.addEventListener("pointermove", onMove);
-                                window.addEventListener("pointerup", onUp);
-                              }}
-                            >
-                              ‹
-                            </div>
-
-                            {/* Right Trim Handle Button */}
-                            <div 
-                              className="no-snap absolute top-0 -right-2.5 bottom-0 w-5 bg-purple-600 hover:bg-purple-500 rounded-r cursor-ew-resize flex items-center justify-center text-[9px] text-white font-bold shadow-md z-20"
-                              title="Drag End Trim Marker"
-                              onPointerDown={(e) => {
-                                e.stopPropagation();
-                                const trackRect = timelineTrackRef.current.getBoundingClientRect();
-                                const onMove = (me) => {
-                                  const pct = Math.max(videoTrimStart / videoDuration, Math.min(1, (me.clientX - trackRect.left) / trackRect.width));
-                                  setVideoTrimEnd(parseFloat((pct * videoDuration).toFixed(1)));
-                                };
-                                const onUp = () => {
-                                  window.removeEventListener("pointermove", onMove);
-                                  window.removeEventListener("pointerup", onUp);
-                                };
-                                window.addEventListener("pointermove", onMove);
-                                window.addEventListener("pointerup", onUp);
-                              }}
-                            >
-                              ›
-                            </div>
-                          </div>
-
-                          {/* Subtitles Track (Capsules) */}
-                          <div className="absolute inset-x-0 bottom-1 h-6 border-t border-zinc-900/80 flex items-center">
-                            {videoCaptions
-                              .split("\n")
-                              .map((line, idx) => {
-                                const match = line.match(/^(\d+):(\d+)\s*[–\-]\s*(.+)$/);
-                                if (!match) return null;
-                                const startTime = parseInt(match[1]) * 60 + parseInt(match[2]);
-                                
-                                const nextLine = videoCaptions.split("\n")[idx + 1];
-                                const nextMatch = nextLine ? nextLine.match(/^(\d+):(\d+)\s*[–\-]\s*(.+)$/) : null;
-                                const endTime = nextMatch ? (parseInt(nextMatch[1]) * 60 + parseInt(nextMatch[2])) : videoDuration;
-                                const capEnd = Math.min(endTime, startTime + 4);
-
-                                const leftPct = (startTime / videoDuration) * 100;
-                                const widthPct = Math.max(4, ((capEnd - startTime) / videoDuration) * 100);
-
-                                return (
-                                  <div
-                                    key={idx}
-                                    className="no-snap absolute h-4.5 bg-purple-600/60 hover:bg-purple-600/90 border border-purple-400/80 rounded px-1.5 flex items-center justify-between text-[8px] text-white font-bold select-none cursor-pointer truncate max-w-full z-15 shadow-sm"
-                                    style={{
-                                      left: `${leftPct}%`,
-                                      width: `${widthPct}%`
-                                    }}
-                                    title={`Subtitle: "${match[3]}" (Click to edit)`}
-                                    onClick={() => handleEditCaptionText(idx)}
-                                  >
-                                    <span className="truncate mr-0.5">{match[3]}</span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteCaptionIndex(idx);
-                                      }}
-                                      className="hover:text-red-400 font-bold text-[7px]"
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-                                );
-                              })
-                            }
-                          </div>
-
-                          {/* Red Scrub Playhead line */}
-                          <div 
-                            className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-30 pointer-events-none shadow-[0_0_8px_rgba(239,68,68,0.8)]"
-                            style={{ left: `${(videoCurrentTime / Math.max(0.1, videoDuration)) * 100}%` }}
-                          >
-                            <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-red-500 rotate-45 rounded-sm shadow-md" />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {activeTab === "gif" && (
                   <div className="w-full h-full flex items-center justify-center bg-black">
                     {gifUrl ? (
@@ -3936,6 +3510,7 @@ const Lab = () => {
                   </div>
                 )}
               </div>
+              )}
               
               <p className={`mt-3 text-[11px] text-center italic relative z-10 place-holder `}>
                 💡 Drag text layers on the canvas to position them. Double-click to edit text strings directly.

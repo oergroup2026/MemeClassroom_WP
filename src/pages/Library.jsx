@@ -1791,9 +1791,17 @@ const Library = () => {
       </div>
 
       {/* 2. MEME DETAIL OVERLAY EXPANSION MODAL */}
-      {activeMeme && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="w-full max-w-4xl p-6 rounded-2xl overflow-y-auto max-h-[90vh] grid grid-cols-1 md:grid-cols-2 gap-6 bg-white dark:bg-zinc-900 shadow-2xl border border-gray-200 dark:border-zinc-700">
+      {activeMeme && createPortal(
+        <div
+          className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"
+          style={{ animation: 'modalBackdropFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+          onClick={() => setActiveMeme(null)}
+        >
+          <div
+            className="w-full max-w-4xl p-6 rounded-2xl overflow-y-auto max-h-[90vh] grid grid-cols-1 md:grid-cols-2 gap-6 bg-white dark:bg-zinc-900 shadow-2xl border border-gray-200 dark:border-zinc-700"
+            style={{ animation: 'modalContainerScaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+            onClick={e => e.stopPropagation()}
+          >
 
             {/* Left Column: Visual Asset & Title */}
             <div>
@@ -2249,7 +2257,8 @@ const Library = () => {
 
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 3. DIRECT MEME UPLOAD MODAL */}

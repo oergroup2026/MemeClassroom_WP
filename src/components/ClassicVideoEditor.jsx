@@ -1,0 +1,510 @@
+import React, { useState } from "react";
+import { 
+  Play, 
+  Pause, 
+  Square, 
+  Volume2, 
+  VolumeX, 
+  Repeat, 
+  MessageSquarePlus, 
+  Upload, 
+  Film, 
+  Trash2, 
+  Edit3, 
+  Check, 
+  Plus,
+  Maximize2
+} from "lucide-react";
+
+export default function ClassicVideoEditor({
+  videoUrl,
+  videoDuration,
+  videoCurrentTime,
+  setVideoCurrentTime,
+  videoCaptions,
+  setVideoCaptions,
+  activeVideoCaptionText,
+  aspectRatio,
+  setAspectRatio,
+  videoMuted,
+  setVideoMuted,
+  videoLoop,
+  setVideoLoop,
+  subtitlePosition,
+  setSubtitlePosition,
+  videoPlayerRef,
+  timelineTrackRef,
+  handleVideoUpload,
+  selectMediaPreset,
+  handleAddCaptionAtCurrentTime,
+  handleDeleteCaptionIndex,
+  handleEditCaptionText,
+  parseCaptionLines,
+  formatTime,
+  rebuildCaptionsString,
+  handleDropzoneDrop,
+  isDragOverDropzone,
+  setIsDragOverDropzone,
+  MEDIA_SAMPLES
+}) {
+  const [newSubText, setNewSubText] = useState("");
+  const [editingSubIndex, setEditingSubIndex] = useState(null);
+  const [editingSubText, setEditingSubText] = useState("");
+
+  const parsedCaptions = parseCaptionLines(videoCaptions || "");
+
+  const handleManualAddSubtitle = () => {
+    if (!newSubText.trim()) return;
+    const time = videoPlayerRef?.current ? Math.floor(videoPlayerRef.current.currentTime) : Math.floor(videoCurrentTime);
+    const updated = [...parsedCaptions, { time, text: newSubText.trim() }];
+    updated.sort((a, b) => a.time - b.time);
+    setVideoCaptions(rebuildCaptionsString(updated));
+    setNewSubText("");
+  };
+
+  const handleSaveSubEdit = (idx) => {
+    if (editingSubText.trim()) {
+      const updated = [...parsedCaptions];
+      updated[idx].text = editingSubText.trim();
+      setVideoCaptions(rebuildCaptionsString(updated));
+    }
+    setEditingSubIndex(null);
+    setEditingSubText("");
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col bg-zinc-950 text-zinc-100 select-none overflow-hidden rounded-2xl border border-zinc-800/80 shadow-2xl">
+      {/* ── Studio Top Toolbar ─────────────────────────────────────────────── */}
+      <div className="py-2.5 px-4 bg-zinc-900/90 border-b border-zinc-800/80 flex flex-wrap items-center justify-between gap-3 shrink-0 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
+            <span className="font-extrabold text-xs tracking-wider uppercase text-purple-400 font-mono">
+              Video Studio
+            </span>
+          </div>
+          <span className="text-zinc-700">|</span>
+
+          {/* Aspect Ratio Buttons */}
+          <div className="flex items-center gap-1 bg-zinc-950/80 p-1 rounded-xl border border-zinc-800">
+            {[
+              { label: "16:9", val: "16:9" },
+              { label: "9:16", val: "9:16" },
+              { label: "1:1", val: "1:1" },
+              { label: "4:3", val: "4:3" }
+            ].map(opt => (
+              <button
+                key={opt.val}
+                type="button"
+                onClick={() => setAspectRatio(opt.val)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition font-mono ${
+                  aspectRatio === opt.val
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Media Select & Subtitle Overlay Position */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 bg-zinc-950/80 p-1 rounded-xl border border-zinc-800">
+            <span className="text-[10px] font-extrabold uppercase text-zinc-400 px-2">Sub Position:</span>
+            {["top", "middle", "bottom"].map(pos => (
+              <button
+                key={pos}
+                type="button"
+                onClick={() => setSubtitlePosition(pos)}
+                className={`px-2.5 py-0.5 rounded text-[11px] font-bold capitalize transition ${
+                  subtitlePosition === pos
+                    ? "bg-purple-600 text-white"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {pos}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main Studio Body (Preview Canvas + Inspector Panel) ───────────── */}
+      <div className="flex-1 min-h-[360px] flex flex-col lg:flex-row overflow-hidden relative">
+        {/* Left Side: Video Cinema Player Canvas */}
+        <div className="flex-1 bg-zinc-950 p-6 flex items-center justify-center relative overflow-hidden">
+          {videoUrl ? (
+            <div className="relative w-full h-full flex items-center justify-center">
+              <div
+                className="relative bg-black border-2 border-zinc-800 shadow-[0_0_60px_rgba(0,0,0,0.9)] overflow-hidden flex items-center justify-center transition-all duration-300 rounded-2xl"
+                style={{
+                  aspectRatio: aspectRatio === "16:9" ? "16/9" : aspectRatio === "9:16" ? "9/16" : aspectRatio === "1:1" ? "1/1" : "4/3",
+                  maxHeight: "100%",
+                  maxWidth: "100%",
+                  width: aspectRatio === "9:16" ? "auto" : "100%",
+                  height: aspectRatio === "9:16" ? "100%" : "auto"
+                }}
+              >
+                {/* Live Aspect Badge */}
+                <div className="absolute top-3 left-3 px-2.5 py-1 bg-black/80 backdrop-blur-md rounded-lg border border-zinc-700/60 text-[10px] font-mono text-zinc-300 font-bold z-20 flex items-center gap-1.5 pointer-events-none shadow-md">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>{aspectRatio} PLAYBACK</span>
+                </div>
+
+                <video
+                  ref={videoPlayerRef}
+                  src={videoUrl}
+                  controls={false}
+                  className="w-full h-full object-contain pointer-events-none"
+                />
+
+                {/* Subtitle Overlay Box */}
+                {activeVideoCaptionText && (
+                  <div
+                    className={`absolute left-1/2 -translate-x-1/2 px-5 py-2.5 bg-black/90 text-white text-base md:text-lg font-extrabold rounded-xl shadow-2xl border border-zinc-700/90 text-center max-w-[85%] select-none pointer-events-none z-30 transition-all ${
+                      subtitlePosition === "top"
+                        ? "top-6"
+                        : subtitlePosition === "middle"
+                        ? "top-1/2 -translate-y-1/2"
+                        : "bottom-6"
+                    }`}
+                  >
+                    {activeVideoCaptionText}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-8 text-center text-zinc-500 w-full h-full">
+              <Film className="w-16 h-16 mb-3 text-purple-500/70 animate-bounce" />
+              <p className="font-extrabold text-base mb-1 text-zinc-200">No Video Loaded</p>
+              <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
+                Upload your video clip or choose a sample preset from the right panel to get started.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Right Side: Media & Subtitle Inspector Panel */}
+        <div className="w-full lg:w-80 bg-zinc-900 border-t lg:border-t-0 lg:border-l border-zinc-800 flex flex-col shrink-0 p-4 space-y-5 overflow-y-auto">
+          {/* Media Source Section */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-extrabold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+              <Film className="w-4 h-4" />
+              <span>Media Source</span>
+            </h4>
+
+            {/* Dropzone Upload */}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
+              onDragLeave={() => setIsDragOverDropzone(false)}
+              onDrop={handleDropzoneDrop}
+              className={`border-2 border-dashed rounded-xl p-3.5 text-center cursor-pointer transition flex flex-col items-center justify-center relative ${
+                isDragOverDropzone
+                  ? "border-purple-500 bg-purple-950/40"
+                  : "border-zinc-700 bg-zinc-950/60 hover:border-purple-500 hover:bg-purple-950/20"
+              }`}
+            >
+              <input
+                type="file"
+                accept="video/*"
+                onChange={handleVideoUpload}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              <Upload className="w-5 h-5 text-purple-400 mb-1" />
+              <span className="text-xs text-zinc-200 font-bold">Upload Custom Video</span>
+              <span className="text-[10px] text-zinc-400 mt-0.5">MP4, WebM, MOV</span>
+            </div>
+
+            {/* Stock Presets */}
+            <div className="grid grid-cols-2 gap-2">
+              {MEDIA_SAMPLES?.video?.map((sample, idx) => (
+                <button
+                  key={sample.id}
+                  type="button"
+                  onClick={() => selectMediaPreset(sample.url, "video", 15)}
+                  className="py-2 px-3 rounded-lg bg-zinc-950 hover:bg-purple-900/40 border border-zinc-800 hover:border-purple-500/60 text-zinc-200 text-xs font-bold transition text-left flex items-center justify-between"
+                >
+                  <span>Sample {idx + 1}</span>
+                  <span className="text-[10px] font-mono text-purple-400">15s</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Subtitle Manager Section */}
+          <div className="space-y-3 pt-3 border-t border-zinc-800">
+            <h4 className="text-xs font-extrabold uppercase tracking-wider text-purple-400 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <MessageSquarePlus className="w-4 h-4" />
+                <span>Subtitle Manager</span>
+              </span>
+              <span className="text-[10px] font-mono text-zinc-400 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
+                {parsedCaptions.length} Clips
+              </span>
+            </h4>
+
+            {/* Add Subtitle Input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Type caption line..."
+                value={newSubText}
+                onChange={(e) => setNewSubText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleManualAddSubtitle()}
+                className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-purple-500"
+              />
+              <button
+                type="button"
+                onClick={handleManualAddSubtitle}
+                className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 shrink-0 shadow-md active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add</span>
+              </button>
+            </div>
+
+            {/* Subtitle List */}
+            {parsedCaptions.length === 0 ? (
+              <div className="p-4 text-center border border-dashed border-zinc-800 rounded-xl text-zinc-500 text-xs">
+                No subtitles added yet. Use the input above to create timed subtitles.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {parsedCaptions.map((cap, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 flex items-center justify-between gap-2 group hover:border-purple-500/50 transition"
+                  >
+                    <span className="font-mono text-[11px] text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-800/40 shrink-0 font-bold">
+                      {formatTime(cap.time)}
+                    </span>
+
+                    {editingSubIndex === idx ? (
+                      <div className="flex-1 flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={editingSubText}
+                          onChange={(e) => setEditingSubText(e.target.value)}
+                          className="flex-1 bg-zinc-900 border border-purple-500 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveSubEdit(idx)}
+                          className="text-emerald-400 hover:text-emerald-300 p-1"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="flex-1 text-xs text-zinc-200 truncate">
+                        {cap.text}
+                      </span>
+                    )}
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {editingSubIndex !== idx && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingSubIndex(idx);
+                            setEditingSubText(cap.text);
+                          }}
+                          className="text-zinc-400 hover:text-zinc-100 p-1"
+                          title="Edit Subtitle"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCaptionIndex(idx)}
+                        className="text-zinc-400 hover:text-red-400 p-1"
+                        title="Delete Subtitle"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Studio Bottom Timeline & Transport Controls ───────────────────── */}
+      {videoUrl && (
+        <div className="bg-zinc-900 border-t border-zinc-800 p-4 space-y-3 shrink-0 z-30">
+          {/* Transport Controls Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {/* Play/Pause */}
+              <button
+                type="button"
+                onClick={() => {
+                  const video = videoPlayerRef.current;
+                  if (!video) return;
+                  if (video.paused) video.play().catch(() => {});
+                  else video.pause();
+                }}
+                className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center transition active:scale-95 shadow-md"
+                title="Play / Pause (Space)"
+              >
+                {videoPlayerRef.current && !videoPlayerRef.current.paused ? (
+                  <Pause className="w-5 h-5 fill-white" />
+                ) : (
+                  <Play className="w-5 h-5 fill-white translate-x-0.5" />
+                )}
+              </button>
+
+              {/* Stop */}
+              <button
+                type="button"
+                onClick={() => {
+                  const video = videoPlayerRef.current;
+                  if (!video) return;
+                  video.pause();
+                  video.currentTime = 0;
+                }}
+                className="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 flex items-center justify-center transition active:scale-95 border border-zinc-700"
+                title="Stop & Reset"
+              >
+                <Square className="w-4 h-4" />
+              </button>
+
+              {/* Mute */}
+              <button
+                type="button"
+                onClick={() => setVideoMuted(!videoMuted)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95 border ${
+                  videoMuted
+                    ? "bg-amber-950/60 text-amber-400 border-amber-800"
+                    : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700"
+                }`}
+                title={videoMuted ? "Unmute Audio (M)" : "Mute Audio (M)"}
+              >
+                {videoMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+
+              {/* Loop */}
+              <button
+                type="button"
+                onClick={() => setVideoLoop(!videoLoop)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95 border ${
+                  videoLoop
+                    ? "bg-purple-950/60 text-purple-300 border-purple-700 font-bold"
+                    : "bg-zinc-800 hover:bg-zinc-700 text-zinc-500 border-zinc-700"
+                }`}
+                title="Toggle Looping"
+              >
+                <Repeat className="w-4 h-4" />
+              </button>
+
+              {/* Playback Timestamp */}
+              <span className="text-xs font-mono text-zinc-200 bg-zinc-950 px-3 py-2 rounded-xl border border-zinc-800 font-bold">
+                {formatTime(videoCurrentTime)} / {formatTime(videoDuration)}
+              </span>
+            </div>
+
+            {/* Quick Add Caption at Playhead */}
+            <button
+              type="button"
+              onClick={handleAddCaptionAtCurrentTime}
+              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition flex items-center gap-2 shadow-md active:scale-95"
+            >
+              <MessageSquarePlus className="w-4 h-4" />
+              <span>Add Subtitle at Playhead</span>
+            </button>
+          </div>
+
+          {/* Timeline Track Scrubber */}
+          <div
+            ref={timelineTrackRef}
+            className="relative h-16 bg-zinc-950 rounded-xl border border-zinc-800 overflow-hidden cursor-crosshair select-none shadow-inner touch-action-none"
+            onClick={(e) => {
+              if (e.target.closest(".no-snap")) return;
+              const rect = timelineTrackRef.current.getBoundingClientRect();
+              const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+              const targetTime = pct * videoDuration;
+              if (videoPlayerRef.current) {
+                videoPlayerRef.current.currentTime = targetTime;
+                setVideoCurrentTime(targetTime);
+              }
+            }}
+          >
+            {/* Timecode Ruler */}
+            <div className="absolute inset-x-0 top-0 h-4 border-b border-zinc-900 flex items-center justify-between px-3 text-[9px] font-mono text-zinc-500 pointer-events-none">
+              <span>0:00</span>
+              <span>{formatTime(videoDuration * 0.25)}</span>
+              <span>{formatTime(videoDuration * 0.5)}</span>
+              <span>{formatTime(videoDuration * 0.75)}</span>
+              <span>{formatTime(videoDuration)}</span>
+            </div>
+
+            {/* Waveform Visualization */}
+            <div className="absolute inset-x-0 top-5 bottom-6 flex items-center justify-around opacity-25 pointer-events-none px-2">
+              {Array.from({ length: 90 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-[2px] bg-purple-400 rounded-full"
+                  style={{ height: `${20 + Math.sin(i * 0.35) * 80}%` }}
+                />
+              ))}
+            </div>
+
+            {/* Subtitle Track Capsules */}
+            <div className="absolute inset-x-0 bottom-1 h-6 border-t border-zinc-900/80 flex items-center">
+              {parsedCaptions.map((cap, idx) => {
+                const startTime = cap.time;
+                const nextCap = parsedCaptions[idx + 1];
+                const endTime = nextCap ? nextCap.time : videoDuration;
+                const capEnd = Math.min(endTime, startTime + 4);
+
+                const leftPct = (startTime / videoDuration) * 100;
+                const widthPct = Math.max(4, ((capEnd - startTime) / videoDuration) * 100);
+
+                return (
+                  <div
+                    key={idx}
+                    className="no-snap absolute h-5 bg-purple-600/70 hover:bg-purple-600/90 border border-purple-400/80 rounded px-2 flex items-center justify-between text-[9px] text-white font-bold select-none cursor-pointer truncate max-w-full z-15 shadow-sm"
+                    style={{
+                      left: `${leftPct}%`,
+                      width: `${widthPct}%`
+                    }}
+                    title={`Subtitle: "${cap.text}" (Click to edit)`}
+                    onClick={() => handleEditCaptionText(idx)}
+                  >
+                    <span className="truncate mr-1">{cap.text}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCaptionIndex(idx);
+                      }}
+                        className="hover:text-red-400 font-bold text-[9px] p-0.5"
+                        title="Delete Subtitle"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Red Scrub Playhead Line */}
+            <div
+              className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-30 pointer-events-none shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+              style={{ left: `${(videoCurrentTime / Math.max(0.1, videoDuration)) * 100}%` }}
+            >
+              <div className="absolute -top-1 -left-1.5 w-3.5 h-3.5 bg-red-500 rotate-45 rounded-sm shadow-md" />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
