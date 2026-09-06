@@ -36,6 +36,191 @@ import {
   CheckCircle2
 } from "lucide-react";
 
+const SlideFeatureVisual = ({ slideId }) => {
+  switch (slideId) {
+    case "slide-lab":
+      return (
+        <div className="w-full rounded-2xl bg-zinc-900 border border-zinc-800 text-white p-4 shadow-2xl space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-zinc-800 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-ruby-500 animate-pulse" />
+              <span className="font-extrabold text-ruby-400">Meme Studio Editor</span>
+            </div>
+            <div className="flex gap-1 text-[10px] font-bold">
+              <span className="px-2 py-0.5 rounded bg-ruby-600/30 text-ruby-300 border border-ruby-500/40">Video</span>
+              <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">GIF</span>
+              <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">Audio</span>
+            </div>
+          </div>
+          <div className="relative aspect-video rounded-xl bg-zinc-950 border border-zinc-800 overflow-hidden flex flex-col justify-between p-3">
+            <div className="text-center font-black tracking-wider text-amber-300 text-xs sm:text-sm drop-shadow-md">
+              "WHEN THE RHETORICAL ANALYSIS CHECKS OUT"
+            </div>
+            <div className="flex items-center justify-center my-auto">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-ruby-600/20 border border-ruby-500/30 flex items-center justify-center text-ruby-400">
+                <FlaskConical className="w-7 h-7 sm:w-8 sm:h-8" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between bg-zinc-900/90 backdrop-blur px-2.5 py-1.5 rounded-lg border border-zinc-800 text-[11px]">
+              <span className="text-zinc-400 font-mono text-[10px]">00:15.0 / 00:30.0</span>
+              <span className="text-ruby-400 font-bold text-[10px]">Auto Subtitles On</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between text-xs pt-0.5">
+            <span className="text-zinc-400 text-[11px]">Export: <strong className="text-white">HD MP4 / WebM</strong></span>
+            <span className="px-3 py-1 rounded-lg bg-ruby-600 text-white font-extrabold text-[11px] shadow">Export Canvas</span>
+          </div>
+        </div>
+      );
+
+    case "slide-resources":
+      return (
+        <div className="w-full rounded-2xl bg-white dark:bg-zinc-900 border border-amber-200/80 dark:border-amber-900/40 p-4 shadow-xl space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <BookOpenCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span className="font-extrabold text-xs text-gray-900 dark:text-white">Curriculum Module</span>
+            </div>
+            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+              OER Certified
+            </span>
+          </div>
+          <div className="space-y-2">
+            <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/50 dark:border-amber-800/40">
+              <h4 className="text-xs font-bold text-gray-900 dark:text-white">Multimodal Rhetoric in STEM & Humanities</h4>
+              <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">3 Lesson Plans · Discussion Deck · Grading Rubric</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="p-2 rounded-lg bg-gray-50 dark:bg-zinc-800 border border-gray-150 dark:border-zinc-700 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                <span className="font-semibold text-gray-700 dark:text-gray-300 text-[10px]">Peer-Reviewed</span>
+              </div>
+              <div className="p-2 rounded-lg bg-gray-50 dark:bg-zinc-800 border border-gray-150 dark:border-zinc-700 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                <span className="font-semibold text-gray-700 dark:text-gray-300 text-[10px]">CC-BY Licensed</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-[11px] text-gray-500 dark:text-gray-400 pt-1 flex items-center justify-between border-t border-gray-100 dark:border-zinc-800">
+            <span>Author: Dr. Aris Educator</span>
+            <span className="text-amber-600 dark:text-amber-400 font-bold">Download PDF →</span>
+          </div>
+        </div>
+      );
+
+    case "slide-literacy":
+      return (
+        <div className="w-full rounded-2xl bg-white dark:bg-zinc-900 border border-rose-200/80 dark:border-rose-900/40 p-4 shadow-xl space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <Award className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              <span className="font-extrabold text-xs text-gray-900 dark:text-white">Literacy Scorecard</span>
+            </div>
+            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+              6 Dimensions
+            </span>
+          </div>
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between text-[11px] font-bold text-gray-700 dark:text-gray-300">
+              <span>Visual Rhetoric</span>
+              <span className="text-rose-600 dark:text-rose-400">92%</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-gray-150 dark:bg-zinc-800 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-rose-500 to-ruby-600 w-[92%]" />
+            </div>
+
+            <div className="flex justify-between text-[11px] font-bold text-gray-700 dark:text-gray-300 pt-1">
+              <span>Subtext Analysis</span>
+              <span className="text-rose-600 dark:text-rose-400">88%</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-gray-150 dark:bg-zinc-800 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-rose-500 to-ruby-600 w-[88%]" />
+            </div>
+
+            <div className="p-2.5 mt-2 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/50 dark:border-rose-800/40 flex items-center justify-between">
+              <div>
+                <span className="block text-[10px] font-bold uppercase text-rose-700 dark:text-rose-300">Certified Skill Badge</span>
+                <span className="text-xs font-black text-gray-900 dark:text-white">Meme Critic (Level 4)</span>
+              </div>
+              <div className="w-7 h-7 rounded-full bg-ruby-600 text-white flex items-center justify-center font-bold text-xs shadow">
+                ✓
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+    case "slide-staffroom":
+      return (
+        <div className="w-full rounded-2xl bg-white dark:bg-zinc-900 border border-emerald-200/80 dark:border-emerald-900/40 p-4 shadow-xl space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-extrabold text-xs text-gray-900 dark:text-white">Educator Staffroom</span>
+            </div>
+            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+              Community Thread
+            </span>
+          </div>
+          <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/40 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
+                SJ
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-gray-900 dark:text-white">Prof. Sarah Jenkins</span>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold">High School History Educator</span>
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-700 dark:text-gray-300 leading-snug">
+              "Using satire memes in Civics boosted student engagement by 40%. Here is our peer-evaluated lesson template!"
+            </p>
+            <div className="flex items-center gap-3 text-[10px] text-gray-500 dark:text-gray-400 pt-1 font-medium">
+              <span>👍 24 Upvotes</span>
+              <span>💬 12 Teacher Replies</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold">#Pedagogy</span>
+            </div>
+          </div>
+        </div>
+      );
+
+    case "slide-library":
+    default:
+      return (
+        <div className="w-full rounded-2xl bg-white dark:bg-zinc-900 border border-indigo-200/80 dark:border-indigo-900/40 p-4 shadow-xl space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span className="font-extrabold text-xs text-gray-900 dark:text-white">Curriculum Meme Library</span>
+            </div>
+            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">
+              Vetted Repository
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="p-2.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/50 dark:border-indigo-800/40 space-y-1">
+              <span className="inline-block text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-indigo-200/80 text-indigo-900 dark:bg-indigo-900 dark:text-indigo-200">
+                #Biology
+              </span>
+              <p className="text-[11px] font-bold text-gray-900 dark:text-white leading-tight">Mitochondria Powerhouse</p>
+              <span className="block text-[10px] text-amber-500 font-bold">★ 4.9 (28 Ratings)</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/50 dark:border-indigo-800/40 space-y-1">
+              <span className="inline-block text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-indigo-200/80 text-indigo-900 dark:bg-indigo-900 dark:text-indigo-200">
+                #Literature
+              </span>
+              <p className="text-[11px] font-bold text-gray-900 dark:text-white leading-tight">Shakespeare Subtext</p>
+              <span className="block text-[10px] text-amber-500 font-bold">★ 4.8 (19 Ratings)</span>
+            </div>
+          </div>
+          <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold pt-1 text-center">
+            Filter by Subject, Grade & Evaluation Rating →
+          </div>
+        </div>
+      );
+  }
+};
+
 const Home = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState({ memes: null, users: null, resources: null });
@@ -230,12 +415,12 @@ const Home = () => {
       </div>
 
       {/* ──────────────────────────────────────────────────────────────────────────
-          SECTION 1: LANDING SLIDE CAROUSEL (Hero Main Attraction Showcase)
+          SECTION 1: HERO & MAIN ATTRACTION SHOWCASE (Integrated & Unboxed)
           ────────────────────────────────────────────────────────────────────────── */}
-      <section className="max-w-6xl mx-auto w-full px-4 pt-2">
+      <section className="max-w-6xl mx-auto w-full px-4 pt-2 space-y-8">
         
         {/* Main Central Branding Header */}
-        <div className="text-center max-w-3xl mx-auto mb-8 space-y-3">
+        <div className="text-center max-w-3xl mx-auto space-y-3">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-ruby-50 dark:bg-ruby-950/50 border border-ruby-200/80 dark:border-ruby-800/60 text-ruby-700 dark:text-ruby-300 text-xs font-black uppercase tracking-widest">
             <Sparkles className="w-3.5 h-3.5 text-ruby-600 dark:text-ruby-400 animate-spin" style={{ animationDuration: "6s" }} />
             <span>Interactive Educational Platform</span>
@@ -250,128 +435,83 @@ const Home = () => {
           </p>
         </div>
 
-        {/* Carousel Container */}
-        <div className="relative rounded-3xl border border-gray-200/80 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl shadow-2xl overflow-hidden p-6 sm:p-10 transition-all duration-300">
+        {/* Integrated Feature Selector Pills Bar */}
+        <div className="flex items-center justify-center gap-2 overflow-x-auto py-2 no-scrollbar">
+          {LANDING_SLIDES.map((slide, idx) => (
+            <button
+              key={slide.id}
+              onClick={() => setActiveSlideIndex(idx)}
+              className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all duration-200 flex-shrink-0 flex items-center gap-2 ${
+                idx === activeSlideIndex
+                  ? "bg-ruby-600 text-white shadow-lg shadow-ruby-500/25 scale-105"
+                  : "bg-white/80 dark:bg-zinc-800/80 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 border border-gray-200/80 dark:border-zinc-700/80"
+              }`}
+            >
+              <slide.btnIcon className={`w-3.5 h-3.5 ${idx === activeSlideIndex ? "text-white" : "text-ruby-600 dark:text-ruby-400"}`} />
+              <span>{slide.tag}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Integrated Hero Grid Layout (Unboxed) */}
+        <div key={currentSlide.id} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pt-2 animate-fadeIn">
           
-          {/* Subtle Ambient Background Gradient per slide */}
-          <div className={`absolute inset-0 bg-gradient-to-r ${currentSlide.accentBg} pointer-events-none transition-all duration-700`} />
+          {/* Left Content Area (Col 7) */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="flex items-center gap-3">
+              <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${currentSlide.badgeColor}`}>
+                {currentSlide.tag}
+              </span>
+              <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                {currentSlide.statsBadge}
+              </span>
+            </div>
 
-          {/* Slide Navigation Tabs Top Bar */}
-          <div className="relative z-10 flex items-center justify-between gap-2 overflow-x-auto pb-4 mb-6 border-b border-gray-150 dark:border-zinc-800 no-scrollbar">
-            {LANDING_SLIDES.map((slide, idx) => (
-              <button
-                key={slide.id}
-                onClick={() => setActiveSlideIndex(idx)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all duration-200 flex-shrink-0 flex items-center gap-1.5 ${
-                  idx === activeSlideIndex
-                    ? "bg-ruby-600 text-white shadow-md shadow-ruby-500/30 scale-105"
-                    : "bg-gray-100 dark:bg-zinc-800/80 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-zinc-700"
-                }`}
+            <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white leading-tight">
+              {currentSlide.title}
+            </h2>
+
+            <p className="text-sm sm:text-base font-bold text-ruby-600 dark:text-ruby-400">
+              {currentSlide.subtitle}
+            </p>
+
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed max-w-xl">
+              {currentSlide.description}
+            </p>
+
+            <div className="pt-3 flex flex-wrap items-center gap-4">
+              <Link
+                to={currentSlide.btnLink}
+                className={`inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-extrabold text-xs sm:text-sm transition-all duration-200 shadow-lg hover:-translate-y-0.5 active:scale-95 ${currentSlide.btnColor}`}
               >
-                <span>{slide.tag.split(" ")[0]}</span>
-                <span className="hidden md:inline">{slide.title.split(" ")[0]}</span>
-              </button>
-            ))}
-          </div>
+                <currentSlide.btnIcon className="w-4 h-4" />
+                <span>{currentSlide.btnText}</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
 
-          {/* Active Slide Content */}
-          <div key={currentSlide.id} className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center animate-fadeIn">
-            
-            {/* Left Content Area */}
-            <div className="lg:col-span-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${currentSlide.badgeColor}`}>
-                  {currentSlide.tag}
-                </span>
-                <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                  {currentSlide.statsBadge}
-                </span>
-              </div>
-
-              <h2 className="text-2xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight">
-                {currentSlide.title}
-              </h2>
-
-              <p className="text-sm sm:text-base font-semibold text-ruby-600 dark:text-ruby-400">
-                {currentSlide.subtitle}
-              </p>
-
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed max-w-2xl">
-                {currentSlide.description}
-              </p>
-
-              <div className="pt-2 flex flex-wrap items-center gap-4">
-                <Link
-                  to={currentSlide.btnLink}
-                  className={`inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-extrabold text-xs sm:text-sm transition-all duration-200 shadow-lg hover:-translate-y-0.5 active:scale-95 ${currentSlide.btnColor}`}
-                >
-                  <currentSlide.btnIcon className="w-4 h-4" />
-                  <span>{currentSlide.btnText}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-
-                <button
-                  onClick={() => setActiveSlideIndex((prev) => (prev + 1) % LANDING_SLIDES.length)}
-                  className="text-xs font-bold text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white inline-flex items-center gap-1"
-                >
-                  <span>Next Feature</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+              {/* Integrated Slide Dots */}
+              <div className="flex items-center gap-1.5 ml-2">
+                {LANDING_SLIDES.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveSlideIndex(i)}
+                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                      i === activeSlideIndex ? "bg-ruby-600 w-7" : "bg-gray-300 dark:bg-zinc-700 w-2.5 hover:bg-ruby-400"
+                    }`}
+                    aria-label={`Go to slide ${i + 1}`}
+                  />
+                ))}
               </div>
             </div>
-
-            {/* Right Slide Counter & Visual Card */}
-            <div className="lg:col-span-4 flex flex-col items-center justify-center space-y-4">
-              <div className="w-full p-6 rounded-2xl bg-white/70 dark:bg-zinc-950/70 border border-gray-200/80 dark:border-zinc-800 shadow-xl text-center space-y-3">
-                <div className="w-14 h-14 rounded-2xl bg-ruby-50 dark:bg-ruby-950/60 border border-ruby-200 dark:border-ruby-800 text-ruby-600 dark:text-ruby-400 flex items-center justify-center mx-auto shadow-inner">
-                  <currentSlide.btnIcon className="w-7 h-7" />
-                </div>
-                <h3 className="text-base font-extrabold text-gray-900 dark:text-white">
-                  Slide {activeSlideIndex + 1} of {LANDING_SLIDES.length}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Auto-advancing. Click tabs or controls to navigate directly.
-                </p>
-                {/* Dots indicator */}
-                <div className="flex justify-center gap-1.5 pt-2">
-                  {LANDING_SLIDES.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setActiveSlideIndex(i)}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        i === activeSlideIndex ? "bg-ruby-600 w-6" : "bg-gray-300 dark:bg-zinc-700 w-2"
-                      }`}
-                      aria-label={`Go to slide ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
           </div>
 
-          {/* Previous / Next Arrow Controls */}
-          <div className="relative z-10 flex justify-between items-center pt-6 mt-6 border-t border-gray-150 dark:border-zinc-800 text-xs">
-            <button
-              onClick={() => setActiveSlideIndex((prev) => (prev - 1 + LANDING_SLIDES.length) % LANDING_SLIDES.length)}
-              className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 font-bold transition"
-            >
-              <ChevronLeft className="w-4 h-4" /> Previous
-            </button>
-
-            <span className="text-gray-400 text-[11px] font-semibold">
-              {activeSlideIndex + 1} / {LANDING_SLIDES.length}
-            </span>
-
-            <button
-              onClick={() => setActiveSlideIndex((prev) => (prev + 1) % LANDING_SLIDES.length)}
-              className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 font-bold transition"
-            >
-              Next <ChevronRight className="w-4 h-4" />
-            </button>
+          {/* Right Visual Feature Representation Card (Col 5) */}
+          <div className="lg:col-span-5 flex items-center justify-center">
+            <SlideFeatureVisual slideId={currentSlide.id} />
           </div>
 
         </div>
+
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────────

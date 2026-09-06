@@ -13,6 +13,7 @@ export default {
         accent: ['Instrument Serif', 'serif'],
       },
       colors: {
+        offwhite: '#FAFAF9',
         purple: {
           50: '#fff1f5',
           100: '#ffe4ec',
