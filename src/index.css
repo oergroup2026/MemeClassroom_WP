@@ -16,7 +16,7 @@
 :root {
   --text: #374151; /* slate gray body */
   --text-h: #0f172a; /* deep navy/black headings */
-  --bg: #ffffff; /* pure white background */
+  --bg: #FAFAF9; /* off-white background */
   --border: #f3f4f6; /* clean light gray borders */
   --code-bg: #f9fafb;
   --accent: #E0115F; /* commanding Ruby primary */
@@ -47,7 +47,7 @@
 }
 
 html, body {
-  background-color: #ffffff;
+  background-color: #FAFAF9;
   color: #1f2937;
   margin: 0;
   min-height: 100vh;

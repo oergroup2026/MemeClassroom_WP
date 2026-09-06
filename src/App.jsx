@@ -64,7 +64,7 @@ function App() {
   // UDL baseline styling options
   const themeClasses = highContrastMode 
     ? 'bg-zinc-900 text-zinc-100' 
-    : 'bg-white text-gray-800';
+    : 'bg-[#FAFAF9] text-gray-800';
 
   // Legibility rules: normal baseline is 'text-base'
   const sizeClasses = fontSizeAdjustment === 'large' 

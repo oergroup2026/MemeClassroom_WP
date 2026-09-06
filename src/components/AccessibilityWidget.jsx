@@ -57,7 +57,14 @@ export default function AccessibilityWidget() {
   const [activeTab, setActiveTab] = useState('vision');
   const [guideY, setGuideY] = useState(200);
   const [voiceLang, setVoiceLang] = useState(() => localStorage.getItem("memeclassroom_voice_lang") || "en-IN");
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
   const speechHandlers = useRef({ over: null, out: null, focus: null });
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const {
     // Phase 1
@@ -226,7 +233,13 @@ export default function AccessibilityWidget() {
   }, [isOpen]);
 
   // ── Constants ─────────────────────────────────────────────────────────────
-  const triggerSize = oversizedWidget ? 64 : 52;
+  const triggerSize = oversizedWidget ? (isMobile ? 50 : 54) : (isMobile ? 40 : 44);
+  const bottomOffset = isMobile ? '82px' : '24px';
+  const rightOffset = isMobile ? '14px' : '24px';
+  const panelBottom = isMobile ? `${82 + triggerSize + 12}px` : `${triggerSize + 30}px`;
+  const panelRight = isMobile ? '12px' : '24px';
+  const panelLeft = isMobile ? '12px' : 'auto';
+  const panelWidth = isMobile ? 'calc(100vw - 24px)' : '324px';
 
   const CB_MODES = [
     { id: 'protanopia',   label: 'Protan.',  title: 'Protanopia — red-blind' },
@@ -296,21 +309,24 @@ export default function AccessibilityWidget() {
         aria-haspopup="dialog"
         onClick={() => setIsOpen(p => !p)}
         style={{
-          position: 'fixed', bottom: '24px', right: '24px',
-          width: `${triggerSize}px`, height: `${triggerSize}px`,
+          position: 'fixed',
+          bottom: bottomOffset,
+          right: rightOffset,
+          width: `${triggerSize}px`,
+          height: `${triggerSize}px`,
           borderRadius: '50%',
           background: isOpen
             ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
-            : 'linear-gradient(135deg, #16a34a, #15803d)',
+            : 'linear-gradient(135deg, #E0115F, #b00742)',
           color: '#fff', border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.28)',
+          boxShadow: '0 4px 18px rgba(0,0,0,0.25)',
           zIndex: 9999, transition: 'all 0.22s cubic-bezier(0.4,0,0.2,1)',
           transform: isOpen ? 'scale(1.06) rotate(10deg)' : 'scale(1)',
         }}
       >
         {/* Person with arms raised — inclusive universal access icon */}
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        <svg width={isMobile ? "19" : "20"} height={isMobile ? "19" : "20"} viewBox="0 0 24 24" fill="none" stroke="currentColor"
           strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="5" r="2.5" fill="currentColor" stroke="none"/>
           <line x1="12" y1="8" x2="12" y2="16"/>
@@ -330,9 +346,14 @@ export default function AccessibilityWidget() {
           aria-modal="false"
           className="a11y-panel-enter"
           style={{
-            position: 'fixed', bottom: `${triggerSize + 30}px`, right: '24px',
-            width: '324px', zIndex: 9998, borderRadius: '18px',
-            background: 'rgba(255,255,255,0.95)',
+            position: 'fixed',
+            bottom: panelBottom,
+            right: panelRight,
+            left: panelLeft,
+            width: panelWidth,
+            maxWidth: '360px',
+            zIndex: 9998, borderRadius: '18px',
+            background: 'rgba(255,255,255,0.96)',
             backdropFilter: 'blur(22px)', WebkitBackdropFilter: 'blur(22px)',
             border: '1px solid rgba(99,102,241,0.16)',
             boxShadow: '0 22px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(99,102,241,0.08)',
