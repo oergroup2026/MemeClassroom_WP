@@ -46,6 +46,21 @@ function App() {
     }
   }, [highContrastMode]);
 
+  // Scroll to top on route change
+  React.useEffect(() => {
+    if (!location.hash) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } else {
+      const id = location.hash.replace('#', '');
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      }
+    }
+  }, [location.pathname, location.hash]);
+
   // UDL baseline styling options
   const themeClasses = highContrastMode 
     ? 'bg-zinc-900 text-zinc-100' 
@@ -61,7 +76,7 @@ function App() {
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-all duration-200 ${themeClasses} ${sizeClasses}`}>
       <div id="app-navbar"><Navbar /></div>
-      <main id="main-content" key={location.pathname} className={`flex-grow page-enter ${location.pathname === '/lab' ? 'w-full px-2 py-2' : 'container mx-auto px-4 py-8'}`}>
+      <main id="main-content" key={location.pathname} className={`flex-grow page-enter pb-24 sm:pb-28 ${location.pathname === '/lab' ? 'w-full px-2 py-2' : 'container mx-auto px-4 py-6'}`}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Home />} />

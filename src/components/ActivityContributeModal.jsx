@@ -453,7 +453,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex-shrink-0">
           <div>
             <h2 className="text-base font-extrabold text-gray-900 dark:text-white">
-              {isEditing ? "✏️ Edit Use Case / Activity" : "🎯 Contribute a Use Case / Activity"}
+              {isEditing ? "Edit Use Case / Activity" : "Contribute a Use Case / Activity"}
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
               {isEditing
@@ -474,7 +474,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           )}
 
           <div className={sectionClass}>
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📋 Basic Info</h3>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-ruby-600 dark:text-ruby-400">Basic Info</h3>
             <div>
               <label className={labelClass}>Activity Title *</label>
               <input type="text" value={title} onChange={e => setTitle(e.target.value)} required className={inputClass} />
@@ -505,7 +505,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           </div>
 
           <div className={sectionClass}>
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">🖼️ Cover Thumbnail</h3>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-ruby-600 dark:text-ruby-400">Cover Thumbnail</h3>
             <div className="flex items-center gap-4">
               {coverPreview ? (
                 <div className="relative flex-shrink-0">
@@ -529,7 +529,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           </div>
 
           <div className={sectionClass}>
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📄 Presentation (PDF, Google Slides, or Canva)</h3>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-ruby-600 dark:text-ruby-400">Presentation (PDF, Google Slides, or Canva)</h3>
             <div className="space-y-3">
               <div>
                 <label className={labelClass}>Upload PDF</label>
@@ -545,12 +545,12 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
                   }}
                   className={inputClass}
                 />
-                {pdfName && <p className="text-[11px] text-purple-600 font-semibold mt-1">📄 {pdfName}</p>}
+                {pdfName && <p className="text-[11px] text-ruby-600 font-semibold mt-1">{pdfName}</p>}
               </div>
 
               <div className="relative flex py-1 items-center">
                 <div className="flex-grow border-t border-gray-200 dark:border-zinc-700"></div>
-                <span className="flex-shrink mx-3 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 text-[10px] font-extrabold uppercase tracking-wider">OR</span>
+                <span className="flex-shrink mx-3 px-2 py-0.5 rounded-full bg-ruby-100 dark:bg-ruby-950/60 text-ruby-700 dark:text-ruby-300 text-[10px] font-extrabold uppercase tracking-wider">OR</span>
                 <div className="flex-grow border-t border-gray-200 dark:border-zinc-700"></div>
               </div>
 
@@ -572,9 +572,9 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
 
           <div className={sectionClass}>
             <div className="flex items-center justify-between">
-              <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">🎬 Embedded Videos</h3>
+              <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-ruby-600 dark:text-ruby-400">Embedded Videos</h3>
               <button type="button" onClick={addVideo}
-                className="text-[11px] font-extrabold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1">
+                className="text-[11px] font-extrabold text-ruby-600 dark:text-ruby-400 hover:underline flex items-center gap-1">
                 <Plus className="w-3 h-3" /> Add Video
               </button>
             </div>
@@ -607,10 +607,10 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
 
           <div className={sectionClass}>
             <div className="flex items-center justify-between">
-              <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">📚 References & Attachments</h3>
+              <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-ruby-600 dark:text-ruby-400">References & Attachments</h3>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={addExternalRef}
-                  className="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline">
+                  className="text-[11px] font-bold text-ruby-600 dark:text-ruby-400 hover:underline">
                   + External URL
                 </button>
                 <button type="button" onClick={() => addInternalRef("internal_meme")}
@@ -645,10 +645,10 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
                     ) : (
                       <button type="button"
                         onClick={() => openSearchPicker(i, r.type)}
-                        className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-500 hover:border-purple-400 transition">
+                        className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl text-xs text-gray-500 hover:border-ruby-400 transition">
                         <Search className="w-3 h-3" />
                         {r.resource_id ? (
-                          <span className="text-purple-600 dark:text-purple-400 font-bold">
+                          <span className="text-ruby-600 dark:text-ruby-400 font-bold">
                             {r.type === "internal_meme" ? "Meme" : "Resource"} selected — click to change
                           </span>
                         ) : (
@@ -667,14 +667,14 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           </div>
 
           <div className={sectionClass}>
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400">🏫 Guidelines & Suitability</h3>
-            <div className="flex items-start gap-2.5 p-3 bg-purple-50/50 dark:bg-zinc-800/60 border border-purple-100 dark:border-zinc-700/60 rounded-xl">
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-ruby-600 dark:text-ruby-400">Guidelines & Suitability</h3>
+            <div className="flex items-start gap-2.5 p-3 bg-ruby-50/50 dark:bg-zinc-800/60 border border-ruby-100 dark:border-zinc-700/60 rounded-xl">
               <input
                 type="checkbox"
                 id="actClassroomFriendlyCheck"
                 checked={isClassroomFriendly}
                 onChange={e => setIsClassroomFriendly(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-purple-600 focus:ring-purple-500 cursor-pointer accent-purple-600"
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-zinc-700 text-ruby-600 focus:ring-ruby-500 cursor-pointer accent-ruby-600"
               />
               <label htmlFor="actClassroomFriendlyCheck" className="text-xs text-gray-800 dark:text-gray-200 font-bold cursor-pointer select-none">
                 Classroom & Student Friendly
@@ -683,7 +683,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           </div>
 
           <div className={sectionClass}>
-            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-purple-600 dark:text-purple-400 mb-1.5">📝 Remarks if any</h3>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-widest text-ruby-600 dark:text-ruby-400 mb-1.5">Remarks if any</h3>
             <RichTextArea value={remarks} onChange={e => setRemarks(e.target.value)} rows={3} />
           </div>
         </form>
@@ -691,10 +691,10 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
         <div className="px-6 py-4 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between gap-3 flex-shrink-0">
           <div className="flex-1">
             <p className="text-[10px] text-gray-400">
-              {isEditing ? "✏️ Updating activity" : "⏳ Will be posted live with a \"Pending Approval\" badge"}
+              {isEditing ? "Updating activity" : "Will be posted live with a \"Pending Approval\" badge"}
             </p>
-            <p className="text-[10px] text-purple-600/80 dark:text-purple-400/80 font-medium">
-              📚 Shared under Creative Commons CC BY-NC-SA 4.0 for non-commercial educational instruction.
+            <p className="text-[10px] text-ruby-600/80 dark:text-ruby-400/80 font-medium">
+              Shared under Creative Commons CC BY-NC-SA 4.0 for non-commercial educational instruction.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -706,9 +706,9 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
               type="submit"
               onClick={handleSubmit}
               disabled={loading}
-              className="px-5 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition shadow-sm disabled:opacity-50 flex items-center gap-2"
+              className="px-5 py-2 text-xs font-bold bg-ruby-600 hover:bg-ruby-700 text-white rounded-xl transition shadow-sm disabled:opacity-50 flex items-center gap-2"
             >
-              {loading ? (isEditing ? "Saving..." : "Publishing...") : (isEditing ? "Save Changes" : "🎯 Publish Activity")}
+              {loading ? (isEditing ? "Saving..." : "Publishing...") : (isEditing ? "Save Changes" : "Publish Activity")}
             </button>
           </div>
         </div>

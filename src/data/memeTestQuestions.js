@@ -13,19 +13,19 @@ export const DIMENSIONS = [
 
 // Per-dimension UI styling (Tailwind static classes — no dynamic concatenation)
 export const DIMENSION_META = {
-  "Symbolic Decoding":      { icon: "🔎", pill: "bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800", bar: "bg-gradient-to-r from-purple-500 to-violet-500" },
-  "Cultural Context":       { icon: "🌐", pill: "bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800",       bar: "bg-gradient-to-r from-blue-500 to-cyan-500" },
-  "Rhetorical Awareness":   { icon: "🎭", pill: "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800", bar: "bg-gradient-to-r from-amber-500 to-yellow-500" },
-  "Critical Analysis":      { icon: "🧐", pill: "bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800",             bar: "bg-gradient-to-r from-red-500 to-rose-500" },
-  "Ethical Judgment":       { icon: "⚖️",  pill: "bg-teal-100 dark:bg-teal-950/30 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800",       bar: "bg-gradient-to-r from-teal-500 to-emerald-500" },
-  "Emotional Intelligence": { icon: "💡", pill: "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800",       bar: "bg-gradient-to-r from-rose-500 to-pink-500" },
+  "Symbolic Decoding":      { icon: "", pill: "bg-ruby-100 dark:bg-ruby-950/30 text-ruby-700 dark:text-ruby-300 border border-ruby-200 dark:border-ruby-800", bar: "bg-gradient-to-r from-ruby-500 to-pink-500" },
+  "Cultural Context":       { icon: "", pill: "bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800",       bar: "bg-gradient-to-r from-blue-500 to-cyan-500" },
+  "Rhetorical Awareness":   { icon: "", pill: "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800", bar: "bg-gradient-to-r from-amber-500 to-yellow-500" },
+  "Critical Analysis":      { icon: "", pill: "bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800",             bar: "bg-gradient-to-r from-red-500 to-rose-500" },
+  "Ethical Judgment":       { icon: "", pill: "bg-teal-100 dark:bg-teal-950/30 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800",       bar: "bg-gradient-to-r from-teal-500 to-emerald-500" },
+  "Emotional Intelligence": { icon: "", pill: "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800",       bar: "bg-gradient-to-r from-rose-500 to-pink-500" },
 };
 
 // Score-band literacy levels
 export const LEVELS = [
   {
     min: 0, max: 30,
-    title: "Meme Spectator", icon: "🌱",
+    title: "Meme Spectator", icon: "",
     colorClass: "text-green-600 dark:text-green-400",
     bgClass: "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900",
     description: "You experience memes primarily as entertainment, taking them at face value. You are just beginning your journey into the deeper layers of meaning that memes carry.",
@@ -38,7 +38,7 @@ export const LEVELS = [
   },
   {
     min: 31, max: 55,
-    title: "Meme Decoder", icon: "🔍",
+    title: "Meme Decoder", icon: "",
     colorClass: "text-blue-600 dark:text-blue-400",
     bgClass: "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900",
     description: "You are beginning to recognise recurring patterns and surface-level rhetoric in memes. You can sense when a meme is trying to persuade you, even if the mechanism is not always clear.",
@@ -51,7 +51,7 @@ export const LEVELS = [
   },
   {
     min: 56, max: 75,
-    title: "Meme Analyst", icon: "🧐",
+    title: "Meme Analyst", icon: "",
     colorClass: "text-amber-600 dark:text-amber-400",
     bgClass: "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900",
     description: "You understand meme culture with considerable sophistication — you read context, recognise cultural references, and identify common manipulative techniques.",
@@ -64,9 +64,9 @@ export const LEVELS = [
   },
   {
     min: 76, max: 90,
-    title: "Meme Critic", icon: "🎓",
-    colorClass: "text-purple-600 dark:text-purple-400",
-    bgClass: "bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800",
+    title: "Meme Critic", icon: "",
+    colorClass: "text-ruby-600 dark:text-ruby-400",
+    bgClass: "bg-ruby-50 dark:bg-ruby-950/20 border-ruby-200 dark:border-ruby-800",
     description: "You demonstrate advanced critical literacy across multiple dimensions simultaneously — rhetoric, ethics, emotion, cultural context — with nuance and depth.",
     reflection: "You are operating at a level that many media literacy educators aspire to. You understand memes as complex communicative acts with real social consequences. Consider channelling this skill into creating more intentional, critically aware memes — or helping others develop this literacy.",
     nextSteps: [
@@ -77,7 +77,7 @@ export const LEVELS = [
   },
   {
     min: 91, max: 100,
-    title: "Meme Scholar", icon: "🏛️",
+    title: "Meme Scholar", icon: "",
     colorClass: "text-indigo-600 dark:text-indigo-400",
     bgClass: "bg-indigo-50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800",
     description: "Exceptional critical meme literacy. You approach memes the way a media scholar would — with attention to semiotics, rhetoric, ethics, cultural politics, and emotional dynamics.",

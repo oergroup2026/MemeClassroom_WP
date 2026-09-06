@@ -136,7 +136,7 @@ export const UserModalProvider = ({ children }) => {
                     </div>
                   ) : (
                     <div className="text-xs text-gray-450 dark:text-gray-500 italic">
-                      🔒 User has chosen to keep contact details private.
+                      User has chosen to keep contact details private.
                     </div>
                   )}
                 </div>
