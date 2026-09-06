@@ -33,7 +33,8 @@ import {
   Info,
   Layers,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  Pencil
 } from "lucide-react";
 
 const SlideFeatureVisual = ({ slideId }) => {
@@ -456,35 +457,28 @@ const Home = () => {
         {/* Integrated Hero Grid Layout (Unboxed) */}
         <div key={currentSlide.id} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pt-2 animate-fadeIn">
           
-          {/* Left Content Area (Col 7) */}
+          {/* Left Content Area (Col 7 - Uncrowded Title, Subtitle & Direct Link) */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex items-center gap-3">
-              <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${currentSlide.badgeColor}`}>
+              <span className={`px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${currentSlide.badgeColor}`}>
                 {currentSlide.tag}
-              </span>
-              <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                {currentSlide.statsBadge}
               </span>
             </div>
 
-            <h2 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white leading-tight">
+            <h2 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white leading-tight tracking-tight">
               {currentSlide.title}
             </h2>
 
-            <p className="text-sm sm:text-base font-bold text-ruby-600 dark:text-ruby-400">
+            <p className="text-base sm:text-xl font-extrabold text-ruby-600 dark:text-ruby-400 leading-snug">
               {currentSlide.subtitle}
             </p>
 
-            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed max-w-xl">
-              {currentSlide.description}
-            </p>
-
-            <div className="pt-3 flex flex-wrap items-center gap-4">
+            <div className="pt-4 flex flex-wrap items-center gap-4">
               <Link
                 to={currentSlide.btnLink}
-                className={`inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-extrabold text-xs sm:text-sm transition-all duration-200 shadow-lg hover:-translate-y-0.5 active:scale-95 ${currentSlide.btnColor}`}
+                className={`inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl font-black text-xs sm:text-sm transition-all duration-200 shadow-xl hover:-translate-y-0.5 active:scale-95 ${currentSlide.btnColor}`}
               >
-                <currentSlide.btnIcon className="w-4 h-4" />
+                <currentSlide.btnIcon className="w-4.5 h-4.5" />
                 <span>{currentSlide.btnText}</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
@@ -505,7 +499,7 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Right Visual Feature Representation Card (Col 5) */}
+          {/* Right Visual Feature Representation Imagery Card (Col 5) */}
           <div className="lg:col-span-5 flex items-center justify-center">
             <SlideFeatureVisual slideId={currentSlide.id} />
           </div>
@@ -558,213 +552,268 @@ const Home = () => {
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────────
-          SECTION 3: UNCROWDED HOMEPAGE CARDS (Show Title Only -> Reveal Details on Hover/Click)
+          SECTION 3: YOUR JOURNEY IN MEMECLASSROOM (3 Connected Glowing Circular Cards)
           ────────────────────────────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto w-full px-4 space-y-6">
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold uppercase tracking-widest text-ruby-600 dark:text-ruby-400 bg-ruby-50 dark:bg-ruby-950/40 px-3 py-1 rounded-full border border-ruby-200 dark:border-ruby-800">
-            Core Spaces & Pedagogy
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white">
-            Explore Core Spaces
+      <section className="max-w-6xl mx-auto w-full px-4 pt-6 pb-10 space-y-10">
+        {/* Section Header */}
+        <div className="text-center max-w-2xl mx-auto space-y-3">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-950/60 dark:bg-purple-950/70 border border-purple-500/40 text-purple-300 text-xs font-black uppercase tracking-widest shadow-[0_0_20px_rgba(168,85,247,0.25)]">
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            <span>How to Get Started</span>
+          </div>
+
+          <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-gray-900 dark:text-white">
+            Your Journey in <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-ruby-400 bg-clip-text text-transparent">MemeClassroom</span>
           </h2>
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-            Clean title overview. Hover or tap any card to reveal details & actions.
+
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 font-medium max-w-xl mx-auto leading-relaxed">
+            From understanding the pedagogical theory to bringing practice into class and reflecting together.
           </p>
         </div>
 
-        {/* Uncrowded Interactive Card Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* 3 Connected Glowing Circular Cards Layout */}
+        <div className="relative max-w-4xl mx-auto py-6">
           
-          {/* Card 1: Resources & Use Cases */}
-          <div
-            onClick={() => toggleCard('card-resources')}
-            className="group relative p-5 rounded-2xl bg-white/70 dark:bg-zinc-900/70 border border-gray-200/80 dark:border-zinc-800/80 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border-l-4 border-l-amber-500"
-          >
-            {/* Header: Title + Minimal Icon */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
-                  <BookOpenCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-gray-900 dark:text-white group-hover:text-ruby-600 dark:group-hover:text-ruby-400 transition-colors">
-                    Resources & Pedagogical Use Cases
-                  </h3>
-                  <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full">
-                    OER Core Foundation
-                  </span>
-                </div>
-              </div>
+          {/* Desktop Curved SVG Connectors (hidden on mobile) */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none hidden md:block" viewBox="0 0 800 500" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="purple-blue-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#A855F7" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="purple-teal-grad" x1="0%" y1="0%" x2="50%" y2="100%">
+                <stop offset="0%" stopColor="#A855F7" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#2DD4BF" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="blue-teal-grad" x1="100%" y1="0%" x2="50%" y2="100%">
+                <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#2DD4BF" stopOpacity="0.8" />
+              </linearGradient>
+            </defs>
 
-              <button className="text-gray-400 group-hover:text-ruby-600 dark:group-hover:text-ruby-400 p-1">
-                {expandedCards['card-resources'] ? <ChevronUp className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+            {/* Line 1: Circle 1 (left top ~ 220,150) -> Circle 2 (right top ~ 580,150) */}
+            <path d="M 240 150 Q 400 120 560 150" fill="none" stroke="url(#purple-blue-grad)" strokeWidth="3" strokeDasharray="6 6" className="animate-pulse" />
+
+            {/* Line 2: Circle 1 (left top ~ 220,150) -> Circle 3 (bottom center ~ 400,380) */}
+            <path d="M 220 180 Q 280 340 370 380" fill="none" stroke="url(#purple-teal-grad)" strokeWidth="3" strokeDasharray="6 6" className="animate-pulse" />
+
+            {/* Line 3: Circle 2 (right top ~ 580,150) -> Circle 3 (bottom center ~ 400,380) */}
+            <path d="M 580 180 Q 520 340 430 380" fill="none" stroke="url(#blue-teal-grad)" strokeWidth="3" strokeDasharray="6 6" className="animate-pulse" />
+          </svg>
+
+          {/* Mobile Vertical Connecting Line (md:hidden) */}
+          <div className="absolute left-1/2 top-10 bottom-10 w-1 -translate-x-1/2 bg-gradient-to-b from-purple-500 via-blue-500 to-teal-400 opacity-60 md:hidden" />
+
+          {/* Cards Grid Constellation */}
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-y-16 items-center">
+            
+            {/* Step 1: Purple Glow */}
+            <div className="flex justify-center md:justify-end">
+              <Link
+                to="/resources"
+                className="group relative w-64 h-64 sm:w-72 sm:h-72 rounded-full bg-zinc-950/90 dark:bg-zinc-950/95 border-2 border-purple-500/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center shadow-[0_0_35px_rgba(168,85,247,0.35)] hover:shadow-[0_0_60px_rgba(168,85,247,0.65)] hover:border-purple-400 transition-all duration-300 hover:scale-105"
+              >
+                <div className="absolute inset-0 rounded-full bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="text-3xl font-black text-purple-400 mb-1 tracking-tight">1</span>
+                <BookOpen className="w-7 h-7 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
+                <h3 className="text-base sm:text-lg font-black text-white leading-tight mb-2">
+                  Learn the Foundations
+                </h3>
+                <p className="text-xs text-zinc-300 dark:text-zinc-400 leading-snug px-3 font-medium">
+                  Build your understanding of memes, media literacy and their educational value.
+                </p>
+                <span className="mt-3 text-[11px] font-extrabold text-purple-400 group-hover:underline inline-flex items-center gap-1">
+                  Explore OER <ArrowRight className="w-3 h-3" />
+                </span>
+              </Link>
             </div>
 
-            {/* Revealed Details (visible on hover OR click) */}
-            <div className={`mt-4 pt-3 border-t border-gray-150 dark:border-zinc-800 space-y-3 transition-all duration-300 ${
-              expandedCards['card-resources'] ? "block" : "hidden group-hover:block"
-            }`}>
-              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                Take the introductory teacher module, explore real subject-specific use cases, and access peer-reviewed research on memes as multimodal educational texts.
-              </p>
-              <ul className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-amber-500" /><span>Classroom Activity Guides & Rubrics</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-amber-500" /><span>Subject-wise Integration Models</span></li>
-              </ul>
-              <div className="pt-2">
-                <Link
-                  to="/resources"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-600 dark:text-amber-400 hover:underline"
-                >
-                  Explore OER Resources <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
+            {/* Step 2: Electric Blue Glow */}
+            <div className="flex justify-center md:justify-start">
+              <Link
+                to="/lab"
+                className="group relative w-64 h-64 sm:w-72 sm:h-72 rounded-full bg-zinc-950/90 dark:bg-zinc-950/95 border-2 border-blue-500/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center shadow-[0_0_35px_rgba(59,130,246,0.35)] hover:shadow-[0_0_60px_rgba(59,130,246,0.65)] hover:border-blue-400 transition-all duration-300 hover:scale-105"
+              >
+                <div className="absolute inset-0 rounded-full bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="text-3xl font-black text-blue-400 mb-1 tracking-tight">2</span>
+                <Pencil className="w-7 h-7 text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
+                <h3 className="text-base sm:text-lg font-black text-white leading-tight mb-2">
+                  Explore Activities & Create
+                </h3>
+                <p className="text-xs text-zinc-300 dark:text-zinc-400 leading-snug px-3 font-medium">
+                  Try real classroom activities, explore examples and create your own memes.
+                </p>
+                <span className="mt-3 text-[11px] font-extrabold text-blue-400 group-hover:underline inline-flex items-center gap-1">
+                  Open Meme Lab <ArrowRight className="w-3 h-3" />
+                </span>
+              </Link>
             </div>
+
+            {/* Step 3: Teal Glow (Centered in row 2 on desktop) */}
+            <div className="md:col-span-2 flex justify-center mt-2 md:-mt-6">
+              <Link
+                to="/staffroom"
+                className="group relative w-64 h-64 sm:w-72 sm:h-72 rounded-full bg-zinc-950/90 dark:bg-zinc-950/95 border-2 border-teal-400/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center shadow-[0_0_35px_rgba(45,212,191,0.35)] hover:shadow-[0_0_60px_rgba(45,212,191,0.65)] hover:border-teal-300 transition-all duration-300 hover:scale-105"
+              >
+                <div className="absolute inset-0 rounded-full bg-teal-400/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="text-3xl font-black text-teal-400 mb-1 tracking-tight">3</span>
+                <Users className="w-7 h-7 text-teal-400 mb-2 group-hover:scale-110 transition-transform" />
+                <h3 className="text-base sm:text-lg font-black text-white leading-tight mb-2">
+                  Share, Reflect & Contribute
+                </h3>
+                <p className="text-xs text-zinc-300 dark:text-zinc-400 leading-snug px-3 font-medium">
+                  Exchange ideas, reflect on classroom experiences and contribute to the community.
+                </p>
+                <span className="mt-3 text-[11px] font-extrabold text-teal-400 group-hover:underline inline-flex items-center gap-1">
+                  Join Staffroom <ArrowRight className="w-3 h-3" />
+                </span>
+              </Link>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ──────────────────────────────────────────────────────────────────────────
+          SECTION 4: CORE SPACES (Spaces to Learn, Create & Connect)
+          ────────────────────────────────────────────────────────────────────────── */}
+      <section className="max-w-6xl mx-auto w-full px-4 py-6 space-y-8">
+        <div className="text-center max-w-2xl mx-auto space-y-3">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-950/60 dark:bg-purple-950/70 border border-purple-500/40 text-purple-300 text-xs font-black uppercase tracking-widest shadow-[0_0_20px_rgba(168,85,247,0.2)]">
+            <span>Core Spaces</span>
           </div>
 
-          {/* Card 2: Meme Lab Creation Studio */}
-          <div
-            onClick={() => toggleCard('card-lab')}
-            className="group relative p-5 rounded-2xl bg-white/70 dark:bg-zinc-900/70 border border-gray-200/80 dark:border-zinc-800/80 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border-l-4 border-l-ruby-500"
+          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight">
+            Spaces to Learn, Create & Connect
+          </h2>
+
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 font-medium max-w-xl mx-auto">
+            Dedicated spaces designed to support each stage of your pedagogical journey.
+          </p>
+        </div>
+
+        {/* Glassmorphic Core Spaces Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          
+          {/* Card 1: Resources */}
+          <Link
+            to="/resources"
+            className="group relative p-6 rounded-3xl bg-zinc-950/80 dark:bg-zinc-900/80 border border-purple-900/40 hover:border-purple-500/80 shadow-lg hover:shadow-purple-500/20 transition-all duration-300 flex flex-col justify-between"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-ruby-100 dark:bg-ruby-950/60 text-ruby-600 dark:text-ruby-400">
-                  <FlaskConical className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-gray-900 dark:text-white group-hover:text-ruby-600 dark:group-hover:text-ruby-400 transition-colors">
-                    Meme Lab Creation Studio
-                  </h3>
-                  <span className="text-[10px] font-bold text-ruby-700 dark:text-ruby-400 bg-ruby-50 dark:bg-ruby-950/40 px-2 py-0.5 rounded-full">
-                    Multi-Format Editor
-                  </span>
-                </div>
+            <div className="space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                <BookOpenCheck className="w-6 h-6" />
               </div>
-
-              <button className="text-gray-400 group-hover:text-ruby-600 dark:group-hover:text-ruby-400 p-1">
-                {expandedCards['card-lab'] ? <ChevronUp className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-
-            <div className={`mt-4 pt-3 border-t border-gray-150 dark:border-zinc-800 space-y-3 transition-all duration-300 ${
-              expandedCards['card-lab'] ? "block" : "hidden group-hover:block"
-            }`}>
-              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                Full-width creation suite supporting images, GIFs, video, and audio memes. Customize text fonts, aspect ratios, and export clean watermarked memes.
-              </p>
-              <ul className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-ruby-500" /><span>Pedagogical Caption Generation</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-ruby-500" /><span>Template Remixing & Export</span></li>
-              </ul>
-              <div className="pt-2">
-                <Link
-                  to="/lab"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 text-xs font-extrabold text-ruby-600 dark:text-ruby-400 hover:underline"
-                >
-                  Open Creation Studio <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-white group-hover:text-amber-400 transition-colors">
+                  Open Educational Resources
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Classroom activity guides, subject integration models, and peer-reviewed research on multimodal memes.
+                </p>
               </div>
             </div>
-          </div>
+            <div className="pt-4 mt-4 border-t border-zinc-800 flex items-center justify-between text-xs font-extrabold text-amber-400">
+              <span>Access OER Modules</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
 
-          {/* Card 3: Peer-Rated Library */}
-          <div
-            onClick={() => toggleCard('card-library')}
-            className="group relative p-5 rounded-2xl bg-white/70 dark:bg-zinc-900/70 border border-gray-200/80 dark:border-zinc-800/80 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border-l-4 border-l-indigo-500"
+          {/* Card 2: Meme Lab */}
+          <Link
+            to="/lab"
+            className="group relative p-6 rounded-3xl bg-zinc-950/80 dark:bg-zinc-900/80 border border-purple-900/40 hover:border-ruby-500/80 shadow-lg hover:shadow-ruby-500/20 transition-all duration-300 flex flex-col justify-between"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                  <BookOpen className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-gray-900 dark:text-white group-hover:text-ruby-600 dark:group-hover:text-ruby-400 transition-colors">
-                    Curriculum Meme Library
-                  </h3>
-                  <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full">
-                    Teacher Vetted
-                  </span>
-                </div>
+            <div className="space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-ruby-500/10 border border-ruby-500/30 text-ruby-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                <FlaskConical className="w-6 h-6" />
               </div>
-
-              <button className="text-gray-400 group-hover:text-ruby-600 dark:group-hover:text-ruby-400 p-1">
-                {expandedCards['card-library'] ? <ChevronUp className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-
-            <div className={`mt-4 pt-3 border-t border-gray-150 dark:border-zinc-800 space-y-3 transition-all duration-300 ${
-              expandedCards['card-library'] ? "block" : "hidden group-hover:block"
-            }`}>
-              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                Repository of peer-evaluated memes searchable by subject, grade level, and curriculum tag. View pedagogical ratings and expert verification notes.
-              </p>
-              <ul className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" /><span>Pedagogical Score Breakdown</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" /><span>Instant Template Loading</span></li>
-              </ul>
-              <div className="pt-2">
-                <Link
-                  to="/library"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 text-xs font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline"
-                >
-                  Browse Meme Repository <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-white group-hover:text-ruby-400 transition-colors">
+                  Meme Lab Creation Studio
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Full multi-format suite for Images, GIFs, Video & Audio with pedagogical subtitles & watermark exports.
+                </p>
               </div>
             </div>
-          </div>
+            <div className="pt-4 mt-4 border-t border-zinc-800 flex items-center justify-between text-xs font-extrabold text-ruby-400">
+              <span>Launch Creation Studio</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
 
-          {/* Card 4: Staffroom Forum */}
-          <div
-            onClick={() => toggleCard('card-staffroom')}
-            className="group relative p-5 rounded-2xl bg-white/70 dark:bg-zinc-900/70 border border-gray-200/80 dark:border-zinc-800/80 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border-l-4 border-l-emerald-500"
+          {/* Card 3: Educator Staffroom */}
+          <Link
+            to="/staffroom"
+            className="group relative p-6 rounded-3xl bg-zinc-950/80 dark:bg-zinc-900/80 border border-purple-900/40 hover:border-emerald-500/80 shadow-lg hover:shadow-emerald-500/20 transition-all duration-300 flex flex-col justify-between"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
-                  <MessageSquare className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-gray-900 dark:text-white group-hover:text-ruby-600 dark:group-hover:text-ruby-400 transition-colors">
-                    Educator Staffroom Forum
-                  </h3>
-                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
-                    Collaborative Community
-                  </span>
-                </div>
+            <div className="space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                <MessageSquare className="w-6 h-6" />
               </div>
-
-              <button className="text-gray-400 group-hover:text-ruby-600 dark:group-hover:text-ruby-400 p-1">
-                {expandedCards['card-staffroom'] ? <ChevronUp className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-
-            <div className={`mt-4 pt-3 border-t border-gray-150 dark:border-zinc-800 space-y-3 transition-all duration-300 ${
-              expandedCards['card-staffroom'] ? "block" : "hidden group-hover:block"
-            }`}>
-              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                Connect with educators globally to share classroom stories, reflect on pedagogical outcomes, and ask advice on visual media integration.
-              </p>
-              <ul className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /><span>Verified Teacher Discussions</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /><span>Classroom Reflection Threads</span></li>
-              </ul>
-              <div className="pt-2">
-                <Link
-                  to="/staffroom"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-600 dark:text-emerald-400 hover:underline"
-                >
-                  Join Educator Discussions <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-white group-hover:text-emerald-400 transition-colors">
+                  Educator Staffroom Forum
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Collaborative global space for teachers to exchange reflections, troubleshoot classroom dynamics & co-create.
+                </p>
               </div>
             </div>
-          </div>
+            <div className="pt-4 mt-4 border-t border-zinc-800 flex items-center justify-between text-xs font-extrabold text-emerald-400">
+              <span>Join Teacher Community</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Card 4: Peer-Rated Library */}
+          <Link
+            to="/library"
+            className="group relative p-6 rounded-3xl bg-zinc-950/80 dark:bg-zinc-900/80 border border-purple-900/40 hover:border-indigo-500/80 shadow-lg hover:shadow-indigo-500/20 transition-all duration-300 flex flex-col justify-between md:col-span-1 lg:col-span-1"
+          >
+            <div className="space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-white group-hover:text-indigo-400 transition-colors">
+                  Curriculum Meme Repository
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Thousands of teacher-vetted memes categorized by subject, grade level, and pedagogical evaluation score.
+                </p>
+              </div>
+            </div>
+            <div className="pt-4 mt-4 border-t border-zinc-800 flex items-center justify-between text-xs font-extrabold text-indigo-400">
+              <span>Browse Meme Library</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Card 5: Media Literacy Test */}
+          <Link
+            to="/meme-literacy-test"
+            className="group relative p-6 rounded-3xl bg-zinc-950/80 dark:bg-zinc-900/80 border border-purple-900/40 hover:border-rose-500/80 shadow-lg hover:shadow-rose-500/20 transition-all duration-300 flex flex-col justify-between md:col-span-2 lg:col-span-2"
+          >
+            <div className="space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                <Award className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-white group-hover:text-rose-400 transition-colors">
+                  Meme Critical Literacy Assessment
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Interactive test evaluating visual rhetoric, subtext decoding, satire identification, and ethical bias interrogation with shareable digital skill certificates.
+                </p>
+              </div>
+            </div>
+            <div className="pt-4 mt-4 border-t border-zinc-800 flex items-center justify-between text-xs font-extrabold text-rose-400">
+              <span>Take Media Literacy Test</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
 
         </div>
       </section>
