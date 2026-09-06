@@ -1,26 +1,38 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import ProtectedRoute from './components/ProtectedRoute';
-import Home from './pages/Home';
-import Library from './pages/Library';
-import Lab from './pages/Lab';
-import Resources from './pages/Resources';
-import MemeStoryDetail from './pages/MemeStoryDetail';
-import ActivityDetail from './pages/ActivityDetail';
-import Staffroom from './pages/Staffroom';
-import Profile from './pages/Profile';
-import Admin from './pages/Admin';
-import Auth from './pages/Auth';
-import About from './pages/About';
-import NotFound from './pages/NotFound';
-import MemeLiteracyTest from './pages/MemeLiteracyTest';
 import WelcomeModal from './components/WelcomeModal';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import TermsOfService from './pages/TermsOfService';
 import { useUdl } from './context/UdlContext';
+
+// Statically import Home for fast initial LCP
+import Home from './pages/Home';
+
+// Lazy-loaded page components for optimal code splitting & bundle reduction
+const Library = lazy(() => import('./pages/Library'));
+const Lab = lazy(() => import('./pages/Lab'));
+const Resources = lazy(() => import('./pages/Resources'));
+const MemeStoryDetail = lazy(() => import('./pages/MemeStoryDetail'));
+const ActivityDetail = lazy(() => import('./pages/ActivityDetail'));
+const Staffroom = lazy(() => import('./pages/Staffroom'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Admin = lazy(() => import('./pages/Admin'));
+const Auth = lazy(() => import('./pages/Auth'));
+const About = lazy(() => import('./pages/About'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const MemeLiteracyTest = lazy(() => import('./pages/MemeLiteracyTest'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+
+// Page loading fallback spinner
+const PageLoader = () => (
+  <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+    <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin dark:border-purple-900/50 dark:border-t-purple-400" />
+    <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 animate-pulse">Loading MemeClassroom…</span>
+  </div>
+);
 
 function App() {
   const { highContrastMode, fontSizeAdjustment } = useUdl();
@@ -33,6 +45,21 @@ function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [highContrastMode]);
+
+  // Scroll to top on route change
+  React.useEffect(() => {
+    if (!location.hash) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } else {
+      const id = location.hash.replace('#', '');
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      }
+    }
+  }, [location.pathname, location.hash]);
 
   // UDL baseline styling options
   const themeClasses = highContrastMode 
@@ -49,43 +76,45 @@ function App() {
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-all duration-200 ${themeClasses} ${sizeClasses}`}>
       <div id="app-navbar"><Navbar /></div>
-      <main id="main-content" key={location.pathname} className="flex-grow container mx-auto px-4 py-8 page-enter">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          {/* Library and Resources are public — no login needed to view */}
-          <Route path="/library" element={<Library />} />
-          <Route path="/resources" element={<Resources />} />
-          <Route path="/resources/story/:id" element={<MemeStoryDetail />} />
-          <Route path="/resources/activity/:id" element={<ActivityDetail />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/about" element={<About />} />
-          
-          {/* Public Routes accessible without authentication */}
-          <Route path="/lab" element={<Lab />} />
-          <Route path="/staffroom" element={<Staffroom />} />
-          <Route path="/meme-literacy-test" element={<MemeLiteracyTest />} />
-          <Route path="/meme-literacy-test/:testId" element={<MemeLiteracyTest />} />
-          
-          <Route path="/profile" element={
-            <ProtectedRoute allowedRoles={['student', 'teacher', 'expert', 'admin']}>
-              <Profile />
-            </ProtectedRoute>
-          } />
-          
-          {/* Protected Route for Admins & Managers */}
-          <Route path="/admin" element={
-            <ProtectedRoute allowedRoles={['admin', 'manager']}>
-              <Admin />
-            </ProtectedRoute>
-          } />
+      <main id="main-content" key={location.pathname} className={`flex-grow page-enter pb-24 sm:pb-28 ${location.pathname === '/lab' ? 'w-full px-2 py-2' : 'container mx-auto px-4 py-6'}`}>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            {/* Library and Resources are public — no login needed to view */}
+            <Route path="/library" element={<Library />} />
+            <Route path="/resources" element={<Resources />} />
+            <Route path="/resources/story/:id" element={<MemeStoryDetail />} />
+            <Route path="/resources/activity/:id" element={<ActivityDetail />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/about" element={<About />} />
+            
+            {/* Public Routes accessible without authentication */}
+            <Route path="/lab" element={<Lab />} />
+            <Route path="/staffroom" element={<Staffroom />} />
+            <Route path="/meme-literacy-test" element={<MemeLiteracyTest />} />
+            <Route path="/meme-literacy-test/:testId" element={<MemeLiteracyTest />} />
+            
+            <Route path="/profile" element={
+              <ProtectedRoute allowedRoles={['student', 'teacher', 'expert', 'admin']}>
+                <Profile />
+              </ProtectedRoute>
+            } />
+            
+            {/* Protected Route for Admins & Managers */}
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                <Admin />
+              </ProtectedRoute>
+            } />
 
-          {/* Legal pages */}
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<TermsOfService />} />
+            {/* Legal pages */}
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
 
-          {/* Catch-all 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            {/* Catch-all 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </main>
       <div id="app-footer"><Footer /></div>
       <AccessibilityWidget />

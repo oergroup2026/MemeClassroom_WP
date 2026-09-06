@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { collection, query, where, onSnapshot, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
+import { BrainCircuit, Award, ShieldCheck, ArrowRight } from "lucide-react";
 
 const LEVEL_LADDER = [
-  { icon: "🌱", label: "Spectator" },
-  { icon: "🔍", label: "Decoder" },
-  { icon: "🧐", label: "Analyst" },
-  { icon: "🎓", label: "Critic" },
-  { icon: "🏛️", label: "Scholar" },
+  { label: "Spectator" },
+  { label: "Decoder" },
+  { label: "Analyst" },
+  { label: "Critic" },
+  { label: "Scholar" },
 ];
 
 const MemeLiteracyBanner = () => {
@@ -40,24 +41,24 @@ const MemeLiteracyBanner = () => {
 
   const singleTest = activeTests.length === 1 ? activeTests[0] : null;
   const ctaLink = singleTest ? `/meme-literacy-test/${singleTest.id}` : "/meme-literacy-test";
-  const ctaLabel = singleTest ? "Take the Test →" : `Explore ${activeTests.length || ""} Assessments →`;
+  const ctaLabel = singleTest ? "Take Assessment" : `Explore ${activeTests.length || ""} Assessments`;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-purple-200/60 dark:border-purple-800/40 bg-gradient-to-br from-purple-50 via-indigo-50 to-white dark:from-purple-950/30 dark:via-indigo-950/20 dark:to-zinc-900/50 shadow-lg shadow-purple-500/5 dark:shadow-black/20 mb-10">
+    <div className="relative overflow-hidden rounded-2xl border border-ruby-200/60 dark:border-ruby-800/40 bg-gradient-to-br from-ruby-50/50 via-pink-50/30 to-white dark:from-ruby-950/30 dark:via-zinc-900 dark:to-zinc-900 shadow-lg mb-10">
       {/* Decorative blobs */}
-      <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-purple-300/20 dark:bg-purple-700/15 blur-2xl pointer-events-none" />
-      <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-full bg-indigo-300/20 dark:bg-indigo-700/15 blur-2xl pointer-events-none" />
+      <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-ruby-300/20 dark:bg-ruby-700/15 blur-2xl pointer-events-none" />
+      <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-full bg-amber-300/20 dark:bg-amber-700/15 blur-2xl pointer-events-none" />
 
       <div className="relative z-10 flex flex-col md:flex-row items-center gap-6 p-6 md:p-7">
-        {/* Left — brain icon */}
-        <div className="flex-shrink-0 w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-3xl shadow-lg shadow-purple-500/25">
-          🧠
+        {/* Left icon */}
+        <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-ruby-600 text-white flex items-center justify-center shadow-lg shadow-ruby-500/25">
+          <BrainCircuit className="w-7 h-7" />
         </div>
 
-        {/* Middle — copy */}
+        {/* Middle content */}
         <div className="flex-1 text-center md:text-left">
           <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
-            <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider bg-purple-100 dark:bg-purple-950/40 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-800">
+            <span className="text-[11px] font-extrabold text-ruby-700 dark:text-ruby-300 uppercase tracking-wider bg-ruby-100 dark:bg-ruby-950/40 px-2.5 py-0.5 rounded-full border border-ruby-200 dark:border-ruby-800">
               {activeTests.length > 1 ? `${activeTests.length} Assessments Available` : "Free Assessment"}
             </span>
           </div>
@@ -65,24 +66,24 @@ const MemeLiteracyBanner = () => {
             How Meme Literate Are You?
           </h2>
           {bestScore ? (
-            <p className="text-sm text-purple-600 dark:text-purple-400 font-bold mb-3">
-              🏅 Your best: {bestScore.badge_icon || ""} {bestScore.badge_earned || `${bestScore.score_pct}%`}
-              {bestScore.score_pct && !bestScore.badge_earned ? "" : ` · ${bestScore.score_pct}%`}
+            <p className="text-xs text-ruby-600 dark:text-ruby-400 font-bold mb-3 flex items-center justify-center md:justify-start gap-1">
+              <Award className="w-4 h-4" />
+              <span>Best Score: {bestScore.badge_earned || `${bestScore.score_pct}%`}</span>
             </p>
           ) : (
-            <p className="text-sm text-gray-500 dark:text-zinc-400 mb-3 leading-relaxed">
+            <p className="text-xs text-gray-500 dark:text-zinc-400 mb-3 leading-relaxed">
               {activeTests.length > 0
-                ? `${activeTests.length} test${activeTests.length > 1 ? "s" : ""} · Multiple dimensions · Earn certified badges.`
-                : "18 questions · 6 dimensions · Immediate reflection on your critical reading of memes."}
+                ? `${activeTests.length} tests · 6 core dimensions · Earn certified digital badges.`
+                : "18 questions · 6 dimensions · Immediate reflection on critical visual reading."}
             </p>
           )}
 
           {/* Level Ladder */}
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-1">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-1.5">
             {LEVEL_LADDER.map((l, i) => (
               <React.Fragment key={l.label}>
-                <span className="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-zinc-300 bg-white/70 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 px-2.5 py-1 rounded-lg">
-                  {l.icon} {l.label}
+                <span className="text-xs font-bold text-gray-700 dark:text-zinc-300 bg-white/80 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 rounded-md">
+                  {l.label}
                 </span>
                 {i < LEVEL_LADDER.length - 1 && (
                   <span className="text-gray-300 dark:text-zinc-600 text-xs">→</span>
@@ -92,16 +93,17 @@ const MemeLiteracyBanner = () => {
           </div>
         </div>
 
-        {/* Right — CTA */}
-        <div className="flex-shrink-0">
+        {/* Right CTA */}
+        <div className="flex-shrink-0 text-center">
           <Link
             to={ctaLink}
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold px-6 py-3 rounded-xl shadow-md shadow-purple-500/20 hover:shadow-purple-500/30 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] text-sm whitespace-nowrap"
+            className="inline-flex items-center gap-2 bg-ruby-600 hover:bg-ruby-700 text-white font-extrabold px-6 py-3 rounded-xl shadow-md shadow-ruby-500/20 transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] text-xs uppercase tracking-wider"
           >
-            {ctaLabel}
+            <span>{ctaLabel}</span>
+            <ArrowRight className="w-4 h-4" />
           </Link>
-          <p className="text-[11px] text-gray-400 dark:text-zinc-500 mt-1.5 text-center">
-            No account required
+          <p className="text-[10px] font-semibold text-gray-400 dark:text-zinc-500 mt-1.5">
+            No registration required
           </p>
         </div>
       </div>

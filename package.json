@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node -e \"import('fs').then(fs => fs.copyFileSync('dist/assets/index.js', 'dist/assets/index-B-Di2suL.js'))\"",
+    "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy": "npm run build && npx -y firebase-tools deploy --only hosting"
