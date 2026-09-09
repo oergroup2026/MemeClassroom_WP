@@ -482,7 +482,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
             <div>
               <label className={labelClass}>Short Description</label>
               <RichTextArea value={body} onChange={e => setBody(e.target.value)} rows={3} />
-              <ReadabilityIndicator text={body} className="mt-2" />
+              <ReadabilityIndicator text={body} className="mt-2" hideWhenFile={!!pdfFile || !!pdfName || !!slidesEmbedUrl} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

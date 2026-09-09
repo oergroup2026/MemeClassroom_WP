@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import MemeLiteracyBanner from "../components/MemeLiteracyBanner";
+import FeatureCarousel from "../components/FeatureCarousel";
 import {
   Sparkles,
   FlaskConical,
@@ -37,7 +38,9 @@ import {
   Pencil
 } from "lucide-react";
 
-const SlideFeatureVisual = ({ slideId }) => {
+// SlideFeatureVisual replaced by FeatureCarousel component
+
+const _UNUSED = ({ slideId }) => {
   switch (slideId) {
     case "slide-lab":
       return (
@@ -229,8 +232,7 @@ const Home = () => {
   const [currentMemeIndex, setCurrentMemeIndex] = useState(0);
   const [heroCards, setHeroCards] = useState([]);
   
-  // Slide Carousel State
-  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  // Slide Carousel State — now managed by FeatureCarousel component
   
   // Card Expansion State for Uncrowded UI (active hovered/expanded card IDs)
   const [expandedCards, setExpandedCards] = useState({});
@@ -239,8 +241,8 @@ const Home = () => {
     setExpandedCards((prev) => ({ ...prev, [cardId]: !prev[cardId] }));
   };
 
-  // Main Attraction Landing Slides
-  const LANDING_SLIDES = [
+  // LANDING_SLIDES moved to FeatureCarousel component
+  const LANDING_SLIDES_UNUSED = [
     {
       id: "slide-lab",
       tag: "Multi-Format Studio",
@@ -313,13 +315,7 @@ const Home = () => {
     }
   ];
 
-  // Auto-rotate landing slides every 5.5 seconds
-  useEffect(() => {
-    const slideInterval = setInterval(() => {
-      setActiveSlideIndex((prev) => (prev + 1) % LANDING_SLIDES.length);
-    }, 5500);
-    return () => clearInterval(slideInterval);
-  }, [LANDING_SLIDES.length]);
+  // Auto-rotate now handled inside FeatureCarousel component
 
   // Fetch real counts & top memes from Firestore
   useEffect(() => {
@@ -394,8 +390,6 @@ const Home = () => {
 
   const fmt = (n) => (n === null ? "—" : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 
-  const currentSlide = LANDING_SLIDES[activeSlideIndex];
-
   return (
     <div className="relative overflow-visible min-h-screen flex flex-col justify-start py-4 space-y-12 sm:space-y-20">
       
@@ -416,15 +410,14 @@ const Home = () => {
       </div>
 
       {/* ──────────────────────────────────────────────────────────────────────────
-          SECTION 1: HERO & MAIN ATTRACTION SHOWCASE (Integrated & Unboxed)
+          SECTION 1: HERO BRANDING HEADER + CINEMATIC FEATURE CAROUSEL
           ────────────────────────────────────────────────────────────────────────── */}
-      <section className="max-w-6xl mx-auto w-full px-4 pt-2 space-y-8">
+      <section className="max-w-6xl mx-auto w-full px-4 pt-2 space-y-7">
         
         {/* Main Central Branding Header */}
         <div className="text-center max-w-3xl mx-auto space-y-3">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-ruby-50 dark:bg-ruby-950/50 border border-ruby-200/80 dark:border-ruby-800/60 text-ruby-700 dark:text-ruby-300 text-xs font-black uppercase tracking-widest">
-            <Sparkles className="w-3.5 h-3.5 text-ruby-600 dark:text-ruby-400 animate-spin" style={{ animationDuration: "6s" }} />
-            <span>Interactive Educational Platform</span>
+          <div className="inline-flex items-center px-3.5 py-1 rounded-full bg-ruby-50 dark:bg-ruby-950/50 border border-ruby-200/80 dark:border-ruby-800/60 text-ruby-700 dark:text-ruby-300 text-xs font-black uppercase tracking-widest">
+            <span>Open Pedagogical Resources for Memes</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-gray-900 dark:text-white leading-[1.15]">
@@ -432,81 +425,15 @@ const Home = () => {
           </h1>
 
           <p className="text-base sm:text-lg font-semibold text-gray-700 dark:text-gray-300 max-w-2xl mx-auto">
-            Bringing visual rhetoric & multimodal culture into curriculum.
+            A collaborative space to learn, co-create and share meme pedagogy.
           </p>
         </div>
 
-        {/* Integrated Feature Selector Pills Bar */}
-        <div className="flex items-center justify-center gap-2 overflow-x-auto py-2 no-scrollbar">
-          {LANDING_SLIDES.map((slide, idx) => (
-            <button
-              key={slide.id}
-              onClick={() => setActiveSlideIndex(idx)}
-              className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all duration-200 flex-shrink-0 flex items-center gap-2 ${
-                idx === activeSlideIndex
-                  ? "bg-ruby-600 text-white shadow-lg shadow-ruby-500/25 scale-105"
-                  : "bg-white/80 dark:bg-zinc-800/80 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 border border-gray-200/80 dark:border-zinc-700/80"
-              }`}
-            >
-              <slide.btnIcon className={`w-3.5 h-3.5 ${idx === activeSlideIndex ? "text-white" : "text-ruby-600 dark:text-ruby-400"}`} />
-              <span>{slide.tag}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Integrated Hero Grid Layout (Unboxed) */}
-        <div key={currentSlide.id} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pt-2 animate-fadeIn">
-          
-          {/* Left Content Area (Col 7 - Uncrowded Title, Subtitle & Direct Link) */}
-          <div className="lg:col-span-7 space-y-4">
-            <div className="flex items-center gap-3">
-              <span className={`px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${currentSlide.badgeColor}`}>
-                {currentSlide.tag}
-              </span>
-            </div>
-
-            <h2 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white leading-tight tracking-tight">
-              {currentSlide.title}
-            </h2>
-
-            <p className="text-base sm:text-xl font-extrabold text-ruby-600 dark:text-ruby-400 leading-snug">
-              {currentSlide.subtitle}
-            </p>
-
-            <div className="pt-4 flex flex-wrap items-center gap-4">
-              <Link
-                to={currentSlide.btnLink}
-                className={`inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl font-black text-xs sm:text-sm transition-all duration-200 shadow-xl hover:-translate-y-0.5 active:scale-95 ${currentSlide.btnColor}`}
-              >
-                <currentSlide.btnIcon className="w-4.5 h-4.5" />
-                <span>{currentSlide.btnText}</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-
-              {/* Integrated Slide Dots */}
-              <div className="flex items-center gap-1.5 ml-2">
-                {LANDING_SLIDES.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveSlideIndex(i)}
-                    className={`h-2.5 rounded-full transition-all duration-300 ${
-                      i === activeSlideIndex ? "bg-ruby-600 w-7" : "bg-gray-300 dark:bg-zinc-700 w-2.5 hover:bg-ruby-400"
-                    }`}
-                    aria-label={`Go to slide ${i + 1}`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Visual Feature Representation Imagery Card (Col 5) */}
-          <div className="lg:col-span-5 flex items-center justify-center">
-            <SlideFeatureVisual slideId={currentSlide.id} />
-          </div>
-
-        </div>
-
+        {/* Cinematic Image-First Feature Discovery Carousel */}
       </section>
+
+      {/* Carousel sits outside the inner padded section so it can span full max-width */}
+      <FeatureCarousel />
 
       {/* ──────────────────────────────────────────────────────────────────────────
           SECTION 2: LIVE STATS BAR (Clean & Compact)
