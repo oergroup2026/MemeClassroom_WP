@@ -196,7 +196,7 @@ const ArticleForm = ({ form, setForm, subjects, gradeGroups }) => (
         <label className={labelClass}>Description / Abstract *</label>
         <RichTextArea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
           rows={3} placeholder="Provide a detailed description..." />
-        <ReadabilityIndicator text={form.body} className="mt-2" />
+        <ReadabilityIndicator text={form.body} className="mt-2" hideWhenFile={!!form.file} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -449,7 +449,7 @@ const OtherForm = ({ form, setForm, subjects, gradeGroups }) => (
         <label className={labelClass}>Description *</label>
         <RichTextArea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
           rows={3} placeholder="Describe this resource..." />
-        <ReadabilityIndicator text={form.body} className="mt-2" />
+        <ReadabilityIndicator text={form.body} className="mt-2" hideWhenFile={!!form.file} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -790,3 +790,4 @@ export default function ContributeResourceModal({
     document.body
   );
 }
+

@@ -2,7 +2,8 @@ import React from "react";
 import { computeReadabilityScore } from "../utils/readabilityUtils";
 import { Sparkles, BookOpen } from "lucide-react";
 
-const ReadabilityIndicator = ({ text, className = "" }) => {
+const ReadabilityIndicator = ({ text, className = "", hideWhenFile = false }) => {
+  if (hideWhenFile) return null;
   if (!text || text.trim().length < 15) return null;
 
   const { score, gradeLevel, gradeLabel, badgeColor, wordsCount, readingTimeMinutes } = computeReadabilityScore(text);
