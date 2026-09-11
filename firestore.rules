@@ -28,11 +28,27 @@ service cloud.firestore {
 
     // ─── Users ──────────────────────────────────────────────────────────────
     // Profiles require authentication to read — prevents anonymous visitors from
-    // scraping email addresses, id_card_url, or other personal details.
-    // Admins can read and write any profile; users can only write their own.
+    // scraping email addresses or other personal details.
+    // Admins can read and write any profile. Non-admin users can only create/update their own
+    // profile with allowed roles (student/teacher) and cannot self-grant admin, expert, verified, or banned status.
     match /users/{userId} {
       allow read: if isLoggedIn();
-      allow write: if isLoggedIn() && (isOwner(userId) || isAdmin());
+      allow create: if isLoggedIn() && (
+        isAdmin() ||
+        (isOwner(userId) && request.resource.data.role in ['student', 'teacher'])
+      );
+      allow update: if isLoggedIn() && (
+        isAdmin() ||
+        (isOwner(userId) && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'is_verified', 'banned'])
+        ))
+      );
+      allow delete: if isAdmin();
+
+      // Private subcollection for sensitive PII (ID Card verification URL, etc.)
+      match /private/{docId} {
+        allow read, write: if isLoggedIn() && (isOwner(userId) || isAdmin());
+      }
     }
 
     // ─── Memes ──────────────────────────────────────────────────────────────
@@ -49,7 +65,14 @@ service cloud.firestore {
       allow update: if isLoggedIn() && (
         resource.data.creator_id == request.auth.uid ||
         isAdmin() ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count', 'flag_count'])
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count']) &&
+          (request.resource.data.likes_count == resource.data.likes_count + 1 || request.resource.data.likes_count == resource.data.likes_count - 1)
+        ) ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['flag_count']) &&
+          (request.resource.data.flag_count == resource.data.flag_count + 1 || request.resource.data.flag_count == resource.data.flag_count - 1)
+        )
       );
       allow delete: if isLoggedIn() && (
         resource.data.creator_id == request.auth.uid || isAdmin()
@@ -91,9 +114,18 @@ service cloud.firestore {
       allow update: if isLoggedIn() && (
         isOwner(userId) ||
         isAdmin() ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total_likes_received'])
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total_likes_received']) &&
+          (request.resource.data.total_likes_received == resource.data.total_likes_received + 1 || request.resource.data.total_likes_received == resource.data.total_likes_received - 1)
+        )
       );
       allow delete: if isLoggedIn() && (isOwner(userId) || isAdmin());
+    }
+
+    // ─── Expert Applications ──────────────────────────────────────────────────
+    match /expert_apps/{appId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
     }
 
     // ─── Comments ───────────────────────────────────────────────────────────

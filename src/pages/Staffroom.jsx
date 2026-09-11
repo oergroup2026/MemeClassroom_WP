@@ -36,18 +36,18 @@ import TtsSpeakerButton from "../components/TtsSpeakerButton";
 import { useTour } from "../hooks/useTour";
 import TourOverlay from "../components/TourOverlay";
 import PageHelpPanel from "../components/PageHelpPanel";
-import { 
-  ThumbsUp, 
-  MessageSquare, 
-  Bookmark, 
-  Flag, 
-  Paperclip, 
-  ShieldCheck, 
-  Check, 
-  BookOpen, 
-  HelpCircle, 
-  BarChart3, 
-  Vote, 
+import {
+  ThumbsUp,
+  MessageSquare,
+  Bookmark,
+  Flag,
+  Paperclip,
+  ShieldCheck,
+  Check,
+  BookOpen,
+  HelpCircle,
+  BarChart3,
+  Vote,
   Send,
   Music,
   Pencil,
@@ -60,7 +60,8 @@ import {
   Heart,
   Lightbulb,
   Flame,
-  Smile
+  Smile,
+  Trophy
 } from "lucide-react";
 
 // ── Static admin cache entry ──────────────────────────────────────────────────
@@ -301,8 +302,8 @@ const Staffroom = () => {
 
   // 3. Expert comments & ratings for active meme
   useEffect(() => {
-    let unsubComments = () => {};
-    let unsubRatings = () => {};
+    let unsubComments = () => { };
+    let unsubRatings = () => { };
     setCurrentMemeRatings([]);
     setUserSubmittedRating(null);
     setExpertComments([]);
@@ -1376,7 +1377,7 @@ const Staffroom = () => {
                 {[
                   { type: "story", icon: <BookOpen className="w-4 h-4 text-purple-600 dark:text-purple-400" />, label: "Write Story" },
                   { type: "query", icon: <HelpCircle className="w-4 h-4 text-purple-600 dark:text-purple-400" />, label: "Ask Doubt" },
-                  { type: "poll",  icon: <BarChart3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />, label: "Create Poll" },
+                  { type: "poll", icon: <BarChart3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />, label: "Create Poll" },
                 ].map(({ type, icon, label }) => (
                   <button
                     key={type}
@@ -1405,11 +1406,10 @@ const Staffroom = () => {
                   <button
                     key={tab.id}
                     onClick={() => { setActiveFilter(tab.id); setTopicFilter(""); }}
-                    className={`text-xs font-bold border-b-2 pb-1 transition flex items-center ${
-                      activeFilter === tab.id
+                    className={`text-xs font-bold border-b-2 pb-1 transition flex items-center ${activeFilter === tab.id
                         ? "border-purple-650 text-purple-650 dark:text-purple-400"
                         : "border-transparent text-gray-400 hover:text-gray-500"
-                    }`}
+                      }`}
                   >
                     {tab.icon}
                     <span>{tab.label}</span>
@@ -1428,9 +1428,8 @@ const Staffroom = () => {
                 <select
                   value={sortMode}
                   onChange={(e) => setSortMode(e.target.value)}
-                  className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border focus:outline-none focus:ring-1 focus:ring-purple-500 ${
-                    "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-700 dark:text-zinc-300"
-                  }`}
+                  className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border focus:outline-none focus:ring-1 focus:ring-purple-500 ${"bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-700 dark:text-zinc-300"
+                    }`}
                   title="Sort feed"
                 >
                   <option value="newest">Newest</option>
@@ -1461,9 +1460,8 @@ const Staffroom = () => {
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
-                className={`px-2.5 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  highContrastMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-200 text-gray-800"
-                }`}
+                className={`px-2.5 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${highContrastMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-200 text-gray-800"
+                  }`}
               >
                 <option value="">All Subjects</option>
                 {SUBJECTS.map((sub) => <option key={sub} value={sub}>{sub}</option>)}
@@ -1471,9 +1469,8 @@ const Staffroom = () => {
               <select
                 value={gradeFilter}
                 onChange={(e) => setGradeFilter(e.target.value)}
-                className={`px-2.5 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  highContrastMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-200 text-gray-800"
-                }`}
+                className={`px-2.5 py-1.5 text-xs rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${highContrastMode ? "bg-zinc-950 border-zinc-800 text-white" : "bg-white border-gray-200 text-gray-800"
+                  }`}
               >
                 <option value="">All Grades</option>
                 {GRADE_GROUPS.map((gr) => <option key={gr} value={gr}>{gr}</option>)}
@@ -1504,9 +1501,8 @@ const Staffroom = () => {
                 return (
                   <div
                     key={thread.id}
-                    className={`p-5 transition rounded-xl border ${
-                      isAnnouncement ? "border-amber-400 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/20 text-gray-800 dark:text-zinc-100 shadow-sm" : isSolved ? "border-emerald-400 dark:border-emerald-900/50 bg-emerald-50/10 dark:bg-emerald-950/20 text-gray-800 dark:text-zinc-100 shadow-sm" : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-800 dark:text-zinc-100 shadow-sm"
-                    }`}
+                    className={`p-5 transition rounded-xl border ${isAnnouncement ? "border-amber-400 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/20 text-gray-800 dark:text-zinc-100 shadow-sm" : isSolved ? "border-emerald-400 dark:border-emerald-900/50 bg-emerald-50/10 dark:bg-emerald-950/20 text-gray-800 dark:text-zinc-100 shadow-sm" : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-800 dark:text-zinc-100 shadow-sm"
+                      }`}
                   >
                     {/* Tags row */}
                     <div className="flex flex-wrap gap-2 justify-between items-center mb-3 border-b border-gray-50 dark:border-zinc-800/40 pb-3">
@@ -1516,13 +1512,12 @@ const Staffroom = () => {
                             📢 Official Announcement
                           </span>
                         )}
-                        <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded tracking-wide ${
-                          thread.post_type === "query"
+                        <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded tracking-wide ${thread.post_type === "query"
                             ? "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800"
                             : thread.post_type === "poll"
                               ? "bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-800"
                               : "bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-800"
-                        }`}>
+                          }`}>
                           {thread.post_type === "query" ? "Doubt / Query" : thread.post_type === "poll" ? "Community Poll" : "Experience Story"}
                         </span>
                         {isSolved && (
@@ -1655,10 +1650,10 @@ const Staffroom = () => {
                       <div className="my-3 p-3 border border-gray-200 dark:border-zinc-800 rounded-xl bg-gray-50/40 dark:bg-zinc-950/40 text-left space-y-2.5">
                         <div className="flex items-center space-x-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
                           <Paperclip className="w-3.5 h-3.5 text-gray-400" />
-                          <a 
-                            href={thread.attachment_url} 
-                            target="_blank" 
-                            rel="noreferrer" 
+                          <a
+                            href={thread.attachment_url}
+                            target="_blank"
+                            rel="noreferrer"
                             className="hover:underline text-purple-650 dark:text-purple-400 font-bold truncate max-w-xs sm:max-w-md"
                           >
                             {thread.attachment_name || "View Attachment"}
@@ -1668,9 +1663,9 @@ const Staffroom = () => {
                         {((thread.attachment_name && thread.attachment_name.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i)) || thread.attachment_url.toLowerCase().includes("image")) && (
                           <div className="max-w-full sm:max-w-md rounded-xl overflow-hidden border border-gray-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm hover:shadow transition-shadow duration-300">
                             <a href={thread.attachment_url} target="_blank" rel="noreferrer" title="Click to view full size">
-                              <img 
-                                src={thread.attachment_url} 
-                                alt={thread.attachment_name || "Attachment"} 
+                              <img
+                                src={thread.attachment_url}
+                                alt={thread.attachment_name || "Attachment"}
                                 className="max-h-72 w-full object-contain mx-auto hover:opacity-95 transition-opacity"
                                 onError={(e) => {
                                   e.target.style.display = 'none';
@@ -1718,7 +1713,7 @@ const Staffroom = () => {
                     <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-700/50 pt-2 text-xs mt-2">
                       <div className="flex items-center space-x-3">
                         {/* LinkedIn Reactions Button */}
-                        <div 
+                        <div
                           className="relative group/react"
                           onMouseEnter={() => setReactionMenuOpen((p) => ({ ...p, [thread.id]: true }))}
                           onMouseLeave={() => setReactionMenuOpen((p) => ({ ...p, [thread.id]: false }))}
@@ -1735,9 +1730,8 @@ const Staffroom = () => {
                                 handleReaction(thread.id, "👍");
                               }
                             }}
-                            className={`flex items-center space-x-1.5 transition px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 ${
-                              getReactionStyle(myReaction).className
-                            }`}
+                            className={`flex items-center space-x-1.5 transition px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 ${getReactionStyle(myReaction).className
+                              }`}
                           >
                             {myReaction ? (
                               myReaction === "👍" ? (
@@ -1753,7 +1747,7 @@ const Staffroom = () => {
 
                           {/* Reaction picker */}
                           {reactionMenuOpen[thread.id] && (
-                            <div 
+                            <div
                               className="absolute bottom-full left-0 mb-1 z-30 flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-full shadow-xl px-3 py-1.5"
                               style={{ animation: "scaleIn 0.15s ease-out" }}
                             >
@@ -1780,9 +1774,8 @@ const Staffroom = () => {
                       {/* Report */}
                       <button
                         onClick={() => handleFlagContent(thread.id, "post")}
-                        className={`text-xs flex items-center gap-1 transition ${
-                          flaggedByUser[thread.id] ? "text-red-500 font-bold" : "text-gray-400 dark:text-gray-400 hover:text-red-500"
-                        }`}
+                        className={`text-xs flex items-center gap-1 transition ${flaggedByUser[thread.id] ? "text-red-500 font-bold" : "text-gray-400 dark:text-gray-400 hover:text-red-500"
+                          }`}
                         title="Report Inappropriate Thread"
                       >
                         <Flag className="w-3.5 h-3.5" fill={flaggedByUser[thread.id] ? "currentColor" : "none"} />
@@ -1802,11 +1795,10 @@ const Staffroom = () => {
                           return (
                             <div
                               key={reply.id}
-                              className={`p-3 rounded-lg text-xs leading-relaxed ${
-                                isAccepted
+                              className={`p-3 rounded-lg text-xs leading-relaxed ${isAccepted
                                   ? "bg-emerald-500/10 border border-emerald-300"
                                   : "bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800"
-                              }`}
+                                }`}
                             >
                               <div className="flex justify-between items-center mb-1.5">
                                 <div className="flex items-center gap-2">
@@ -1904,11 +1896,10 @@ const Staffroom = () => {
                   <button
                     key={topic.name}
                     onClick={() => setTopicFilter(topic.name)}
-                    className={`block text-xs font-semibold hover:underline w-full text-left truncate ${
-                      topicFilter.toLowerCase() === topic.name.toLowerCase()
+                    className={`block text-xs font-semibold hover:underline w-full text-left truncate ${topicFilter.toLowerCase() === topic.name.toLowerCase()
                         ? "text-purple-650 font-black"
                         : "text-gray-600 dark:text-gray-300 hover:text-purple-650"
-                    }`}
+                      }`}
                   >
                     {topic.name} <span className="text-[10px] text-gray-400 font-medium">({topic.count} {topic.count === 1 ? "post" : "posts"})</span>
                   </button>
