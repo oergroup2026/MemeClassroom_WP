@@ -61,23 +61,34 @@ export const AuthProvider = ({ children }) => {
 
     const userDocRef = doc(db, "users", uid);
     const statsDocRef = doc(db, "user_stats", uid);
+    const verificationDocRef = doc(db, "users", uid, "private", "verification");
+
+    // Sanitize role: non-admins registering directly can only register as 'student' or 'teacher'
+    const allowedRoles = ["student", "teacher"];
+    const sanitizedRole = allowedRoles.includes(profileData?.role) ? profileData.role : "student";
 
     // Write profile and user_stats documents inside a transaction
     await runTransaction(db, async (transaction) => {
       transaction.set(userDocRef, {
         id: uid,
-        name: profileData.name || "Anonymous",
+        name: profileData?.name || "Anonymous",
         email: email,
-        role: profileData.role, // 'student' | 'teacher'
-        institution: profileData.institution,
-        place: profileData.place,
-        state: profileData.state,
-        country: profileData.country,
-        id_card_url: id_card_url || "",
+        role: sanitizedRole,
+        institution: profileData?.institution || "",
+        place: profileData?.place || "",
+        state: profileData?.state || "",
+        country: profileData?.country || "",
         is_verified: false,
         banned: false,
         created_at: serverTimestamp()
       });
+
+      if (id_card_url) {
+        transaction.set(verificationDocRef, {
+          id_card_url: id_card_url,
+          uploaded_at: serverTimestamp()
+        });
+      }
 
       transaction.set(statsDocRef, {
         memes_created_count: 0,
@@ -90,7 +101,11 @@ export const AuthProvider = ({ children }) => {
 
     // Fetch the newly created profile
     const snap = await getDoc(userDocRef);
-    return snap.data();
+    const data = snap.data();
+    if (id_card_url) {
+      data.id_card_url = id_card_url;
+    }
+    return data;
   };
 
   // Handle email/password sign up
@@ -240,7 +255,8 @@ export const AuthProvider = ({ children }) => {
       if (currentUser) {
         try {
           const userDocRef = doc(db, "users", currentUser.uid);
-          unsubProfile = onSnapshot(userDocRef, (snap) => {
+          const verifDocRef = doc(db, "users", currentUser.uid, "private", "verification");
+          unsubProfile = onSnapshot(userDocRef, async (snap) => {
             if (snap.exists()) {
               const profileData = snap.data();
               if (profileData.banned) {
@@ -254,6 +270,14 @@ export const AuthProvider = ({ children }) => {
                   setOnboardingUser(null);
                 });
               } else {
+                try {
+                  const verifSnap = await getDoc(verifDocRef);
+                  if (verifSnap.exists() && verifSnap.data().id_card_url) {
+                    profileData.id_card_url = verifSnap.data().id_card_url;
+                  }
+                } catch (e) {
+                  // Ignore if private verification doc does not exist
+                }
                 setProfile(profileData);
                 setUser(currentUser);
                 setOnboardingUser(null);
