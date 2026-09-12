@@ -1105,9 +1105,13 @@ const Profile = () => {
                   <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 dark:text-white">
                     {profile.name}
                   </h2>
-                  {/* verify badge  */}
                   {profile.is_verified && (
-                    <CheckCircle2 className="w-6 h-6 text-indigo-650 dark:text-indigo-400 fill-indigo-50 dark:fill-indigo-950/50" />
+                    <img
+                      src="/badge-verify.png"
+                      alt="Verified profile"
+                      title="Verified profile"
+                      className="w-6 h-6 object-contain"
+                    />
                   )}
                 </div>
                 <p className="text-xs font-bold uppercase tracking-wider text-purple-650 dark:text-purple-400 mt-1 capitalize">

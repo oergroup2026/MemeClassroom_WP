@@ -521,7 +521,7 @@ const MemeLiteracyTest = () => {
             )}
           </div>
           <button onClick={handleNext} className="w-full py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md transition-all hover:-translate-y-0.5">
-            {currentQ + 1 >= testQuestions.length ? "See My Results &#8594;" : "Next Question &#8594;"}
+            {currentQ + 1 >= testQuestions.length ? "See My Results" : "Next Question"}
           </button>
         </div>
       )}
@@ -560,4 +560,4 @@ const MemeLiteracyTest = () => {
   );
 };
 
-export default MemeLiteracyTest;
+export default MemeLiteracyTest;
