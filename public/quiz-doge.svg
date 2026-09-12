@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-labelledby="title desc">
+  <title id="title">Doge meme placeholder</title>
+  <desc id="desc">A stylized Shiba Inu meme illustration with playful caption labels.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fff7ed"/>
+      <stop offset="100%" stop-color="#fed7aa"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <rect x="40" y="40" width="720" height="520" rx="32" fill="#fff" opacity="0.8"/>
+  <circle cx="290" cy="230" r="130" fill="#d97706" opacity="0.18"/>
+  <path d="M200 230c0-62 50-112 112-112 36 0 67 15 91 40 11 11 28 15 42 9 27-11 63-2 80 25 20 32 14 76-14 101-19 17-45 27-72 27H216c-9 0-16-7-16-16v-74z" fill="#c084fc" opacity="0.8"/>
+  <ellipse cx="247" cy="215" rx="20" ry="28" fill="#1f2937"/>
+  <ellipse cx="360" cy="215" rx="20" ry="28" fill="#1f2937"/>
+  <circle cx="240" cy="208" r="6" fill="#fff"/>
+  <circle cx="353" cy="208" r="6" fill="#fff"/>
+  <path d="M260 285c22 28 58 42 100 42s78-14 100-42" fill="none" stroke="#1f2937" stroke-width="12" stroke-linecap="round"/>
+  <path d="M232 152l-26-26 18-10 18 23zM385 128l36-18 13 17-28 23z" fill="#fbbf24" opacity="0.9"/>
+  <text x="400" y="455" text-anchor="middle" font-family="Verdana, Arial, sans-serif" font-size="54" font-weight="700" fill="#7c2d12">much wow</text>
+  <text x="400" y="515" text-anchor="middle" font-family="Verdana, Arial, sans-serif" font-size="42" font-weight="700" fill="#7c2d12">very amaze</text>
+</svg>

@@ -28,7 +28,8 @@ export default function SmartSearchBar({
   voiceEnabled = true,
   autoFocus = false,
   className = "",
-  size = "md"
+  size = "md",
+  dropdownPosition = "bottom"
 }) {
   const { highContrastMode } = useUdl();
   const [inputValue, setInputValue] = useState(value);
@@ -325,7 +326,7 @@ export default function SmartSearchBar({
 
       {/* Voice Listening Active Indicator */}
       {isListening && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 rounded-xl text-xs font-semibold text-red-600 dark:text-red-300 flex items-center justify-between z-50 animate-fadeIn">
+        <div className={`absolute ${dropdownPosition === "top" ? "bottom-full mb-2" : "top-full mt-1.5"} left-0 right-0 px-3 py-1.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 rounded-xl text-xs font-semibold text-red-600 dark:text-red-300 flex items-center justify-between z-50 animate-fadeIn`}>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
             Listening in {localStorage.getItem("memeclassroom_voice_lang") || "en-IN"}... Speak now!
@@ -344,7 +345,7 @@ export default function SmartSearchBar({
       {isOpen && suggestions.length > 0 && (
         <div
           role="listbox"
-          className={`absolute left-0 right-0 top-full mt-2 rounded-2xl shadow-2xl border z-50 overflow-hidden backdrop-blur-md transition-all duration-200 ${
+          className={`absolute left-0 right-0 ${dropdownPosition === "top" ? "bottom-full mb-2.5" : "top-full mt-2"} rounded-2xl shadow-2xl border z-50 overflow-hidden backdrop-blur-md transition-all duration-200 ${
             highContrastMode
               ? "bg-zinc-950/95 border-zinc-800 text-white divide-y divide-zinc-850"
               : "bg-white/95 dark:bg-zinc-900/95 border-gray-150 dark:border-zinc-800 text-gray-800 dark:text-zinc-100 divide-y divide-gray-50 dark:divide-zinc-850"

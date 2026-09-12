@@ -51,11 +51,16 @@ service firebase.storage {
     }
 
     // ── User avatar / profile photo ──────────────────────────────────────────
-    match /users/{userId}/avatar/{fileName} {
+    match /users/{userId}/avatar/{allPaths=**} {
       allow read: if true;
       allow write: if isLoggedIn()
         && request.auth.uid == userId
-        && isImageType()
+        && request.resource.size <= maxMB(5);
+    }
+
+    match /avatars/{allPaths=**} {
+      allow read: if true;
+      allow write: if isLoggedIn()
         && request.resource.size <= maxMB(5);
     }
 

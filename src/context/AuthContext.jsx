@@ -14,7 +14,8 @@ import {
   signInWithEmailLink as firebaseSignInWithEmailLink,
   browserLocalPersistence,
   browserSessionPersistence,
-  setPersistence
+  setPersistence,
+  updateProfile
 } from "firebase/auth";
 import {
   doc,
@@ -32,40 +33,63 @@ import {
 import { auth, db, storage } from "../firebase";
 
 // DEV_MODE bypasses authentication for local sandbox testing.
-// To enable: create a .env.local file and add VITE_DEV_MODE=true
-// It will NEVER activate in production builds (import.meta.env.DEV is false there).
-const DEV_MODE = import.meta.env.DEV === true && import.meta.env.VITE_DEV_MODE === "true";
+// Set to false for production authentication.
+const DEV_MODE = false;
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
+
+// Helper function to award Contributor Badge to user
+export const awardLoginBadge = async (uid) => {
+  if (!uid) return;
+  const badgeDetails = {
+    title: "you earned a badge",
+    badgeName: "Contributor",
+    description: "Earned for completing registration & account setup!"
+  };
+  try {
+    await addDoc(collection(db, "badges"), {
+      user_id: uid,
+      category: "account_setup",
+      level: 1,
+      badge_name: "Contributor",
+      badge_icon: "award",
+      description: "Earned for completing registration & account setup!",
+      awarded_at: serverTimestamp()
+    });
+  } catch (err) {
+    console.error("Failed to write login badge to firestore", err);
+  }
+  try {
+    sessionStorage.setItem("mc_pending_badge_popup", JSON.stringify(badgeDetails));
+    window.dispatchEvent(new CustomEvent("mc_badge_earned", { detail: badgeDetails }));
+  } catch (e) { }
+};
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(DEV_MODE ? { uid: "guest_dev", email: "guest@memeclassroom.dev" } : null);
-  const [profile, setProfile] = useState(DEV_MODE ? { name: "Guest Developer", role: "admin", institution: "Sandbox", is_verified: true } : null);
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(DEV_MODE ? { name: "Guest Developer", role: "admin", institution: "Sandbox", is_verified: true, setup_completed: true } : null);
+  const [loading, setLoading] = useState(!DEV_MODE);
   const [onboardingUser, setOnboardingUser] = useState(null);
-  const [loading, setLoading] = useState(DEV_MODE ? false : true);
 
-  // Helper function to upload ID Card to Firebase Storage
-  const uploadIdCard = async (userId, file) => {
-    if (!file) return null;
-    const storageRef = ref(storage, `id_cards/${userId}_id`);
-    const snapshot = await uploadBytes(storageRef, file);
-    return await getDownloadURL(snapshot.ref);
-  };
-
-  // Helper function to create user profile & stats in Firestore
+  // Helper function to create Firestore profile & user_stats for a new user
   const createUserProfile = async (uid, email, profileData, idCardFile) => {
     let id_card_url = null;
     if (idCardFile) {
-      id_card_url = await uploadIdCard(uid, idCardFile);
+      const storageRef = ref(storage, `id_cards/${uid}/${Date.now()}_${idCardFile.name}`);
+      await uploadBytes(storageRef, idCardFile);
+      id_card_url = await getDownloadURL(storageRef);
     }
 
     const userDocRef = doc(db, "users", uid);
     const statsDocRef = doc(db, "user_stats", uid);
     const verificationDocRef = doc(db, "users", uid, "private", "verification");
 
-    // Sanitize role: non-admins registering directly can only register as 'student' or 'teacher'
-    const allowedRoles = ["student", "teacher"];
+    // Sanitize role: support all requested registration roles
+    const allowedRoles = ["student", "teacher", "research", "parent", "other"];
     const sanitizedRole = allowedRoles.includes(profileData?.role) ? profileData.role : "student";
+    const setupCompleted = profileData?.setup_completed !== undefined
+      ? profileData.setup_completed
+      : Boolean(profileData?.institution || (profileData?.role && profileData.role !== "student"));
 
     // Write profile and user_stats documents inside a transaction
     await runTransaction(db, async (transaction) => {
@@ -78,6 +102,7 @@ export const AuthProvider = ({ children }) => {
         place: profileData?.place || "",
         state: profileData?.state || "",
         country: profileData?.country || "",
+        setup_completed: setupCompleted,
         is_verified: false,
         banned: false,
         created_at: serverTimestamp()
@@ -108,18 +133,41 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
+  // Helper function to update user profile in Firestore & local state
+  const updateUserProfile = async (updates) => {
+    if (!user) return;
+    const userDocRef = doc(db, "users", user.uid);
+    await updateDoc(userDocRef, updates);
+    setProfile(prev => (prev ? { ...prev, ...updates } : updates));
+    if (updates.setup_completed) {
+      await awardLoginBadge(user.uid);
+    }
+  };
+
   // Handle email/password sign up
-  const signUpWithEmail = async (email, password, profileData, idCardFile) => {
+  const signUpWithEmail = async (email, password, profileData, idCardFile, rememberMe = true) => {
+    const persistenceMode = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+    await setPersistence(auth, persistenceMode);
     setLoading(true);
+    let userCredential = null;
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
       const userProfile = await createUserProfile(uid, email, profileData, idCardFile);
       setProfile(userProfile);
       setUser(userCredential.user);
+      await awardLoginBadge(uid);
       setLoading(false);
       return userCredential.user;
     } catch (error) {
+      // Rollback: if Firebase Auth user was created but profile/storage failed, cleanup the Auth user so email is not stranded
+      if (userCredential && userCredential.user) {
+        try {
+          await userCredential.user.delete();
+        } catch (cleanupErr) {
+          console.error("Failed to rollback user creation after profile error", cleanupErr);
+        }
+      }
       setLoading(false);
       throw error;
     }
@@ -159,11 +207,11 @@ export const AuthProvider = ({ children }) => {
   const isMagicLinkUrl = (url) => isSignInWithEmailLink(auth, url);
 
   // Complete the magic link sign-in flow (called after user clicks link in email)
-  const completeMagicLinkSignIn = async (url, rememberMe = true) => {
+  const completeMagicLinkSignIn = async (url, explicitEmail = null, rememberMe = true) => {
     if (!isSignInWithEmailLink(auth, url)) {
       throw new Error("Not a valid sign-in link.");
     }
-    const storedEmail = window.localStorage.getItem("mcEmailForSignIn");
+    const storedEmail = explicitEmail || window.localStorage.getItem("mcEmailForSignIn");
     if (!storedEmail) {
       throw new Error("EMAIL_NEEDED");
     }
@@ -311,16 +359,66 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  // Helper to update user avatar both locally and in Firestore / Auth
+  const updateUserAvatar = async (avatarUrl) => {
+    // 1. Update local state immediately
+    setProfile((prev) => (prev ? { ...prev, avatar_url: avatarUrl } : { avatar_url: avatarUrl }));
+
+    // 2. Persist in localStorage for instant offline & reload hydration
+    try {
+      if (user?.uid) {
+        localStorage.setItem(`mc_avatar_${user.uid}`, avatarUrl);
+      }
+      localStorage.setItem("mc_avatar_latest", avatarUrl);
+    } catch (e) {
+      console.warn("Could not save avatar to localStorage", e);
+    }
+
+    // 3. Update Firebase Auth user photoURL if available
+    if (auth.currentUser) {
+      try {
+        await updateProfile(auth.currentUser, { photoURL: avatarUrl });
+      } catch (e) {
+        console.warn("Could not update auth photoURL", e);
+      }
+    }
+
+    // 4. Update Firestore users collection if user has a valid UID
+    if (user?.uid && user.uid !== "guest_dev") {
+      const userRef = doc(db, "users", user.uid);
+      try {
+        await updateDoc(userRef, { avatar_url: avatarUrl });
+      } catch (err) {
+        try {
+          // If doc doesn't exist yet, create with merge
+          await setDoc(userRef, {
+            id: user.uid,
+            name: profile?.name || user.displayName || "User",
+            email: user.email || "",
+            role: profile?.role || "student",
+            avatar_url: avatarUrl,
+            created_at: serverTimestamp()
+          }, { merge: true });
+        } catch (setErr) {
+          console.warn("Firestore setDoc avatar merge warning:", setErr);
+        }
+      }
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
       profile,
+      setProfile,
+      updateUserAvatar,
       onboardingUser,
       loading,
       signUpWithEmail,
       signInWithEmail,
       signInWithGoogle,
       completeGoogleOnboarding,
+      updateUserProfile,
       signOut,
       resetPassword,
       sendMagicLink,
