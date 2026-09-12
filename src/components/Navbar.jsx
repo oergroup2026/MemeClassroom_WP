@@ -46,12 +46,13 @@ const BellIcon = () => (
 
 const Navbar = () => {
   const { user, profile, signOut } = useAuth();
-  const { highContrastMode, toggleHighContrast } = useUdl();
+  const { highContrastMode, toggleHighContrast, a11yMenuOpen, toggleA11yMenu } = useUdl();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [globalIndex, setGlobalIndex] = useState([]);
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const navigate = useNavigate();
 
   // Load global search items
@@ -201,8 +202,8 @@ const Navbar = () => {
               <button
                 onClick={toggleHighContrast}
                 className={`p-2 rounded-full border transition ${highContrastMode
-                    ? "border-ruby-500 bg-ruby-600/10 text-ruby-400 hover:bg-ruby-600/20"
-                    : "border-gray-200 dark:border-zinc-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                  ? "border-ruby-500 bg-ruby-600/10 text-ruby-400 hover:bg-ruby-600/20"
+                  : "border-gray-200 dark:border-zinc-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
                   }`}
                 title={highContrastMode ? "Disable Dark Theme" : "Enable Dark Theme"}
                 aria-label="Toggle Dark Theme"
@@ -349,38 +350,148 @@ const Navbar = () => {
       </header>
 
       {/* ──────────────────────────────────────────────────────────────────────────
-          2. BOTTOM NAVIGATION BAR (Fixed Viewport Docked App Bar)
+          2. WINDOWS-STYLE TASKBAR (Fixed Full-Width Viewport Docked Taskbar)
           ────────────────────────────────────────────────────────────────────────── */}
-      <nav className="fixed bottom-0 sm:bottom-3 left-0 right-0 z-40 px-2 sm:px-4 pointer-events-none">
-        <div className="pointer-events-auto max-w-lg mx-auto bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-gray-200/80 dark:border-zinc-800/80 shadow-2xl rounded-t-2xl sm:rounded-full py-1.5 px-2 sm:px-4 flex justify-around items-center gap-1">
-          {bottomNavItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] sm:text-xs transition-all duration-200 flex-1 ${isActive
-                  ? "text-ruby-600 dark:text-ruby-400 font-extrabold bg-ruby-50/90 dark:bg-ruby-950/50 scale-105"
-                  : "text-gray-500 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 font-medium hover:bg-gray-100/60 dark:hover:bg-zinc-800/60"
-                }`
-              }
-            >
-              <item.Icon className="w-5 h-5 mb-0.5" strokeWidth={2.2} />
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+      <nav
+        aria-label="Windows Taskbar Navigation"
+        className="fixed bottom-0 left-0 right-0 z-40 w-full bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border-t border-gray-200/90 dark:border-zinc-800/90 shadow-[0_-4px_25px_rgba(0,0,0,0.06)] dark:shadow-[0_-6px_30px_rgba(0,0,0,0.5)] transition-all duration-200"
+      >
+        <div className="relative max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
 
-          {/* Menu Drawer Toggle in Bottom Bar */}
-          <button
-            onClick={() => setDrawerOpen(!drawerOpen)}
-            className={`flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] sm:text-xs transition-all duration-200 flex-1 ${drawerOpen
-                ? "text-ruby-600 dark:text-ruby-400 font-extrabold bg-ruby-50/90 dark:bg-ruby-950/50"
-                : "text-gray-500 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 font-medium hover:bg-gray-100/60 dark:hover:bg-zinc-800/60"
-              }`}
-          >
-            <Menu className="w-5 h-5 mb-0.5" strokeWidth={2.2} />
-            <span>Menu</span>
-          </button>
+          {/* Left: Collapsed Search Icon Button / Expanded Search Bar */}
+          <div className="flex items-center z-10">
+            {searchExpanded ? (
+              <div className="flex items-center gap-1.5 w-60 sm:w-72 md:w-80 animate-fadeIn">
+                <SmartSearchBar
+                  items={globalIndex}
+                  fieldWeights={[
+                    { field: "title", weight: 3 },
+                    { field: "subject", weight: 2 },
+                    { field: "keywords", weight: 2 }
+                  ]}
+                  placeholder="Search memes, resources..."
+                  onSuggestionSelect={(s) => {
+                    handleGlobalSuggestionSelect(s);
+                    setSearchExpanded(false);
+                  }}
+                  onSearch={(q) => {
+                    handleGlobalSearch(q);
+                    setSearchExpanded(false);
+                  }}
+                  voiceEnabled={true}
+                  autoFocus={true}
+                  size="sm"
+                  dropdownPosition="top"
+                  className="w-full"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSearchExpanded(false)}
+                  className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition shrink-0"
+                  title="Close search"
+                  aria-label="Close search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSearchExpanded(true)}
+                className={`flex items-center justify-center p-2 sm:p-2.5 rounded-xl transition duration-200 border shadow-xs group ${highContrastMode
+                    ? "bg-zinc-800 text-zinc-200 border-zinc-700 hover:bg-zinc-700 hover:text-ruby-400"
+                    : "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200/80 hover:text-ruby-600"
+                  }`}
+                title="Search memes, resources... (Click to expand)"
+                aria-label="Expand search"
+              >
+                <Search className={`w-4 h-4 transition-transform group-hover:scale-110 ${highContrastMode ? "text-ruby-400" : "text-ruby-600"}`} />
+              </button>
+            )}
+          </div>
+
+          {/* Center: Mathematically Centered Navigation Items */}
+          <div className={`absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-0.5 sm:gap-1.5 md:gap-2 transition-all duration-200 ${searchExpanded ? 'hidden sm:flex opacity-40 md:opacity-100 pointer-events-none md:pointer-events-auto' : 'flex'}`}>
+            {bottomNavItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `relative flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl text-[10px] sm:text-xs transition-all duration-200 group ${isActive
+                    ? "text-ruby-600 dark:text-ruby-400 font-extrabold bg-ruby-50/90 dark:bg-ruby-950/50 shadow-xs"
+                    : "text-gray-600 dark:text-zinc-400 hover:text-ruby-600 dark:hover:text-ruby-400 font-medium hover:bg-gray-100/80 dark:hover:bg-zinc-850/80"
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <item.Icon
+                      className={`w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform duration-200 group-hover:scale-110 ${isActive ? "text-ruby-600 dark:text-ruby-400" : ""
+                        }`}
+                      strokeWidth={isActive ? 2.4 : 2}
+                    />
+                    <span className="hidden xs:inline sm:inline">{item.label}</span>
+                    {/* Active Windows taskbar indicator pill */}
+                    {isActive && (
+                      <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-4 sm:w-6 h-0.5 sm:h-1 bg-ruby-600 dark:bg-ruby-400 rounded-full shadow-sm" />
+                    )}
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
+
+          {/* Right: Windows System Tray (Accessibility Button - Icon only, full dark theme support) */}
+          <div className="flex items-center justify-end z-10">
+            <button
+              id="a11y-widget-trigger"
+              onClick={toggleA11yMenu}
+              aria-label="Open accessibility menu (Ctrl+U)"
+              aria-expanded={a11yMenuOpen}
+              aria-haspopup="dialog"
+              title="Accessibility Options (Ctrl+U)"
+              className={`flex items-center justify-center p-2 sm:p-2.5 rounded-xl transition-all duration-200 border shadow-xs ${a11yMenuOpen
+                  ? "bg-ruby-600 text-white border-ruby-500 shadow-md shadow-ruby-500/30 scale-105"
+                  : highContrastMode
+                    ? "bg-zinc-800 text-ruby-400 border-zinc-700 hover:bg-zinc-700 hover:text-ruby-300 hover:border-ruby-500/60"
+                    : "bg-gray-100 text-gray-700 border-gray-200 hover:bg-ruby-50 hover:text-ruby-600 hover:border-ruby-200"
+                }`}
+            >
+              {/* Person with arms raised — universal accessibility icon */}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className={`shrink-0 ${a11yMenuOpen
+                    ? "text-white"
+                    : highContrastMode
+                      ? "text-ruby-400"
+                      : "text-gray-700"
+                  }`}
+              >
+                <circle
+                  cx="12"
+                  cy="5"
+                  r="2.5"
+                  fill={a11yMenuOpen ? "currentColor" : highContrastMode ? "#fb7185" : "#e11d48"}
+                  stroke="none"
+                />
+                <line x1="12" y1="8" x2="12" y2="16" />
+                <line x1="5" y1="9" x2="12" y2="12" />
+                <line x1="19" y1="9" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="9" y2="21" />
+                <line x1="12" y1="16" x2="14" y2="21" />
+              </svg>
+            </button>
+          </div>
+
         </div>
       </nav>
 

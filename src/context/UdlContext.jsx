@@ -25,6 +25,9 @@ export const UdlProvider = ({ children }) => {
   const [fontSizeScale, setFontSizeScale] = useState(100); // 80–150 percent
   const [rtlMode, setRtlMode] = useState(false);
   const [alwaysShowSkipLinks, setAlwaysShowSkipLinks] = useState(false);
+  const [a11yMenuOpen, setA11yMenuOpen] = useState(false);
+
+  const toggleA11yMenu = () => setA11yMenuOpen(prev => !prev);
 
   // ── Rehydrate from localStorage ────────────────────────────────────────────
   useEffect(() => {
@@ -168,6 +171,7 @@ export const UdlProvider = ({ children }) => {
       toggleScreenReader, changeScreenReaderSpeed, toggleDyslexiaFont, changeColorBlindMode,
       toggleReadingGuide, changeCursorSize, toggleKeyboardNav, changeFontSizeScale,
       toggleRtlMode, toggleAlwaysShowSkipLinks,
+      a11yMenuOpen, setA11yMenuOpen, toggleA11yMenu,
     }}>
       {children}
     </UdlContext.Provider>

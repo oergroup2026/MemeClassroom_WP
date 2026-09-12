@@ -14,15 +14,13 @@ import {
   signInWithEmailLink as firebaseSignInWithEmailLink,
   browserLocalPersistence,
   browserSessionPersistence,
-  setPersistence
+  setPersistence,
+  updateProfile
 } from "firebase/auth";
 import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
-  addDoc,
-  collection,
   serverTimestamp,
   runTransaction,
   onSnapshot
@@ -64,7 +62,7 @@ export const awardLoginBadge = async (uid) => {
   try {
     sessionStorage.setItem("mc_pending_badge_popup", JSON.stringify(badgeDetails));
     window.dispatchEvent(new CustomEvent("mc_badge_earned", { detail: badgeDetails }));
-  } catch (e) {}
+  } catch (e) { }
 };
 
 export const AuthProvider = ({ children }) => {
@@ -361,10 +359,59 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  // Helper to update user avatar both locally and in Firestore / Auth
+  const updateUserAvatar = async (avatarUrl) => {
+    // 1. Update local state immediately
+    setProfile((prev) => (prev ? { ...prev, avatar_url: avatarUrl } : { avatar_url: avatarUrl }));
+
+    // 2. Persist in localStorage for instant offline & reload hydration
+    try {
+      if (user?.uid) {
+        localStorage.setItem(`mc_avatar_${user.uid}`, avatarUrl);
+      }
+      localStorage.setItem("mc_avatar_latest", avatarUrl);
+    } catch (e) {
+      console.warn("Could not save avatar to localStorage", e);
+    }
+
+    // 3. Update Firebase Auth user photoURL if available
+    if (auth.currentUser) {
+      try {
+        await updateProfile(auth.currentUser, { photoURL: avatarUrl });
+      } catch (e) {
+        console.warn("Could not update auth photoURL", e);
+      }
+    }
+
+    // 4. Update Firestore users collection if user has a valid UID
+    if (user?.uid && user.uid !== "guest_dev") {
+      const userRef = doc(db, "users", user.uid);
+      try {
+        await updateDoc(userRef, { avatar_url: avatarUrl });
+      } catch (err) {
+        try {
+          // If doc doesn't exist yet, create with merge
+          await setDoc(userRef, {
+            id: user.uid,
+            name: profile?.name || user.displayName || "User",
+            email: user.email || "",
+            role: profile?.role || "student",
+            avatar_url: avatarUrl,
+            created_at: serverTimestamp()
+          }, { merge: true });
+        } catch (setErr) {
+          console.warn("Firestore setDoc avatar merge warning:", setErr);
+        }
+      }
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
       profile,
+      setProfile,
+      updateUserAvatar,
       onboardingUser,
       loading,
       signUpWithEmail,

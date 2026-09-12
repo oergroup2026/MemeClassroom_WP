@@ -4,14 +4,14 @@ import { useUdl } from '../context/UdlContext';
 // ── Reusable UI primitives ────────────────────────────────────────────────────
 
 /** A two-state pill toggle switch */
-const PillToggle = ({ id, active, onClick }) => (
+const PillToggle = ({ id, active, onClick, highContrastMode = false }) => (
   <button
     id={id}
     aria-pressed={active}
     onClick={onClick}
     style={{
       width: '40px', height: '22px', borderRadius: '999px', border: 'none', padding: 0,
-      background: active ? 'linear-gradient(135deg, #6366f1, #7c3aed)' : 'rgba(0,0,0,0.15)',
+      background: active ? 'linear-gradient(135deg, #6366f1, #7c3aed)' : (highContrastMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'),
       cursor: 'pointer', position: 'relative', flexShrink: 0,
       transition: 'background 0.2s',
     }}
@@ -26,24 +26,24 @@ const PillToggle = ({ id, active, onClick }) => (
 );
 
 /** A labelled row with a toggle switch */
-const SwitchRow = ({ id, label, description, active, onClick, last = false }) => (
+const SwitchRow = ({ id, label, description, active, onClick, last = false, highContrastMode = false }) => (
   <div style={{
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '10px 0',
-    borderBottom: last ? 'none' : '1px solid rgba(0,0,0,0.06)',
+    borderBottom: last ? 'none' : (highContrastMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.06)'),
   }}>
     <div style={{ flex: 1, paddingRight: '12px' }}>
-      <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#1e1b4b' }}>{label}</div>
-      {description && <div style={{ fontSize: '10.5px', color: '#6b7280', marginTop: '1px' }}>{description}</div>}
+      <div style={{ fontSize: '12.5px', fontWeight: 600, color: highContrastMode ? '#f4f4f5' : '#1e1b4b' }}>{label}</div>
+      {description && <div style={{ fontSize: '10.5px', color: highContrastMode ? '#a1a1aa' : '#6b7280', marginTop: '1px' }}>{description}</div>}
     </div>
-    <PillToggle id={id} active={active} onClick={onClick} />
+    <PillToggle id={id} active={active} onClick={onClick} highContrastMode={highContrastMode} />
   </div>
 );
 
 /** A section label above a group of controls */
-const SectionLabel = ({ children }) => (
+const SectionLabel = ({ children, highContrastMode = false }) => (
   <div style={{
-    fontSize: '10px', fontWeight: 700, color: '#9ca3af',
+    fontSize: '10px', fontWeight: 700, color: highContrastMode ? '#a1a1aa' : '#9ca3af',
     textTransform: 'uppercase', letterSpacing: '0.06em',
     marginBottom: '6px', marginTop: '10px',
   }}>
@@ -53,7 +53,6 @@ const SectionLabel = ({ children }) => (
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AccessibilityWidget() {
-  const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('vision');
   const [guideY, setGuideY] = useState(200);
   const [voiceLang, setVoiceLang] = useState(() => localStorage.getItem("memeclassroom_voice_lang") || "en-IN");
@@ -86,6 +85,7 @@ export default function AccessibilityWidget() {
     fontSizeScale, changeFontSizeScale,
     rtlMode, toggleRtlMode,
     alwaysShowSkipLinks, toggleAlwaysShowSkipLinks,
+    a11yMenuOpen, setA11yMenuOpen,
   } = useUdl();
 
   // ── Inject SVG color-blindness filter definitions once ────────────────────
@@ -225,21 +225,18 @@ export default function AccessibilityWidget() {
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e) => {
-      if (e.ctrlKey && e.key === 'u') { e.preventDefault(); setIsOpen(p => !p); }
-      if (e.key === 'Escape' && isOpen) setIsOpen(false);
+      if (e.ctrlKey && e.key === 'u') { e.preventDefault(); setA11yMenuOpen(p => !p); }
+      if (e.key === 'Escape' && a11yMenuOpen) setA11yMenuOpen(false);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [isOpen]);
+  }, [a11yMenuOpen, setA11yMenuOpen]);
 
   // ── Constants ─────────────────────────────────────────────────────────────
-  const triggerSize = oversizedWidget ? (isMobile ? 50 : 54) : (isMobile ? 40 : 44);
-  const bottomOffset = isMobile ? '82px' : '24px';
-  const rightOffset = isMobile ? '14px' : '24px';
-  const panelBottom = isMobile ? `${82 + triggerSize + 12}px` : `${triggerSize + 30}px`;
-  const panelRight = isMobile ? '12px' : '24px';
-  const panelLeft = isMobile ? '12px' : 'auto';
-  const panelWidth = isMobile ? 'calc(100vw - 24px)' : '324px';
+  const panelBottom = isMobile ? '64px' : '70px';
+  const panelRight = isMobile ? '10px' : '20px';
+  const panelLeft = isMobile ? '10px' : 'auto';
+  const panelWidth = isMobile ? 'calc(100vw - 20px)' : '330px';
 
   const CB_MODES = [
     { id: 'protanopia',   label: 'Protan.',  title: 'Protanopia — red-blind' },
@@ -259,9 +256,9 @@ export default function AccessibilityWidget() {
   const tabBtn = (id) => ({
     flex: 1, padding: '9px 4px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
     fontSize: '10.5px', fontWeight: activeTab === id ? 700 : 500,
-    color: activeTab === id ? '#4f46e5' : '#6b7280',
+    color: activeTab === id ? (highContrastMode ? '#818cf8' : '#4f46e5') : (highContrastMode ? '#a1a1aa' : '#6b7280'),
     background: 'transparent',
-    borderBottom: `2.5px solid ${activeTab === id ? '#6366f1' : 'transparent'}`,
+    borderBottom: `2.5px solid ${activeTab === id ? (highContrastMode ? '#818cf8' : '#6366f1') : 'transparent'}`,
     transition: 'all 0.15s',
   });
 
@@ -269,9 +266,9 @@ export default function AccessibilityWidget() {
   const chipBtn = (active) => ({
     padding: '5px 6px', borderRadius: '8px', border: 'none', cursor: 'pointer',
     fontFamily: 'inherit', fontSize: '10px', fontWeight: 600, transition: 'all 0.15s',
-    background: active ? 'rgba(99,102,241,0.14)' : 'rgba(0,0,0,0.06)',
-    color: active ? '#4f46e5' : '#374151',
-    outline: active ? '2px solid #6366f1' : '2px solid transparent',
+    background: active ? (highContrastMode ? 'rgba(129,140,248,0.25)' : 'rgba(99,102,241,0.14)') : (highContrastMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+    color: active ? (highContrastMode ? '#c7d2fe' : '#4f46e5') : (highContrastMode ? '#e4e4e7' : '#374151'),
+    outline: active ? (highContrastMode ? '2px solid #818cf8' : '2px solid #6366f1') : '2px solid transparent',
     outlineOffset: '1px',
   });
 
@@ -301,44 +298,8 @@ export default function AccessibilityWidget() {
         </>
       )}
 
-      {/* ── Floating Trigger Button ───────────────────────────────────── */}
-      <button
-        id="a11y-widget-trigger"
-        aria-label="Open accessibility menu (Ctrl+U)"
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
-        onClick={() => setIsOpen(p => !p)}
-        style={{
-          position: 'fixed',
-          bottom: bottomOffset,
-          right: rightOffset,
-          width: `${triggerSize}px`,
-          height: `${triggerSize}px`,
-          borderRadius: '50%',
-          background: isOpen
-            ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
-            : 'linear-gradient(135deg, #E0115F, #b00742)',
-          color: '#fff', border: 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 18px rgba(0,0,0,0.25)',
-          zIndex: 9999, transition: 'all 0.22s cubic-bezier(0.4,0,0.2,1)',
-          transform: isOpen ? 'scale(1.06) rotate(10deg)' : 'scale(1)',
-        }}
-      >
-        {/* Person with arms raised — inclusive universal access icon */}
-        <svg width={isMobile ? "19" : "20"} height={isMobile ? "19" : "20"} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <circle cx="12" cy="5" r="2.5" fill="currentColor" stroke="none"/>
-          <line x1="12" y1="8" x2="12" y2="16"/>
-          <line x1="5"  y1="9" x2="12" y2="12"/>
-          <line x1="19" y1="9" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="9"  y2="21"/>
-          <line x1="12" y1="16" x2="15" y2="21"/>
-        </svg>
-      </button>
-
       {/* ── Widget Panel ─────────────────────────────────────────────── */}
-      {isOpen && (
+      {a11yMenuOpen && (
         <div
           id="a11y-panel"
           role="dialog"
@@ -353,10 +314,13 @@ export default function AccessibilityWidget() {
             width: panelWidth,
             maxWidth: '360px',
             zIndex: 9998, borderRadius: '18px',
-            background: 'rgba(255,255,255,0.96)',
+            background: highContrastMode ? 'rgba(24,24,27,0.98)' : 'rgba(255,255,255,0.96)',
+            color: highContrastMode ? '#f4f4f5' : '#1e1b4b',
             backdropFilter: 'blur(22px)', WebkitBackdropFilter: 'blur(22px)',
-            border: '1px solid rgba(99,102,241,0.16)',
-            boxShadow: '0 22px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(99,102,241,0.08)',
+            border: highContrastMode ? '1px solid rgba(161,161,170,0.25)' : '1px solid rgba(99,102,241,0.16)',
+            boxShadow: highContrastMode
+              ? '0 22px 60px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.08)'
+              : '0 22px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(99,102,241,0.08)',
             overflow: 'hidden', fontFamily: 'inherit',
           }}
         >
@@ -364,13 +328,15 @@ export default function AccessibilityWidget() {
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '13px 16px 11px',
-            borderBottom: '1px solid rgba(0,0,0,0.07)',
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.07), rgba(124,58,237,0.03))',
+            borderBottom: highContrastMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.07)',
+            background: highContrastMode
+              ? 'linear-gradient(135deg, rgba(39,39,42,0.95), rgba(24,24,27,0.95))'
+              : 'linear-gradient(135deg, rgba(99,102,241,0.07), rgba(124,58,237,0.03))',
           }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '13.5px', color: '#1e1b4b', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="6" r="2.5" fill="#6366f1" stroke="none"/>
+              <div style={{ fontWeight: 700, fontSize: '13.5px', color: highContrastMode ? '#f4f4f5' : '#1e1b4b', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={highContrastMode ? "#818cf8" : "#6366f1"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="6" r="2.5" fill={highContrastMode ? "#818cf8" : "#6366f1"} stroke="none"/>
                   <line x1="12" y1="9" x2="12" y2="16"/>
                   <line x1="6" y1="10.5" x2="12" y2="13"/>
                   <line x1="18" y1="10.5" x2="12" y2="13"/>
@@ -379,24 +345,25 @@ export default function AccessibilityWidget() {
                 </svg>
                 Accessibility Options
               </div>
-              <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '1px' }}>
+              <div style={{ fontSize: '10px', color: highContrastMode ? '#a1a1aa' : '#9ca3af', marginTop: '1px' }}>
                 Ctrl+U to toggle · Esc to close
               </div>
             </div>
             <button
               id="a11y-widget-close"
               aria-label="Close accessibility menu"
-              onClick={() => setIsOpen(false)}
+              onClick={() => setA11yMenuOpen(false)}
               style={{
                 width: '28px', height: '28px', borderRadius: '8px', border: 'none',
-                background: 'rgba(0,0,0,0.06)', color: '#6b7280', cursor: 'pointer',
-                fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: highContrastMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                color: highContrastMode ? '#d4d4d8' : '#6b7280',
+                cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >×</button>
           </div>
 
           {/* Tab Bar */}
-          <div style={{ display: 'flex', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+          <div style={{ display: 'flex', borderBottom: highContrastMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.07)' }}>
             {[
               { id: 'vision',    label: '👁 Vision' },
               { id: 'cognitive', label: '🧠 Cognitive' },
@@ -425,14 +392,14 @@ export default function AccessibilityWidget() {
                       style={{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         gap: '5px', padding: '11px 8px', borderRadius: '12px',
-                        border: `2px solid ${b.active ? '#6366f1' : 'rgba(0,0,0,0.09)'}`,
+                        border: `2px solid ${b.active ? (highContrastMode ? '#818cf8' : '#6366f1') : (highContrastMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)')}`,
                         background: b.active
-                          ? 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(124,58,237,0.06))'
-                          : 'rgba(255,255,255,0.7)',
-                        color: b.active ? '#4f46e5' : '#374151',
+                          ? (highContrastMode ? 'rgba(129,140,248,0.22)' : 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(124,58,237,0.06))')
+                          : (highContrastMode ? 'rgba(39,39,42,0.7)' : 'rgba(255,255,255,0.7)'),
+                        color: b.active ? (highContrastMode ? '#c7d2fe' : '#4f46e5') : (highContrastMode ? '#e4e4e7' : '#374151'),
                         cursor: 'pointer', fontSize: '11px', fontWeight: 600,
                         fontFamily: 'inherit', minHeight: '68px',
-                        boxShadow: b.active ? '0 0 0 3px rgba(99,102,241,0.15)' : '0 1px 3px rgba(0,0,0,0.07)',
+                        boxShadow: b.active ? '0 0 0 3px rgba(99,102,241,0.2)' : '0 1px 3px rgba(0,0,0,0.07)',
                         transition: 'all 0.18s',
                       }}
                     >
@@ -443,7 +410,7 @@ export default function AccessibilityWidget() {
                 </div>
 
                 {/* Color Blindness */}
-                <SectionLabel>Color Blindness Mode</SectionLabel>
+                <SectionLabel highContrastMode={highContrastMode}>Color Blindness Mode</SectionLabel>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px', marginBottom: '12px' }}>
                   {CB_MODES.map(({ id, label, title }) => (
                     <button
@@ -456,20 +423,20 @@ export default function AccessibilityWidget() {
                 </div>
 
                 {/* Font Size Slider */}
-                <SectionLabel>Text Size — {fontSizeScale}%</SectionLabel>
+                <SectionLabel highContrastMode={highContrastMode}>Text Size — {fontSizeScale}%</SectionLabel>
                 <input
                   id="a11y-slider-fontsize" type="range" min={80} max={150} step={5}
                   value={fontSizeScale}
                   onChange={e => changeFontSizeScale(Number(e.target.value))}
                   aria-label={`Text size ${fontSizeScale}%`}
-                  style={{ width: '100%', accentColor: '#6366f1', marginBottom: '3px' }}
+                  style={{ width: '100%', accentColor: highContrastMode ? '#818cf8' : '#6366f1', marginBottom: '3px' }}
                 />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: '#9ca3af', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: highContrastMode ? '#a1a1aa' : '#9ca3af', marginBottom: '12px' }}>
                   <span>80% (smaller)</span><span>100%</span><span>150% (larger)</span>
                 </div>
 
                 {/* Cursor Size */}
-                <SectionLabel>Cursor Size</SectionLabel>
+                <SectionLabel highContrastMode={highContrastMode}>Cursor Size</SectionLabel>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
                   {CURSOR_SIZES.map(({ id, label }) => (
                     <button
@@ -486,33 +453,34 @@ export default function AccessibilityWidget() {
             {/* ── Cognitive Tab ────────────────────────────────────────── */}
             {activeTab === 'cognitive' && (
               <div style={{ padding: '6px 14px 14px' }}>
-                <SwitchRow id="a11y-sw-dyslexia"   label="Dyslexia Font"      description="Switches to OpenDyslexic font globally"          active={dyslexiaFont}    onClick={toggleDyslexiaFont} />
-                <SwitchRow id="a11y-sw-guide"       label="Reading Guide"      description="Dims the page, highlights the current line"       active={readingGuide}    onClick={toggleReadingGuide} />
-                <SwitchRow id="a11y-sw-spacing"     label="Text Spacing"       description="Wider letters, words, and line height"             active={textSpacing}     onClick={toggleTextSpacing} />
-                <SwitchRow id="a11y-sw-pause"       label="Pause Animations"   description="Stops all CSS animations and transitions"         active={pauseAnimations} onClick={togglePauseAnimations} />
+                <SwitchRow id="a11y-sw-dyslexia"   label="Dyslexia Font"      description="Switches to OpenDyslexic font globally"          active={dyslexiaFont}    onClick={toggleDyslexiaFont} highContrastMode={highContrastMode} />
+                <SwitchRow id="a11y-sw-guide"       label="Reading Guide"      description="Dims the page, highlights the current line"       active={readingGuide}    onClick={toggleReadingGuide} highContrastMode={highContrastMode} />
+                <SwitchRow id="a11y-sw-spacing"     label="Text Spacing"       description="Wider letters, words, and line height"             active={textSpacing}     onClick={toggleTextSpacing} highContrastMode={highContrastMode} />
+                <SwitchRow id="a11y-sw-pause"       label="Pause Animations"   description="Stops all CSS animations and transitions"         active={pauseAnimations} onClick={togglePauseAnimations} highContrastMode={highContrastMode} />
 
                 {/* Screen Reader row + speed control */}
                 <div style={{ paddingTop: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: screenReaderEnabled ? '10px' : '0' }}>
                     <div>
-                      <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#1e1b4b' }}>Screen Reader</div>
-                      <div style={{ fontSize: '10.5px', color: '#6b7280', marginTop: '1px' }}>Reads hovered / focused text aloud</div>
+                      <div style={{ fontSize: '12.5px', fontWeight: 600, color: highContrastMode ? '#f4f4f5' : '#1e1b4b' }}>Screen Reader</div>
+                      <div style={{ fontSize: '10.5px', color: highContrastMode ? '#a1a1aa' : '#6b7280', marginTop: '1px' }}>Reads hovered / focused text aloud</div>
                     </div>
-                    <PillToggle id="a11y-sw-reader" active={screenReaderEnabled} onClick={toggleScreenReader} />
+                    <PillToggle id="a11y-sw-reader" active={screenReaderEnabled} onClick={toggleScreenReader} highContrastMode={highContrastMode} />
                   </div>
                   {screenReaderEnabled && (
                     <div style={{
-                      background: 'rgba(99,102,241,0.07)', borderRadius: '10px', padding: '8px 10px',
+                      background: highContrastMode ? 'rgba(129,140,248,0.15)' : 'rgba(99,102,241,0.07)',
+                      borderRadius: '10px', padding: '8px 10px',
                       display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap',
                     }}>
-                      <span style={{ fontSize: '10.5px', color: '#6b7280', fontWeight: 600, marginRight: '2px' }}>Speed:</span>
+                      <span style={{ fontSize: '10.5px', color: highContrastMode ? '#a1a1aa' : '#6b7280', fontWeight: 600, marginRight: '2px' }}>Speed:</span>
                       {SPEEDS.map(s => (
                         <button key={s} onClick={() => changeScreenReaderSpeed(s)} aria-pressed={screenReaderSpeed === s}
                           style={{
                             padding: '4px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer',
                             fontFamily: 'inherit', fontSize: '11px', fontWeight: 600, transition: 'all 0.15s',
-                            background: screenReaderSpeed === s ? '#6366f1' : 'rgba(0,0,0,0.08)',
-                            color: screenReaderSpeed === s ? '#fff' : '#374151',
+                            background: screenReaderSpeed === s ? (highContrastMode ? '#818cf8' : '#6366f1') : (highContrastMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'),
+                            color: screenReaderSpeed === s ? '#fff' : (highContrastMode ? '#f4f4f5' : '#374151'),
                           }}
                         >{s}×</button>
                       ))}
@@ -521,11 +489,11 @@ export default function AccessibilityWidget() {
                 </div>
 
                 {/* Voice Search Language selector */}
-                <div style={{ paddingTop: '12px', borderTop: '1px solid rgba(0,0,0,0.06)', marginTop: '12px' }}>
-                  <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#1e1b4b', marginBottom: '2px' }}>
+                <div style={{ paddingTop: '12px', borderTop: highContrastMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.06)', marginTop: '12px' }}>
+                  <div style={{ fontSize: '12.5px', fontWeight: 600, color: highContrastMode ? '#f4f4f5' : '#1e1b4b', marginBottom: '2px' }}>
                     🎙️ Voice Search Language
                   </div>
-                  <div style={{ fontSize: '10.5px', color: '#6b7280', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '10.5px', color: highContrastMode ? '#a1a1aa' : '#6b7280', marginBottom: '8px' }}>
                     Preferred speech recognition language for smart search
                   </div>
                   <select
@@ -538,11 +506,11 @@ export default function AccessibilityWidget() {
                       width: '100%',
                       padding: '7px 10px',
                       borderRadius: '8px',
-                      border: '1.5px solid rgba(99,102,241,0.25)',
-                      background: '#fff',
+                      border: highContrastMode ? '1.5px solid rgba(129,140,248,0.4)' : '1.5px solid rgba(99,102,241,0.25)',
+                      background: highContrastMode ? '#27272a' : '#fff',
                       fontSize: '11.5px',
                       fontWeight: 600,
-                      color: '#374151',
+                      color: highContrastMode ? '#f4f4f5' : '#374151',
                       cursor: 'pointer',
                       outline: 'none',
                       fontFamily: 'inherit'
@@ -562,24 +530,25 @@ export default function AccessibilityWidget() {
             {/* ── Navigation Tab ───────────────────────────────────────── */}
             {activeTab === 'navigation' && (
               <div style={{ padding: '6px 14px 14px' }}>
-                <SwitchRow id="a11y-sw-keyboard"  label="Keyboard Navigator"    description="Bold focus ring for keyboard-only navigation"     active={keyboardNav}          onClick={toggleKeyboardNav} />
-                <SwitchRow id="a11y-sw-links"     label="Highlight Links"        description="Amber outline around all hyperlinks"             active={highlightLinks}       onClick={toggleHighlightLinks} />
-                <SwitchRow id="a11y-sw-skip"      label="Always Show Skip Links" description="Keep 'Skip to content' links always visible"     active={alwaysShowSkipLinks}  onClick={toggleAlwaysShowSkipLinks} />
-                <SwitchRow id="a11y-sw-rtl"       label="Right-to-Left Mode"     description="For Arabic, Hebrew, and Urdu speakers"           active={rtlMode}              onClick={toggleRtlMode} last />
+                <SwitchRow id="a11y-sw-keyboard"  label="Keyboard Navigator"    description="Bold focus ring for keyboard-only navigation"     active={keyboardNav}          onClick={toggleKeyboardNav} highContrastMode={highContrastMode} />
+                <SwitchRow id="a11y-sw-links"     label="Highlight Links"        description="Amber outline around all hyperlinks"             active={highlightLinks}       onClick={toggleHighlightLinks} highContrastMode={highContrastMode} />
+                <SwitchRow id="a11y-sw-skip"      label="Always Show Skip Links" description="Keep 'Skip to content' links always visible"     active={alwaysShowSkipLinks}  onClick={toggleAlwaysShowSkipLinks} highContrastMode={highContrastMode} />
+                <SwitchRow id="a11y-sw-rtl"       label="Right-to-Left Mode"     description="For Arabic, Hebrew, and Urdu speakers"           active={rtlMode}              onClick={toggleRtlMode} highContrastMode={highContrastMode} last />
               </div>
             )}
           </div>
 
           {/* Footer */}
           <div style={{
-            padding: '10px 14px 13px', borderTop: '1px solid rgba(0,0,0,0.06)',
+            padding: '10px 14px 13px',
+            borderTop: highContrastMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.06)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            background: 'rgba(249,250,251,0.6)',
+            background: highContrastMode ? 'rgba(39,39,42,0.7)' : 'rgba(249,250,251,0.6)',
           }}>
             {/* Oversized Widget toggle */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 500 }}>Oversized Widget</span>
-              <PillToggle id="a11y-btn-oversized" active={oversizedWidget} onClick={toggleOversizedWidget} />
+              <span style={{ fontSize: '11px', color: highContrastMode ? '#a1a1aa' : '#6b7280', fontWeight: 500 }}>Oversized Widget</span>
+              <PillToggle id="a11y-btn-oversized" active={oversizedWidget} onClick={toggleOversizedWidget} highContrastMode={highContrastMode} />
             </div>
 
             {/* Reset All */}
@@ -589,8 +558,9 @@ export default function AccessibilityWidget() {
               style={{
                 display: 'flex', alignItems: 'center', gap: '5px',
                 padding: '6px 13px', borderRadius: '8px',
-                border: '1.5px solid rgba(239,68,68,0.3)',
-                background: 'rgba(239,68,68,0.06)', color: '#dc2626',
+                border: highContrastMode ? '1.5px solid rgba(239,68,68,0.45)' : '1.5px solid rgba(239,68,68,0.3)',
+                background: highContrastMode ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.06)',
+                color: highContrastMode ? '#fca5a5' : '#dc2626',
                 cursor: 'pointer', fontSize: '11px', fontWeight: 600, fontFamily: 'inherit',
                 transition: 'all 0.15s',
               }}
