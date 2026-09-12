@@ -90,7 +90,7 @@ export const UserModalProvider = ({ children }) => {
                     <div className="flex items-center space-x-2">
                       <h3 className="text-xl font-extrabold">{userData.name}</h3>
                       {userData.is_verified && (
-                        <img src="/verified-badge.png" className="w-5 h-5 ml-1 inline-block" alt="Verified User" title="Verified User" />
+                        <img src="/badge-verify.png" className="w-5 h-5 ml-1 inline-block" alt="Verified User" title="Verified User" />
                       )}
                     </div>
                     <p className="text-xs font-bold uppercase tracking-wider text-purple-650 mt-1 capitalize">

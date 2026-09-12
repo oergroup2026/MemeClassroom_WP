@@ -63,7 +63,7 @@ export const basicQuestions = [
   {
     id: "b4",
     dimension: "Cultural Context",
-    memeUrl: "https://imgflip.com/s/meme/Doge.jpg",
+    memeUrl: "/quiz-doge.svg",
     memeAlt: "A Shiba Inu dog looking at the camera with captions that say things like 'much wow' and 'very amaze' in Comic Sans",
     question: "The Doge meme uses funny broken English like 'much wow' and 'very amaze'. Why do people think this is funny rather than just wrong?",
     options: [
@@ -78,7 +78,7 @@ export const basicQuestions = [
   {
     id: "b5",
     dimension: "Cultural Context",
-    memeUrl: "https://imgflip.com/s/meme/Bernie-I-Am-Once-Again-Asking-For-Your-Support.jpg",
+    memeUrl: "/quiz-bernie.svg",
     memeAlt: "Bernie Sanders sitting bundled up in a coat and mittens at a public event",
     question: "This photo of Bernie Sanders in his big mittens was taken at a real public event. Within hours, thousands of people photoshopped him into funny scenes. What does this show about how memes spread?",
     options: [
@@ -187,7 +187,7 @@ export const basicQuestions = [
   {
     id: "b12",
     dimension: "Emotional Intelligence",
-    memeUrl: "https://imgflip.com/s/meme/Mocking-Spongebob.jpg",
+    memeUrl: "/quiz-mocking-spongebob.svg",
     memeAlt: "SpongeBob SquarePants in a mocking pose, used with alternating capital and lowercase letters to mock someone",
     question: "The Mocking SpongeBob meme is used to make fun of what someone said by repeating it in a silly way. How might the person being mocked feel?",
     options: [

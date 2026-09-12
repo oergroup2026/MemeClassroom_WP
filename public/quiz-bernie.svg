@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-labelledby="title desc">
+  <title id="title">Bernie in mittens placeholder</title>
+  <desc id="desc">Stylized public figure in mittens with a meme-style layout.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#eef2ff"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <rect x="50" y="50" width="700" height="500" rx="28" fill="#ffffff" opacity="0.9"/>
+  <circle cx="280" cy="220" r="110" fill="#9ca3af" opacity="0.25"/>
+  <path d="M200 218c0-60 46-106 104-106h96c58 0 104 46 104 106v62c0 51-41 92-92 92H268c-49 0-88-39-88-88v-66z" fill="#1f2937"/>
+  <circle cx="256" cy="219" r="14" fill="#111827"/>
+  <circle cx="366" cy="219" r="14" fill="#111827"/>
+  <path d="M280 260c24 20 58 30 96 30 37 0 71-10 96-30" fill="none" stroke="#111827" stroke-width="10" stroke-linecap="round"/>
+  <path d="M210 332c26-20 52-28 74-26 15 1 26 8 38 22 12 14 25 20 40 20s28-6 40-20c12-14 23-21 38-22 22-2 48 6 74 26l24 134H186l24-134z" fill="#e5e7eb"/>
+  <path d="M225 332l-20 115h50l14-65-44-50zM498 332l20 115h-50l-14-65 44-50z" fill="#d1d5db"/>
+  <g fill="#f59e0b">
+    <rect x="195" y="305" width="35" height="18" rx="8"/>
+    <rect x="570" y="305" width="35" height="18" rx="8"/>
+  </g>
+  <text x="400" y="485" text-anchor="middle" font-family="Verdana, Arial, sans-serif" font-size="46" font-weight="700" fill="#111827">I am once again</text>
+  <text x="400" y="530" text-anchor="middle" font-family="Verdana, Arial, sans-serif" font-size="42" font-weight="700" fill="#111827">asking for your support</text>
+</svg>

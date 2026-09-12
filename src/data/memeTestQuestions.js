@@ -152,7 +152,7 @@ export const questions = [
   {
     id: 4,
     dimension: "Cultural Context",
-    memeUrl: "https://imgflip.com/s/meme/Doge.jpg",
+    memeUrl: "/quiz-doge.svg",
     memeAlt: "A Shiba Inu dog with an endearing expression, surrounded by Comic Sans captions like 'much wow' and 'very amaze'",
     memeCaption: "\"Doge\" — photo by Atsuko Sato, 2010; meme emerged on Reddit c. 2013",
     question: "The Doge meme's captions are written in intentionally broken English ('much wow', 'very amaze'). What does this deliberate grammatical incorrectness signal to the audience?",
@@ -186,7 +186,7 @@ export const questions = [
   {
     id: 6,
     dimension: "Cultural Context",
-    memeUrl: "https://imgflip.com/s/meme/Bernie-I-Am-Once-Again-Asking-For-Your-Support.jpg",
+    memeUrl: "/quiz-bernie.svg",
     memeAlt: "Bernie Sanders sitting bundled up in mittens, photoshopped into various historical and pop culture settings",
     memeCaption: "\"Bernie Sanders in Mittens\" — photographed at Biden's presidential inauguration, January 20, 2021",
     question: "The 'Bernie in mittens' meme was photoshopped into hundreds of contexts within hours. This rapid participatory spread is best understood as what phenomenon?",
@@ -328,7 +328,7 @@ export const questions = [
   {
     id: 14,
     dimension: "Ethical Judgment",
-    memeUrl: "https://imgflip.com/s/meme/Mocking-Spongebob.jpg",
+    memeUrl: "/quiz-mocking-spongebob.svg",
     memeAlt: "SpongeBob SquarePants posed like a chicken, used with alternating-caps text to mock someone's argument",
     memeCaption: "\"Mocking SpongeBob\" — from SpongeBob SquarePants Season 9 (2012); meme emerged c. 2017",
     question: "The 'Mocking SpongeBob' alternating-caps style is used to ridicule someone's stated position. What is the primary ethical concern with this rhetorical device in genuine discourse?",
