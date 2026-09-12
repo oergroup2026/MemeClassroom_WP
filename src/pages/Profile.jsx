@@ -95,6 +95,8 @@ const CATEGORY_NAMES = {
   star_educator: { label: "Star Educator Medal", statKey: "total_likes_received" }
 };
 
+const containerClass = "bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm";
+
 const Profile = () => {
   const { user, profile } = useAuth();
   const { highContrastMode } = useUdl();
@@ -1153,6 +1155,84 @@ const Profile = () => {
           </div>
         </div>
       )}
+
+      {/* 1B. Profile Completion Progress Panel (7 Fields Tracker) */}
+      {profile && (() => {
+        const profileFields = [
+          { label: "Full Name", done: Boolean(profile.name) },
+          { label: "Email Address", done: Boolean(user?.email || profile.email) },
+          { label: "Account Role", done: Boolean(profile.role) },
+          { label: "Account Credentials", done: Boolean(user?.email || user?.uid) },
+          { label: "School / Institution", done: Boolean(profile.institution) },
+          { label: "City / Location", done: Boolean(profile.place || profile.state) },
+          { label: "Country", done: Boolean(profile.country) },
+        ];
+        const completedCount = profileFields.filter(f => f.done).length;
+        const completionPct = Math.round((completedCount / 7) * 100);
+
+        return (
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-extrabold text-base text-gray-900 dark:text-white">
+                    Profile Setup Progress
+                  </h3>
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-pink-50 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800">
+                    {completedCount} of 7 Completed
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
+                  Complete all 7 profile fields to finish your account setup.
+                </p>
+              </div>
+
+              {completedCount < 7 && (
+                <button
+                  onClick={() => {
+                    window.sessionStorage.removeItem("mc_skip_setup");
+                    window.dispatchEvent(new CustomEvent("mc_open_account_setup"));
+                  }}
+                  className="bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition active:scale-95 flex-shrink-0"
+                >
+                  Finish Setup Now
+                </button>
+              )}
+            </div>
+
+            {/* Progress Bar */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs font-bold text-gray-600 dark:text-zinc-300">
+                <span>Completion Status</span>
+                <span className="text-pink-600 dark:text-pink-400">{completionPct}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-pink-600 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${completionPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* 7 Fields Status Badges */}
+            <div className="flex flex-wrap gap-2 pt-1">
+              {profileFields.map((field) => (
+                <span
+                  key={field.label}
+                  className={`text-[11px] font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 ${
+                    field.done
+                      ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800"
+                      : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700"
+                  }`}
+                >
+                  <span>{field.done ? "✓" : "•"}</span>
+                  <span>{field.label}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 2. Scoreboard Activity Statistics Panel */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">

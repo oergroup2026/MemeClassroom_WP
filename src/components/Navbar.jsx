@@ -168,7 +168,7 @@ const Navbar = () => {
       <header className="sticky top-0 z-30 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-md border-b border-gray-200/80 dark:border-zinc-800/80 text-gray-850 dark:text-zinc-100 transition-all duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            
+
             {/* Left: Menu Drawer Button */}
             <div className="flex items-center gap-2">
               <button
@@ -200,11 +200,10 @@ const Navbar = () => {
               {/* Accessibility / High Contrast Toggle */}
               <button
                 onClick={toggleHighContrast}
-                className={`p-2 rounded-full border transition ${
-                  highContrastMode
+                className={`p-2 rounded-full border transition ${highContrastMode
                     ? "border-ruby-500 bg-ruby-600/10 text-ruby-400 hover:bg-ruby-600/20"
                     : "border-gray-200 dark:border-zinc-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
-                }`}
+                  }`}
                 title={highContrastMode ? "Disable Dark Theme" : "Enable Dark Theme"}
                 aria-label="Toggle Dark Theme"
               >
@@ -251,9 +250,8 @@ const Navbar = () => {
                           notifications.map((notif) => (
                             <div
                               key={notif.id}
-                              className={`px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 transition ${
-                                notif.read ? "opacity-60" : "bg-ruby-50/30 dark:bg-ruby-950/20"
-                              }`}
+                              className={`px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 transition ${notif.read ? "opacity-60" : "bg-ruby-50/30 dark:bg-ruby-950/20"
+                                }`}
                             >
                               <p className="text-xs text-gray-800 dark:text-gray-200 leading-normal">
                                 {notif.message || notif.text}
@@ -340,7 +338,7 @@ const Navbar = () => {
                     to="/auth?mode=register"
                     className="bg-ruby-600 hover:bg-ruby-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-md shadow-ruby-500/20 transition"
                   >
-                    Join Free
+                    Register
                   </Link>
                 </div>
               )}
@@ -361,10 +359,9 @@ const Navbar = () => {
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] sm:text-xs transition-all duration-200 flex-1 ${
-                  isActive
-                    ? "text-ruby-600 dark:text-ruby-400 font-extrabold bg-ruby-50/90 dark:bg-ruby-950/50 scale-105"
-                    : "text-gray-500 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 font-medium hover:bg-gray-100/60 dark:hover:bg-zinc-800/60"
+                `flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] sm:text-xs transition-all duration-200 flex-1 ${isActive
+                  ? "text-ruby-600 dark:text-ruby-400 font-extrabold bg-ruby-50/90 dark:bg-ruby-950/50 scale-105"
+                  : "text-gray-500 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 font-medium hover:bg-gray-100/60 dark:hover:bg-zinc-800/60"
                 }`
               }
             >
@@ -376,11 +373,10 @@ const Navbar = () => {
           {/* Menu Drawer Toggle in Bottom Bar */}
           <button
             onClick={() => setDrawerOpen(!drawerOpen)}
-            className={`flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] sm:text-xs transition-all duration-200 flex-1 ${
-              drawerOpen
+            className={`flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] sm:text-xs transition-all duration-200 flex-1 ${drawerOpen
                 ? "text-ruby-600 dark:text-ruby-400 font-extrabold bg-ruby-50/90 dark:bg-ruby-950/50"
                 : "text-gray-500 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 font-medium hover:bg-gray-100/60 dark:hover:bg-zinc-800/60"
-            }`}
+              }`}
           >
             <Menu className="w-5 h-5 mb-0.5" strokeWidth={2.2} />
             <span>Menu</span>
@@ -436,7 +432,7 @@ const Navbar = () => {
                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-2">
                   Navigation & Tools
                 </span>
-                
+
                 <Link
                   to="/"
                   onClick={() => setDrawerOpen(false)}

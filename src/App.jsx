@@ -5,6 +5,8 @@ import Footer from './components/Footer';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import ProtectedRoute from './components/ProtectedRoute';
 import WelcomeModal from './components/WelcomeModal';
+import DeferredSetupBanner from './components/DeferredSetupBanner';
+import BadgeAwardModal from './components/BadgeAwardModal';
 import { useUdl } from './context/UdlContext';
 
 // Statically import Home for fast initial LCP
@@ -119,6 +121,8 @@ function App() {
       <div id="app-footer"><Footer /></div>
       <AccessibilityWidget />
       <WelcomeModal />
+      <DeferredSetupBanner />
+      <BadgeAwardModal />
     </div>
   );
 }
