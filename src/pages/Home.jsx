@@ -498,102 +498,141 @@ const Home = () => {
           </p>
         </div>
 
-        {/* 3 Connected Glowing Circular Cards Layout */}
-        <div className="relative max-w-4xl mx-auto py-6">
-          
-          {/* Desktop Curved SVG Connectors (hidden on mobile) */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none hidden md:block" viewBox="0 0 800 500" preserveAspectRatio="none">
+        {/* Triangular Molecular Network */}
+        <div className="relative max-w-4xl mx-auto">
+
+          {/* Warm ambient backdrop */}
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/70 via-purple-50/40 to-cyan-50/30 dark:from-zinc-900/50 dark:via-purple-950/20 dark:to-teal-950/20 blur-2xl -z-10 scale-110" />
+
+          {/* SVG connector lines — desktop only */}
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none hidden md:block"
+            viewBox="0 0 700 460"
+            preserveAspectRatio="xMidYMid meet"
+          >
             <defs>
-              <linearGradient id="purple-blue-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#A855F7" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.8" />
+              {/* Node 1 (top-left ~175,120) → Node 2 (top-right ~525,120) */}
+              <linearGradient id="jrn-grad-12" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#A855F7" stopOpacity="0.55" />
+                <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.55" />
               </linearGradient>
-              <linearGradient id="purple-teal-grad" x1="0%" y1="0%" x2="50%" y2="100%">
-                <stop offset="0%" stopColor="#A855F7" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#2DD4BF" stopOpacity="0.8" />
+              {/* Node 1 (top-left ~175,120) → Node 3 (bottom-center ~350,355) */}
+              <linearGradient id="jrn-grad-13" x1="0%" y1="0%" x2="50%" y2="100%">
+                <stop offset="0%" stopColor="#A855F7" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#2DD4BF" stopOpacity="0.55" />
               </linearGradient>
-              <linearGradient id="blue-teal-grad" x1="100%" y1="0%" x2="50%" y2="100%">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#2DD4BF" stopOpacity="0.8" />
+              {/* Node 2 (top-right ~525,120) → Node 3 (bottom-center ~350,355) */}
+              <linearGradient id="jrn-grad-23" x1="100%" y1="0%" x2="50%" y2="100%">
+                <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#2DD4BF" stopOpacity="0.55" />
               </linearGradient>
             </defs>
 
-            {/* Line 1: Circle 1 (left top ~ 220,150) -> Circle 2 (right top ~ 580,150) */}
-            <path d="M 240 150 Q 400 120 560 150" fill="none" stroke="url(#purple-blue-grad)" strokeWidth="3" strokeDasharray="6 6" className="animate-pulse" />
+            {/* Line 1→2 : gentle upward arc */}
+            <path
+              d="M 205 108 C 280 72, 420 72, 495 108"
+              fill="none"
+              stroke="url(#jrn-grad-12)"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+            {/* Line 1→3 : flowing left-to-bottom arc */}
+            <path
+              d="M 160 155 C 130 240, 200 330, 318 355"
+              fill="none"
+              stroke="url(#jrn-grad-13)"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+            {/* Line 2→3 : flowing right-to-bottom arc */}
+            <path
+              d="M 540 155 C 570 240, 500 330, 382 355"
+              fill="none"
+              stroke="url(#jrn-grad-23)"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
 
-            {/* Line 2: Circle 1 (left top ~ 220,150) -> Circle 3 (bottom center ~ 400,380) */}
-            <path d="M 220 180 Q 280 340 370 380" fill="none" stroke="url(#purple-teal-grad)" strokeWidth="3" strokeDasharray="6 6" className="animate-pulse" />
-
-            {/* Line 3: Circle 2 (right top ~ 580,150) -> Circle 3 (bottom center ~ 400,380) */}
-            <path d="M 580 180 Q 520 340 430 380" fill="none" stroke="url(#blue-teal-grad)" strokeWidth="3" strokeDasharray="6 6" className="animate-pulse" />
+            {/* Subtle midpoint accent dots on lines */}
+            <circle cx="350" cy="78"  r="3" fill="#C084FC" opacity="0.6" />
+            <circle cx="218" cy="255" r="3" fill="#818CF8" opacity="0.5" />
+            <circle cx="482" cy="255" r="3" fill="#60A5FA" opacity="0.5" />
           </svg>
 
-          {/* Mobile Vertical Connecting Line (md:hidden) */}
-          <div className="absolute left-1/2 top-10 bottom-10 w-1 -translate-x-1/2 bg-gradient-to-b from-purple-500 via-blue-500 to-teal-400 opacity-60 md:hidden" />
+          {/* Mobile vertical connector */}
+          <div className="absolute left-1/2 top-12 bottom-12 w-px -translate-x-1/2 bg-gradient-to-b from-purple-400/40 via-blue-400/30 to-teal-400/40 md:hidden" />
 
-          {/* Cards Grid Constellation */}
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-y-16 items-center">
-            
-            {/* Step 1: Purple Glow */}
-            <div className="flex justify-center md:justify-end">
-              <Link
-                to="/resources"
-                className="group relative w-64 h-64 sm:w-72 sm:h-72 rounded-full bg-zinc-950/90 dark:bg-zinc-950/95 border-2 border-purple-500/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center shadow-[0_0_35px_rgba(168,85,247,0.35)] hover:shadow-[0_0_60px_rgba(168,85,247,0.65)] hover:border-purple-400 transition-all duration-300 hover:scale-105"
-              >
-                <div className="absolute inset-0 rounded-full bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="text-3xl font-black text-purple-400 mb-1 tracking-tight">1</span>
-                <BookOpen className="w-7 h-7 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
-                <h3 className="text-base sm:text-lg font-black text-white leading-tight mb-2">
-                  Learn the Foundations
-                </h3>
-                <p className="text-xs text-zinc-300 dark:text-zinc-400 leading-snug px-3 font-medium">
-                  Build your understanding of memes, media literacy and their educational value.
-                </p>
-                <span className="mt-3 text-[11px] font-extrabold text-purple-400 group-hover:underline inline-flex items-center gap-1">
-                  Explore OER <ArrowRight className="w-3 h-3" />
-                </span>
-              </Link>
+          {/* ── Triangular grid: 2-col top row + centered bottom ── */}
+          <div className="relative z-10 pt-6 pb-2">
+
+            {/* Top row: Node 1 & Node 2 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-8 md:mb-0">
+
+              {/* Node 1 — Purple — Learn the Foundations */}
+              <div className="flex justify-center md:justify-end md:pr-6">
+                <Link
+                  to="/resources"
+                  className="group relative flex flex-col items-center justify-center w-52 h-52 sm:w-60 sm:h-60 rounded-full
+                    bg-white/60 dark:bg-white/5 backdrop-blur-xl
+                    border border-purple-300/60 dark:border-purple-500/30
+                    shadow-[0_0_28px_rgba(168,85,247,0.12),0_8px_32px_rgba(0,0,0,0.06)]
+                    hover:shadow-[0_0_48px_rgba(168,85,247,0.28),0_12px_40px_rgba(0,0,0,0.08)]
+                    hover:border-purple-400/80 hover:scale-105
+                    transition-all duration-300 cursor-pointer select-none text-center p-5"
+                >
+                  {/* Ambient inner glow */}
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-100/60 via-purple-50/30 to-transparent dark:from-purple-900/20 dark:via-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+                  {/* Step number */}
+                  <span className="relative z-10 text-2xl font-black text-purple-500 dark:text-purple-400 tracking-tight leading-none mb-1.5">1</span>
+                  {/* Icon */}
+                  <BookOpen className="relative z-10 w-7 h-7 text-purple-500/80 dark:text-purple-400 mb-2.5 group-hover:scale-110 transition-transform duration-200" />
+                  {/* Title */}
+                  <h3 className="relative z-10 text-sm sm:text-base font-black text-gray-800 dark:text-white leading-snug">
+                    Learn the<br />Foundations
+                  </h3>
+                </Link>
+              </div>
+
+              {/* Node 2 — Blue — Explore Activities & Create */}
+              <div className="flex justify-center md:justify-start md:pl-6">
+                <Link
+                  to="/lab"
+                  className="group relative flex flex-col items-center justify-center w-52 h-52 sm:w-60 sm:h-60 rounded-full
+                    bg-white/60 dark:bg-white/5 backdrop-blur-xl
+                    border border-blue-300/60 dark:border-blue-500/30
+                    shadow-[0_0_28px_rgba(59,130,246,0.12),0_8px_32px_rgba(0,0,0,0.06)]
+                    hover:shadow-[0_0_48px_rgba(59,130,246,0.28),0_12px_40px_rgba(0,0,0,0.08)]
+                    hover:border-blue-400/80 hover:scale-105
+                    transition-all duration-300 cursor-pointer select-none text-center p-5"
+                >
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-100/60 via-blue-50/30 to-transparent dark:from-blue-900/20 dark:via-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+                  <span className="relative z-10 text-2xl font-black text-blue-500 dark:text-blue-400 tracking-tight leading-none mb-1.5">2</span>
+                  <Pencil className="relative z-10 w-7 h-7 text-blue-500/80 dark:text-blue-400 mb-2.5 group-hover:scale-110 transition-transform duration-200" />
+                  <h3 className="relative z-10 text-sm sm:text-base font-black text-gray-800 dark:text-white leading-snug">
+                    Explore Activities<br />&amp; Create
+                  </h3>
+                </Link>
+              </div>
             </div>
 
-            {/* Step 2: Electric Blue Glow */}
-            <div className="flex justify-center md:justify-start">
-              <Link
-                to="/lab"
-                className="group relative w-64 h-64 sm:w-72 sm:h-72 rounded-full bg-zinc-950/90 dark:bg-zinc-950/95 border-2 border-blue-500/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center shadow-[0_0_35px_rgba(59,130,246,0.35)] hover:shadow-[0_0_60px_rgba(59,130,246,0.65)] hover:border-blue-400 transition-all duration-300 hover:scale-105"
-              >
-                <div className="absolute inset-0 rounded-full bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="text-3xl font-black text-blue-400 mb-1 tracking-tight">2</span>
-                <Pencil className="w-7 h-7 text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
-                <h3 className="text-base sm:text-lg font-black text-white leading-tight mb-2">
-                  Explore Activities & Create
-                </h3>
-                <p className="text-xs text-zinc-300 dark:text-zinc-400 leading-snug px-3 font-medium">
-                  Try real classroom activities, explore examples and create your own memes.
-                </p>
-                <span className="mt-3 text-[11px] font-extrabold text-blue-400 group-hover:underline inline-flex items-center gap-1">
-                  Open Meme Lab <ArrowRight className="w-3 h-3" />
-                </span>
-              </Link>
-            </div>
-
-            {/* Step 3: Teal Glow (Centered in row 2 on desktop) */}
-            <div className="md:col-span-2 flex justify-center mt-2 md:-mt-6">
+            {/* Bottom row: Node 3 centered below the gap */}
+            <div className="flex justify-center md:-mt-8">
               <Link
                 to="/staffroom"
-                className="group relative w-64 h-64 sm:w-72 sm:h-72 rounded-full bg-zinc-950/90 dark:bg-zinc-950/95 border-2 border-teal-400/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center shadow-[0_0_35px_rgba(45,212,191,0.35)] hover:shadow-[0_0_60px_rgba(45,212,191,0.65)] hover:border-teal-300 transition-all duration-300 hover:scale-105"
+                className="group relative flex flex-col items-center justify-center w-52 h-52 sm:w-60 sm:h-60 rounded-full
+                  bg-white/60 dark:bg-white/5 backdrop-blur-xl
+                  border border-teal-300/60 dark:border-teal-500/30
+                  shadow-[0_0_28px_rgba(45,212,191,0.12),0_8px_32px_rgba(0,0,0,0.06)]
+                  hover:shadow-[0_0_48px_rgba(45,212,191,0.28),0_12px_40px_rgba(0,0,0,0.08)]
+                  hover:border-teal-400/80 hover:scale-105
+                  transition-all duration-300 cursor-pointer select-none text-center p-5"
               >
-                <div className="absolute inset-0 rounded-full bg-teal-400/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="text-3xl font-black text-teal-400 mb-1 tracking-tight">3</span>
-                <Users className="w-7 h-7 text-teal-400 mb-2 group-hover:scale-110 transition-transform" />
-                <h3 className="text-base sm:text-lg font-black text-white leading-tight mb-2">
-                  Share, Reflect & Contribute
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-teal-100/60 via-cyan-50/30 to-transparent dark:from-teal-900/20 dark:via-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+                <span className="relative z-10 text-2xl font-black text-teal-500 dark:text-teal-400 tracking-tight leading-none mb-1.5">3</span>
+                <Users className="relative z-10 w-7 h-7 text-teal-500/80 dark:text-teal-400 mb-2.5 group-hover:scale-110 transition-transform duration-200" />
+                <h3 className="relative z-10 text-sm sm:text-base font-black text-gray-800 dark:text-white leading-snug">
+                  Share, Reflect<br />&amp; Contribute
                 </h3>
-                <p className="text-xs text-zinc-300 dark:text-zinc-400 leading-snug px-3 font-medium">
-                  Exchange ideas, reflect on classroom experiences and contribute to the community.
-                </p>
-                <span className="mt-3 text-[11px] font-extrabold text-teal-400 group-hover:underline inline-flex items-center gap-1">
-                  Join Staffroom <ArrowRight className="w-3 h-3" />
-                </span>
               </Link>
             </div>
 
