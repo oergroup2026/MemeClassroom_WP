@@ -13,6 +13,7 @@ import {
   deleteDoc,
   updateDoc,
   increment,
+  runTransaction,
   addDoc,
   serverTimestamp
 } from "firebase/firestore";
@@ -24,6 +25,7 @@ import { useToast } from "../components/ToastNotification";
 import {
   Pencil,
   CheckCircle2,
+  BadgeCheck,
   MapPin,
   Eye,
   FileText,
@@ -32,6 +34,7 @@ import {
   Star,
   Heart,
   Shield,
+  ShieldCheck,
   Lock,
   Award,
   Trophy,
@@ -90,17 +93,17 @@ const BadgeIcon = ({ level }) => {
 };
 
 const CATEGORY_NAMES = {
-  content_creator: { label: "Content Creator Medal", statKey: "memes_created_count" },
-  knowledge_contributor: { label: "Knowledge Contributor Medal", statKey: "resources_contributed_count" },
-  community_voice: { label: "Community Voice Medal", statKey: "staffroom_posts_count" },
-  peer_evaluator: { label: "Peer Evaluator Medal", statKey: "ratings_provided_count" },
-  star_educator: { label: "Star Educator Medal", statKey: "total_likes_received" }
+  content_creator: { label: "Meme Creator", statKey: "memes_created_count" },
+  knowledge_contributor: { label: "Resource Sharer", statKey: "resources_contributed_count" },
+  community_voice: { label: "Discussion Starter", statKey: "staffroom_posts_count" },
+  peer_evaluator: { label: "Peer Reviewer", statKey: "ratings_provided_count" },
+  star_educator: { label: "Community Favorite", statKey: "total_likes_received" }
 };
 
 const containerClass = "bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm";
 
 const Profile = () => {
-  const { user, profile, updateUserAvatar } = useAuth();
+  const { user, profile, updateUserAvatar, awardLoginBadge } = useAuth();
   const currentProfile = profile || {
     name: user?.displayName || "Educator",
     role: "student",
@@ -138,6 +141,7 @@ const Profile = () => {
   });
 
   const [earnedBadges, setEarnedBadges] = useState([]);
+  const [badgesLoaded, setBadgesLoaded] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const fileInputRef = useRef(null);
@@ -145,6 +149,7 @@ const Profile = () => {
   // Profile details editing state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editName, setEditName] = useState("");
+  const [editInstitutionType, setEditInstitutionType] = useState("");
   const [editInstitution, setEditInstitution] = useState("");
   const [editPlace, setEditPlace] = useState("");
   const [editState, setEditState] = useState("");
@@ -154,6 +159,7 @@ const Profile = () => {
 
   const openEditModal = () => {
     setEditName(profile?.name || "");
+    setEditInstitutionType(profile?.institution_type || "");
     setEditInstitution(profile?.institution || "");
     setEditPlace(profile?.place || "");
     setEditState(profile?.state || "");
@@ -170,11 +176,13 @@ const Profile = () => {
       const userDocRef = doc(db, "users", user.uid);
       await updateDoc(userDocRef, {
         name: editName.trim(),
+        institution_type: editInstitutionType.trim(),
         institution: editInstitution.trim(),
         place: editPlace.trim(),
         state: editState.trim(),
         country: editCountry.trim(),
         tagline: editTagline.trim(),
+        setup_completed: true,
       });
       setShowEditModal(false);
       toast("Profile updated successfully!", "success");
@@ -185,6 +193,8 @@ const Profile = () => {
       setEditLoading(false);
     }
   };
+
+
 
   // Handle body scroll lock & keyboard Escape dismissal for open modals
   useEffect(() => {
@@ -224,13 +234,34 @@ const Profile = () => {
   // Cache to resolve creator usernames on bookmark cards
   const [creatorCache, setCreatorCache] = useState({});
 
-  // Fetch User Stats
+  // Fetch User Stats with auto-healing and non-negative clamping
   useEffect(() => {
     if (!user) return;
     const statsDocRef = doc(db, "user_stats", user.uid);
     const unsubscribe = onSnapshot(statsDocRef, (snap) => {
       if (snap.exists()) {
-        setStats(snap.data());
+        const raw = snap.data();
+        const sanitized = {
+          memes_created_count: Math.max(0, raw.memes_created_count || 0),
+          resources_contributed_count: Math.max(0, raw.resources_contributed_count || 0),
+          staffroom_posts_count: Math.max(0, raw.staffroom_posts_count || 0),
+          ratings_provided_count: Math.max(0, raw.ratings_provided_count || 0),
+          total_likes_received: Math.max(0, raw.total_likes_received || 0)
+        };
+        setStats(sanitized);
+
+        // Auto-heal negative counters in Firestore database
+        const repairs = {};
+        for (const [key, val] of Object.entries(sanitized)) {
+          if (typeof raw[key] === "number" && raw[key] < 0) {
+            repairs[key] = 0;
+          }
+        }
+        if (Object.keys(repairs).length > 0) {
+          updateDoc(statsDocRef, repairs).catch((err) =>
+            console.error("Auto-healing negative stats in Firestore:", err)
+          );
+        }
       }
     });
     return () => unsubscribe();
@@ -382,25 +413,33 @@ const Profile = () => {
         list.push({ id: doc.id, ...doc.data() });
       });
       setEarnedBadges(list);
+      setBadgesLoaded(true);
     });
     return () => unsubscribe();
   }, [user]);
 
   // Automatic Badge progression level calculations
   const calculateLevel = (count) => {
-    if (count >= 50) return 5;
-    if (count >= 25) return 4;
-    if (count >= 10) return 3;
-    if (count >= 5) return 2;
-    if (count >= 1) return 1;
+    const val = Math.max(0, count || 0);
+    if (val >= 50) return 5;
+    if (val >= 25) return 4;
+    if (val >= 10) return 3;
+    if (val >= 5) return 2;
+    if (val >= 1) return 1;
     return 0;
   };
 
   // Badge transaction checks trigger
   useEffect(() => {
-    if (!user || earnedBadges.length === 0 && myMemes.length === 0) return;
+    if (!user || !badgesLoaded || user.uid === "guest_dev") return;
 
     const checkAndAwardBadges = async () => {
+      // Ensure Contributor registration badge is awarded if missing
+      const hasContributor = earnedBadges.some(b => b.badge_name === "Contributor");
+      if (!hasContributor && awardLoginBadge) {
+        awardLoginBadge(user.uid);
+      }
+
       for (const [category, config] of Object.entries(CATEGORY_NAMES)) {
         const count = stats[config.statKey] || 0;
         const currentLevel = calculateLevel(count);
@@ -429,7 +468,7 @@ const Profile = () => {
     };
 
     checkAndAwardBadges();
-  }, [stats, earnedBadges, myMemes, user]);
+  }, [stats, earnedBadges, badgesLoaded, user]);
 
   // Fetch User's Literacy Test Results
   useEffect(() => {
@@ -462,9 +501,10 @@ const Profile = () => {
     return () => unsubscribe();
   }, [user]);
 
-  const getProgressDetails = (count) => {
+  const getProgressDetails = (rawCount) => {
+    const count = Math.max(0, rawCount || 0);
     const currentLevel = calculateLevel(count);
-    const currentBadgeName = currentLevel > 0 ? `${LEVEL_NAMES[currentLevel]} Medal` : "Locked";
+    const currentBadgeName = currentLevel > 0 ? `${LEVEL_NAMES[currentLevel]} Badge` : "Locked";
 
     if (currentLevel === 5) {
       return {
@@ -535,7 +575,7 @@ const Profile = () => {
       const uid = user?.uid || "guest_dev";
       const storageRef = ref(storage, `users/${uid}/avatar/${cleanFileName}`);
       const mimeType = file.type || (ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'gif' ? 'image/gif' : ext === 'svg' ? 'image/svg+xml' : 'image/jpeg');
-      
+
       let avatarFinalUrl = null;
       try {
         const snapshot = await uploadBytes(storageRef, file, { contentType: mimeType });
@@ -684,9 +724,17 @@ const Profile = () => {
       await deleteDoc(doc(db, "memes", memeId));
       if (!isDraft && user) {
         const statsDocRef = doc(db, "user_stats", user.uid);
-        await updateDoc(statsDocRef, {
-          memes_created_count: increment(-1)
-        });
+        try {
+          await runTransaction(db, async (tx) => {
+            const snap = await tx.get(statsDocRef);
+            if (snap.exists()) {
+              const current = snap.data().memes_created_count || 0;
+              tx.update(statsDocRef, { memes_created_count: Math.max(0, current - 1) });
+            }
+          });
+        } catch (txErr) {
+          console.error("Failed to safely decrement memes_created_count", txErr);
+        }
       }
       toast(`${isDraft ? "Draft" : "Meme"} deleted successfully.`, "success");
     } catch (e) {
@@ -1045,88 +1093,166 @@ const Profile = () => {
     );
   };
 
+  // Deduplicate earned badges by badge_name to handle any legacy duplicate entries in Firestore
+  const uniqueEarnedBadges = earnedBadges.filter(
+    (b, index, self) => index === self.findIndex(t => t.badge_name === b.badge_name)
+  );
+
+  // Filter and deduplicate literacy test results by badge_earned / test_id so retaking tests doesn't produce duplicate cards
+  const passingLiteracyResults = literacyResults.filter(r => r.passed && r.badge_earned);
+  const uniqueLiteracyBadges = passingLiteracyResults.filter(
+    (r, index, self) => index === self.findIndex(t => (t.badge_earned || t.test_id) === (r.badge_earned || r.test_id))
+  );
+
+  // Combine all achieved badges from Firestore + Meme Literacy Tests
+  const allAchievedBadges = [
+    ...uniqueEarnedBadges.map(b => ({
+      id: b.id || b.badge_name,
+      name: b.badge_name,
+      description: b.description || "Earned platform badge",
+      icon: b.badge_name === "Authorized" || b.badge_name === "Authorised User" ? "shield-check" : b.badge_name === "Contributor" ? "award" : "badge-check",
+      date: b.awarded_at ? new Date(b.awarded_at.seconds * 1000).toLocaleDateString() : "Earned"
+    })),
+    ...uniqueLiteracyBadges.map(r => ({
+      id: r.id || r.badge_earned,
+      name: r.badge_earned,
+      description: `Passed with ${r.score_pct}% score`,
+      icon: "award",
+      date: r.completed_at ? new Date(r.completed_at.seconds * 1000).toLocaleDateString() : "Earned"
+    }))
+  ];
+
   const renderLiteracyResultsGrid = () => {
-    if (literacyResults.length === 0) {
-      return (
-        <div className={`p-12 text-center flex flex-col items-center justify-center ${containerClass}`}>
-          <div className="text-5xl mb-3">🧪</div>
-          <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Test Attempts Yet</h4>
-          <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mb-6 leading-relaxed">
-            Assess your critical meme literacy skills, earn verifiable badges, and track your analytical growth.
-          </p>
-          <button
-            onClick={() => navigate("/meme-literacy-test")}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-md shadow-purple-600/10"
-          >
-            Explore & Take Assessments <Plus className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      );
-    }
-
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {literacyResults.map((result) => {
-          const testTitle = testNames[result.test_id] || "Meme Literacy Assessment";
-          const completedDate = result.completed_at
-            ? new Date(result.completed_at.seconds * 1000).toLocaleDateString()
-            : "Recently";
-          const passed = result.passed;
+      <div className="space-y-8">
+        {/* Achieved Badges Flex Container */}
+        <div>
+          <h4 className="text-sm font-extrabold text-gray-900 dark:text-white mb-3 uppercase tracking-wider">
+            Achieved Badges ({allAchievedBadges.length})
+          </h4>
 
-          return (
-            <div
-              key={result.id}
-              className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden"
-            >
-              {/* Header Bar */}
-              <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 border-b border-gray-100 dark:border-zinc-800/60 bg-gray-50/50 dark:bg-zinc-900/50">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl leading-none">{result.badge_icon || "🧪"}</span>
-                  <span className="text-[11px] font-extrabold text-gray-900 dark:text-white truncate">
-                    {result.badge_earned || "Attempt Record"}
+          {allAchievedBadges.length === 0 ? (
+            <div className="p-8 text-center bg-purple-50/20 dark:bg-purple-950/10 rounded-2xl border border-purple-100/50 dark:border-purple-950/20">
+              <ShieldCheck className="w-8 h-8 text-purple-400 dark:text-purple-500 mx-auto mb-2" />
+              <p className="text-xs font-bold text-gray-700 dark:text-zinc-300">
+                No Badges Earned Yet
+              </p>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 max-w-xs mx-auto mt-1">
+                Pass a Meme Literacy Test to earn badges!
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-4 items-stretch justify-start">
+              {allAchievedBadges.map((badge) => (
+                <div
+                  key={badge.id}
+                  className="flex-1 min-w-[200px] max-w-[260px] flex flex-col items-center p-4 rounded-2xl border border-purple-200/70 dark:border-purple-900/40 bg-gradient-to-b from-purple-50/50 to-indigo-50/20 dark:from-purple-950/30 dark:to-indigo-950/15 text-center shadow-sm hover:shadow-md transition"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-100/80 dark:border-purple-900/60 flex items-center justify-center mb-2 shadow-sm p-1.5 flex-shrink-0">
+                    <img
+                      src="/star-medal.png"
+                      alt={badge.name}
+                      className="w-full h-full object-contain drop-shadow-sm"
+                    />
+                  </div>
+                  <span className="text-xs font-extrabold text-gray-900 dark:text-white leading-tight">
+                    {badge.name}
+                  </span>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                    {badge.description}
+                  </span>
+                  <span className="text-[9px] text-purple-600 dark:text-purple-400 font-bold mt-auto pt-3">
+                    {badge.date}
                   </span>
                 </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    passed
-                      ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300"
-                      : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300"
-                  }`}
-                >
-                  {passed ? "✓ Passed" : "Needs Review"}
-                </span>
-              </div>
-
-              {/* Main Card Body */}
-              <div className="p-4 flex-grow flex flex-col justify-between space-y-3">
-                <div>
-                  <h4 className="font-extrabold text-sm mb-1.5 text-gray-900 dark:text-white line-clamp-2 leading-snug">
-                    {testTitle}
-                  </h4>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    <span className="font-extrabold text-2xl text-purple-600 dark:text-purple-400 leading-none">
-                      {result.score_pct}%
-                    </span>
-                    <span className="text-xs">
-                      {result.correct_count} / {result.total_questions} correct
-                    </span>
-                  </div>
-                </div>
-
-                {/* Footer Action Bar */}
-                <div className="pt-2.5 border-t border-gray-100 dark:border-zinc-800/80 flex items-center justify-between text-xs font-semibold">
-                  <span className="text-[10px] text-gray-400">📅 {completedDate}</span>
-                  <button
-                    onClick={() => navigate(`/meme-literacy-test/${result.test_id || ""}`)}
-                    className="text-purple-600 dark:text-purple-400 hover:underline font-bold text-[11px]"
-                  >
-                    Retake Test →
-                  </button>
-                </div>
-              </div>
+              ))}
             </div>
-          );
-        })}
+          )}
+        </div>
+
+        {/* Test Attempt Records Section */}
+        <div>
+          <h4 className="text-sm font-extrabold text-gray-900 dark:text-white mb-3 uppercase tracking-wider">
+            Test Attempt Records ({literacyResults.length})
+          </h4>
+
+          {literacyResults.length === 0 ? (
+            <div className={`p-8 text-center flex flex-col items-center justify-center ${containerClass}`}>
+              <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-1">No Test Attempts Yet</h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mb-4 leading-relaxed">
+                Assess your critical meme literacy skills, earn verifiable badges, and track your analytical growth.
+              </p>
+              <button
+                onClick={() => navigate("/meme-literacy-test")}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+              >
+                Explore & Take Assessments <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {literacyResults.map((result) => {
+                const testTitle = testNames[result.test_id] || "Meme Literacy Assessment";
+                const completedDate = result.completed_at
+                  ? new Date(result.completed_at.seconds * 1000).toLocaleDateString()
+                  : "Recently";
+                const passed = result.passed;
+
+                return (
+                  <div
+                    key={result.id}
+                    className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden"
+                  >
+                    {/* Header Bar */}
+                    <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 border-b border-gray-100 dark:border-zinc-800/60 bg-gray-50/50 dark:bg-zinc-900/50">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-extrabold text-gray-900 dark:text-white truncate">
+                          {result.badge_earned || "Attempt Record"}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${passed
+                          ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300"
+                          : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                          }`}
+                      >
+                        {passed ? "✓ Passed" : "Needs Review"}
+                      </span>
+                    </div>
+
+                    {/* Main Card Body */}
+                    <div className="p-4 flex-grow flex flex-col justify-between space-y-3">
+                      <div>
+                        <h4 className="font-extrabold text-sm mb-1.5 text-gray-900 dark:text-white line-clamp-2 leading-snug">
+                          {testTitle}
+                        </h4>
+                        <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-2">
+                          <span className="font-extrabold text-2xl text-purple-600 dark:text-purple-400 leading-none">
+                            {result.score_pct}%
+                          </span>
+                          <span className="text-xs">
+                            {result.correct_count} / {result.total_questions} correct
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Footer Action Bar */}
+                      <div className="pt-2.5 border-t border-gray-100 dark:border-zinc-800/80 flex items-center justify-between text-xs font-semibold">
+                        <span className="text-[10px] text-gray-400">📅 {completedDate}</span>
+                        <button
+                          onClick={() => navigate(`/meme-literacy-test/${result.test_id || ""}`)}
+                          className="text-purple-600 dark:text-purple-400 hover:underline font-bold text-[11px]"
+                        >
+                          Retake Test →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -1185,16 +1311,15 @@ const Profile = () => {
                     {currentProfile.name}
                   </h2>
                   {currentProfile.is_verified && (
-                    <img
-                      src="/badge-verify.png"
-                      alt="Verified profile"
-                      title="Verified profile"
-                      className="w-6 h-6 object-contain"
+                    <BadgeCheck
+                      className="w-5 h-5 text-blue-500 dark:text-blue-400 flex-shrink-0"
+                      title="Institution Verified"
+                      aria-label="Verified profile"
                     />
                   )}
                 </div>
                 <p className="text-xs font-bold uppercase tracking-wider text-purple-650 dark:text-purple-400 mt-1 capitalize">
-                  {currentProfile.role} • {currentProfile.institution}
+                  {currentProfile.role} • {currentProfile.institution_type ? `${currentProfile.institution_type} - ` : ""}{currentProfile.institution}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center sm:justify-start gap-1">
                   <MapPin className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
@@ -1236,88 +1361,63 @@ const Profile = () => {
                   Preview ID Card
                 </a>
               )}
+
             </div>
           </div>
-        </div>
-      )}
 
-      {/* 1B. Profile Completion Progress Panel (7 Fields Tracker) */}
-      {profile && (() => {
-        const profileFields = [
-          { label: "Full Name", done: Boolean(profile.name) },
-          { label: "Email Address", done: Boolean(user?.email || profile.email) },
-          { label: "Account Role", done: Boolean(profile.role) },
-          { label: "Account Credentials", done: Boolean(user?.email || user?.uid) },
-          { label: "School / Institution", done: Boolean(profile.institution) },
-          { label: "City / Location", done: Boolean(profile.place || profile.state) },
-          { label: "Country", done: Boolean(profile.country) },
-        ];
-        const completedCount = profileFields.filter(f => f.done).length;
-        const completionPct = Math.round((completedCount / 7) * 100);
+          {/* Profile Completion Progress Section inside main profile card */}
+          {profile && (() => {
+            const profileFields = [
+              { label: "Full Name", done: Boolean(profile.name) },
+              { label: "Email Address", done: Boolean(user?.email || profile.email) },
+              { label: "Account Role", done: Boolean(profile.role) },
+              { label: "Account Credentials", done: Boolean(user?.email || user?.uid) },
+              { label: "Institution Type", done: Boolean(profile.institution_type || profile.institution) },
+              { label: "School / Institution", done: Boolean(profile.institution) },
+              { label: "City / Location", done: Boolean(profile.place || profile.state || profile.country || profile.institution) },
+            ];
+            const completedCount = profileFields.filter(f => f.done).length;
+            const totalFields = profileFields.length;
+            const completionPct = Math.min(100, Math.round((completedCount / totalFields) * 100));
 
-        return (
-          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-extrabold text-base text-gray-900 dark:text-white">
-                    Profile Setup Progress
-                  </h3>
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-pink-50 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800">
-                    {completedCount} of 7 Completed
-                  </span>
+            const isFullySetup = Boolean(profile.setup_completed) || completionPct >= 100 || (Boolean(profile.name) && Boolean(profile.institution) && Boolean(profile.role));
+
+            if (isFullySetup) return null;
+
+            return (
+              <div className="mt-6 pt-5 border-t border-gray-200/80 dark:border-zinc-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
+                <div className="w-full max-w-md space-y-1.5">
+                  <div className="flex justify-between items-center text-xs font-bold text-gray-700 dark:text-zinc-300">
+                    <span className="flex items-center gap-1.5">
+                      <span>Profile Setup Progress</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                        {completedCount} of {totalFields}
+                      </span>
+                    </span>
+                    <span className="text-purple-600 dark:text-purple-400 font-extrabold">{completionPct}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 h-full rounded-full transition-all duration-700"
+                      style={{ width: `${completionPct}%` }}
+                    />
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
-                  Complete all 7 profile fields to finish your account setup.
-                </p>
-              </div>
-
-              {completedCount < 7 && (
                 <button
                   onClick={() => {
+                    openEditModal();
                     window.sessionStorage.removeItem("mc_skip_setup");
                     window.dispatchEvent(new CustomEvent("mc_open_account_setup"));
                   }}
-                  className="bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition active:scale-95 flex-shrink-0"
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition active:scale-95 flex-shrink-0 w-full sm:w-auto text-center cursor-pointer"
                 >
-                  Finish Setup Now
+                  Finish →
                 </button>
-              )}
-            </div>
-
-            {/* Progress Bar */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs font-bold text-gray-600 dark:text-zinc-300">
-                <span>Completion Status</span>
-                <span className="text-pink-600 dark:text-pink-400">{completionPct}%</span>
               </div>
-              <div className="w-full bg-gray-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-pink-600 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${completionPct}%` }}
-                />
-              </div>
-            </div>
-
-            {/* 7 Fields Status Badges */}
-            <div className="flex flex-wrap gap-2 pt-1">
-              {profileFields.map((field) => (
-                <span
-                  key={field.label}
-                  className={`text-[11px] font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 ${
-                    field.done
-                      ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800"
-                      : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700"
-                  }`}
-                >
-                  <span>{field.done ? "✓" : "•"}</span>
-                  <span>{field.label}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+            );
+          })()}
+        </div>
+      )}
 
       {/* 2. Scoreboard Activity Statistics Panel */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -1367,7 +1467,7 @@ const Profile = () => {
                 {stat.label}
               </span>
               <span className="text-2xl font-black text-gray-900 dark:text-white block mt-0.5 leading-none">
-                {stat.val}
+                {Math.max(0, stat.val || 0)}
               </span>
             </div>
           </div>
@@ -1423,74 +1523,62 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* 3B. Meme Literacy Certifications & Badges */}
-      <div className={`p-6 ${containerClass}`}>
+      {/* 3A. Achieved Badges & Certifications */}
+      <div id="profile-earned-badges" className={`p-6 ${containerClass}`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2 mb-6 gap-2">
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white">
-              🧪 Meme Literacy Certifications & Badges
+              Achieved Badges & Certifications
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Verified badges earned by passing standardized meme literacy assessments.
+              Verified badges earned via community participation and literacy assessments.
             </p>
           </div>
           <button
             onClick={() => navigate("/meme-literacy-test")}
             className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline self-start sm:self-auto"
           >
-            Take an Assessment →
+            Take Assessment →
           </button>
         </div>
 
-        {(() => {
-          const earnedLiteracyBadges = literacyResults.filter((r) => r.passed && r.badge_earned);
-          if (earnedLiteracyBadges.length === 0) {
-            return (
-              <div className="text-center py-6 px-4 bg-purple-50/20 dark:bg-purple-950/10 rounded-2xl border border-purple-100/50 dark:border-purple-950/20">
-                <span className="text-3xl block mb-2">🏅</span>
-                <p className="text-xs font-bold text-gray-700 dark:text-zinc-300">
-                  No Literacy Badges Earned Yet
-                </p>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-1 mb-3">
-                  Score above the passing threshold on any Meme Literacy Test to earn verified certification badges.
-                </p>
-                <button
-                  onClick={() => navigate("/meme-literacy-test")}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm"
-                >
-                  Start Assessment
-                </button>
+        {allAchievedBadges.length === 0 ? (
+          <div className="text-center py-8 px-4 bg-purple-50/20 dark:bg-purple-950/10 rounded-2xl border border-purple-100/50 dark:border-purple-950/20">
+            <ShieldCheck className="w-10 h-10 text-purple-400 dark:text-purple-500 mx-auto mb-2" />
+            <p className="text-xs font-bold text-gray-700 dark:text-zinc-300">
+              No Badges Earned Yet
+            </p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-1">
+              Pass a Meme Literacy Test to earn badges!
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-4 items-stretch justify-start">
+            {allAchievedBadges.map((badge) => (
+              <div
+                key={badge.id}
+                className="flex-1 min-w-[200px] max-w-[260px] flex flex-col items-center p-4 rounded-2xl border border-purple-200/70 dark:border-purple-900/40 bg-gradient-to-b from-purple-50/50 to-indigo-50/20 dark:from-purple-950/30 dark:to-indigo-950/15 text-center shadow-sm hover:shadow-md transition"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-100/80 dark:border-purple-900/60 flex items-center justify-center mb-2 shadow-sm p-1.5 flex-shrink-0">
+                  <img
+                    src="/star-medal.png"
+                    alt={badge.name}
+                    className="w-full h-full object-contain drop-shadow-sm"
+                  />
+                </div>
+                <span className="text-xs font-extrabold text-gray-900 dark:text-white leading-tight">
+                  {badge.name}
+                </span>
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                  {badge.description}
+                </span>
+                <span className="text-[9px] text-purple-600 dark:text-purple-400 font-bold mt-auto pt-3">
+                  {badge.date}
+                </span>
               </div>
-            );
-          }
-
-          return (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {earnedLiteracyBadges.map((badge) => {
-                const date = badge.completed_at
-                  ? new Date(badge.completed_at.seconds * 1000).toLocaleDateString()
-                  : "Earned";
-                return (
-                  <div
-                    key={badge.id}
-                    className="flex flex-col items-center p-4 rounded-2xl border border-amber-200/60 dark:border-amber-900/40 bg-gradient-to-b from-amber-50/40 to-yellow-50/20 dark:from-amber-950/10 dark:to-yellow-950/5 text-center shadow-sm"
-                  >
-                    <span className="text-4xl mb-2">{badge.badge_icon || "🏅"}</span>
-                    <span className="text-xs font-extrabold text-gray-900 dark:text-white leading-tight">
-                      {badge.badge_earned}
-                    </span>
-                    <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold mt-1">
-                      Score: {badge.score_pct}%
-                    </span>
-                    <span className="text-[9px] text-gray-400 dark:text-zinc-500 mt-0.5">
-                      📅 {date}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 4. Portfolio folder tab selector */}
@@ -1502,7 +1590,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          My Public Creations ({myMemes.length})
+          Public Posts ({myMemes.length})
         </button>
         <button
           onClick={() => setActiveTab("my-drafts")}
@@ -1511,7 +1599,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          My Saved Drafts ({myDrafts.length})
+          Drafts ({myDrafts.length})
         </button>
         <button
           onClick={() => setActiveTab("bookmarks")}
@@ -1520,7 +1608,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          My Bookmarked Memes ({bookmarkedMemes.length})
+          Bookmarks ({bookmarkedMemes.length})
         </button>
         <button
           onClick={() => setActiveTab("my-resources")}
@@ -1529,7 +1617,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          My Resources ({myResources.length})
+          Resources ({myResources.length})
         </button>
         <button
           onClick={() => setActiveTab("saved-resources")}
@@ -1538,7 +1626,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          Saved Resources ({savedResources.length})
+          Saved ({savedResources.length})
         </button>
         <button
           onClick={() => setActiveTab("literacy-tests")}
@@ -1547,7 +1635,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          🧪 Test Results & Badges ({literacyResults.length})
+          Badges & Test Results ({allAchievedBadges.length})
         </button>
       </div>
 
@@ -1670,7 +1758,7 @@ const Profile = () => {
                   <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
                     Choose an image from your computer or phone (PNG, JPG, WebP, GIF up to 5MB).
                   </p>
-                  
+
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <input
                       ref={fileInputRef}
@@ -1753,6 +1841,26 @@ const Profile = () => {
                   className={inputClass}
                   placeholder="Jane Doe"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Institution Type</label>
+                <select
+                  required
+                  value={editInstitutionType}
+                  onChange={(e) => setEditInstitutionType(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">Select Institution Type...</option>
+                  <option value="School / High School">School / High School</option>
+                  <option value="University / College">University / College</option>
+                  <option value="Coaching Institute">Coaching Institute</option>
+                  <option value="Research Organization">Research Organization</option>
+                  <option value="NGO / Non-Profit">NGO / Non-Profit</option>
+                  <option value="Corporate / Workplace">Corporate / Workplace</option>
+                  <option value="Independent / Self-Learner">Independent / Self-Learner</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
 
               <div>

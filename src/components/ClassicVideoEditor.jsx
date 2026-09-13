@@ -35,7 +35,6 @@ export default function ClassicVideoEditor({
   videoPlayerRef,
   timelineTrackRef,
   handleVideoUpload,
-  selectMediaPreset,
   handleAddCaptionAtCurrentTime,
   handleDeleteCaptionIndex,
   handleEditCaptionText,
@@ -44,8 +43,7 @@ export default function ClassicVideoEditor({
   rebuildCaptionsString,
   handleDropzoneDrop,
   isDragOverDropzone,
-  setIsDragOverDropzone,
-  MEDIA_SAMPLES
+  setIsDragOverDropzone
 }) {
   const [newSubText, setNewSubText] = useState("");
   const [editingSubIndex, setEditingSubIndex] = useState(null);
@@ -181,7 +179,7 @@ export default function ClassicVideoEditor({
               <Film className="w-16 h-16 mb-3 text-purple-500/70 animate-bounce" />
               <p className="font-extrabold text-base mb-1 text-zinc-200">No Video Loaded</p>
               <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
-                Upload your video clip or choose a sample preset from the right panel to get started.
+                Upload your video clip from the right panel to get started.
               </p>
             </div>
           )}

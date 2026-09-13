@@ -289,11 +289,17 @@ const Staffroom = () => {
       if (snap.exists()) setUserStats(snap.data());
     });
     const bQuery = query(collection(db, "badges"), where("user_id", "==", user.uid));
-    const unsubBadges = onSnapshot(bQuery, (snap) => {
-      const list = [];
-      snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
-      setUserBadges(list);
-    });
+    const unsubBadges = onSnapshot(
+      bQuery,
+      (snap) => {
+        const list = [];
+        snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+        setUserBadges(list);
+      },
+      (err) => {
+        console.error("Staffroom badges snapshot error", err);
+      }
+    );
     return () => {
       unsubStats();
       unsubBadges();
@@ -751,7 +757,7 @@ const Staffroom = () => {
     }
   };
 
-  const handleDeleteThread = (threadId) => {
+  const handleDeleteThread = (threadId, threadAuthorId) => {
     openConfirm({
       title: "Delete Thread?",
       message: "This will permanently remove the thread and all its replies. This action cannot be undone.",
@@ -761,8 +767,20 @@ const Staffroom = () => {
         closeConfirm();
         try {
           await deleteDoc(doc(db, "staffroom_posts", threadId));
-          if (user) {
-            await updateDoc(doc(db, "user_stats", user.uid), { staffroom_posts_count: increment(-1) });
+          const targetUid = threadAuthorId || user?.uid;
+          if (targetUid) {
+            const statsRef = doc(db, "user_stats", targetUid);
+            try {
+              await runTransaction(db, async (tx) => {
+                const snap = await tx.get(statsRef);
+                if (snap.exists()) {
+                  const current = snap.data().staffroom_posts_count || 0;
+                  tx.update(statsRef, { staffroom_posts_count: Math.max(0, current - 1) });
+                }
+              });
+            } catch (txErr) {
+              console.error("Failed to decrement staffroom_posts_count safely", txErr);
+            }
           }
           toast("Thread deleted.", "success");
         } catch (e) {
@@ -826,7 +844,7 @@ const Staffroom = () => {
     }
   };
 
-  const handleDeleteMeme = (memeId) => {
+  const handleDeleteMeme = (memeId, memeAuthorId) => {
     openConfirm({
       title: "Delete Meme?",
       message: "This will permanently remove the meme from the library.",
@@ -836,8 +854,20 @@ const Staffroom = () => {
         closeConfirm();
         try {
           await deleteDoc(doc(db, "memes", memeId));
-          if (user) {
-            await setDoc(doc(db, "user_stats", user.uid), { memes_created_count: increment(-1) }, { merge: true });
+          const targetUid = memeAuthorId || user?.uid;
+          if (targetUid) {
+            const statsRef = doc(db, "user_stats", targetUid);
+            try {
+              await runTransaction(db, async (tx) => {
+                const snap = await tx.get(statsRef);
+                if (snap.exists()) {
+                  const current = snap.data().memes_created_count || 0;
+                  tx.update(statsRef, { memes_created_count: Math.max(0, current - 1) });
+                }
+              });
+            } catch (txErr) {
+              console.error("Failed to decrement memes_created_count safely", txErr);
+            }
           }
           setActiveMeme(null);
           toast("Meme deleted.", "success");
@@ -936,18 +966,18 @@ const Staffroom = () => {
     const memeRef = doc(db, "memes", memeId);
     try {
       if (existingLikeId) {
-        await deleteDoc(doc(db, "likes", existingLikeId));
-        await setDoc(statsRef, { total_likes_received: increment(-1) }, { merge: true });
-        await updateDoc(memeRef, { likes_count: increment(-1) });
+        await deleteDoc(doc(db, "likes", existingLikeId)).catch(() => {});
+        await setDoc(statsRef, { total_likes_received: increment(-1) }, { merge: true }).catch(() => {});
+        await setDoc(memeRef, { likes_count: increment(-1) }, { merge: true });
       } else {
         const likeDocId = `${user.uid}_${memeId}`;
         await setDoc(doc(db, "likes", likeDocId), {
           user_id: user.uid,
           meme_id: memeId,
           created_at: serverTimestamp(),
-        });
-        await setDoc(statsRef, { total_likes_received: increment(1) }, { merge: true });
-        await updateDoc(memeRef, { likes_count: increment(1) });
+        }, { merge: true });
+        await setDoc(statsRef, { total_likes_received: increment(1) }, { merge: true }).catch(() => {});
+        await setDoc(memeRef, { likes_count: increment(1) }, { merge: true });
       }
     } catch (e) {
       console.error("Like toggle failed", e);
@@ -1299,16 +1329,16 @@ const Staffroom = () => {
                   <div className="flex justify-between items-center">
                     <span>Contribution Points</span>
                     <span className="text-purple-650 dark:text-purple-400">
-                      {(userStats.memes_created_count * 10) + (userStats.staffroom_posts_count * 5) + (userStats.ratings_provided_count * 2)}
+                      {(Math.max(0, userStats.memes_created_count || 0) * 10) + (Math.max(0, userStats.staffroom_posts_count || 0) * 5) + (Math.max(0, userStats.ratings_provided_count || 0) * 2)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Upvotes Received</span>
-                    <span className="text-gray-800 dark:text-gray-200">{userStats.total_likes_received}</span>
+                    <span className="text-gray-800 dark:text-gray-200">{Math.max(0, userStats.total_likes_received || 0)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Ratings Provided</span>
-                    <span className="text-gray-800 dark:text-gray-200">{userStats.ratings_provided_count}</span>
+                    <span className="text-gray-800 dark:text-gray-200">{Math.max(0, userStats.ratings_provided_count || 0)}</span>
                   </div>
                 </div>
 
@@ -1591,7 +1621,7 @@ const Staffroom = () => {
                         {/* Delete */}
                         {user && (thread.author_id === user.uid || profile?.role === "admin") && (
                           <button
-                            onClick={() => handleDeleteThread(thread.id)}
+                            onClick={() => handleDeleteThread(thread.id, thread.author_id)}
                             className="text-red-500 hover:text-red-750 text-xs font-bold transition"
                           >
                             Delete

@@ -183,9 +183,11 @@ const Auth = () => {
 
   const fmtErr = (err, def) => {
     const c = err?.code || ""; const m = err?.message || "";
-    if (c === "auth/popup-closed-by-user" || c === "auth/cancelled-popup-request") return "Sign-in was cancelled.";
+    if (c === "auth/unauthorized-domain") return "Domain not authorized. Please add 'localhost' or your IP to Firebase Console -> Authentication -> Settings -> Authorized domains.";
+    if (c === "auth/popup-blocked") return "Google Sign-In popup was blocked by your browser. Please allow popups for localhost.";
+    if (c === "auth/popup-closed-by-user" || c === "auth/cancelled-popup-request") return "Google Sign-In popup was closed before completing.";
     if (c === "auth/network-request-failed" || !navigator.onLine) return "Internet issue: please check your connection and try again.";
-    if (c === "auth/operation-not-allowed") return "This sign-in method is not enabled. Please contact support.";
+    if (c === "auth/operation-not-allowed") return "Google Sign-In method is not enabled in Firebase Console.";
     if (["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found", "auth/invalid-email"].includes(c)) return "Invalid email or password. Please double-check and try again.";
     if (c === "auth/email-already-in-use") return "An account with this email already exists. Try signing in instead.";
     if (c === "auth/too-many-requests") return "Too many attempts. Please wait a moment and try again.";
@@ -309,11 +311,10 @@ const Auth = () => {
     try {
       await signInWithGoogle();
     } catch (err) {
+      console.error("Google Auth error on localhost:", err);
       if (isMounted.current) {
         const message = fmtErr(err, "Google Sign-In failed.");
-        if (message !== "Sign-in was cancelled.") {
-          setError(message);
-        }
+        setError(message);
       }
     } finally {
       safeSetLoading(false);
@@ -442,7 +443,6 @@ const Auth = () => {
         <button key={r.id} id={`role-${r.id}`} type="button" aria-pressed={role === r.id}
           onClick={() => { selectRole(r.id); setTimeout(() => onSelect(), 160); }}
           className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 flex items-center gap-4 active:scale-[0.98] ${role === r.id ? "border-purple-600 bg-purple-50 dark:bg-purple-950/40" : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60 hover:border-purple-300 dark:hover:border-purple-700 hover:bg-purple-50/30 dark:hover:bg-purple-950/20"}`}>
-          <span className="text-3xl leading-none flex-shrink-0">{r.icon}</span>
           <div className="flex-1 min-w-0">
             <p className={`font-semibold text-sm ${role === r.id ? "text-purple-900 dark:text-purple-200" : "text-gray-800 dark:text-zinc-200"}`}>{r.label}</p>
             <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">{r.desc}</p>
@@ -533,7 +533,7 @@ const Auth = () => {
                   <p className="text-[12px] text-gray-600 dark:text-zinc-400 mb-2 leading-relaxed"><span className="font-semibold text-purple-700 dark:text-purple-300">No password?</span>{" "}We'll email you a one-click sign-in link instead.</p>
                   <button id="login-magic-link-btn" type="button" disabled={loading} onClick={() => handleSendMagicLink(email)} className="text-[12px] text-purple-600 dark:text-purple-400 font-semibold hover:underline">Send me a sign-in link →</button>
                 </div>
-                <p className="mt-5 text-center text-xs text-gray-400 dark:text-zinc-500">New here?{" "}<button id="login-to-register-btn" onClick={() => goTo("register")} className="text-purple-600 dark:text-purple-400 font-semibold hover:underline">Create a free account →</button></p>
+                <p className="mt-5 text-center text-xs text-gray-400 dark:text-zinc-500">New here?{" "}<button id="login-to-register-btn" onClick={() => goTo("register")} className="text-purple-600 dark:text-purple-400 font-semibold hover:underline">Create an account →</button></p>
               </div>
             )}
 
@@ -560,12 +560,53 @@ const Auth = () => {
                 </div>
                 <StepDots current={step} total={5} />
 
-                {/* Step 1: Name */}
+                {/* Step 1: Google or Email */}
                 {step === 1 && (
-                  <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) nextStep(); }} className="space-y-4">
-                    <div className="mb-6">
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight">Welcome! What should we call you?</h2>
-                      <p className="mt-1.5 text-gray-500 dark:text-zinc-400 text-sm">Let's set up your classroom identity.</p>
+                  <div className="space-y-4">
+                    <div className="mb-4">
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight">Create an account</h2>
+                      <p className="mt-1 text-gray-500 dark:text-zinc-400 text-sm">Join MemeClassroom today.</p>
+                    </div>
+
+                    <button id="register-google-btn" type="button" onClick={handleGoogleSignIn} disabled={loading} className={`${sb} shadow-sm mb-2`}>
+                      <GoogleIcon />
+                      <span>Continue with Google</span>
+                    </button>
+
+                    <Divider label="or with email" />
+
+                    <form onSubmit={(e) => { e.preventDefault(); if (email.trim()) nextStep(); }} className="space-y-4">
+                      <input
+                        id="register-email"
+                        type="email"
+                        placeholder="Enter your email address"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        className={ic}
+                        required
+                        autoFocus
+                        autoComplete="email"
+                        aria-label="Email address"
+                      />
+                      <button
+                        id="register-email-btn"
+                        type="submit"
+                        disabled={!email.trim() || loading}
+                        className={`${pb} mt-2`}
+                      >
+                        <span>Continue with Email</span><span aria-hidden>→</span>
+                      </button>
+                    </form>
+                    <p className="mt-5 text-center text-xs text-gray-400 dark:text-zinc-500">Already have an account?{" "}<button type="button" onClick={() => goTo("login", "left")} className="text-purple-600 dark:text-purple-400 font-semibold hover:underline">Sign in</button></p>
+                  </div>
+                )}
+
+                {/* Step 2: Full Name */}
+                {step === 2 && (
+                  <form onSubmit={handleSendOtp} className="space-y-4">
+                    <div className="mb-4">
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight">What should we call you?</h2>
+                      <p className="mt-1 text-gray-500 dark:text-zinc-400 text-sm">Enter your full name to set up your identity.</p>
                     </div>
                     <input
                       id="register-name"
@@ -585,87 +626,21 @@ const Auth = () => {
                       disabled={!name.trim() || loading}
                       className={`${pb} mt-2`}
                     >
-                      <span>Continue</span><span aria-hidden>→</span>
+                      <span>Send Verification Code</span><span aria-hidden>→</span>
                     </button>
-                    <p className="mt-5 text-center text-xs text-gray-400 dark:text-zinc-500">Already have an account?{" "}<button type="button" onClick={() => goTo("login", "left")} className="text-purple-600 dark:text-purple-400 font-semibold hover:underline">Sign in</button></p>
                   </form>
                 )}
 
-                {/* Step 2: Role Selection (Compact dark buttons that turn pink on click) */}
-                {step === 2 && (
-                  <div className="space-y-5">
-                    <div className="mb-2">
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight">Select your role </h2>
-                      <p className="mt-1 text-gray-500 dark:text-zinc-400 text-sm">Hi {firstName || "there"}! Choose your primary role in MemeClassroom.</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                      {REGISTER_ROLES.map(r => (
-                        <button
-                          key={r.id}
-                          type="button"
-                          id={`reg-role-${r.id}`}
-                          aria-pressed={role === r.id}
-                          onClick={() => setRole(r.id)}
-                          className={`py-3 px-3 rounded-xl border font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-95 ${role === r.id
-                            ? "bg-pink-600 hover:bg-pink-500 text-white border-pink-500 shadow-lg shadow-pink-500/30 ring-2 ring-pink-400/50 scale-[1.02]"
-                            : "bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100 dark:border-zinc-700"
-                            }`}
-                        >
-                          <span className="text-lg leading-none">{r.icon}</span>
-                          <span>{r.label}</span>
-                        </button>
-                      ))}
-                    </div>
-
-                    <button
-                      id="register-role-btn"
-                      type="button"
-                      onClick={nextStep}
-                      className={`${pb} mt-3`}
-                    >
-                      <span>Continue to Email</span><span aria-hidden>→</span>
-                    </button>
-                  </div>
-                )}
-
-                {/* Step 3: Email */}
+                {/* Step 3: 4-Digit OTP Code Verification */}
                 {step === 3 && (
-                  <form onSubmit={handleSendOtp} className="space-y-4">
-                    <div className="mb-6">
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight">What's your email address?</h2>
-                      <p className="mt-1.5 text-gray-500 dark:text-zinc-400 text-sm">We'll send a 4-digit code to verify your account.</p>
-                    </div>
-                    <input
-                      id="register-email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      className={ic}
-                      required
-                      autoFocus
-                      autoComplete="email"
-                      aria-label="Email address"
-                    />
-                    <button
-                      id="register-email-btn"
-                      type="submit"
-                      disabled={!email.trim() || loading}
-                      className={`${pb} mt-2`}
-                    >
-                      <span>Send Verification Code</span>
-                    </button>
-                  </form>
-                )}
-
-                {/* Step 4: 4-Digit OTP Code Verification */}
-                {step === 4 && (
                   <form onSubmit={handleVerifyOtp} className="space-y-5 text-center">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight">Check your inbox!</h2>
                       <p className="mt-1.5 text-gray-500 dark:text-zinc-400 text-sm">We sent a 4-digit verification code to:</p>
                       <p className="font-semibold text-purple-700 dark:text-purple-300 text-sm mt-0.5 break-all">{email}</p>
+                      <p className="mt-2.5 text-xs text-amber-600 dark:text-amber-400/90 bg-amber-50 dark:bg-amber-950/40 py-1.5 px-3 rounded-lg border border-amber-200/60 dark:border-amber-800/40 inline-block font-medium">
+                        Can't find the email? Please check your spam folder as the OTP may be delivered there in some cases.
+                      </p>
                     </div>
 
                     {otpNotice && (
@@ -691,7 +666,7 @@ const Auth = () => {
                         />
                       ))}
                     </div>
-                    <p className="mt-1.5 text-yellow-300 dark:text-amber-300 rounded text-sm">TIP: check your spam folder for the code !</p>
+
                     <button
                       id="otp-verify-btn"
                       type="submit"
@@ -717,12 +692,12 @@ const Auth = () => {
                   </form>
                 )}
 
-                {/* Step 5: Password Setup & Final Submit */}
-                {step === 5 && (
-                  <form id="register-form" onSubmit={handleRegister} className="space-y-4">
+                {/* Step 4: Password Setup */}
+                {step === 4 && (
+                  <form onSubmit={(e) => { e.preventDefault(); if (password.length >= 6) nextStep(); }} className="space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight mb-1">Choose a password</h2>
-                      <p className="text-gray-500 dark:text-zinc-400 text-sm">Create a password (min 6 characters) to complete setup.</p>
+                      <p className="text-gray-500 dark:text-zinc-400 text-sm">Create a password (min 6 characters) to continue.</p>
                     </div>
 
                     <div className="relative">
@@ -754,15 +729,52 @@ const Auth = () => {
                       <span className="text-sm text-gray-600 dark:text-zinc-400">Keep me signed in on this device</span>
                     </label>
 
+                    <button
+                      id="register-password-btn"
+                      type="submit"
+                      disabled={password.length < 6}
+                      className={pb}
+                    >
+                      <span>Continue</span><span aria-hidden>→</span>
+                    </button>
+                  </form>
+                )}
+
+                {/* Step 5: Role Selection & Final Submit */}
+                {step === 5 && (
+                  <form id="register-form" onSubmit={handleRegister} className="space-y-4">
+                    <div className="mb-2">
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight">Select your role</h2>
+                      <p className="mt-1 text-gray-500 dark:text-zinc-400 text-sm">Hi {firstName || "there"}! Choose your primary role in MemeClassroom.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                      {REGISTER_ROLES.map(r => (
+                        <button
+                          key={r.id}
+                          type="button"
+                          id={`reg-role-${r.id}`}
+                          aria-pressed={role === r.id}
+                          onClick={() => setRole(r.id)}
+                          className={`py-3 px-3 rounded-xl border font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-95 ${role === r.id
+                            ? "bg-pink-600 hover:bg-pink-500 text-white border-pink-500 shadow-lg shadow-pink-500/30 ring-2 ring-pink-400/50 scale-[1.02]"
+                            : "bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100 dark:border-zinc-700"
+                            }`}
+                        >
+                          <span>{r.label}</span>
+                        </button>
+                      ))}
+                    </div>
+
                     <LegalConsent />
 
                     <button
                       id="register-submit-btn"
                       type="submit"
-                      disabled={loading || password.length < 6}
+                      disabled={loading}
                       className={pb}
                     >
-                      {loading ? "Creating your account…" : "Create Free Account"}
+                      {loading ? "Creating your account…" : "Create an Account"}
                     </button>
                   </form>
                 )}
@@ -776,11 +788,41 @@ const Auth = () => {
                   <span className="ml-auto text-xs text-gray-400 dark:text-zinc-500 font-medium">Step {step} of 2</span>
                 </div>
                 <StepDots current={step} total={2} />
-                <div className="mb-7 text-center">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 mt-2 tracking-tight">{step === 1 ? "Welcome aboard!" : "Your school setup?"}</h2>
-                  <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">{step === 1 ? `Hi ${onboardingUser?.displayName?.split(" ")[0] || "there"}! Two quick questions to set up your profile.` : "This helps us curate the right meme resources for you."}</p>
+                <div className="mb-6 text-center">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight">{step === 1 ? "Select Your Role" : "School Setup (Optional)"}</h2>
+                  <p className="text-gray-500 dark:text-zinc-400 text-sm mt-1">{step === 1 ? `Hi ${onboardingUser?.displayName || "there"}! Select your role to start using MemeClassroom.` : "Help us curate the best meme resources for your school."}</p>
                 </div>
-                {step === 1 && <RoleCards onSelect={nextStep} />}
+
+                {step === 1 && (
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                      {REGISTER_ROLES.map(r => (
+                        <button
+                          key={r.id}
+                          type="button"
+                          id={`onboarding-role-${r.id}`}
+                          aria-pressed={role === r.id}
+                          onClick={() => setRole(r.id)}
+                          className={`py-3 px-3 rounded-xl border font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-95 ${role === r.id
+                            ? "bg-pink-600 hover:bg-pink-500 text-white border-pink-500 shadow-lg shadow-pink-500/30 ring-2 ring-pink-400/50 scale-[1.02]"
+                            : "bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100 dark:border-zinc-700"
+                            }`}
+                        >
+                          <span>{r.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      id="onboarding-role-next-btn"
+                      type="button"
+                      onClick={nextStep}
+                      className={`${pb} mt-3`}
+                    >
+                      <span>Continue to Setup</span><span aria-hidden>→</span>
+                    </button>
+                  </div>
+                )}
+
                 {step === 2 && (
                   <form id="onboarding-form" onSubmit={handleOnboardingSubmit} className="space-y-4">
                     <InstitutionPicker />

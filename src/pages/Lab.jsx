@@ -362,7 +362,7 @@ const Lab = () => {
   };
 
   // --- Video Tab State ---
-  const [videoUrl, setVideoUrl] = useState(MEDIA_SAMPLES?.video?.[0]?.url || "");
+  const [videoUrl, setVideoUrl] = useState("");
   const [videoFile, setVideoFile] = useState(null); // Raw File object
   const [videoDuration, setVideoDuration] = useState(30);
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
@@ -379,7 +379,7 @@ const Lab = () => {
   const [subtitleBgOpacity, setSubtitleBgOpacity] = useState(0.85);
 
   // --- GIF Tab State ---
-  const [gifUrl, setGifUrl] = useState(MEDIA_SAMPLES?.gif?.[0]?.url || "");
+  const [gifUrl, setGifUrl] = useState("");
   const [gifFile, setGifFile] = useState(null);
   const [showLibraryPickerModal, setShowLibraryPickerModal] = useState(false);
 
@@ -982,6 +982,37 @@ const Lab = () => {
   const resizeInfoRef = useRef({ isResizing: false, handle: null, textId: null, startX: 0, startY: 0, startFontSize: 24 });
   const [activeTool, setActiveTool] = useState("text"); // "select" | "text" | "media" | "video" | "templates" | "filters" | "layers"
   const [showRightInspector, setShowRightInspector] = useState(true);
+
+  // --- Compact Studio Controls & Filter States ---
+  const [bottomControlTab, setBottomControlTab] = useState("text"); // "text" | "image" | "filters" | "effects"
+  const [canvasZoom, setCanvasZoom] = useState(100);
+  const [templateCategory, setTemplateCategory] = useState("popular"); // "all" | "popular" | "academic" | "reactions" | "students"
+  const [activeFilter, setActiveFilter] = useState("none");
+  const [activeEffect, setActiveEffect] = useState("none");
+  const [filterBrightness, setFilterBrightness] = useState(100);
+  const [filterContrast, setFilterContrast] = useState(100);
+  const [filterSaturation, setFilterSaturation] = useState(100);
+
+  const getCanvasFilterString = () => {
+    const parts = [];
+    if (activeFilter === "grayscale") parts.push("grayscale(100%)");
+    else if (activeFilter === "sepia") parts.push("sepia(80%)");
+    else if (activeFilter === "contrast") parts.push("contrast(160%)");
+    else if (activeFilter === "vintage") parts.push("sepia(40%) contrast(120%) saturate(120%)");
+    else if (activeFilter === "cool") parts.push("hue-rotate(180deg) saturate(120%)");
+    else if (activeFilter === "warm") parts.push("sepia(30%) saturate(140%)");
+    else if (activeFilter === "invert") parts.push("invert(100%)");
+    else if (activeFilter === "dramatic") parts.push("grayscale(100%) contrast(180%) brightness(95%)");
+
+    if (activeEffect === "deepfry") parts.push("contrast(250%) saturate(300%) brightness(110%)");
+    else if (activeEffect === "blur") parts.push("blur(2px)");
+
+    if (filterBrightness !== 100) parts.push(`brightness(${filterBrightness}%)`);
+    if (filterContrast !== 100) parts.push(`contrast(${filterContrast}%)`);
+    if (filterSaturation !== 100) parts.push(`saturate(${filterSaturation}%)`);
+
+    return parts.length > 0 ? parts.join(" ") : "none";
+  };
 
   // Drag and Drop files upload state
   const [isDragOverDropzone, setIsDragOverDropzone] = useState(false);
@@ -1747,6 +1778,12 @@ const Lab = () => {
     ctx.fillStyle = canvasBg;
     ctx.fillRect(0, 0, width, height);
 
+    // Apply visual filters if any
+    const filterStr = getCanvasFilterString();
+    if (filterStr && filterStr !== "none") {
+      ctx.filter = filterStr;
+    }
+
     // Draw images collage if activeTab is "image"
     if (activeTab === "image" && images.length > 0) {
       const numImages = images.length;
@@ -1824,7 +1861,18 @@ const Lab = () => {
       }
     }
 
-    // Draw text overlays — supports align, opacity, rotation, maxWidth
+    // Reset filter for overlays & text
+    ctx.filter = "none";
+
+    // Overlay White Border effect if selected
+    if (activeEffect === "whiteborder") {
+      ctx.fillStyle = "#FFFFFF";
+      const borderH = Math.round(height * 0.08);
+      ctx.fillRect(0, 0, width, borderH);
+      ctx.fillRect(0, height - borderH, width, borderH);
+    }
+
+    // Draw text overlays — supports align, opacity, rotation, maxWidth, bold, italic, allCaps
     textLayers.forEach(layer => {
       ctx.save();
       ctx.globalAlpha = layer.opacity ?? 1;
@@ -1840,7 +1888,10 @@ const Lab = () => {
         ctx.translate(-scaledX, -scaledY);
       }
 
-      ctx.font = `${scaledFontSize}px ${layer.fontFamily || 'Impact'}`;
+      const isBold = layer.isBold || layer.fontFamily === "Impact";
+      const fontStyle = layer.isItalic ? "italic " : "";
+      const fontWeight = isBold ? "bold " : "";
+      ctx.font = `${fontStyle}${fontWeight}${scaledFontSize}px ${layer.fontFamily || 'Impact'}`;
       ctx.fillStyle = layer.color || '#FFFFFF';
       ctx.strokeStyle = layer.strokeColor || '#000000';
       ctx.lineWidth = (layer.strokeWidth || 0) * 2 * scale;
@@ -1848,11 +1899,12 @@ const Lab = () => {
       ctx.textAlign = layer.textAlign || 'left';
 
       const maxW = layer.maxWidth ? layer.maxWidth * scale : undefined;
+      const renderText = layer.isAllCaps ? (layer.text || "").toUpperCase() : (layer.text || "");
 
       if (layer.strokeWidth > 0) {
-        ctx.strokeText(layer.text, scaledX, scaledY, maxW);
+        ctx.strokeText(renderText, scaledX, scaledY, maxW);
       }
-      ctx.fillText(layer.text, scaledX, scaledY, maxW);
+      ctx.fillText(renderText, scaledX, scaledY, maxW);
       ctx.restore();
     });
 
@@ -2202,11 +2254,15 @@ const Lab = () => {
     try {
       const q = query(
         collection(db, "resources"),
-        where("type", "==", "stories"),
         where("template_id", "==", templateId)
       );
       const snap = await getDocs(q);
-      const story = snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+      const matchingDoc = snap.docs.find(d => {
+        const t = d.data().type;
+        return t === "stories" || t === "story" || d.data().uploadType === "stories";
+      }) || (snap.empty ? null : snap.docs[0]);
+
+      const story = matchingDoc ? { id: matchingDoc.id, ...matchingDoc.data() } : null;
       setMemeStoryModal(prev => ({ ...prev, loading: false, story }));
     } catch (err) {
       console.error("Story fetch failed", err);
@@ -2570,7 +2626,6 @@ const Lab = () => {
                     videoPlayerRef={videoPlayerRef}
                     timelineTrackRef={timelineTrackRef}
                     handleVideoUpload={handleVideoUpload}
-                    selectMediaPreset={selectMediaPreset}
                     handleAddCaptionAtCurrentTime={handleAddCaptionAtCurrentTime}
                     handleDeleteCaptionIndex={handleDeleteCaptionIndex}
                     handleEditCaptionText={handleEditCaptionText}
@@ -2581,7 +2636,6 @@ const Lab = () => {
                     handleDropzoneDrop={handleDropzoneDrop}
                     isDragOverDropzone={isDragOverDropzone}
                     setIsDragOverDropzone={setIsDragOverDropzone}
-                    MEDIA_SAMPLES={MEDIA_SAMPLES}
                   />
                 </div>
               ) : (

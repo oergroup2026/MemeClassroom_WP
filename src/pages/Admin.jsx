@@ -20,7 +20,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { sendPasswordResetEmail } from "firebase/auth";
 import { db, storage, auth } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star } from "lucide-react";
+import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star, BadgeCheck, ShieldAlert } from "lucide-react";
 import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -49,6 +49,8 @@ const Admin = () => {
 
   // Firestore collections state
   const [users, setUsers] = useState([]);
+  const [pendingVerifications, setPendingVerifications] = useState([]);
+  const [unbanRequests, setUnbanRequests] = useState([]);
   const [memes, setMemes] = useState([]);
   const [resources, setResources] = useState([]);
   const [flags, setFlags] = useState([]);
@@ -231,6 +233,16 @@ const Admin = () => {
       setUsers(list);
     });
 
+    // 1b. Users pending ID card verification
+    const vUnsub = onSnapshot(
+      query(collection(db, "users"), where("verification_status", "==", "id_submitted")),
+      (snap) => {
+        const list = [];
+        snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+        setPendingVerifications(list);
+      }
+    );
+
     // 2. Memes
     const mUnsub = onSnapshot(collection(db, "memes"), (snap) => {
       const list = [];
@@ -375,8 +387,15 @@ const Admin = () => {
       setLiteracyQuestions(list);
     });
 
+    // 16. Unban Requests
+    const unbanReqsUnsub = onSnapshot(collection(db, "unban_requests"), (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setUnbanRequests(list);
+    });
+
     return () => {
       uUnsub();
+      vUnsub();
       mUnsub();
       rUnsub();
       fUnsub();
@@ -391,6 +410,7 @@ const Admin = () => {
       allRepliesUnsub();
       ltTestsUnsub();
       ltQuestionsUnsub();
+      unbanReqsUnsub();
     };
   }, []);
 
@@ -465,6 +485,32 @@ const Admin = () => {
       triggerAlert("User upgraded to Verified Expert successfully.");
     } catch (e) {
       triggerAlert(e.message || "Failed to approve applicant.", "error");
+    }
+  };
+
+  // ID-card verification: admin approves → set is_verified: true
+  const handleApproveIdVerification = async (userId) => {
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        is_verified: true,
+        verification_status: "verified",
+      });
+      triggerAlert("User institution verified via ID card.");
+    } catch (e) {
+      triggerAlert(e.message || "Failed to approve verification.", "error");
+    }
+  };
+
+  // ID-card verification: admin rejects → clear the submission
+  const handleRejectIdVerification = async (userId) => {
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        verification_status: "rejected",
+        is_verified: false,
+      });
+      triggerAlert("Verification request rejected.");
+    } catch (e) {
+      triggerAlert(e.message || "Failed to reject verification.", "error");
     }
   };
 
@@ -702,10 +748,39 @@ const Admin = () => {
   const handleToggleBan = async (userId, currentBanned) => {
     if (profile.role !== "admin") return;
     try {
-      await updateDoc(doc(db, "users", userId), { banned: !currentBanned });
-      triggerAlert(`Suspension status ${!currentBanned ? "activated" : "revoked"} for user.`);
+      if (!currentBanned) {
+        const reason = window.prompt("Enter reason for user suspension:", "Violation of community rules");
+        if (reason === null) return; // User cancelled
+        await updateDoc(doc(db, "users", userId), { banned: true, ban_reason: reason || "Violation of community rules" });
+        triggerAlert("User account suspended.");
+      } else {
+        await updateDoc(doc(db, "users", userId), { banned: false });
+        await setDoc(doc(db, "unban_requests", userId), { status: "approved", reviewed_at: serverTimestamp() }, { merge: true }).catch(() => {});
+        triggerAlert("User suspension revoked.");
+      }
     } catch (e) {
       triggerAlert(e.message || "Ban status toggle failed.", "error");
+    }
+  };
+
+  const handleApproveUnbanRequest = async (userId) => {
+    if (profile.role !== "admin") return;
+    try {
+      await updateDoc(doc(db, "users", userId), { banned: false });
+      await setDoc(doc(db, "unban_requests", userId), { status: "approved", reviewed_at: serverTimestamp() }, { merge: true });
+      triggerAlert("User unbanned and appeal approved successfully!");
+    } catch (e) {
+      triggerAlert(e.message || "Failed to approve unban request.", "error");
+    }
+  };
+
+  const handleRejectUnbanRequest = async (userId) => {
+    if (profile.role !== "admin") return;
+    try {
+      await setDoc(doc(db, "unban_requests", userId), { status: "rejected", reviewed_at: serverTimestamp() }, { merge: true });
+      triggerAlert("Unban appeal status updated to rejected.");
+    } catch (e) {
+      triggerAlert(e.message || "Failed to reject unban request.", "error");
     }
   };
 
@@ -1635,6 +1710,39 @@ const Admin = () => {
     }
   };
 
+  // Small helper: fetches the private verification doc and shows a link
+  const ViewIdCardButton = ({ userId }) => {
+    const [url, setUrl] = React.useState(null);
+    const [loading, setLoading] = React.useState(false);
+    const handleFetch = async () => {
+      if (url) { window.open(url, "_blank"); return; }
+      setLoading(true);
+      try {
+        const snap = await getDoc(doc(db, "users", userId, "private", "verification"));
+        if (snap.exists() && snap.data().id_card_url) {
+          const fetchedUrl = snap.data().id_card_url;
+          setUrl(fetchedUrl);
+          window.open(fetchedUrl, "_blank");
+        } else {
+          alert("ID card not found in storage.");
+        }
+      } catch (e) {
+        alert("Failed to fetch ID card: " + e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    return (
+      <button
+        onClick={handleFetch}
+        disabled={loading}
+        className="text-indigo-600 dark:text-indigo-400 hover:underline text-[10px] font-bold disabled:opacity-50"
+      >
+        {loading ? "Loading…" : url ? "View ↗" : "Fetch & View ↗"}
+      </button>
+    );
+  };
+
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 space-y-8">
       {/* Confirm dialog */}
@@ -2495,6 +2603,124 @@ const Admin = () => {
             )}
           </div>
 
+          {/* ── Pending Unban Appeals Queue ───────────────────────────────────── */}
+          {unbanRequests.filter(r => r.status === "pending").length > 0 && (
+            <div className={`p-6 mb-6 ${containerClass}`}>
+              <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-red-600 dark:text-red-400 flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4" />
+                Pending Account Unban Appeals ({unbanRequests.filter(r => r.status === "pending").length})
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">
+                Users who submitted an appeal for account restoration. Review their message and decide whether to reinstate or maintain suspension.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className={headerCellClass}>User</th>
+                      <th className={headerCellClass}>Email</th>
+                      <th className={headerCellClass}>Role / Institution</th>
+                      <th className={headerCellClass}>Suspension Reason</th>
+                      <th className={headerCellClass}>Appeal Message</th>
+                      <th className={headerCellClass}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unbanRequests.filter(r => r.status === "pending").map((req) => (
+                      <tr key={req.id}>
+                        <td className={rowCellClass}>
+                          <span className="font-bold">{req.user_name || "User"}</span>
+                        </td>
+                        <td className={`${rowCellClass} font-mono text-[10px]`}>{req.user_email || "—"}</td>
+                        <td className={rowCellClass}>{req.role || "student"} ({req.institution || "N/A"})</td>
+                        <td className={`${rowCellClass} text-red-500 font-semibold`}>{req.ban_reason || "Community violation"}</td>
+                        <td className={`${rowCellClass} max-w-xs`}>
+                          <p className="text-xs italic bg-gray-50 dark:bg-zinc-950 p-2 rounded-lg border border-gray-200 dark:border-zinc-800 line-clamp-3">
+                            "{req.appeal_message}"
+                          </p>
+                        </td>
+                        <td className={rowCellClass}>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleApproveUnbanRequest(req.user_id || req.id)}
+                              className={btnClass("green")}
+                            >
+                              ✓ Approve & Unban
+                            </button>
+                            <button
+                              onClick={() => handleRejectUnbanRequest(req.user_id || req.id)}
+                              className={btnClass("red")}
+                            >
+                              ✕ Reject Appeal
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── Pending ID Card Verification Queue ──────────────────────────────── */}
+          {pendingVerifications.length > 0 && (
+            <div className={`p-6 ${containerClass}`}>
+              <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                <BadgeCheck className="w-4 h-4" />
+                Pending Institution ID Verifications ({pendingVerifications.length})
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">
+                Users who uploaded an institution ID card. Review the file and approve or reject their verification request.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className={headerCellClass}>Name</th>
+                      <th className={headerCellClass}>Email</th>
+                      <th className={headerCellClass}>Institution</th>
+                      <th className={headerCellClass}>Type</th>
+                      <th className={headerCellClass}>ID Card</th>
+                      <th className={headerCellClass}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingVerifications.map((uv) => (
+                      <tr key={uv.id}>
+                        <td className={rowCellClass}>
+                          <span className="font-bold">{uv.name || "—"}</span>
+                        </td>
+                        <td className={`${rowCellClass} font-mono text-[10px]`}>{uv.email || "—"}</td>
+                        <td className={rowCellClass}>{uv.institution || "—"}</td>
+                        <td className={rowCellClass}>{uv.institution_type || "—"}</td>
+                        <td className={rowCellClass}>
+                          <ViewIdCardButton userId={uv.id} />
+                        </td>
+                        <td className={rowCellClass}>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleApproveIdVerification(uv.id)}
+                              className={btnClass("green")}
+                            >
+                              ✓ Verify
+                            </button>
+                            <button
+                              onClick={() => handleRejectIdVerification(uv.id)}
+                              className={btnClass("gray")}
+                            >
+                              ✕ Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className={`p-6 ${containerClass}`}>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
@@ -2519,7 +2745,7 @@ const Admin = () => {
                           <div className="flex items-center space-x-1.5">
                             <span className="font-extrabold">{uItem.name}</span>
                             {uItem.is_verified && (
-                              <img src="/verified-badge.png" className="w-4 h-4 ml-1 inline-block" alt="Verified" title="Verified" />
+                              <BadgeCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" title="Institution Verified" />
                             )}
                           </div>
                         </td>

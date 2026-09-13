@@ -251,5 +251,18 @@ service cloud.firestore {
       allow create, delete: if false; // Written only by Cloud Functions service account
     }
 
+    // ─── Unban Requests ───────────────────────────────────────────────────────
+    match /unban_requests/{reqId} {
+      allow read: if isLoggedIn();
+      allow create, update: if isLoggedIn() && (request.auth.uid == reqId || request.resource.data.user_id == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // ─── Admin Notifications ──────────────────────────────────────────────────
+    match /admin_notifications/{notifId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if isLoggedIn();
+    }
+
   }
 }

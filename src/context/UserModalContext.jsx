@@ -36,15 +36,20 @@ export const UserModalProvider = ({ children }) => {
       }
 
       // 2. Fetch user's unlocked badge medals
-      const badgesColRef = collection(db, "badges");
-      const q = query(badgesColRef, where("user_id", "==", userId));
-      const querySnap = await getDocs(q);
+      try {
+        const badgesColRef = collection(db, "badges");
+        const q = query(badgesColRef, where("user_id", "==", userId));
+        const querySnap = await getDocs(q);
 
-      const badgeList = [];
-      querySnap.forEach(d => {
-        badgeList.push({ id: d.id, ...d.data() });
-      });
-      setUserBadges(badgeList);
+        const badgeList = [];
+        querySnap.forEach(d => {
+          badgeList.push({ id: d.id, ...d.data() });
+        });
+        setUserBadges(badgeList);
+      } catch (badgeErr) {
+        console.error("Failed to load user badges in overlay modal", badgeErr);
+        setUserBadges([]);
+      }
     } catch (e) {
       console.error("Failed to load global overlay profile info", e);
     } finally {
@@ -104,7 +109,7 @@ export const UserModalProvider = ({ children }) => {
 
                 {/* Milestone Badges lists */}
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Unlocked Medals</h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Unlocked Badges</h4>
                   {userBadges.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {userBadges.map((badge) => (
@@ -118,7 +123,7 @@ export const UserModalProvider = ({ children }) => {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[11px] text-gray-400">No milestone medals unlocked yet.</p>
+                    <p className="text-[11px] text-gray-400">No milestone badges unlocked yet.</p>
                   )}
                 </div>
 

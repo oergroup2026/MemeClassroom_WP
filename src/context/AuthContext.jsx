@@ -20,10 +20,16 @@ import {
 import {
   doc,
   getDoc,
+  getDocs,
   setDoc,
+  addDoc,
+  collection,
+  updateDoc,
   serverTimestamp,
   runTransaction,
-  onSnapshot
+  onSnapshot,
+  query,
+  where
 } from "firebase/firestore";
 import {
   ref,
@@ -38,9 +44,23 @@ const DEV_MODE = false;
 
 const AuthContext = createContext(null);
 
-// Helper function to award Contributor Badge to user
+// Helper function to award Contributor Badge to user (idempotent)
 export const awardLoginBadge = async (uid) => {
-  if (!uid) return;
+  if (!uid || uid === "guest_dev") return;
+  let existing = false;
+  try {
+    const q = query(
+      collection(db, "badges"),
+      where("user_id", "==", uid)
+    );
+    const snap = await getDocs(q);
+    existing = snap.docs.some(d => d.data()?.badge_name === "Contributor");
+  } catch (err) {
+    console.warn("Could not verify existing contributor badge:", err);
+  }
+
+  if (existing) return; // Already awarded
+
   const badgeDetails = {
     title: "you earned a badge",
     badgeName: "Contributor",
@@ -56,13 +76,50 @@ export const awardLoginBadge = async (uid) => {
       description: "Earned for completing registration & account setup!",
       awarded_at: serverTimestamp()
     });
+    sessionStorage.setItem("mc_pending_badge_popup", JSON.stringify(badgeDetails));
+    window.dispatchEvent(new CustomEvent("mc_badge_earned", { detail: badgeDetails }));
   } catch (err) {
     console.error("Failed to write login badge to firestore", err);
   }
+};
+
+// Helper function to award Authorized Badge to user when profile reaches 100% (idempotent)
+export const awardAuthorisedUserBadge = async (uid) => {
+  if (!uid) return;
   try {
+    const q = query(collection(db, "badges"), where("user_id", "==", uid));
+    const snap = await getDocs(q);
+    const existing = snap.docs.some(d => {
+      const bName = d.data()?.badge_name;
+      return bName === "Authorized" || bName === "Authorised User" || bName === "authorized";
+    });
+    if (existing) {
+      return; // Already awarded
+    }
+  } catch (err) {
+    console.error("Failed checking existing authorized badge", err);
+  }
+
+  const badgeDetails = {
+    title: "you earned a badge",
+    badgeName: "Authorized",
+    description: "Earned for completing 100% of your profile setup!"
+  };
+  try {
+    await addDoc(collection(db, "badges"), {
+      user_id: uid,
+      category: "account_setup",
+      level: 2,
+      badge_name: "Authorized",
+      badge_icon: "shield-check",
+      description: "Earned for completing 100% of your profile setup!",
+      awarded_at: serverTimestamp()
+    });
     sessionStorage.setItem("mc_pending_badge_popup", JSON.stringify(badgeDetails));
     window.dispatchEvent(new CustomEvent("mc_badge_earned", { detail: badgeDetails }));
-  } catch (e) { }
+  } catch (err) {
+    console.error("Failed to write authorized user badge to firestore", err);
+  }
 };
 
 export const AuthProvider = ({ children }) => {
@@ -139,9 +196,6 @@ export const AuthProvider = ({ children }) => {
     const userDocRef = doc(db, "users", user.uid);
     await updateDoc(userDocRef, updates);
     setProfile(prev => (prev ? { ...prev, ...updates } : updates));
-    if (updates.setup_completed) {
-      await awardLoginBadge(user.uid);
-    }
   };
 
   // Handle email/password sign up
@@ -254,6 +308,7 @@ export const AuthProvider = ({ children }) => {
       setProfile(userProfile);
       setUser(onboardingUser);
       setOnboardingUser(null);
+      await awardLoginBadge(uid);
       setLoading(false);
     } catch (error) {
       setLoading(false);
@@ -307,28 +362,20 @@ export const AuthProvider = ({ children }) => {
           unsubProfile = onSnapshot(userDocRef, async (snap) => {
             if (snap.exists()) {
               const profileData = snap.data();
-              if (profileData.banned) {
-                if (unsubProfile) {
-                  unsubProfile();
-                  unsubProfile = null;
+              try {
+                const verifSnap = await getDoc(verifDocRef);
+                if (verifSnap.exists() && verifSnap.data().id_card_url) {
+                  profileData.id_card_url = verifSnap.data().id_card_url;
                 }
-                firebaseSignOut(auth).then(() => {
-                  setProfile(null);
-                  setUser(null);
-                  setOnboardingUser(null);
-                });
-              } else {
-                try {
-                  const verifSnap = await getDoc(verifDocRef);
-                  if (verifSnap.exists() && verifSnap.data().id_card_url) {
-                    profileData.id_card_url = verifSnap.data().id_card_url;
-                  }
-                } catch (e) {
-                  // Ignore if private verification doc does not exist
-                }
-                setProfile(profileData);
-                setUser(currentUser);
-                setOnboardingUser(null);
+              } catch (e) {
+                // Ignore if private verification doc does not exist
+              }
+              setProfile(profileData);
+              setUser(currentUser);
+              setOnboardingUser(null);
+              // Ensure Contributor badge is awarded on account registration / sign-in (idempotent)
+              if (currentUser.uid) {
+                awardLoginBadge(currentUser.uid);
               }
             } else {
               // User profile doesn't exist in Firestore; trigger onboarding
@@ -424,6 +471,8 @@ export const AuthProvider = ({ children }) => {
       sendMagicLink,
       completeMagicLinkSignIn,
       isMagicLinkUrl,
+      awardLoginBadge,
+      awardAuthorisedUserBadge,
     }}>
       {children}
     </AuthContext.Provider>

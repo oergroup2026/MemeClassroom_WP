@@ -778,13 +778,13 @@ const Library = () => {
     try {
       if (existingLikeId) {
         // Unlike: remove from likes & decrement creator likes count
-        await deleteDoc(doc(db, "likes", existingLikeId));
+        await deleteDoc(doc(db, "likes", existingLikeId)).catch(() => {});
         await setDoc(statsRef, {
           total_likes_received: increment(-1)
-        }, { merge: true });
-        await updateDoc(memeRef, {
+        }, { merge: true }).catch(() => {});
+        await setDoc(memeRef, {
           likes_count: increment(-1)
-        });
+        }, { merge: true });
       } else {
         // Like: create like document & increment creator likes count
         const likeDocId = `${user.uid}_${memeId}`;
@@ -792,13 +792,13 @@ const Library = () => {
           user_id: user.uid,
           meme_id: memeId,
           created_at: serverTimestamp()
-        });
+        }, { merge: true });
         await setDoc(statsRef, {
           total_likes_received: increment(1)
-        }, { merge: true });
-        await updateDoc(memeRef, {
+        }, { merge: true }).catch(() => {});
+        await setDoc(memeRef, {
           likes_count: increment(1)
-        });
+        }, { merge: true });
       }
     } catch (e) {
       console.error("Like toggle failed", e);
@@ -946,9 +946,13 @@ const Library = () => {
       if (user) {
         try {
           const statsDocRef = doc(db, "user_stats", user.uid);
-          await setDoc(statsDocRef, {
-            memes_created_count: increment(-1)
-          }, { merge: true });
+          await runTransaction(db, async (tx) => {
+            const snap = await tx.get(statsDocRef);
+            if (snap.exists()) {
+              const current = snap.data().memes_created_count || 0;
+              tx.update(statsDocRef, { memes_created_count: Math.max(0, current - 1) });
+            }
+          });
         } catch (statsErr) {
           console.warn("Could not update user stats", statsErr);
         }

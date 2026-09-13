@@ -51,7 +51,8 @@ const BadgeAwardModal = () => {
   };
 
   const badgeTitle = badgeData.badgeName || "Contributor";
-  const completionPercentage = badgeData.progress || 55;
+  const isAuthorized = badgeTitle === "Authorized" || badgeTitle === "Authorised User" || badgeTitle === "authorized" || Boolean(profile?.setup_completed);
+  const completionPercentage = isAuthorized ? 100 : (badgeData.progress || 55);
 
   return createPortal(
     <div className="fixed inset-0 z-[11000] flex items-center justify-center p-4">
@@ -64,12 +65,12 @@ const BadgeAwardModal = () => {
       {/* Simple Dialog Card */}
       <div className="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 shadow-2xl p-6 sm:p-7 space-y-5 text-center animate-in zoom-in-95 fade-in duration-200">
 
-        {/* Verified Badge Image from /badge-verify.png */}
+        {/* Star Medal Badge Image from /star-medal.png */}
         <div className="flex justify-center">
           <img
-            src="/badge-verify.png"
-            alt="Verified Badge"
-            className="w-20 h-20 object-contain shadow-sm"
+            src="/star-medal.png"
+            alt="Star Medal Badge"
+            className="w-20 h-20 object-contain drop-shadow-md"
           />
         </div>
 
@@ -84,35 +85,48 @@ const BadgeAwardModal = () => {
           </h3>
         </div>
 
-        {/* Progress Bar Section (55% profile completion) */}
-        <div className="space-y-1.5 pt-1">
-          <div className="flex justify-between items-center text-xs font-semibold text-gray-600 dark:text-zinc-300">
-            <span>Profile Completion</span>
-            <span className="font-extrabold text-pink-600 dark:text-pink-400">{completionPercentage}%</span>
+        {/* Progress Bar Section (Only for Contributor / incomplete setup badges) */}
+        {!isAuthorized && (
+          <div className="space-y-1.5 pt-1">
+            <div className="flex justify-between items-center text-xs font-semibold text-gray-600 dark:text-zinc-300">
+              <span>Profile Completion</span>
+              <span className="font-extrabold text-pink-600 dark:text-pink-400">{completionPercentage}%</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden">
+              <div
+                className="bg-pink-600 h-full rounded-full transition-all duration-500"
+                style={{ width: `${completionPercentage}%` }}
+              />
+            </div>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden">
-            <div
-              className="bg-pink-600 h-full rounded-full transition-all duration-500"
-              style={{ width: `${completionPercentage}%` }}
-            />
-          </div>
-        </div>
+        )}
 
-        {/* 2 Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
-          <button
-            onClick={handleFinishSetupNow}
-            className="w-full py-2.5 px-4 bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs rounded-xl shadow-md shadow-pink-500/20 transition active:scale-95"
-          >
-            Finish Now
-          </button>
-          <button
-            onClick={handleClose}
-            className="w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 font-semibold text-xs rounded-xl transition active:scale-95"
-          >
-            I'll Do Later
-          </button>
-        </div>
+        {/* Action Buttons: Authorized gets 'Continue', Contributor gets 'Finish Now' / 'I'll Do Later' */}
+        {isAuthorized ? (
+          <div className="pt-2">
+            <button
+              onClick={handleClose}
+              className="w-full py-2.5 px-4 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-md shadow-purple-500/20 transition active:scale-95 cursor-pointer"
+            >
+              Continue
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+            <button
+              onClick={handleFinishSetupNow}
+              className="w-full py-2.5 px-4 bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs rounded-xl shadow-md shadow-pink-500/20 transition active:scale-95 cursor-pointer"
+            >
+              Finish Now
+            </button>
+            <button
+              onClick={handleClose}
+              className="w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 font-semibold text-xs rounded-xl transition active:scale-95 cursor-pointer"
+            >
+              I'll Do Later
+            </button>
+          </div>
+        )}
 
       </div>
     </div>,

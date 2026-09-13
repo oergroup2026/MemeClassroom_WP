@@ -160,7 +160,7 @@ export default function MemeStoryDetail() {
       setLoading(true);
       try {
         const snap = await getDoc(doc(db, "resources", id));
-        if (!snap.exists() || snap.data().type !== "stories") {
+        if (!snap.exists() || (snap.data().type !== "stories" && snap.data().type !== "story" && snap.data().type !== "resource" && snap.data().uploadType !== "stories")) {
           setNotFound(true);
           return;
         }
@@ -248,23 +248,39 @@ export default function MemeStoryDetail() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────────
   const handleLike = async () => {
-    if (!user) { showToast("Sign in to like stories.", "info"); return; }
+    if (!user || !id) { showToast("Sign in to like stories.", "info"); return; }
     if (likePending) return;
     setLikePending(true);
+    const wasLiked = isLiked;
+    const previousLikesCount = story?.likes_count || 0;
+    const newLikesCount = wasLiked ? Math.max(0, previousLikesCount - 1) : previousLikesCount + 1;
+    const likeDocRef = doc(db, "resource_likes", likeDocId || `${user.uid}_${id}`);
+
+    // Optimistic UI update
+    setIsLiked(!wasLiked);
+    setStory((s) => (s ? { ...s, likes_count: newLikesCount } : s));
+
     try {
-      if (likeDocId) {
-        await deleteDoc(doc(db, "resource_likes", likeDocId));
-        await updateDoc(doc(db, "resources", id), { likes_count: increment(-1) });
-        setStory((s) => ({ ...s, likes_count: Math.max(0, (s.likes_count || 1) - 1) }));
+      if (wasLiked) {
+        await deleteDoc(likeDocRef).catch(() => {});
+        await setDoc(doc(db, "resources", id), { likes_count: increment(-1) }, { merge: true });
+        if (story?.author_id && story?.author_id !== "admin") {
+          await setDoc(doc(db, "user_stats", story.author_id), { total_likes_received: increment(-1) }, { merge: true }).catch(() => {});
+        }
       } else {
-        const likeId = `${user.uid}_${id}`;
-        await setDoc(doc(db, "resource_likes", likeId), {
+        await setDoc(likeDocRef, {
           user_id: user.uid, resource_id: id, created_at: serverTimestamp(),
-        });
-        await updateDoc(doc(db, "resources", id), { likes_count: increment(1) });
-        setStory((s) => ({ ...s, likes_count: (s.likes_count || 0) + 1 }));
+        }, { merge: true });
+        await setDoc(doc(db, "resources", id), { likes_count: increment(1) }, { merge: true });
+        if (story?.author_id && story?.author_id !== "admin") {
+          await setDoc(doc(db, "user_stats", story.author_id), { total_likes_received: increment(1) }, { merge: true }).catch(() => {});
+        }
       }
     } catch (e) {
+      console.error("Story like failed", e);
+      // Rollback on error
+      setIsLiked(wasLiked);
+      setStory((s) => (s ? { ...s, likes_count: previousLikesCount } : s));
       showToast("Failed to update like.", "error");
     } finally {
       setLikePending(false);

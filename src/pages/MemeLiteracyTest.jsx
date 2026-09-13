@@ -336,6 +336,29 @@ const MemeLiteracyTest = () => {
           pass_threshold: testMeta?.pass_threshold ?? 60,
           awarded_at: serverTimestamp(),
         });
+
+        // Also sync into main `badges` collection so Staffroom & UserModalContext display the badge
+        try {
+          const badgeQ = query(
+            collection(db, "badges"),
+            where("user_id", "==", user.uid),
+            where("badge_name", "==", testMeta.badge_label)
+          );
+          const badgeSnap = await getDocs(badgeQ);
+          if (badgeSnap.empty) {
+            await addDoc(collection(db, "badges"), {
+              user_id: user.uid,
+              category: "literacy",
+              level: 1,
+              badge_name: testMeta.badge_label,
+              badge_icon: "award",
+              description: `Passed literacy assessment with ${overallPct}% score`,
+              awarded_at: serverTimestamp()
+            });
+          }
+        } catch (bErr) {
+          console.error("Failed syncing literacy badge to badges collection", bErr);
+        }
       }
       setResultSaved(true);
     } catch (e) { console.error("Save result failed:", e); }
