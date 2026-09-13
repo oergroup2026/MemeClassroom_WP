@@ -68,7 +68,12 @@ const DeferredSetupBanner = () => {
 
   // Open wizard from external event (profile page "Finish Setup" button)
   React.useEffect(() => {
-    const handleOpen = () => setDismissed(false);
+    const handleOpen = () => {
+      window.sessionStorage.removeItem("mc_skip_setup");
+      setDismissed(false);
+      setStep(1);
+      setWizardOpen(true);
+    };
     window.addEventListener("mc_open_account_setup", handleOpen);
     return () => window.removeEventListener("mc_open_account_setup", handleOpen);
   }, []);
