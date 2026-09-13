@@ -556,23 +556,30 @@ const Lab = () => {
   const VIDEO_TEMPLATES = [
     {
       id: "v-tpl-1",
-      title: "Classroom Lecture Explainer",
+      title: "Cell Division (Mitosis)",
       thumbnail: "/templates/drake.jpg",
       url: MEDIA_SAMPLES?.video?.[0]?.url || "",
       format: "video"
     },
     {
       id: "v-tpl-2",
-      title: "Science Lab Reaction",
+      title: "Water Cycle Animation",
       thumbnail: "/templates/leonardo-toast.jpg",
       url: MEDIA_SAMPLES?.video?.[1]?.url || "",
       format: "video"
     },
     {
       id: "v-tpl-3",
-      title: "Historical Timeline Clip",
+      title: "Earth Rotation & Orbit",
       thumbnail: "/templates/woman-cat.jpg",
       url: MEDIA_SAMPLES?.video?.[2]?.url || "",
+      format: "video"
+    },
+    {
+      id: "v-tpl-4",
+      title: "Physics Pendulum Motion",
+      thumbnail: "/templates/spongebob.jpg",
+      url: MEDIA_SAMPLES?.video?.[3]?.url || "",
       format: "video"
     }
   ];
@@ -587,7 +594,7 @@ const Lab = () => {
     },
     {
       id: "g-tpl-2",
-      title: "Mind Blown Discovery",
+      title: "Eureka! Light Bulb Moment",
       thumbnail: MEDIA_SAMPLES?.gif?.[1]?.url || "",
       url: MEDIA_SAMPLES?.gif?.[1]?.url || "",
       format: "gif"
@@ -598,29 +605,43 @@ const Lab = () => {
       thumbnail: MEDIA_SAMPLES?.gif?.[2]?.url || "",
       url: MEDIA_SAMPLES?.gif?.[2]?.url || "",
       format: "gif"
+    },
+    {
+      id: "g-tpl-4",
+      title: "Mind Blown Discovery",
+      thumbnail: MEDIA_SAMPLES?.gif?.[3]?.url || "",
+      url: MEDIA_SAMPLES?.gif?.[3]?.url || "",
+      format: "gif"
     }
   ];
 
   const AUDIO_TEMPLATES = [
     {
       id: "a-tpl-1",
-      title: "Dramatic Classroom Bell",
+      title: "Newton's Apple — Lecture Clip",
       thumbnail: "/templates/leonardo-toast.jpg",
       url: MEDIA_SAMPLES?.audio?.[0]?.url || "",
       format: "audio"
     },
     {
       id: "a-tpl-2",
-      title: "Quiz Show Game Buzzer",
+      title: "Gettysburg Address (1863)",
       thumbnail: "/templates/distracted-boyfriend.jpg",
       url: MEDIA_SAMPLES?.audio?.[1]?.url || "",
       format: "audio"
     },
     {
       id: "a-tpl-3",
-      title: "Timed Exam Countdown",
-      thumbnail: "/templates/wolverine.jpg",
+      title: "School Bell Chime",
+      thumbnail: "/templates/batman-robin.jpg",
       url: MEDIA_SAMPLES?.audio?.[2]?.url || "",
+      format: "audio"
+    },
+    {
+      id: "a-tpl-4",
+      title: "Quiz Game Buzzer",
+      thumbnail: "/templates/drake.jpg",
+      url: MEDIA_SAMPLES?.audio?.[3]?.url || "",
       format: "audio"
     }
   ];
@@ -712,9 +733,17 @@ const Lab = () => {
   };
 
   const deleteTextLayer = (id) => {
-    setTextLayers(prev => prev.filter(l => l.id !== id));
+    setTextLayers(prev => prev.filter(l => l.role !== id && l.id !== id));
     if (selectedTextId === id) setSelectedTextId(null);
     if (editingTextId === id) setEditingTextId(null);
+  };
+
+  const clearAllText = () => {
+    setTextLayers([]);
+    setTopTextInput("");
+    setBottomTextInput("");
+    setSelectedTextId(null);
+    setEditingTextId(null);
   };
 
   const addNewTextLayer = () => {
@@ -2420,10 +2449,10 @@ const Lab = () => {
         {/* ── LEFT COLUMN: COMPACT CANVAS BOX + BOTTOM CONTROLS CARD ── */}
         <div className="flex-1 flex flex-col gap-4 min-w-0">
 
-          {/* 1. COMPACT CANVAS AREA BOX */}
+          {/* 1. COMPACT CANVAS AREA BOX (Reduced height & size for optimal viewport fit) */}
           <div
             id="lab-canvas-area"
-            className="bg-slate-100/90 dark:bg-[#0b0e14] border border-slate-200 dark:border-[#1b2336] rounded-2xl shadow-sm relative flex items-center justify-center p-3 sm:p-4 min-h-[340px] lg:min-h-[360px] overflow-hidden select-none"
+            className="bg-slate-100/90 dark:bg-[#0b0e14] border border-slate-200 dark:border-[#1b2336] rounded-2xl shadow-sm relative flex items-center justify-center p-2.5 sm:p-3 min-h-[260px] lg:min-h-[280px] overflow-hidden select-none"
             style={{
               backgroundImage: highContrastMode
                 ? "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)"
@@ -2431,86 +2460,90 @@ const Lab = () => {
               backgroundSize: "20px 20px"
             }}
           >
-            {/* Floating Bottom-Left: Zoom Controls Capsule */}
-            <div className="absolute bottom-3 left-3 z-30 flex items-center gap-1.5 bg-white/90 dark:bg-[#101626]/90 backdrop-blur-md border border-slate-200 dark:border-[#1e273d] px-2.5 py-1.5 rounded-xl shadow-md text-xs font-semibold text-slate-700 dark:text-slate-300">
-              <button
-                type="button"
-                onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))}
-                className="w-5 h-5 flex items-center justify-center hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-sm font-bold"
-                title="Zoom Out"
-              >
-                -
-              </button>
-              <button
-                type="button"
-                onClick={() => setZoomLevel(100)}
-                className="hover:text-rose-600 dark:hover:text-white transition px-1 text-[11px] font-bold"
-                title="Reset Zoom"
-              >
-                {zoomLevel}%
-              </button>
-              <button
-                type="button"
-                onClick={() => setZoomLevel(prev => Math.min(200, prev + 10))}
-                className="w-5 h-5 flex items-center justify-center hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-sm font-bold"
-                title="Zoom In"
-              >
-                +
-              </button>
-              <div className="h-3.5 w-px bg-slate-300 dark:bg-slate-700 mx-0.5" />
-              <button
-                type="button"
-                onClick={() => setZoomLevel(100)}
-                className="p-0.5 text-slate-500 hover:text-rose-600 dark:hover:text-white transition"
-                title="Fit Canvas"
-              >
-                <Maximize2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Floating Right: Aspect Ratio Capsule & BG Color Picker */}
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 bg-white/90 dark:bg-[#101626]/90 backdrop-blur-md border border-slate-200 dark:border-[#1e273d] p-1.5 rounded-xl shadow-md">
-              {["1:1", "16:9", "9:16", "4:3"].map((ratio) => (
+            {/* Floating Bottom-Left: Zoom Controls Capsule (Image Canvas Only) */}
+            {activeTab === "image" && (
+              <div className="absolute bottom-3 left-3 z-30 flex items-center gap-1.5 bg-white/90 dark:bg-[#101626]/90 backdrop-blur-md border border-slate-200 dark:border-[#1e273d] px-2.5 py-1.5 rounded-xl shadow-md text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <button
-                  key={ratio}
                   type="button"
-                  onClick={() => setCanvasAspect(ratio)}
-                  className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-all ${
-                    canvasAspect === ratio
-                      ? "bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white shadow-xs scale-105"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
-                  }`}
+                  onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))}
+                  className="w-5 h-5 flex items-center justify-center hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-sm font-bold"
+                  title="Zoom Out"
                 >
-                  {ratio}
+                  -
                 </button>
-              ))}
-              <div className="w-full h-px bg-slate-200 dark:bg-slate-800 my-0.5" />
-              <label className="flex items-center justify-center gap-1 cursor-pointer py-0.5 px-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-[10px] font-bold text-slate-600 dark:text-slate-400" title="Canvas Background Color">
-                <span className="text-[9px]">BG</span>
-                <div
-                  className="w-3.5 h-3.5 rounded border border-slate-400 dark:border-slate-600 relative overflow-hidden shadow-xs"
-                  style={{ backgroundColor: canvasBg }}
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(100)}
+                  className="hover:text-rose-600 dark:hover:text-white transition px-1 text-[11px] font-bold"
+                  title="Reset Zoom"
                 >
-                  <input
-                    type="color"
-                    value={canvasBg}
-                    onChange={(e) => setCanvasBg(e.target.value)}
-                    className="opacity-0 absolute inset-0 cursor-pointer"
-                  />
-                </div>
-              </label>
-            </div>
+                  {zoomLevel}%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(prev => Math.min(200, prev + 10))}
+                  className="w-5 h-5 flex items-center justify-center hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-sm font-bold"
+                  title="Zoom In"
+                >
+                  +
+                </button>
+                <div className="h-3.5 w-px bg-slate-300 dark:bg-slate-700 mx-0.5" />
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(100)}
+                  className="p-0.5 text-slate-500 hover:text-rose-600 dark:hover:text-white transition"
+                  title="Fit Canvas"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Floating Right: Aspect Ratio Capsule & BG Color Picker (Image Canvas Only) */}
+            {activeTab === "image" && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 bg-white/90 dark:bg-[#101626]/90 backdrop-blur-md border border-slate-200 dark:border-[#1e273d] p-1.5 rounded-xl shadow-md">
+                {["1:1", "16:9", "9:16", "4:3"].map((ratio) => (
+                  <button
+                    key={ratio}
+                    type="button"
+                    onClick={() => setCanvasAspect(ratio)}
+                    className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-all ${
+                      canvasAspect === ratio
+                        ? "bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white shadow-xs scale-105"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                    }`}
+                  >
+                    {ratio}
+                  </button>
+                ))}
+                <div className="w-full h-px bg-slate-200 dark:bg-slate-800 my-0.5" />
+                <label className="flex items-center justify-center gap-1 cursor-pointer py-0.5 px-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-[10px] font-bold text-slate-600 dark:text-slate-400" title="Canvas Background Color">
+                  <span className="text-[9px]">BG</span>
+                  <div
+                    className="w-3.5 h-3.5 rounded border border-slate-400 dark:border-slate-600 relative overflow-hidden shadow-xs"
+                    style={{ backgroundColor: canvasBg }}
+                  >
+                    <input
+                      type="color"
+                      value={canvasBg}
+                      onChange={(e) => setCanvasBg(e.target.value)}
+                      className="opacity-0 absolute inset-0 cursor-pointer"
+                    />
+                  </div>
+                </label>
+              </div>
+            )}
 
             {/* Canvas Viewport (Reduced max-width & max-height) */}
             <div
               style={{
-                transform: `scale(${zoomLevel / 100})`,
+                transform: activeTab === "image" ? `scale(${zoomLevel / 100})` : undefined,
                 transition: "transform 0.15s ease-out"
               }}
-              className="flex items-center justify-center max-w-full max-h-full"
+              className={`flex items-center justify-center ${activeTab === "video" ? "w-full h-full" : "max-w-full max-h-full"}`}
             >
               {activeTab === "video" ? (
-                <div className="w-full h-full min-h-[380px] shadow-lg rounded-2xl overflow-hidden border border-slate-200 dark:border-zinc-800 flex flex-col">
+                <div className="w-full h-full min-h-[320px] shadow-lg rounded-2xl overflow-hidden border border-slate-200 dark:border-zinc-800 flex flex-col">
                   <ClassicVideoEditor
                     videoUrl={videoUrl}
                     videoFile={videoFile}
@@ -2554,7 +2587,13 @@ const Lab = () => {
               ) : (
                 <div
                   ref={canvasContainerRef}
-                  className={`relative w-full max-w-[420px] max-h-[45vh] sm:max-h-[380px] ${ASPECT_RATIOS[canvasAspect]?.css || "aspect-square"} flex items-center justify-center select-none shadow-xl border border-slate-300 dark:border-[#1b2336] rounded-2xl overflow-hidden`}
+                  className={`relative w-full max-w-[340px] max-h-[40vh] sm:max-h-[300px] ${
+                    activeTab === "image"
+                      ? (ASPECT_RATIOS[canvasAspect]?.css || "aspect-square")
+                      : activeTab === "audio"
+                      ? "aspect-[16/10] max-w-[420px]"
+                      : "aspect-square"
+                  } flex items-center justify-center select-none shadow-xl border border-slate-300 dark:border-[#1b2336] rounded-2xl overflow-hidden`}
                   style={{
                     backgroundColor: canvasBg,
                     filter: FILTER_MAP[selectedFilter] || undefined
@@ -2905,7 +2944,7 @@ const Lab = () => {
                   )}
 
                   {activeTab === "gif" && (
-                    <div className="w-full h-full flex items-center justify-center bg-black/90">
+                    <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-black/90">
                       {gifUrl ? (
                         <img
                           src={gifUrl}
@@ -2922,7 +2961,7 @@ const Lab = () => {
                   )}
 
                   {activeTab === "audio" && (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-4 gap-3 overflow-y-auto">
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 p-4 gap-3 overflow-y-auto">
                       {audioUrl ? (
                         <>
                           <AudiogramCanvas
@@ -3202,6 +3241,17 @@ const Lab = () => {
                     <span>Add Text</span>
                   </button>
 
+                  {/* Clear All Text Button (Always visible delete option) */}
+                  <button
+                    type="button"
+                    onClick={clearAllText}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 hover:border-red-300 font-bold text-xs transition active:scale-95"
+                    title="Delete and clear all text captions"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Clear All Text</span>
+                  </button>
+
                   {/* Delete Selected Layer Button */}
                   {selectedTextId && (
                     <button
@@ -3342,7 +3392,7 @@ const Lab = () => {
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400">
                 {activeTab} Templates
               </span>
-              <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none">
+              <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {[
                   { id: "popular", label: "Popular" },
                   { id: "academic", label: "Academic" },
@@ -3365,23 +3415,25 @@ const Lab = () => {
               </div>
             </div>
 
-            {/* Section Specific Templates Cards in 2-Column Grid */}
-            <div className="grid grid-cols-2 gap-2.5">
-              {getActiveFormatTemplates().slice(0, 6).map((tpl) => (
+            {/* Section Specific Templates Cards in 2-Column Grid (Scrollable with solid card heights) */}
+            <div className="grid grid-cols-2 gap-2.5 max-h-[350px] overflow-y-auto pr-1">
+              {getActiveFormatTemplates().map((tpl) => (
                 <div
                   key={tpl.id}
                   onClick={() => handleSelectTemplatePreset(tpl)}
-                  className="group relative aspect-video rounded-xl overflow-hidden border border-slate-200 dark:border-[#1e273a] hover:border-[#e11d48] cursor-pointer bg-slate-50 dark:bg-[#111624] shadow-xs transition-all duration-200 hover:scale-[1.02] hover:shadow-md flex flex-col justify-between"
+                  className="group relative h-24 sm:h-28 w-full rounded-xl overflow-hidden border border-slate-200 dark:border-[#1e273a] hover:border-[#e11d48] cursor-pointer bg-slate-100 dark:bg-[#111624] shadow-xs transition-all duration-200 hover:scale-[1.02] hover:shadow-md shrink-0 select-none"
                 >
                   <img
                     src={tpl.thumbnail}
                     alt={tpl.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    loading="lazy"
                   />
-                  
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
+
                   {/* Top Badge: Format & Story Button */}
-                  <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between pointer-events-none z-10">
-                    <span className="bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shadow">
+                  <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between z-20">
+                    <span className="bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shadow pointer-events-none">
                       {tpl.format || activeTab}
                     </span>
 
@@ -3390,9 +3442,10 @@ const Lab = () => {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/resources?tab=stories&search=${encodeURIComponent(tpl.title)}`);
+                        e.preventDefault();
+                        navigate(`/resources?tab=stories&q=${encodeURIComponent(tpl.title)}`);
                       }}
-                      className="pointer-events-auto px-1.5 py-0.5 rounded bg-amber-500/90 hover:bg-amber-600 text-white text-[9px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95"
+                      className="px-1.5 py-0.5 rounded bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-bold flex items-center gap-1 shadow transition active:scale-95 cursor-pointer z-30"
                       title="View Meme Origin Story in Resources"
                     >
                       <span>📖</span>
@@ -3401,8 +3454,8 @@ const Lab = () => {
                   </div>
 
                   {/* Bottom Title Bar */}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-1.5 pt-4">
-                    <span className="text-[10px] font-bold text-white truncate block w-full leading-tight">
+                  <div className="absolute inset-x-0 bottom-0 p-1.5 z-10">
+                    <span className="text-[10px] font-bold text-white truncate block w-full leading-tight drop-shadow-sm">
                       {tpl.title}
                     </span>
                   </div>
@@ -4096,12 +4149,22 @@ const Lab = () => {
       <LibraryPickerModal
         isOpen={showLibraryPickerModal}
         onClose={() => setShowLibraryPickerModal(false)}
+        format={activeTab}
         onSelect={(mediaUrl) => {
-          if (images.length >= 4) {
-            setAlertMessage("You can only add up to 4 images to the collage.");
-            return;
+          if (activeTab === "video") {
+            setVideoUrl(mediaUrl);
+          } else if (activeTab === "gif") {
+            setGifUrl(mediaUrl);
+          } else if (activeTab === "audio") {
+            setAudioUrl(mediaUrl);
+            selectMediaPreset(mediaUrl, "audio", 30);
+          } else {
+            if (images.length >= 4) {
+              setAlertMessage("You can only add up to 4 images to the collage.");
+              return;
+            }
+            setImages(prev => [...prev, mediaUrl]);
           }
-          setImages(prev => [...prev, mediaUrl]);
         }}
       />
 
