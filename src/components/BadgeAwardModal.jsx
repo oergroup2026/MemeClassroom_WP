@@ -51,7 +51,7 @@ const BadgeAwardModal = () => {
   };
 
   const badgeTitle = badgeData.badgeName || "Contributor";
-  const isAuthorized = badgeTitle === "Authorized" || badgeTitle === "Authorised User" || badgeTitle === "authorized";
+  const isAuthorized = badgeTitle === "Authorized" || badgeTitle === "Authorised User" || badgeTitle === "authorized" || Boolean(profile?.setup_completed);
   const completionPercentage = isAuthorized ? 100 : (badgeData.progress || 55);
 
   return createPortal(

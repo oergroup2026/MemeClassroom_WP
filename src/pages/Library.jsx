@@ -778,13 +778,13 @@ const Library = () => {
     try {
       if (existingLikeId) {
         // Unlike: remove from likes & decrement creator likes count
-        await deleteDoc(doc(db, "likes", existingLikeId));
+        await deleteDoc(doc(db, "likes", existingLikeId)).catch(() => {});
         await setDoc(statsRef, {
           total_likes_received: increment(-1)
-        }, { merge: true });
-        await updateDoc(memeRef, {
+        }, { merge: true }).catch(() => {});
+        await setDoc(memeRef, {
           likes_count: increment(-1)
-        });
+        }, { merge: true });
       } else {
         // Like: create like document & increment creator likes count
         const likeDocId = `${user.uid}_${memeId}`;
@@ -792,13 +792,13 @@ const Library = () => {
           user_id: user.uid,
           meme_id: memeId,
           created_at: serverTimestamp()
-        });
+        }, { merge: true });
         await setDoc(statsRef, {
           total_likes_received: increment(1)
-        }, { merge: true });
-        await updateDoc(memeRef, {
+        }, { merge: true }).catch(() => {});
+        await setDoc(memeRef, {
           likes_count: increment(1)
-        });
+        }, { merge: true });
       }
     } catch (e) {
       console.error("Like toggle failed", e);

@@ -102,7 +102,7 @@ const CATEGORY_NAMES = {
 const containerClass = "bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm";
 
 const Profile = () => {
-  const { user, profile, updateUserAvatar } = useAuth();
+  const { user, profile, updateUserAvatar, awardLoginBadge } = useAuth();
   const currentProfile = profile || {
     name: user?.displayName || "Educator",
     role: "student",
@@ -408,9 +408,15 @@ const Profile = () => {
 
   // Badge transaction checks trigger
   useEffect(() => {
-    if (!user || earnedBadges.length === 0 && myMemes.length === 0) return;
+    if (!user || !badgesLoaded || user.uid === "guest_dev") return;
 
     const checkAndAwardBadges = async () => {
+      // Ensure Contributor registration badge is awarded if missing
+      const hasContributor = earnedBadges.some(b => b.badge_name === "Contributor");
+      if (!hasContributor && awardLoginBadge) {
+        awardLoginBadge(user.uid);
+      }
+
       for (const [category, config] of Object.entries(CATEGORY_NAMES)) {
         const count = stats[config.statKey] || 0;
         const currentLevel = calculateLevel(count);
@@ -439,7 +445,7 @@ const Profile = () => {
     };
 
     checkAndAwardBadges();
-  }, [stats, earnedBadges, myMemes, user]);
+  }, [stats, earnedBadges, badgesLoaded, user]);
 
   // Fetch User's Literacy Test Results
   useEffect(() => {
@@ -545,7 +551,7 @@ const Profile = () => {
       const uid = user?.uid || "guest_dev";
       const storageRef = ref(storage, `users/${uid}/avatar/${cleanFileName}`);
       const mimeType = file.type || (ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'gif' ? 'image/gif' : ext === 'svg' ? 'image/svg+xml' : 'image/jpeg');
-      
+
       let avatarFinalUrl = null;
       try {
         const snapshot = await uploadBytes(storageRef, file, { contentType: mimeType });
@@ -1060,6 +1066,12 @@ const Profile = () => {
     (b, index, self) => index === self.findIndex(t => t.badge_name === b.badge_name)
   );
 
+  // Filter and deduplicate literacy test results by badge_earned / test_id so retaking tests doesn't produce duplicate cards
+  const passingLiteracyResults = literacyResults.filter(r => r.passed && r.badge_earned);
+  const uniqueLiteracyBadges = passingLiteracyResults.filter(
+    (r, index, self) => index === self.findIndex(t => (t.badge_earned || t.test_id) === (r.badge_earned || r.test_id))
+  );
+
   // Combine all achieved badges from Firestore + Meme Literacy Tests
   const allAchievedBadges = [
     ...uniqueEarnedBadges.map(b => ({
@@ -1069,7 +1081,7 @@ const Profile = () => {
       icon: b.badge_name === "Authorized" || b.badge_name === "Authorised User" ? "shield-check" : b.badge_name === "Contributor" ? "award" : "badge-check",
       date: b.awarded_at ? new Date(b.awarded_at.seconds * 1000).toLocaleDateString() : "Earned"
     })),
-    ...literacyResults.filter(r => r.passed && r.badge_earned).map(r => ({
+    ...uniqueLiteracyBadges.map(r => ({
       id: r.id || r.badge_earned,
       name: r.badge_earned,
       description: `Passed with ${r.score_pct}% score`,
@@ -1167,11 +1179,10 @@ const Profile = () => {
                         </span>
                       </div>
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          passed
-                            ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300"
-                            : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300"
-                        }`}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${passed
+                          ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300"
+                          : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                          }`}
                       >
                         {passed ? "✓ Passed" : "Needs Review"}
                       </span>
@@ -1321,130 +1332,60 @@ const Profile = () => {
 
             </div>
           </div>
-        </div>
-      )}
 
-      {/* 1A-slim. Slim profile completion bar — always visible when profile incomplete */}
-      {profile && (() => {
-        const profileFieldsSlim = [
-          Boolean(profile.name),
-          Boolean(user?.email || profile.email),
-          Boolean(profile.role),
-          Boolean(user?.email || user?.uid),
-          Boolean(profile.institution_type),
-          Boolean(profile.institution),
-          Boolean(profile.place || profile.state),
-          Boolean(profile.country),
-        ];
-        const doneSlim = profileFieldsSlim.filter(Boolean).length;
-        const pctSlim = Math.round((doneSlim / profileFieldsSlim.length) * 100);
-        if (pctSlim >= 100) return null;
-        return (
-          <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-xl px-4 py-2.5 shadow-sm flex items-center gap-3">
-            <span className="text-[10px] font-bold text-gray-500 dark:text-zinc-400 whitespace-nowrap">
-              Profile {pctSlim}% complete
-            </span>
-            <div className="flex-1 bg-gray-200 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all duration-700"
-                style={{ width: `${pctSlim}%` }}
-              />
-            </div>
-            <button
-              onClick={() => {
-                openEditModal();
-                window.sessionStorage.removeItem("mc_skip_setup");
-                window.dispatchEvent(new CustomEvent("mc_open_account_setup"));
-              }}
-              className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline whitespace-nowrap flex-shrink-0"
-            >
-              Complete →
-            </button>
-          </div>
-        );
-      })()}
+          {/* Profile Completion Progress Section inside main profile card */}
+          {profile && (() => {
+            const profileFields = [
+              { label: "Full Name", done: Boolean(profile.name) },
+              { label: "Email Address", done: Boolean(user?.email || profile.email) },
+              { label: "Account Role", done: Boolean(profile.role) },
+              { label: "Account Credentials", done: Boolean(user?.email || user?.uid) },
+              { label: "Institution Type", done: Boolean(profile.institution_type || profile.institution) },
+              { label: "School / Institution", done: Boolean(profile.institution) },
+              { label: "City / Location", done: Boolean(profile.place || profile.state || profile.country || profile.institution) },
+            ];
+            const completedCount = profileFields.filter(f => f.done).length;
+            const totalFields = profileFields.length;
+            const completionPct = Math.min(100, Math.round((completedCount / totalFields) * 100));
 
-      {/* 1B. Profile Completion Progress Panel (8 Fields Tracker) */}
-      {profile && (() => {
-        const profileFields = [
-          { label: "Full Name", done: Boolean(profile.name) },
-          { label: "Email Address", done: Boolean(user?.email || profile.email) },
-          { label: "Account Role", done: Boolean(profile.role) },
-          { label: "Account Credentials", done: Boolean(user?.email || user?.uid) },
-          { label: "Institution Type", done: Boolean(profile.institution_type) },
-          { label: "School / Institution", done: Boolean(profile.institution) },
-          { label: "City / Location", done: Boolean(profile.place || profile.state) },
-          { label: "Country", done: Boolean(profile.country) },
-        ];
-        const completedCount = profileFields.filter(f => f.done).length;
-        const completionPct = Math.round((completedCount / 8) * 100);
+            const isFullySetup = Boolean(profile.setup_completed) || completionPct >= 100 || (Boolean(profile.name) && Boolean(profile.institution) && Boolean(profile.role));
 
-        if (completionPct >= 100) return null;
+            if (isFullySetup) return null;
 
-        return (
-          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-extrabold text-base text-gray-900 dark:text-white">
-                    Profile Setup Progress
-                  </h3>
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-pink-50 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800">
-                    {completedCount} of 8 Completed
-                  </span>
+            return (
+              <div className="mt-6 pt-5 border-t border-gray-200/80 dark:border-zinc-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
+                <div className="w-full max-w-md space-y-1.5">
+                  <div className="flex justify-between items-center text-xs font-bold text-gray-700 dark:text-zinc-300">
+                    <span className="flex items-center gap-1.5">
+                      <span>Profile Setup Progress</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                        {completedCount} of {totalFields}
+                      </span>
+                    </span>
+                    <span className="text-purple-600 dark:text-purple-400 font-extrabold">{completionPct}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 h-full rounded-full transition-all duration-700"
+                      style={{ width: `${completionPct}%` }}
+                    />
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
-                  Complete all 8 profile fields to finish your account setup.
-                </p>
-              </div>
-
-              {completedCount < 8 && (
                 <button
                   onClick={() => {
                     openEditModal();
                     window.sessionStorage.removeItem("mc_skip_setup");
                     window.dispatchEvent(new CustomEvent("mc_open_account_setup"));
                   }}
-                  className="bg-pink-600 hover:bg-pink-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition active:scale-95 flex-shrink-0"
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition active:scale-95 flex-shrink-0 w-full sm:w-auto text-center cursor-pointer"
                 >
-                  Finish
+                  Finish →
                 </button>
-              )}
-            </div>
-
-            {/* Progress Bar */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs font-bold text-gray-600 dark:text-zinc-300">
-                <span>Completion Status</span>
-                <span className="text-pink-600 dark:text-pink-400">{completionPct}%</span>
               </div>
-              <div className="w-full bg-gray-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-pink-600 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${completionPct}%` }}
-                />
-              </div>
-            </div>
-
-            {/* 7 Fields Status Badges */}
-            <div className="flex flex-wrap gap-2 pt-1">
-              {profileFields.map((field) => (
-                <span
-                  key={field.label}
-                  className={`text-[11px] font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 ${
-                    field.done
-                      ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800"
-                      : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700"
-                  }`}
-                >
-                  <span>{field.done ? "✓" : "•"}</span>
-                  <span>{field.label}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+            );
+          })()}
+        </div>
+      )}
 
       {/* 2. Scoreboard Activity Statistics Panel */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -1617,7 +1558,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          My Public Creations ({myMemes.length})
+          Public Posts ({myMemes.length})
         </button>
         <button
           onClick={() => setActiveTab("my-drafts")}
@@ -1626,7 +1567,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          My Saved Drafts ({myDrafts.length})
+          Drafts ({myDrafts.length})
         </button>
         <button
           onClick={() => setActiveTab("bookmarks")}
@@ -1635,7 +1576,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          My Bookmarked Memes ({bookmarkedMemes.length})
+          Bookmarks ({bookmarkedMemes.length})
         </button>
         <button
           onClick={() => setActiveTab("my-resources")}
@@ -1644,7 +1585,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          My Resources ({myResources.length})
+          Resources ({myResources.length})
         </button>
         <button
           onClick={() => setActiveTab("saved-resources")}
@@ -1653,7 +1594,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          Saved Resources ({savedResources.length})
+          Saved ({savedResources.length})
         </button>
         <button
           onClick={() => setActiveTab("literacy-tests")}
@@ -1662,7 +1603,7 @@ const Profile = () => {
             : "border-transparent text-gray-400 hover:text-gray-500"
             }`}
         >
-          Achieved Badges & Test Results ({allAchievedBadges.length})
+          Badges & Test Results ({allAchievedBadges.length})
         </button>
       </div>
 
@@ -1785,7 +1726,7 @@ const Profile = () => {
                   <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
                     Choose an image from your computer or phone (PNG, JPG, WebP, GIF up to 5MB).
                   </p>
-                  
+
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <input
                       ref={fileInputRef}

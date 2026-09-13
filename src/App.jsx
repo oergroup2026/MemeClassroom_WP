@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AccessibilityWidget from './components/AccessibilityWidget';
@@ -8,6 +8,7 @@ import WelcomeModal from './components/WelcomeModal';
 import DeferredSetupBanner from './components/DeferredSetupBanner';
 import BadgeAwardModal from './components/BadgeAwardModal';
 import { useUdl } from './context/UdlContext';
+import { useAuth } from './context/AuthContext';
 
 // Statically import Home for fast initial LCP
 import Home from './pages/Home';
@@ -27,6 +28,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 const MemeLiteracyTest = lazy(() => import('./pages/MemeLiteracyTest'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const IsBanned = lazy(() => import('./pages/IsBanned'));
 
 // Page loading fallback spinner
 const PageLoader = () => (
@@ -38,7 +40,16 @@ const PageLoader = () => (
 
 function App() {
   const { highContrastMode, fontSizeAdjustment } = useUdl();
+  const { user, profile } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Redirect banned users to /banned
+  React.useEffect(() => {
+    if (user && profile?.banned && location.pathname !== '/banned') {
+      navigate('/banned', { replace: true });
+    }
+  }, [user, profile?.banned, location.pathname, navigate]);
 
   React.useEffect(() => {
     if (highContrastMode) {
@@ -96,6 +107,8 @@ function App() {
             <Route path="/meme-literacy-test" element={<MemeLiteracyTest />} />
             <Route path="/meme-literacy-test/:testId" element={<MemeLiteracyTest />} />
             
+            <Route path="/banned" element={<IsBanned />} />
+
             <Route path="/profile" element={
               <ProtectedRoute allowedRoles={['student', 'teacher', 'expert', 'admin']}>
                 <Profile />

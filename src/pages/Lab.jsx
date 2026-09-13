@@ -1763,11 +1763,15 @@ const Lab = () => {
     try {
       const q = query(
         collection(db, "resources"),
-        where("type", "==", "stories"),
         where("template_id", "==", templateId)
       );
       const snap = await getDocs(q);
-      const story = snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+      const matchingDoc = snap.docs.find(d => {
+        const t = d.data().type;
+        return t === "stories" || t === "story" || d.data().uploadType === "stories";
+      }) || (snap.empty ? null : snap.docs[0]);
+
+      const story = matchingDoc ? { id: matchingDoc.id, ...matchingDoc.data() } : null;
       setMemeStoryModal(prev => ({ ...prev, loading: false, story }));
     } catch (err) {
       console.error("Story fetch failed", err);

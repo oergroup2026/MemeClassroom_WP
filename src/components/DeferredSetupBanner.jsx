@@ -99,18 +99,26 @@ const DeferredSetupBanner = () => {
   const [verifySuccess, setVerifySuccess] = useState("");
   const idCardInputRef = useRef(null);
 
+  const { pct } = computeCompletion(profile, user);
+  const isFullySetup = Boolean(profile?.setup_completed) || pct >= 100 || (Boolean(profile?.name) && Boolean(profile?.institution) && Boolean(profile?.role));
+
+  // Auto-sync setup_completed to Firestore if user has completed profile requirements
+  React.useEffect(() => {
+    if (user && profile && !profile.setup_completed && (pct >= 100 || (profile.name && profile.institution && profile.role))) {
+      updateDoc(doc(db, "users", user.uid), { setup_completed: true }).catch(() => {});
+    }
+  }, [user, profile, pct]);
+
   // ── Guard conditions ─────────────────────────────────────────────────────────
   if (
     !user ||
     !profile ||
-    profile.setup_completed ||
+    isFullySetup ||
     dismissed ||
     location.pathname === "/lab"
   ) {
     return null;
   }
-
-  const { pct } = computeCompletion(profile, user);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleDismissCorner = () => {

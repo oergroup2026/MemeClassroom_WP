@@ -1183,28 +1183,61 @@ const Resources = () => {
     if (!user) { showToast("Please sign in to like resources.", "warning"); return; }
     if (likePendingMap[resourceId]) return;
     setLikePendingMap((prev) => ({ ...prev, [resourceId]: true }));
-    const existingLikeId = savedResourceLikesMap[resourceId];
+    
+    const isCurrentlyLiked = Boolean(savedResourceLikesMap[resourceId]);
+    const existingLikeDocId = savedResourceLikesMap[resourceId];
+    const likeDocRef = doc(db, "resource_likes", existingLikeDocId || `${user.uid}_${resourceId}`);
     const resourceRef = doc(db, "resources", resourceId);
-    const statsRef = doc(db, "user_stats", authorId);
+
+    // Optimistic state update: update likes map and resource array count immediately
+    setSavedResourceLikesMap(prev => {
+      const copy = { ...prev };
+      if (isCurrentlyLiked) delete copy[resourceId];
+      else copy[resourceId] = existingLikeDocId || `${user.uid}_${resourceId}`;
+      return copy;
+    });
+
+    setResources(prev => prev.map(r => {
+      if (r.id === resourceId) {
+        const cur = r.likes_count || 0;
+        return { ...r, likes_count: isCurrentlyLiked ? Math.max(0, cur - 1) : cur + 1 };
+      }
+      return r;
+    }));
+
     try {
-      if (existingLikeId) {
-        await deleteDoc(doc(db, "resource_likes", existingLikeId));
-        await updateDoc(resourceRef, { likes_count: increment(-1) });
+      if (isCurrentlyLiked) {
+        await deleteDoc(likeDocRef).catch(() => {});
+        await setDoc(resourceRef, { likes_count: increment(-1) }, { merge: true });
         if (authorId && authorId !== "admin") {
-          await setDoc(statsRef, { total_likes_received: increment(-1) }, { merge: true });
+          await setDoc(doc(db, "user_stats", authorId), { total_likes_received: increment(-1) }, { merge: true }).catch(() => {});
         }
       } else {
-        const likeDocId = `${user.uid}_${resourceId}`;
-        await setDoc(doc(db, "resource_likes", likeDocId), {
+        await setDoc(likeDocRef, {
           user_id: user.uid, resource_id: resourceId, created_at: serverTimestamp()
-        });
-        await updateDoc(resourceRef, { likes_count: increment(1) });
+        }, { merge: true });
+        await setDoc(resourceRef, { likes_count: increment(1) }, { merge: true });
         if (authorId && authorId !== "admin") {
-          await setDoc(statsRef, { total_likes_received: increment(1) }, { merge: true });
+          await setDoc(doc(db, "user_stats", authorId), { total_likes_received: increment(1) }, { merge: true }).catch(() => {});
         }
       }
     } catch (e) {
       console.error("Resource like toggle failed", e);
+      // Rollback on error
+      setSavedResourceLikesMap(prev => {
+        const copy = { ...prev };
+        if (isCurrentlyLiked) copy[resourceId] = existingLikeDocId || `${user.uid}_${resourceId}`;
+        else delete copy[resourceId];
+        return copy;
+      });
+      setResources(prev => prev.map(r => {
+        if (r.id === resourceId) {
+          const cur = r.likes_count || 0;
+          return { ...r, likes_count: isCurrentlyLiked ? cur + 1 : Math.max(0, cur - 1) };
+        }
+        return r;
+      }));
+      showToast("Failed to update like.", "error");
     } finally {
       setLikePendingMap((prev) => ({ ...prev, [resourceId]: false }));
     }
@@ -2259,7 +2292,7 @@ const Resources = () => {
                       }
 
                       // ── Story Card ─────────────────────────────────────────
-                      if (res.type === "stories") {
+                      if (res.type === "stories" || res.type === "story") {
                         return (
                           <div
                             key={res.id}

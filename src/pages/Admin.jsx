@@ -20,7 +20,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { sendPasswordResetEmail } from "firebase/auth";
 import { db, storage, auth } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star, BadgeCheck } from "lucide-react";
+import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star, BadgeCheck, ShieldAlert } from "lucide-react";
 import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -50,6 +50,7 @@ const Admin = () => {
   // Firestore collections state
   const [users, setUsers] = useState([]);
   const [pendingVerifications, setPendingVerifications] = useState([]);
+  const [unbanRequests, setUnbanRequests] = useState([]);
   const [memes, setMemes] = useState([]);
   const [resources, setResources] = useState([]);
   const [flags, setFlags] = useState([]);
@@ -386,6 +387,12 @@ const Admin = () => {
       setLiteracyQuestions(list);
     });
 
+    // 16. Unban Requests
+    const unbanReqsUnsub = onSnapshot(collection(db, "unban_requests"), (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setUnbanRequests(list);
+    });
+
     return () => {
       uUnsub();
       vUnsub();
@@ -403,6 +410,7 @@ const Admin = () => {
       allRepliesUnsub();
       ltTestsUnsub();
       ltQuestionsUnsub();
+      unbanReqsUnsub();
     };
   }, []);
 
@@ -740,10 +748,39 @@ const Admin = () => {
   const handleToggleBan = async (userId, currentBanned) => {
     if (profile.role !== "admin") return;
     try {
-      await updateDoc(doc(db, "users", userId), { banned: !currentBanned });
-      triggerAlert(`Suspension status ${!currentBanned ? "activated" : "revoked"} for user.`);
+      if (!currentBanned) {
+        const reason = window.prompt("Enter reason for user suspension:", "Violation of community rules");
+        if (reason === null) return; // User cancelled
+        await updateDoc(doc(db, "users", userId), { banned: true, ban_reason: reason || "Violation of community rules" });
+        triggerAlert("User account suspended.");
+      } else {
+        await updateDoc(doc(db, "users", userId), { banned: false });
+        await setDoc(doc(db, "unban_requests", userId), { status: "approved", reviewed_at: serverTimestamp() }, { merge: true }).catch(() => {});
+        triggerAlert("User suspension revoked.");
+      }
     } catch (e) {
       triggerAlert(e.message || "Ban status toggle failed.", "error");
+    }
+  };
+
+  const handleApproveUnbanRequest = async (userId) => {
+    if (profile.role !== "admin") return;
+    try {
+      await updateDoc(doc(db, "users", userId), { banned: false });
+      await setDoc(doc(db, "unban_requests", userId), { status: "approved", reviewed_at: serverTimestamp() }, { merge: true });
+      triggerAlert("User unbanned and appeal approved successfully!");
+    } catch (e) {
+      triggerAlert(e.message || "Failed to approve unban request.", "error");
+    }
+  };
+
+  const handleRejectUnbanRequest = async (userId) => {
+    if (profile.role !== "admin") return;
+    try {
+      await setDoc(doc(db, "unban_requests", userId), { status: "rejected", reviewed_at: serverTimestamp() }, { merge: true });
+      triggerAlert("Unban appeal status updated to rejected.");
+    } catch (e) {
+      triggerAlert(e.message || "Failed to reject unban request.", "error");
     }
   };
 
@@ -2565,6 +2602,66 @@ const Admin = () => {
               </button>
             )}
           </div>
+
+          {/* ── Pending Unban Appeals Queue ───────────────────────────────────── */}
+          {unbanRequests.filter(r => r.status === "pending").length > 0 && (
+            <div className={`p-6 mb-6 ${containerClass}`}>
+              <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-red-600 dark:text-red-400 flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4" />
+                Pending Account Unban Appeals ({unbanRequests.filter(r => r.status === "pending").length})
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">
+                Users who submitted an appeal for account restoration. Review their message and decide whether to reinstate or maintain suspension.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className={headerCellClass}>User</th>
+                      <th className={headerCellClass}>Email</th>
+                      <th className={headerCellClass}>Role / Institution</th>
+                      <th className={headerCellClass}>Suspension Reason</th>
+                      <th className={headerCellClass}>Appeal Message</th>
+                      <th className={headerCellClass}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unbanRequests.filter(r => r.status === "pending").map((req) => (
+                      <tr key={req.id}>
+                        <td className={rowCellClass}>
+                          <span className="font-bold">{req.user_name || "User"}</span>
+                        </td>
+                        <td className={`${rowCellClass} font-mono text-[10px]`}>{req.user_email || "—"}</td>
+                        <td className={rowCellClass}>{req.role || "student"} ({req.institution || "N/A"})</td>
+                        <td className={`${rowCellClass} text-red-500 font-semibold`}>{req.ban_reason || "Community violation"}</td>
+                        <td className={`${rowCellClass} max-w-xs`}>
+                          <p className="text-xs italic bg-gray-50 dark:bg-zinc-950 p-2 rounded-lg border border-gray-200 dark:border-zinc-800 line-clamp-3">
+                            "{req.appeal_message}"
+                          </p>
+                        </td>
+                        <td className={rowCellClass}>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleApproveUnbanRequest(req.user_id || req.id)}
+                              className={btnClass("green")}
+                            >
+                              ✓ Approve & Unban
+                            </button>
+                            <button
+                              onClick={() => handleRejectUnbanRequest(req.user_id || req.id)}
+                              className={btnClass("red")}
+                            >
+                              ✕ Reject Appeal
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* ── Pending ID Card Verification Queue ──────────────────────────────── */}
           {pendingVerifications.length > 0 && (

@@ -46,20 +46,20 @@ const AuthContext = createContext(null);
 
 // Helper function to award Contributor Badge to user (idempotent)
 export const awardLoginBadge = async (uid) => {
-  if (!uid) return;
+  if (!uid || uid === "guest_dev") return;
+  let existing = false;
   try {
     const q = query(
       collection(db, "badges"),
-      where("user_id", "==", uid),
-      where("badge_name", "==", "Contributor")
+      where("user_id", "==", uid)
     );
     const snap = await getDocs(q);
-    if (!snap.empty) {
-      return; // Already awarded
-    }
+    existing = snap.docs.some(d => d.data()?.badge_name === "Contributor");
   } catch (err) {
-    console.error("Failed checking existing contributor badge", err);
+    console.warn("Could not verify existing contributor badge:", err);
   }
+
+  if (existing) return; // Already awarded
 
   const badgeDetails = {
     title: "you earned a badge",
@@ -362,32 +362,20 @@ export const AuthProvider = ({ children }) => {
           unsubProfile = onSnapshot(userDocRef, async (snap) => {
             if (snap.exists()) {
               const profileData = snap.data();
-              if (profileData.banned) {
-                if (unsubProfile) {
-                  unsubProfile();
-                  unsubProfile = null;
+              try {
+                const verifSnap = await getDoc(verifDocRef);
+                if (verifSnap.exists() && verifSnap.data().id_card_url) {
+                  profileData.id_card_url = verifSnap.data().id_card_url;
                 }
-                firebaseSignOut(auth).then(() => {
-                  setProfile(null);
-                  setUser(null);
-                  setOnboardingUser(null);
-                });
-              } else {
-                try {
-                  const verifSnap = await getDoc(verifDocRef);
-                  if (verifSnap.exists() && verifSnap.data().id_card_url) {
-                    profileData.id_card_url = verifSnap.data().id_card_url;
-                  }
-                } catch (e) {
-                  // Ignore if private verification doc does not exist
-                }
-                setProfile(profileData);
-                setUser(currentUser);
-                setOnboardingUser(null);
-                // Ensure Contributor badge is awarded on account registration / sign-in (idempotent)
-                if (currentUser.uid) {
-                  awardLoginBadge(currentUser.uid);
-                }
+              } catch (e) {
+                // Ignore if private verification doc does not exist
+              }
+              setProfile(profileData);
+              setUser(currentUser);
+              setOnboardingUser(null);
+              // Ensure Contributor badge is awarded on account registration / sign-in (idempotent)
+              if (currentUser.uid) {
+                awardLoginBadge(currentUser.uid);
               }
             } else {
               // User profile doesn't exist in Firestore; trigger onboarding
