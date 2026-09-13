@@ -24,6 +24,7 @@ import { useToast } from "../components/ToastNotification";
 import {
   Pencil,
   CheckCircle2,
+  BadgeCheck,
   MapPin,
   Eye,
   FileText,
@@ -1185,11 +1186,10 @@ const Profile = () => {
                     {currentProfile.name}
                   </h2>
                   {currentProfile.is_verified && (
-                    <img
-                      src="/badge-verify.png"
-                      alt="Verified profile"
-                      title="Verified profile"
-                      className="w-6 h-6 object-contain"
+                    <BadgeCheck
+                      className="w-5 h-5 text-emerald-500 dark:text-emerald-400 flex-shrink-0"
+                      title="Institution Verified"
+                      aria-label="Verified profile"
                     />
                   )}
                 </div>
@@ -1236,10 +1236,63 @@ const Profile = () => {
                   Preview ID Card
                 </a>
               )}
+
+              {/* Verify Institution button — shown only for unverified, setup-complete users */}
+              {!currentProfile.is_verified && currentProfile.setup_completed && (
+                <button
+                  onClick={() => {
+                    window.sessionStorage.removeItem("mc_skip_setup");
+                    window.dispatchEvent(new CustomEvent("mc_open_account_setup"));
+                  }}
+                  className="text-xs font-bold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 px-4 py-2.5 rounded-xl hover:bg-emerald-100/60 dark:hover:bg-emerald-950/50 transition shadow-sm flex items-center gap-1.5 w-full sm:w-auto justify-center"
+                >
+                  <BadgeCheck className="w-3.5 h-3.5" />
+                  Verify Institution
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      {/* 1A-slim. Slim profile completion bar — always visible when profile incomplete */}
+      {profile && (() => {
+        const profileFieldsSlim = [
+          Boolean(profile.name),
+          Boolean(user?.email || profile.email),
+          Boolean(profile.role),
+          Boolean(user?.email || user?.uid),
+          Boolean(profile.institution_type),
+          Boolean(profile.institution),
+          Boolean(profile.place || profile.state),
+          Boolean(profile.country),
+        ];
+        const doneSlim = profileFieldsSlim.filter(Boolean).length;
+        const pctSlim = Math.round((doneSlim / profileFieldsSlim.length) * 100);
+        if (pctSlim >= 100) return null;
+        return (
+          <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-xl px-4 py-2.5 shadow-sm flex items-center gap-3">
+            <span className="text-[10px] font-bold text-gray-500 dark:text-zinc-400 whitespace-nowrap">
+              Profile {pctSlim}% complete
+            </span>
+            <div className="flex-1 bg-gray-200 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all duration-700"
+                style={{ width: `${pctSlim}%` }}
+              />
+            </div>
+            <button
+              onClick={() => {
+                window.sessionStorage.removeItem("mc_skip_setup");
+                window.dispatchEvent(new CustomEvent("mc_open_account_setup"));
+              }}
+              className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline whitespace-nowrap flex-shrink-0"
+            >
+              Complete →
+            </button>
+          </div>
+        );
+      })()}
 
       {/* 1B. Profile Completion Progress Panel (7 Fields Tracker) */}
       {profile && (() => {
@@ -1248,12 +1301,13 @@ const Profile = () => {
           { label: "Email Address", done: Boolean(user?.email || profile.email) },
           { label: "Account Role", done: Boolean(profile.role) },
           { label: "Account Credentials", done: Boolean(user?.email || user?.uid) },
+          { label: "Institution Type", done: Boolean(profile.institution_type) },
           { label: "School / Institution", done: Boolean(profile.institution) },
           { label: "City / Location", done: Boolean(profile.place || profile.state) },
           { label: "Country", done: Boolean(profile.country) },
         ];
         const completedCount = profileFields.filter(f => f.done).length;
-        const completionPct = Math.round((completedCount / 7) * 100);
+        const completionPct = Math.round((completedCount / 8) * 100);
 
         return (
           <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm space-y-4">
@@ -1264,15 +1318,15 @@ const Profile = () => {
                     Profile Setup Progress
                   </h3>
                   <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-pink-50 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800">
-                    {completedCount} of 7 Completed
+                    {completedCount} of 8 Completed
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
-                  Complete all 7 profile fields to finish your account setup.
+                  Complete all 8 profile fields to finish your account setup.
                 </p>
               </div>
 
-              {completedCount < 7 && (
+              {completedCount < 8 && (
                 <button
                   onClick={() => {
                     window.sessionStorage.removeItem("mc_skip_setup");
