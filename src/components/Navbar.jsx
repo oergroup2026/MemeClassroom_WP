@@ -174,11 +174,10 @@ const Navbar = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setDrawerOpen(true)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 hover:bg-ruby-50 hover:text-ruby-600 dark:hover:bg-ruby-950/40 dark:hover:text-ruby-400 font-semibold text-xs transition border border-gray-200 dark:border-zinc-700 shadow-xs"
+                className="inline-flex items-center justify-center p-2 rounded-xl bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 hover:bg-ruby-50 hover:text-ruby-600 dark:hover:bg-ruby-950/40 dark:hover:text-ruby-400 transition border border-gray-200 dark:border-zinc-700 shadow-xs"
                 aria-label="Open menu drawer"
               >
-                <Menu className="w-4 h-4 text-ruby-600 dark:text-ruby-400" />
-                <span className="hidden sm:inline">Menu</span>
+                <Menu className="w-5 h-5 text-ruby-600 dark:text-ruby-400" />
               </button>
             </div>
 

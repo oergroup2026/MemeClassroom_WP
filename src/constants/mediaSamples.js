@@ -2,22 +2,7 @@
 // These are used as default presets in the Lab when no file is uploaded.
 // All samples are public domain or Creative Commons licensed.
 export const MEDIA_SAMPLES = {
-  video: [
-    {
-      id: "v-sample-1",
-      title: "Cell Division (Mitosis)",
-      // Wikimedia Commons — CC BY-SA 4.0 animation of mitosis
-      url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/5/5c/Mitosis_16x9.webm/Mitosis_16x9.webm.360p.webm",
-      duration: "0:14"
-    },
-    {
-      id: "v-sample-2",
-      title: "Water Cycle Animation",
-      // Wikimedia Commons — public domain water cycle explainer
-      url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4e/Water_cycle.ogv/Water_cycle.ogv.360p.webm",
-      duration: "0:13"
-    }
-  ],
+  video: [],
   audio: [
     {
       id: "a-sample-1",
@@ -34,18 +19,6 @@ export const MEDIA_SAMPLES = {
       duration: "1:00"
     }
   ],
-  gif: [
-    {
-      id: "g-sample-1",
-      title: "Confused Student",
-      // Giphy public embed — widely used in educational contexts
-      url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcHJ6aHBxM2p3d2NuZmlsYXI1dzlrMzF5dXZnb3duMXMweHl3NHpnaiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7btPCcdNniyf0ArS/giphy.gif"
-    },
-    {
-      id: "g-sample-2",
-      title: "Eureka! Light Bulb Moment",
-      url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnJ0cWh1amk2ZmlxcGVpY3Q3bWlsd2ZyOXowd2dhb2t1ZmYxMHBlNiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/xT5LMHxhOfscxPfIfm/giphy.gif"
-    }
-  ]
+  gif: []
 };
 

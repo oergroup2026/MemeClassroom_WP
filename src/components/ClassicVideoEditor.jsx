@@ -35,7 +35,6 @@ export default function ClassicVideoEditor({
   videoPlayerRef,
   timelineTrackRef,
   handleVideoUpload,
-  selectMediaPreset,
   handleAddCaptionAtCurrentTime,
   handleDeleteCaptionIndex,
   handleEditCaptionText,
@@ -44,8 +43,7 @@ export default function ClassicVideoEditor({
   rebuildCaptionsString,
   handleDropzoneDrop,
   isDragOverDropzone,
-  setIsDragOverDropzone,
-  MEDIA_SAMPLES
+  setIsDragOverDropzone
 }) {
   const [newSubText, setNewSubText] = useState("");
   const [editingSubIndex, setEditingSubIndex] = useState(null);
@@ -181,7 +179,7 @@ export default function ClassicVideoEditor({
               <Film className="w-16 h-16 mb-3 text-purple-500/70 animate-bounce" />
               <p className="font-extrabold text-base mb-1 text-zinc-200">No Video Loaded</p>
               <p className="text-xs text-zinc-400 max-w-xs leading-relaxed">
-                Upload your video clip or choose a sample preset from the right panel to get started.
+                Upload your video clip from the right panel to get started.
               </p>
             </div>
           )}
@@ -218,20 +216,6 @@ export default function ClassicVideoEditor({
               <span className="text-[10px] text-zinc-400 mt-0.5">MP4, WebM, MOV</span>
             </div>
 
-            {/* Stock Presets */}
-            <div className="grid grid-cols-2 gap-2">
-              {MEDIA_SAMPLES?.video?.map((sample, idx) => (
-                <button
-                  key={sample.id}
-                  type="button"
-                  onClick={() => selectMediaPreset(sample.url, "video", 15)}
-                  className="py-2 px-3 rounded-lg bg-zinc-950 hover:bg-purple-900/40 border border-zinc-800 hover:border-purple-500/60 text-zinc-200 text-xs font-bold transition text-left flex items-center justify-between"
-                >
-                  <span>Sample {idx + 1}</span>
-                  <span className="text-[10px] font-mono text-purple-400">15s</span>
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Subtitle Manager Section */}

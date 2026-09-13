@@ -946,9 +946,13 @@ const Library = () => {
       if (user) {
         try {
           const statsDocRef = doc(db, "user_stats", user.uid);
-          await setDoc(statsDocRef, {
-            memes_created_count: increment(-1)
-          }, { merge: true });
+          await runTransaction(db, async (tx) => {
+            const snap = await tx.get(statsDocRef);
+            if (snap.exists()) {
+              const current = snap.data().memes_created_count || 0;
+              tx.update(statsDocRef, { memes_created_count: Math.max(0, current - 1) });
+            }
+          });
         } catch (statsErr) {
           console.warn("Could not update user stats", statsErr);
         }

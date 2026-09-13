@@ -13,6 +13,7 @@ import {
   deleteDoc,
   updateDoc,
   increment,
+  runTransaction,
   addDoc,
   serverTimestamp
 } from "firebase/firestore";
@@ -92,11 +93,11 @@ const BadgeIcon = ({ level }) => {
 };
 
 const CATEGORY_NAMES = {
-  content_creator: { label: "Content Creator Medal", statKey: "memes_created_count" },
-  knowledge_contributor: { label: "Knowledge Contributor Medal", statKey: "resources_contributed_count" },
-  community_voice: { label: "Community Voice Medal", statKey: "staffroom_posts_count" },
-  peer_evaluator: { label: "Peer Evaluator Medal", statKey: "ratings_provided_count" },
-  star_educator: { label: "Star Educator Medal", statKey: "total_likes_received" }
+  content_creator: { label: "Meme Creator", statKey: "memes_created_count" },
+  knowledge_contributor: { label: "Resource Sharer", statKey: "resources_contributed_count" },
+  community_voice: { label: "Discussion Starter", statKey: "staffroom_posts_count" },
+  peer_evaluator: { label: "Peer Reviewer", statKey: "ratings_provided_count" },
+  star_educator: { label: "Community Favorite", statKey: "total_likes_received" }
 };
 
 const containerClass = "bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm";
@@ -233,13 +234,34 @@ const Profile = () => {
   // Cache to resolve creator usernames on bookmark cards
   const [creatorCache, setCreatorCache] = useState({});
 
-  // Fetch User Stats
+  // Fetch User Stats with auto-healing and non-negative clamping
   useEffect(() => {
     if (!user) return;
     const statsDocRef = doc(db, "user_stats", user.uid);
     const unsubscribe = onSnapshot(statsDocRef, (snap) => {
       if (snap.exists()) {
-        setStats(snap.data());
+        const raw = snap.data();
+        const sanitized = {
+          memes_created_count: Math.max(0, raw.memes_created_count || 0),
+          resources_contributed_count: Math.max(0, raw.resources_contributed_count || 0),
+          staffroom_posts_count: Math.max(0, raw.staffroom_posts_count || 0),
+          ratings_provided_count: Math.max(0, raw.ratings_provided_count || 0),
+          total_likes_received: Math.max(0, raw.total_likes_received || 0)
+        };
+        setStats(sanitized);
+
+        // Auto-heal negative counters in Firestore database
+        const repairs = {};
+        for (const [key, val] of Object.entries(sanitized)) {
+          if (typeof raw[key] === "number" && raw[key] < 0) {
+            repairs[key] = 0;
+          }
+        }
+        if (Object.keys(repairs).length > 0) {
+          updateDoc(statsDocRef, repairs).catch((err) =>
+            console.error("Auto-healing negative stats in Firestore:", err)
+          );
+        }
       }
     });
     return () => unsubscribe();
@@ -398,11 +420,12 @@ const Profile = () => {
 
   // Automatic Badge progression level calculations
   const calculateLevel = (count) => {
-    if (count >= 50) return 5;
-    if (count >= 25) return 4;
-    if (count >= 10) return 3;
-    if (count >= 5) return 2;
-    if (count >= 1) return 1;
+    const val = Math.max(0, count || 0);
+    if (val >= 50) return 5;
+    if (val >= 25) return 4;
+    if (val >= 10) return 3;
+    if (val >= 5) return 2;
+    if (val >= 1) return 1;
     return 0;
   };
 
@@ -478,9 +501,10 @@ const Profile = () => {
     return () => unsubscribe();
   }, [user]);
 
-  const getProgressDetails = (count) => {
+  const getProgressDetails = (rawCount) => {
+    const count = Math.max(0, rawCount || 0);
     const currentLevel = calculateLevel(count);
-    const currentBadgeName = currentLevel > 0 ? `${LEVEL_NAMES[currentLevel]} Medal` : "Locked";
+    const currentBadgeName = currentLevel > 0 ? `${LEVEL_NAMES[currentLevel]} Badge` : "Locked";
 
     if (currentLevel === 5) {
       return {
@@ -700,9 +724,17 @@ const Profile = () => {
       await deleteDoc(doc(db, "memes", memeId));
       if (!isDraft && user) {
         const statsDocRef = doc(db, "user_stats", user.uid);
-        await updateDoc(statsDocRef, {
-          memes_created_count: increment(-1)
-        });
+        try {
+          await runTransaction(db, async (tx) => {
+            const snap = await tx.get(statsDocRef);
+            if (snap.exists()) {
+              const current = snap.data().memes_created_count || 0;
+              tx.update(statsDocRef, { memes_created_count: Math.max(0, current - 1) });
+            }
+          });
+        } catch (txErr) {
+          console.error("Failed to safely decrement memes_created_count", txErr);
+        }
       }
       toast(`${isDraft ? "Draft" : "Meme"} deleted successfully.`, "success");
     } catch (e) {
@@ -1435,7 +1467,7 @@ const Profile = () => {
                 {stat.label}
               </span>
               <span className="text-2xl font-black text-gray-900 dark:text-white block mt-0.5 leading-none">
-                {stat.val}
+                {Math.max(0, stat.val || 0)}
               </span>
             </div>
           </div>
