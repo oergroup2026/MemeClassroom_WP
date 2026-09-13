@@ -399,8 +399,8 @@ const Navbar = () => {
                 type="button"
                 onClick={() => setSearchExpanded(true)}
                 className={`flex items-center justify-center p-2 sm:p-2.5 rounded-xl transition duration-200 border shadow-xs group ${highContrastMode
-                    ? "bg-zinc-800 text-zinc-200 border-zinc-700 hover:bg-zinc-700 hover:text-ruby-400"
-                    : "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200/80 hover:text-ruby-600"
+                  ? "bg-zinc-800 text-zinc-200 border-zinc-700 hover:bg-zinc-700 hover:text-ruby-400"
+                  : "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200/80 hover:text-ruby-600"
                   }`}
                 title="Search memes, resources... (Click to expand)"
                 aria-label="Expand search"
@@ -452,10 +452,10 @@ const Navbar = () => {
               aria-haspopup="dialog"
               title="Accessibility Options (Ctrl+U)"
               className={`flex items-center justify-center p-2 sm:p-2.5 rounded-xl transition-all duration-200 border shadow-xs ${a11yMenuOpen
-                  ? "bg-ruby-600 text-white border-ruby-500 shadow-md shadow-ruby-500/30 scale-105"
-                  : highContrastMode
-                    ? "bg-zinc-800 text-ruby-400 border-zinc-700 hover:bg-zinc-700 hover:text-ruby-300 hover:border-ruby-500/60"
-                    : "bg-gray-100 text-gray-700 border-gray-200 hover:bg-ruby-50 hover:text-ruby-600 hover:border-ruby-200"
+                ? "bg-ruby-600 text-white border-ruby-500 shadow-md shadow-ruby-500/30 scale-105"
+                : highContrastMode
+                  ? "bg-zinc-800 text-ruby-400 border-zinc-700 hover:bg-zinc-700 hover:text-ruby-300 hover:border-ruby-500/60"
+                  : "bg-gray-100 text-gray-700 border-gray-200 hover:bg-ruby-50 hover:text-ruby-600 hover:border-ruby-200"
                 }`}
             >
               {/* Person with arms raised — universal accessibility icon */}
@@ -470,10 +470,10 @@ const Navbar = () => {
                 strokeLinejoin="round"
                 aria-hidden="true"
                 className={`shrink-0 ${a11yMenuOpen
-                    ? "text-white"
-                    : highContrastMode
-                      ? "text-ruby-400"
-                      : "text-gray-700"
+                  ? "text-white"
+                  : highContrastMode
+                    ? "text-ruby-400"
+                    : "text-gray-700"
                   }`}
               >
                 <circle
@@ -559,7 +559,7 @@ const Navbar = () => {
                   className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-800 dark:text-zinc-200 hover:bg-ruby-50 dark:hover:bg-ruby-950/30 hover:text-ruby-600 transition"
                 >
                   <BookOpenCheck className="w-4 h-4 text-amber-500" />
-                  <span>Resources & Use Cases</span>
+                  <span>Resources</span>
                 </Link>
 
                 <Link
@@ -577,7 +577,7 @@ const Navbar = () => {
                   className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-800 dark:text-zinc-200 hover:bg-ruby-50 dark:hover:bg-ruby-950/30 hover:text-ruby-600 transition"
                 >
                   <FlaskConical className="w-4 h-4 text-ruby-500" />
-                  <span>Meme Lab Studio</span>
+                  <span>Meme Lab</span>
                 </Link>
 
                 <Link
@@ -586,7 +586,7 @@ const Navbar = () => {
                   className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-800 dark:text-zinc-200 hover:bg-ruby-50 dark:hover:bg-ruby-950/30 hover:text-ruby-600 transition"
                 >
                   <MessageSquare className="w-4 h-4 text-teal-500" />
-                  <span>Staffroom Forum</span>
+                  <span>Staffroom</span>
                 </Link>
 
                 <Link
@@ -595,7 +595,7 @@ const Navbar = () => {
                   className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-800 dark:text-zinc-200 hover:bg-amber-50 dark:hover:bg-amber-950/30 hover:text-amber-600 transition"
                 >
                   <Award className="w-4 h-4 text-amber-500" />
-                  <span>Meme Literacy Assessment</span>
+                  <span>Meme Literacy Test</span>
                 </Link>
 
                 <Link
@@ -604,7 +604,7 @@ const Navbar = () => {
                   className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-800 dark:text-zinc-200 hover:bg-ruby-50 dark:hover:bg-ruby-950/30 hover:text-ruby-600 transition"
                 >
                   <Info className="w-4 h-4 text-blue-500" />
-                  <span>About MemeClassroom</span>
+                  <span>About</span>
                 </Link>
 
                 {user && profile && (
@@ -625,7 +625,7 @@ const Navbar = () => {
                         className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-800 dark:text-zinc-200 hover:bg-ruby-50 dark:hover:bg-ruby-950/30 hover:text-ruby-600 transition"
                       >
                         <Settings className="w-4 h-4 text-emerald-500" />
-                        <span>Admin Management</span>
+                        <span>Admin</span>
                       </Link>
                     )}
                   </>
@@ -649,7 +649,7 @@ const Navbar = () => {
                     onClick={() => setDrawerOpen(false)}
                     className="w-full block text-center py-2.5 bg-ruby-600 hover:bg-ruby-700 text-white rounded-xl text-sm font-bold shadow-md shadow-ruby-500/20 transition"
                   >
-                    Join Free
+                    Register
                   </Link>
                 </div>
               ) : (
@@ -657,7 +657,7 @@ const Navbar = () => {
                   onClick={handleSignOut}
                   className="w-full py-2.5 text-center text-xs font-extrabold text-red-600 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 rounded-xl transition"
                 >
-                  Sign Out of Account
+                  Sign Out
                 </button>
               )}
             </div>
