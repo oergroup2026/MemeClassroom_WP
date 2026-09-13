@@ -109,7 +109,7 @@ export const UserModalProvider = ({ children }) => {
 
                 {/* Milestone Badges lists */}
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Unlocked Medals</h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Unlocked Badges</h4>
                   {userBadges.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {userBadges.map((badge) => (
@@ -123,7 +123,7 @@ export const UserModalProvider = ({ children }) => {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[11px] text-gray-400">No milestone medals unlocked yet.</p>
+                    <p className="text-[11px] text-gray-400">No milestone badges unlocked yet.</p>
                   )}
                 </div>
 

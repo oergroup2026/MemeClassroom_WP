@@ -391,7 +391,7 @@ const Home = () => {
   const fmt = (n) => (n === null ? "—" : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 
   return (
-    <div className="relative overflow-visible min-h-screen flex flex-col justify-start py-4 space-y-12 sm:space-y-20">
+    <div className="relative overflow-visible min-h-screen flex flex-col justify-start space-y-12 sm:space-y-20">
       
       {/* Background Ruby Glow Lighting Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
@@ -410,29 +410,9 @@ const Home = () => {
       </div>
 
       {/* ──────────────────────────────────────────────────────────────────────────
-          SECTION 1: HERO BRANDING HEADER + CINEMATIC FEATURE CAROUSEL
+          SECTION 1: FULL-BLEED CINEMATIC FEATURE DISCOVERY CAROUSEL
+          Hero branding (badge, title, tagline) + slide content live inside FeatureCarousel
           ────────────────────────────────────────────────────────────────────────── */}
-      <section className="max-w-6xl mx-auto w-full px-4 pt-2 space-y-7">
-        
-        {/* Main Central Branding Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <div className="inline-flex items-center px-3.5 py-1 rounded-full bg-ruby-50 dark:bg-ruby-950/50 border border-ruby-200/80 dark:border-ruby-800/60 text-ruby-700 dark:text-ruby-300 text-xs font-black uppercase tracking-widest">
-            <span>Open Pedagogical Resources for Memes</span>
-          </div>
-
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-gray-900 dark:text-white leading-[1.15]">
-            Meme<span className="text-ruby-600 dark:text-ruby-400">Classroom</span>
-          </h1>
-
-          <p className="text-base sm:text-lg font-semibold text-gray-700 dark:text-gray-300 max-w-2xl mx-auto">
-            A collaborative space to learn, co-create and share meme pedagogy.
-          </p>
-        </div>
-
-        {/* Cinematic Image-First Feature Discovery Carousel */}
-      </section>
-
-      {/* Carousel sits outside the inner padded section so it can span full max-width */}
       <FeatureCarousel />
 
       {/* ──────────────────────────────────────────────────────────────────────────
