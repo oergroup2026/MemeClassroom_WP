@@ -71,20 +71,20 @@ export default function ClassicVideoEditor({
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-zinc-950 text-zinc-100 select-none overflow-hidden rounded-2xl border border-zinc-800/80 shadow-2xl">
+    <div className="w-full h-full flex flex-col bg-white dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 select-none overflow-hidden rounded-2xl border border-slate-200 dark:border-zinc-800/80 shadow-lg">
       {/* ── Studio Top Toolbar ─────────────────────────────────────────────── */}
-      <div className="py-2.5 px-4 bg-zinc-900/90 border-b border-zinc-800/80 flex flex-wrap items-center justify-between gap-3 shrink-0 backdrop-blur-md">
+      <div className="py-2.5 px-4 bg-slate-50 dark:bg-zinc-900/90 border-b border-slate-200 dark:border-zinc-800/80 flex flex-wrap items-center justify-between gap-3 shrink-0 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
-            <span className="font-extrabold text-xs tracking-wider uppercase text-purple-400 font-mono">
+            <span className="font-extrabold text-xs tracking-wider uppercase text-purple-600 dark:text-purple-400 font-mono">
               Video Studio
             </span>
           </div>
-          <span className="text-zinc-700">|</span>
+          <span className="text-slate-300 dark:text-zinc-700">|</span>
 
           {/* Aspect Ratio Buttons */}
-          <div className="flex items-center gap-1 bg-zinc-950/80 p-1 rounded-xl border border-zinc-800">
+          <div className="flex items-center gap-1 bg-white dark:bg-zinc-950/80 p-1 rounded-xl border border-slate-200 dark:border-zinc-800">
             {[
               { label: "16:9", val: "16:9" },
               { label: "9:16", val: "9:16" },
@@ -98,7 +98,7 @@ export default function ClassicVideoEditor({
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition font-mono ${
                   aspectRatio === opt.val
                     ? "bg-purple-600 text-white shadow-sm"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/60"
                 }`}
               >
                 {opt.label}
@@ -109,8 +109,8 @@ export default function ClassicVideoEditor({
 
         {/* Media Select & Subtitle Overlay Position */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 bg-zinc-950/80 p-1 rounded-xl border border-zinc-800">
-            <span className="text-[10px] font-extrabold uppercase text-zinc-400 px-2">Sub Position:</span>
+          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-950/80 p-1 rounded-xl border border-slate-200 dark:border-zinc-800">
+            <span className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-zinc-400 px-2">Sub Position:</span>
             {["top", "middle", "bottom"].map(pos => (
               <button
                 key={pos}
@@ -119,7 +119,7 @@ export default function ClassicVideoEditor({
                 className={`px-2.5 py-0.5 rounded text-[11px] font-bold capitalize transition ${
                   subtitlePosition === pos
                     ? "bg-purple-600 text-white"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
                 }`}
               >
                 {pos}
@@ -186,10 +186,10 @@ export default function ClassicVideoEditor({
         </div>
 
         {/* Right Side: Media & Subtitle Inspector Panel */}
-        <div className="w-full lg:w-80 bg-zinc-900 border-t lg:border-t-0 lg:border-l border-zinc-800 flex flex-col shrink-0 p-4 space-y-5 overflow-y-auto">
+        <div className="w-full lg:w-80 bg-slate-50 dark:bg-zinc-900 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-zinc-800 flex flex-col shrink-0 p-4 space-y-5 overflow-y-auto">
           {/* Media Source Section */}
           <div className="space-y-3">
-            <h4 className="text-xs font-extrabold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+            <h4 className="text-xs font-extrabold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
               <Film className="w-4 h-4" />
               <span>Media Source</span>
             </h4>
@@ -201,8 +201,8 @@ export default function ClassicVideoEditor({
               onDrop={handleDropzoneDrop}
               className={`border-2 border-dashed rounded-xl p-3.5 text-center cursor-pointer transition flex flex-col items-center justify-center relative ${
                 isDragOverDropzone
-                  ? "border-purple-500 bg-purple-950/40"
-                  : "border-zinc-700 bg-zinc-950/60 hover:border-purple-500 hover:bg-purple-950/20"
+                  ? "border-purple-500 bg-purple-50 dark:bg-purple-950/40"
+                  : "border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950/60 hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-950/20"
               }`}
             >
               <input
@@ -211,21 +211,35 @@ export default function ClassicVideoEditor({
                 onChange={handleVideoUpload}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
               />
-              <Upload className="w-5 h-5 text-purple-400 mb-1" />
-              <span className="text-xs text-zinc-200 font-bold">Upload Custom Video</span>
-              <span className="text-[10px] text-zinc-400 mt-0.5">MP4, WebM, MOV</span>
+              <Upload className="w-5 h-5 text-purple-600 dark:text-purple-400 mb-1" />
+              <span className="text-xs text-slate-800 dark:text-zinc-200 font-bold">Upload Custom Video</span>
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">MP4, WebM, MOV</span>
             </div>
 
+            {/* Stock Presets */}
+            <div className="grid grid-cols-2 gap-2">
+              {MEDIA_SAMPLES?.video?.map((sample, idx) => (
+                <button
+                  key={sample.id}
+                  type="button"
+                  onClick={() => selectMediaPreset(sample.url, "video", 15)}
+                  className="py-2 px-3 rounded-lg bg-white dark:bg-zinc-950 hover:bg-purple-50 dark:hover:bg-purple-900/40 border border-slate-200 dark:border-zinc-800 hover:border-purple-500 text-slate-800 dark:text-zinc-200 text-xs font-bold transition text-left flex items-center justify-between shadow-xs"
+                >
+                  <span className="truncate pr-1">{sample.title || `Sample ${idx + 1}`}</span>
+                  <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">{sample.duration || "15s"}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Subtitle Manager Section */}
-          <div className="space-y-3 pt-3 border-t border-zinc-800">
-            <h4 className="text-xs font-extrabold uppercase tracking-wider text-purple-400 flex items-center justify-between">
+          <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
+            <h4 className="text-xs font-extrabold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <MessageSquarePlus className="w-4 h-4" />
                 <span>Subtitle Manager</span>
               </span>
-              <span className="text-[10px] font-mono text-zinc-400 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
+              <span className="text-[10px] font-mono text-slate-600 dark:text-zinc-400 bg-white dark:bg-zinc-950 px-2 py-0.5 rounded border border-slate-200 dark:border-zinc-800">
                 {parsedCaptions.length} Clips
               </span>
             </h4>
@@ -238,7 +252,7 @@ export default function ClassicVideoEditor({
                 value={newSubText}
                 onChange={(e) => setNewSubText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleManualAddSubtitle()}
-                className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-purple-500"
+                className="flex-1 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-purple-500"
               />
               <button
                 type="button"
@@ -252,7 +266,7 @@ export default function ClassicVideoEditor({
 
             {/* Subtitle List */}
             {parsedCaptions.length === 0 ? (
-              <div className="p-4 text-center border border-dashed border-zinc-800 rounded-xl text-zinc-500 text-xs">
+              <div className="p-4 text-center border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl text-slate-400 dark:text-zinc-500 text-xs">
                 No subtitles added yet. Use the input above to create timed subtitles.
               </div>
             ) : (
@@ -260,9 +274,9 @@ export default function ClassicVideoEditor({
                 {parsedCaptions.map((cap, idx) => (
                   <div
                     key={idx}
-                    className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 flex items-center justify-between gap-2 group hover:border-purple-500/50 transition"
+                    className="bg-white dark:bg-zinc-950 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2 group hover:border-purple-500/50 transition shadow-xs"
                   >
-                    <span className="font-mono text-[11px] text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-800/40 shrink-0 font-bold">
+                    <span className="font-mono text-[11px] text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800/40 shrink-0 font-bold">
                       {formatTime(cap.time)}
                     </span>
 
@@ -322,7 +336,7 @@ export default function ClassicVideoEditor({
 
       {/* ── Studio Bottom Timeline & Transport Controls ───────────────────── */}
       {videoUrl && (
-        <div className="bg-zinc-900 border-t border-zinc-800 p-4 space-y-3 shrink-0 z-30">
+        <div className="bg-slate-50 dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 p-3 sm:p-4 space-y-3 shrink-0 z-30">
           {/* Transport Controls Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -354,7 +368,7 @@ export default function ClassicVideoEditor({
                   video.pause();
                   video.currentTime = 0;
                 }}
-                className="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 flex items-center justify-center transition active:scale-95 border border-zinc-700"
+                className="w-10 h-10 rounded-full bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 flex items-center justify-center transition active:scale-95 border border-slate-200 dark:border-zinc-700 shadow-xs"
                 title="Stop & Reset"
               >
                 <Square className="w-4 h-4" />
@@ -364,10 +378,10 @@ export default function ClassicVideoEditor({
               <button
                 type="button"
                 onClick={() => setVideoMuted(!videoMuted)}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95 border ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95 border shadow-xs ${
                   videoMuted
-                    ? "bg-amber-950/60 text-amber-400 border-amber-800"
-                    : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700"
+                    ? "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-800"
+                    : "bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700"
                 }`}
                 title={videoMuted ? "Unmute Audio (M)" : "Mute Audio (M)"}
               >
@@ -378,10 +392,10 @@ export default function ClassicVideoEditor({
               <button
                 type="button"
                 onClick={() => setVideoLoop(!videoLoop)}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95 border ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition active:scale-95 border shadow-xs ${
                   videoLoop
-                    ? "bg-purple-950/60 text-purple-300 border-purple-700 font-bold"
-                    : "bg-zinc-800 hover:bg-zinc-700 text-zinc-500 border-zinc-700"
+                    ? "bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border-purple-300 dark:border-purple-700 font-bold"
+                    : "bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700"
                 }`}
                 title="Toggle Looping"
               >
@@ -389,7 +403,7 @@ export default function ClassicVideoEditor({
               </button>
 
               {/* Playback Timestamp */}
-              <span className="text-xs font-mono text-zinc-200 bg-zinc-950 px-3 py-2 rounded-xl border border-zinc-800 font-bold">
+              <span className="text-xs font-mono text-slate-800 dark:text-zinc-200 bg-white dark:bg-zinc-950 px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 font-bold shadow-xs">
                 {formatTime(videoCurrentTime)} / {formatTime(videoDuration)}
               </span>
             </div>

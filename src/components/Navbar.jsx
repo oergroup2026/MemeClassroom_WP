@@ -211,66 +211,62 @@ const Navbar = () => {
               </button>
 
               {/* Real-time Notifications Bell */}
-              {user && (
-                <div className="relative">
-                  <button
-                    onClick={() => {
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    if (user) {
                       setNotificationsOpen(!notificationsOpen);
                       setUserDropdownOpen(false);
-                    }}
-                    className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 relative focus:outline-none transition border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800"
-                    aria-label="View notifications"
-                  >
-                    {unreadCount > 0 && (
-                      <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-ruby-600 ring-2 ring-white dark:ring-zinc-900 animate-pulse" />
-                    )}
-                    <BellIcon />
-                  </button>
-
-                  {notificationsOpen && (
-                    <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-2xl py-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 z-50 animate-fadeIn">
-                      <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100 dark:border-zinc-800">
-                        <span className="text-xs font-bold text-gray-900 dark:text-white">Notifications</span>
-                        {unreadCount > 0 && (
-                          <button
-                            onClick={markAllRead}
-                            className="text-[10px] text-ruby-600 hover:text-ruby-700 dark:text-ruby-400 font-extrabold"
-                          >
-                            Mark all read
-                          </button>
-                        )}
-                      </div>
-                      <div className="max-h-64 overflow-y-auto divide-y divide-gray-50 dark:divide-zinc-800">
-                        {notifications.length === 0 ? (
-                          <div className="px-4 py-8 text-center">
-                            <p className="text-sm text-gray-400">No notifications yet.</p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Activity from badges and replies will appear here.</p>
-                          </div>
-                        ) : (
-                          notifications.map((notif) => (
-                            <div
-                              key={notif.id}
-                              className={`px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-zinc-800 transition ${notif.read ? "opacity-60" : "bg-ruby-50/30 dark:bg-ruby-950/20"
-                                }`}
-                            >
-                              <p className="text-xs text-gray-800 dark:text-gray-200 leading-normal">
-                                {notif.message || notif.text}
-                              </p>
-                              <span className="block text-[9px] text-gray-400 mt-1">
-                                {notif.created_at?.seconds
-                                  ? new Date(notif.created_at.seconds * 1000).toLocaleString()
-                                  : "Just now"}
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
+                    } else {
+                      navigate("/auth");
+                    }
+                  }}
+                  className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 relative focus:outline-none transition border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                  aria-label="View notifications"
+                >
+                  {unreadCount > 0 && (
+                    <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-ruby-600 ring-2 ring-white dark:ring-zinc-900 animate-pulse" />
                   )}
-                </div>
-              )}
+                  <BellIcon />
+                </button>
 
-              {/* User Dropdown or Sign In CTA */}
+                {user && notificationsOpen && (
+                  <div className="absolute right-0 mt-2 w-80 rounded-2xl shadow-2xl py-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 z-50 animate-fadeIn">
+                    <div className="flex justify-between items-center px-4 py-2 border-b border-gray-100 dark:border-zinc-800">
+                      <span className="text-xs font-bold text-gray-900 dark:text-white">Notifications</span>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={markAllRead}
+                          className="text-[10px] text-ruby-600 hover:text-ruby-700 dark:text-ruby-400 font-extrabold"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-gray-50 dark:divide-zinc-800">
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-8 text-center">
+                          <p className="text-sm text-gray-400">No notifications yet.</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Activity from badges and replies will appear here.</p>
+                        </div>
+                      ) : (
+                        notifications.map((notif) => (
+                          <div key={notif.id} className="p-3 hover:bg-gray-50 dark:hover:bg-zinc-800/60 transition">
+                            <p className="text-xs font-semibold text-gray-800 dark:text-zinc-200">{notif.title || notif.message}</p>
+                            <span className="block text-[9px] text-gray-400 mt-1">
+                              {notif.created_at?.seconds
+                                ? new Date(notif.created_at.seconds * 1000).toLocaleString()
+                                : "Just now"}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* User Dropdown or Guest Avatar CTA */}
               {user && profile ? (
                 <div className="relative">
                   <button
@@ -330,15 +326,14 @@ const Navbar = () => {
                 <div className="flex items-center space-x-2">
                   <Link
                     to="/auth"
-                    className="text-gray-700 dark:text-gray-300 hover:text-ruby-600 dark:hover:text-ruby-400 font-bold text-xs px-3 py-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
+                    className="flex items-center gap-2 group"
+                    title="Sign In / Register"
                   >
-                    Sign In
-                  </Link>
-                  <Link
-                    to="/auth?mode=register"
-                    className="bg-ruby-600 hover:bg-ruby-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-md shadow-ruby-500/20 transition"
-                  >
-                    Register
+                    <img
+                      src="/avatar1.png"
+                      className="h-9 w-9 rounded-full object-cover border-2 border-ruby-500 shadow-sm group-hover:scale-105 transition"
+                      alt="Sign in"
+                    />
                   </Link>
                 </div>
               )}

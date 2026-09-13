@@ -1,14 +1,45 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { HelpCircle } from "lucide-react";
-import { 
-  collection, 
-  addDoc, 
-  doc, 
+import {
+  HelpCircle,
+  UploadCloud,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Undo2,
+  Redo2,
+  Sparkles,
+  Download,
+  Layers,
+  Sliders,
+  Palette,
+  Type,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  Music,
+  Smile,
+  ChevronDown,
+  Check,
+  Bold,
+  Italic,
+  Underline,
+  RotateCcw,
+  Search,
+  Trash2,
+  Copy,
+  Wand2,
+  Share2,
+  Plus,
+  BookOpen
+} from "lucide-react";
+import {
+  collection,
+  addDoc,
+  doc,
   getDoc,
   getDocs,
-  setDoc, 
-  serverTimestamp, 
+  setDoc,
+  serverTimestamp,
   updateDoc,
   increment,
   query,
@@ -292,11 +323,11 @@ const Lab = () => {
   }, [searchParams]);
 
   // --- Image Tab State ---
-  const [images, setImages] = useState([]); // Array of base64/object URLs
+  const [images, setImages] = useState(["/templates/leonardo-toast.jpg", "/templates/leonardo-toast.jpg"]); // Array of base64/object URLs
   const [imageFiles, setImageFiles] = useState([]); // Array of raw File objects
 
   // Collage layout format: "columns" | "rows" | "grid"
-  const [collageLayout, setCollageLayout] = useState("columns");
+  const [collageLayout, setCollageLayout] = useState("rows");
 
   // Proportional values for Columns/Rows splits
   const [panelSizes, setPanelSizes] = useState([1, 1, 1, 1]);
@@ -305,14 +336,14 @@ const Lab = () => {
   const [gridSplit, setGridSplit] = useState({ y: 0.5, topX: 0.5, bottomX: 0.5 });
 
   // Drag-resize state for collage dividers
-  const collageDragRef = useRef({ 
-    active: false, 
-    type: "", 
-    dividerIdx: 0, 
-    startX: 0, 
-    startY: 0, 
-    startSizes: [], 
-    startSplit: {} 
+  const collageDragRef = useRef({
+    active: false,
+    type: "",
+    dividerIdx: 0,
+    startX: 0,
+    startY: 0,
+    startSizes: [],
+    startSplit: {}
   });
 
   // Reset panelSizes & gridSplit to equal distribution whenever image count changes
@@ -359,20 +390,40 @@ const Lab = () => {
   const [audioTrimEnd, setAudioTrimEnd] = useState(15);
 
   // --- Text Overlay State (with undo/redo history) ---
-  const DEFAULT_LAYER = {
-    id: "txt-1",
-    text: "Double click to edit",
-    x: 150,
-    y: 100,
-    fontSize: 28,
+  const DEFAULT_TOP_LAYER = {
+    id: "txt-top",
+    role: "top",
+    text: "FINISHED THE ASSIGNMENT A DAY BEFORE DEADLINE",
+    x: 20,
+    y: 20,
+    fontSize: 26,
     color: "#FFFFFF",
     fontFamily: "Impact",
     strokeColor: "#000000",
-    strokeWidth: 2,
-    textAlign: "left",
+    strokeWidth: 2.5,
+    textAlign: "center",
     opacity: 1,
     rotation: 0,
-    maxWidth: null,
+    maxWidth: 620,
+    fontWeight: "bold",
+  };
+
+  const DEFAULT_BOTTOM_LAYER = {
+    id: "txt-bottom",
+    role: "bottom",
+    text: "REALIZES THERE'S STILL THE PRESENTATION LEFT",
+    x: 20,
+    y: 390,
+    fontSize: 26,
+    color: "#FFFFFF",
+    fontFamily: "Impact",
+    strokeColor: "#000000",
+    strokeWidth: 2.5,
+    textAlign: "center",
+    opacity: 1,
+    rotation: 0,
+    maxWidth: 620,
+    fontWeight: "bold",
   };
 
   const {
@@ -382,7 +433,7 @@ const Lab = () => {
     redo: redoTextLayers,
     canUndo,
     canRedo,
-  } = useUndoRedo([DEFAULT_LAYER]);
+  } = useUndoRedo([DEFAULT_TOP_LAYER, DEFAULT_BOTTOM_LAYER]);
 
   // Convenience wrapper that also accepts functional updaters
   const setTextLayers = useCallback((updater) => {
@@ -405,7 +456,13 @@ const Lab = () => {
   }, [images, gifUrl]);
 
   // --- General Modals & Alert States ---
-  const [activeControlTab, setActiveControlTab] = useState("media");
+  const [activeControlTab, setActiveControlTab] = useState("text"); // "text" | "image" | "filters" | "effects"
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [selectedCategory, setSelectedCategory] = useState("popular");
+  const [topTextInput, setTopTextInput] = useState("FINISHED THE ASSIGNMENT A DAY BEFORE DEADLINE");
+  const [bottomTextInput, setBottomTextInput] = useState("REALIZES THERE'S STILL THE PRESENTATION LEFT");
+  const [selectedFilter, setSelectedFilter] = useState("none");
+  const [textEffectShadow, setTextEffectShadow] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [publishToLibrary, setPublishToLibrary] = useState(true);
@@ -426,6 +483,388 @@ const Lab = () => {
   const [autoSaveToast, setAutoSaveToast] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Preset templates categorized by media format
+  const IMAGE_TEMPLATES = [
+    {
+      id: "tpl-leo-toast",
+      title: "Leonardo Toast & Stressed",
+      images: ["/templates/leonardo-toast.jpg", "/templates/leonardo-toast.jpg"],
+      collage: "rows",
+      category: "popular",
+      thumbnail: "/templates/leonardo-toast.jpg",
+      defaultTop: "FINISHED THE ASSIGNMENT A DAY BEFORE DEADLINE",
+      defaultBottom: "REALIZES THERE'S STILL THE PRESENTATION LEFT",
+      format: "image"
+    },
+    {
+      id: "tpl-distracted-bf",
+      title: "Distracted Boyfriend",
+      images: ["/templates/distracted-boyfriend.jpg"],
+      collage: "single",
+      category: "popular",
+      thumbnail: "/templates/distracted-boyfriend.jpg",
+      defaultTop: "NEW TEACHING FRAMEWORK",
+      defaultBottom: "CURRENT LESSON PLANS",
+      format: "image"
+    },
+    {
+      id: "tpl-woman-cat",
+      title: "Woman Yelling at Cat",
+      images: ["/templates/woman-cat.jpg"],
+      collage: "single",
+      category: "popular",
+      thumbnail: "/templates/woman-cat.jpg",
+      defaultTop: "YOU SAID THE EXAM WAS EASY",
+      defaultBottom: "IT WAS EASY TO FAIL",
+      format: "image"
+    },
+    {
+      id: "tpl-drake",
+      title: "Drake Hotline Bling",
+      images: ["/templates/drake.jpg"],
+      collage: "single",
+      category: "popular",
+      thumbnail: "/templates/drake.jpg",
+      defaultTop: "30-PAGE TEXTBOOK HOMEWORK",
+      defaultBottom: "CREATING MEMES FOR HOMEWORK",
+      format: "image"
+    },
+    {
+      id: "tpl-wolverine",
+      title: "Batman Slapping Robin",
+      images: ["/templates/wolverine.jpg"],
+      collage: "single",
+      category: "popular",
+      thumbnail: "/templates/wolverine.jpg",
+      defaultTop: "CAN I CRAM 5 CHAPTERS TONIGHT?",
+      defaultBottom: "START STUDYING EARLY!",
+      format: "image"
+    },
+    {
+      id: "tpl-spongebob",
+      title: "Imagination Spongebob",
+      images: ["/templates/spongebob.jpg"],
+      collage: "single",
+      category: "popular",
+      thumbnail: "/templates/spongebob.jpg",
+      defaultTop: "WHEN THE CODE RUNS",
+      defaultBottom: "WITHOUT ANY ERRORS",
+      format: "image"
+    }
+  ];
+
+  const VIDEO_TEMPLATES = [
+    {
+      id: "v-tpl-1",
+      title: "Cell Division (Mitosis)",
+      thumbnail: "/templates/drake.jpg",
+      url: MEDIA_SAMPLES?.video?.[0]?.url || "",
+      format: "video"
+    },
+    {
+      id: "v-tpl-2",
+      title: "Water Cycle Animation",
+      thumbnail: "/templates/leonardo-toast.jpg",
+      url: MEDIA_SAMPLES?.video?.[1]?.url || "",
+      format: "video"
+    },
+    {
+      id: "v-tpl-3",
+      title: "Earth Rotation & Orbit",
+      thumbnail: "/templates/woman-cat.jpg",
+      url: MEDIA_SAMPLES?.video?.[2]?.url || "",
+      format: "video"
+    },
+    {
+      id: "v-tpl-4",
+      title: "Physics Pendulum Motion",
+      thumbnail: "/templates/spongebob.jpg",
+      url: MEDIA_SAMPLES?.video?.[3]?.url || "",
+      format: "video"
+    }
+  ];
+
+  const GIF_TEMPLATES = [
+    {
+      id: "g-tpl-1",
+      title: "Confused Math Reaction",
+      thumbnail: MEDIA_SAMPLES?.gif?.[0]?.url || "",
+      url: MEDIA_SAMPLES?.gif?.[0]?.url || "",
+      format: "gif"
+    },
+    {
+      id: "g-tpl-2",
+      title: "Eureka! Light Bulb Moment",
+      thumbnail: MEDIA_SAMPLES?.gif?.[1]?.url || "",
+      url: MEDIA_SAMPLES?.gif?.[1]?.url || "",
+      format: "gif"
+    },
+    {
+      id: "g-tpl-3",
+      title: "Student Standing Ovation",
+      thumbnail: MEDIA_SAMPLES?.gif?.[2]?.url || "",
+      url: MEDIA_SAMPLES?.gif?.[2]?.url || "",
+      format: "gif"
+    },
+    {
+      id: "g-tpl-4",
+      title: "Mind Blown Discovery",
+      thumbnail: MEDIA_SAMPLES?.gif?.[3]?.url || "",
+      url: MEDIA_SAMPLES?.gif?.[3]?.url || "",
+      format: "gif"
+    }
+  ];
+
+  const AUDIO_TEMPLATES = [
+    {
+      id: "a-tpl-1",
+      title: "Newton's Apple — Lecture Clip",
+      thumbnail: "/templates/leonardo-toast.jpg",
+      url: MEDIA_SAMPLES?.audio?.[0]?.url || "",
+      format: "audio"
+    },
+    {
+      id: "a-tpl-2",
+      title: "Gettysburg Address (1863)",
+      thumbnail: "/templates/distracted-boyfriend.jpg",
+      url: MEDIA_SAMPLES?.audio?.[1]?.url || "",
+      format: "audio"
+    },
+    {
+      id: "a-tpl-3",
+      title: "School Bell Chime",
+      thumbnail: "/templates/batman-robin.jpg",
+      url: MEDIA_SAMPLES?.audio?.[2]?.url || "",
+      format: "audio"
+    },
+    {
+      id: "a-tpl-4",
+      title: "Quiz Game Buzzer",
+      thumbnail: "/templates/drake.jpg",
+      url: MEDIA_SAMPLES?.audio?.[3]?.url || "",
+      format: "audio"
+    }
+  ];
+
+  // Helper to get active section templates
+  const getActiveFormatTemplates = () => {
+    let list = [];
+    if (activeTab === "image") {
+      list = [...IMAGE_TEMPLATES];
+      const dbImages = availableTemplates.filter(t => !t.format || t.format === "image");
+      list = [...list, ...dbImages.map(t => ({
+        id: t.id,
+        title: t.title,
+        thumbnail: t.media_url,
+        images: [t.media_url],
+        format: "image"
+      }))];
+    } else if (activeTab === "video") {
+      list = [...VIDEO_TEMPLATES];
+      const dbVideos = availableTemplates.filter(t => t.format === "video");
+      list = [...list, ...dbVideos.map(t => ({
+        id: t.id,
+        title: t.title,
+        thumbnail: t.media_url || "/templates/drake.jpg",
+        url: t.media_url,
+        format: "video"
+      }))];
+    } else if (activeTab === "gif") {
+      list = [...GIF_TEMPLATES];
+      const dbGifs = availableTemplates.filter(t => t.format === "gif");
+      list = [...list, ...dbGifs.map(t => ({
+        id: t.id,
+        title: t.title,
+        thumbnail: t.media_url,
+        url: t.media_url,
+        format: "gif"
+      }))];
+    } else if (activeTab === "audio") {
+      list = [...AUDIO_TEMPLATES];
+      const dbAudio = availableTemplates.filter(t => t.format === "audio");
+      list = [...list, ...dbAudio.map(t => ({
+        id: t.id,
+        title: t.title,
+        thumbnail: t.media_url || "/templates/leonardo-toast.jpg",
+        url: t.media_url,
+        format: "audio"
+      }))];
+    }
+
+    if (templateSearchQuery && templateSearchQuery.trim()) {
+      const q = templateSearchQuery.toLowerCase();
+      list = list.filter(t => t.title.toLowerCase().includes(q));
+    }
+    return list;
+  };
+
+  // Bidirectional sync for Top & Bottom text inputs
+  const handleTopTextChange = (val) => {
+    setTopTextInput(val);
+    setTextLayers(prev => {
+      const topL = prev.find(l => l.role === "top" || l.id === "txt-top");
+      if (topL) {
+        return prev.map(l => l.id === topL.id ? { ...l, text: val } : l);
+      }
+      return [{ ...DEFAULT_TOP_LAYER, text: val }, ...prev];
+    });
+  };
+
+  const handleBottomTextChange = (val) => {
+    setBottomTextInput(val);
+    setTextLayers(prev => {
+      const btmL = prev.find(l => l.role === "bottom" || l.id === "txt-bottom");
+      if (btmL) {
+        return prev.map(l => l.id === btmL.id ? { ...l, text: val } : l);
+      }
+      return [...prev, { ...DEFAULT_BOTTOM_LAYER, text: val }];
+    });
+  };
+
+  // Clear/delete specific text layers
+  const deleteTopText = () => {
+    setTextLayers(prev => prev.filter(l => l.role !== "top" && l.id !== "txt-top"));
+    setTopTextInput("");
+  };
+
+  const deleteBottomText = () => {
+    setTextLayers(prev => prev.filter(l => l.role !== "bottom" && l.id !== "txt-bottom"));
+    setBottomTextInput("");
+  };
+
+  const deleteTextLayer = (id) => {
+    setTextLayers(prev => prev.filter(l => l.role !== id && l.id !== id));
+    if (selectedTextId === id) setSelectedTextId(null);
+    if (editingTextId === id) setEditingTextId(null);
+  };
+
+  const clearAllText = () => {
+    setTextLayers([]);
+    setTopTextInput("");
+    setBottomTextInput("");
+    setSelectedTextId(null);
+    setEditingTextId(null);
+  };
+
+  const addNewTextLayer = () => {
+    const newId = `txt-${Date.now()}`;
+    const newLayer = {
+      id: newId,
+      text: "CUSTOM CAPTION",
+      x: 30,
+      y: 150,
+      fontSize: 24,
+      color: "#FFFFFF",
+      fontFamily: "Impact, sans-serif",
+      strokeColor: "#000000",
+      strokeWidth: 2,
+      textAlign: "center",
+      opacity: 1,
+      rotation: 0,
+      maxWidth: 360,
+      fontWeight: "bold",
+    };
+    setTextLayers(prev => [...prev, newLayer]);
+    setSelectedTextId(newId);
+  };
+
+  useEffect(() => {
+    const topL = textLayers.find(l => l.role === "top" || l.id === "txt-top") || textLayers[0];
+    const btmL = textLayers.find(l => l.role === "bottom" || l.id === "txt-bottom") || textLayers[1];
+    if (topL && topL.text !== topTextInput) setTopTextInput(topL.text || "");
+    if (btmL && btmL.text !== bottomTextInput) setBottomTextInput(btmL.text || "");
+  }, [textLayers]);
+
+  const handleFontChange = (fontFamily) => {
+    if (selectedTextId) {
+      updateTextLayer("fontFamily", fontFamily);
+    } else {
+      setTextLayers(prev => prev.map(l => ({ ...l, fontFamily })));
+    }
+  };
+
+  const handleFontSizeChange = (sizeName) => {
+    const sizeMap = {
+      Small: 18,
+      Medium: 24,
+      Large: 30,
+      "Extra Large": 38,
+    };
+    const px = sizeMap[sizeName] || parseInt(sizeName) || 26;
+    if (selectedTextId) {
+      updateTextLayer("fontSize", px);
+    } else {
+      setTextLayers(prev => prev.map(l => ({ ...l, fontSize: px })));
+    }
+  };
+
+  const handleColorChange = (color) => {
+    if (selectedTextId) {
+      updateTextLayer("color", color);
+    } else {
+      setTextLayers(prev => prev.map(l => ({ ...l, color })));
+    }
+  };
+
+  const handleStyleToggle = (styleType) => {
+    setTextLayers(prev => prev.map(l => {
+      if (selectedTextId && l.id !== selectedTextId) return l;
+      if (styleType === "bold") {
+        return { ...l, fontWeight: l.fontWeight === "bold" ? "normal" : "bold" };
+      }
+      if (styleType === "italic") {
+        return { ...l, fontStyle: l.fontStyle === "italic" ? "normal" : "italic" };
+      }
+      if (styleType === "underline") {
+        return { ...l, textDecoration: l.textDecoration === "underline" ? "none" : "underline" };
+      }
+      if (styleType === "uppercase") {
+        const isUpper = l.text === l.text.toUpperCase();
+        return { ...l, text: isUpper ? l.text.toLowerCase() : l.text.toUpperCase() };
+      }
+      return l;
+    }));
+  };
+
+  const handleSelectTemplatePreset = (tpl) => {
+    if (tpl.format === "video" || activeTab === "video") {
+      const vUrl = tpl.url || tpl.media_url;
+      if (vUrl) {
+        setVideoUrl(vUrl);
+        setVideoDuration(30);
+        setVideoCurrentTime(0);
+      }
+    } else if (tpl.format === "gif" || activeTab === "gif") {
+      const gUrl = tpl.url || tpl.media_url;
+      if (gUrl) setGifUrl(gUrl);
+    } else if (tpl.format === "audio" || activeTab === "audio") {
+      const aUrl = tpl.url || tpl.media_url;
+      if (aUrl) {
+        setAudioUrl(aUrl);
+        selectMediaPreset(aUrl, "audio", 30);
+      }
+    } else {
+      if (tpl.images && tpl.images.length > 0) {
+        setImages(tpl.images);
+        if (tpl.collage) setCollageLayout(tpl.collage);
+      }
+      if (tpl.defaultTop !== undefined) handleTopTextChange(tpl.defaultTop);
+      if (tpl.defaultBottom !== undefined) handleBottomTextChange(tpl.defaultBottom);
+    }
+  };
+
+  const FILTER_MAP = {
+    none: "",
+    grayscale: "grayscale(100%)",
+    sepia: "sepia(80%)",
+    contrast: "contrast(150%) brightness(110%)",
+    warm: "sepia(30%) saturate(140%)",
+    cool: "hue-rotate(180deg)",
+    invert: "invert(100%)",
+    vintage: "sepia(40%) contrast(120%) saturate(80%)",
+    neon: "contrast(130%) saturate(180%) drop-shadow(0 0 6px rgba(244,63,94,0.6))"
+  };
+
   // Hotkey listener for video studio playback (Space, Left/Right arrows, M key)
   useEffect(() => {
     if (activeTab !== "video") return;
@@ -437,7 +876,7 @@ const Lab = () => {
         e.preventDefault();
         const video = videoPlayerRef.current;
         if (video) {
-          if (video.paused) video.play().catch(() => {});
+          if (video.paused) video.play().catch(() => { });
           else video.pause();
         }
       } else if (e.code === "ArrowLeft") {
@@ -699,7 +1138,7 @@ const Lab = () => {
   const handleTextPointerDown = (e, textId) => {
     e.preventDefault();
     setSelectedTextId(textId);
-    
+
     const layer = textLayers.find(l => l.id === textId);
     if (!layer) return;
 
@@ -762,11 +1201,11 @@ const Lab = () => {
 
     if (!dragInfoRef.current.isDragging) return;
     const info = dragInfoRef.current;
-    
+
     const deltaX = e.clientX - info.startX;
     const deltaY = e.clientY - info.startY;
 
-    setTextLayers(prev => 
+    setTextLayers(prev =>
       prev.map(layer => {
         if (layer.id === info.textId) {
           return {
@@ -1066,16 +1505,16 @@ const Lab = () => {
 
       setSplitProgress("Trimming Part 1 (Left)...");
       const part1Blob = await trimVideo(
-        fileToTrim, 
-        videoTrimStart, 
+        fileToTrim,
+        videoTrimStart,
         videoCurrentTime,
         (p) => setSplitProgress(`Trimming Part 1: ${Math.round(p * 100)}%`)
       );
 
       setSplitProgress("Trimming Part 2 (Right)...");
       const part2Blob = await trimVideo(
-        fileToTrim, 
-        videoCurrentTime, 
+        fileToTrim,
+        videoCurrentTime,
         videoTrimEnd,
         (p) => setSplitProgress(`Trimming Part 2: ${Math.round(p * 100)}%`)
       );
@@ -1128,16 +1567,16 @@ const Lab = () => {
 
       setSplitProgress("Trimming Part 1...");
       const part1Blob = await trimVideo(
-        fileToTrim, 
-        videoTrimStart, 
+        fileToTrim,
+        videoTrimStart,
         videoCurrentTime,
         (p) => setSplitProgress(`Trimming Part 1: ${Math.round(p * 100)}%`)
       );
 
       setSplitProgress("Trimming Part 2...");
       const part2Blob = await trimVideo(
-        fileToTrim, 
-        videoCurrentTime, 
+        fileToTrim,
+        videoCurrentTime,
         videoTrimEnd,
         (p) => setSplitProgress(`Trimming Part 2: ${Math.round(p * 100)}%`)
       );
@@ -1164,7 +1603,7 @@ const Lab = () => {
       const finalSubject = subject === "Other" ? (customSubject.trim() || "Other") : subject;
       const finalLanguage = language === "Other" ? (customLanguage.trim() || "Other") : language;
       const parsedKeywords = keywords ? keywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean) : [];
-      
+
       const draftName = title.trim() || "Meme Video";
       await addDoc(collection(db, "memes"), {
         creator_id: user.uid,
@@ -1315,10 +1754,10 @@ const Lab = () => {
   const [canvasBg, setCanvasBg] = useState("#1e293b"); // background fill color
 
   const ASPECT_RATIOS = {
-    "1:1":  { css: "aspect-square",  w: 1, h: 1 },
-    "16:9": { css: "aspect-video",   w: 16, h: 9 },
-    "9:16": { css: "aspect-[9/16]",  w: 9, h: 16 },
-    "4:3":  { css: "aspect-[4/3]",   w: 4, h: 3 },
+    "1:1": { css: "aspect-square", w: 1, h: 1 },
+    "16:9": { css: "aspect-video", w: 16, h: 9 },
+    "9:16": { css: "aspect-[9/16]", w: 9, h: 16 },
+    "4:3": { css: "aspect-[4/3]", w: 4, h: 3 },
   };
 
   const generateMemeBlob = async () => {
@@ -1327,11 +1766,11 @@ const Lab = () => {
     const scale = 1;
     const displayW = container.offsetWidth || 500;
     const displayH = container.offsetHeight || 500;
-    const width  = displayW * scale;
+    const width = displayW * scale;
     const height = displayH * scale;
 
     const canvas = document.createElement("canvas");
-    canvas.width  = width;
+    canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d");
 
@@ -1406,10 +1845,10 @@ const Lab = () => {
       } else if (collageLayout === "grid" && numImages === 4) {
         const topH = Math.round(height * gridSplit.y);
         const botH = height - topH;
-        
+
         const topW1 = Math.round(width * gridSplit.topX);
         const topW2 = width - topW1;
-        
+
         const botW1 = Math.round(width * gridSplit.bottomX);
         const botW2 = width - botW1;
 
@@ -1610,12 +2049,12 @@ const Lab = () => {
     setAlertMessage("");
 
     try {
-      let fileUrl = activeTab === "image" 
-        ? (images[0] || "/samples/confused_student_sample.gif") 
-        : activeTab === "video" 
-          ? videoUrl 
-          : activeTab === "gif" 
-            ? gifUrl 
+      let fileUrl = activeTab === "image"
+        ? (images[0] || "/samples/confused_student_sample.gif")
+        : activeTab === "video"
+          ? videoUrl
+          : activeTab === "gif"
+            ? gifUrl
             : audioUrl;
 
       // 1. Compile image and upload if activeTab is image
@@ -1637,7 +2076,7 @@ const Lab = () => {
           document.body.removeChild(link);
           URL.revokeObjectURL(downloadUrl);
         }
-      } 
+      }
       // 2. Week 6: Real video compiler → upload compiled video to Storage
       else if (activeTab === "video") {
         let videoBlob;
@@ -1679,7 +2118,7 @@ const Lab = () => {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(compiledUrl);
-      } 
+      }
       // 3. Week 7: Generate audiogram PNG card → upload as the meme's media_url
       else if (activeTab === "audio") {
         // Step A: upload the raw audio file so QR code can point to it
@@ -1922,8 +2361,8 @@ const Lab = () => {
   };
 
   // Styles dynamically adjusted for UDL settings
-  const containerClass = highContrastMode 
-    ? "bg-zinc-900 border border-zinc-800 text-white shadow-sm rounded-xl" 
+  const containerClass = highContrastMode
+    ? "bg-zinc-900 border border-zinc-800 text-white shadow-sm rounded-xl"
     : "bg-white border border-gray-200 shadow-sm rounded-xl";
 
   const btnClass = "bg-purple-600 hover:bg-purple-750 text-white font-medium px-4 py-2 rounded-lg transition";
@@ -1936,171 +2375,103 @@ const Lab = () => {
 
   return (
     <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 py-3 flex flex-col min-h-[calc(100vh-70px)]" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
-      
+
       {/* ── TOP STUDIO WORKBENCH NAVIGATION BAR ─────────────────────────── */}
-      <div className="bg-slate-950/95 border border-slate-800/90 text-white rounded-2xl p-3 mb-4 flex flex-wrap items-center justify-between gap-4 shadow-2xl backdrop-blur-xl select-none">
-        {/* Left section: Studio Brand + Single Unified Editor Selection Menu */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-950/80 border border-purple-600/60 rounded-xl text-xs font-black tracking-wider text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+      <div className="bg-white/95 dark:bg-[#0e131f]/95 border border-slate-200 dark:border-[#1d2638] text-slate-800 dark:text-white rounded-2xl p-3 mb-4 flex flex-wrap items-center justify-between gap-4 shadow-sm backdrop-blur-xl select-none">
+        {/* Left section: Studio Brand + Unified Format Tabs */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 px-3.5 py-1.5 bg-rose-50 dark:bg-[#250a18] border border-rose-300 dark:border-[#e11d48] rounded-full text-xs font-black tracking-wider text-rose-600 dark:text-[#f43f5e] shadow-xs">
             <span className="text-sm">🎨</span>
             <span>MEME STUDIO</span>
           </div>
 
-          <div className="h-5 w-px bg-slate-800 hidden sm:block" />
+          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
 
-          {/* Unified Editor Selection Menu */}
-          <div className="flex bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-inner gap-1">
+          {/* Format Switcher Tabs */}
+          <div className="flex bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a] gap-1 shadow-inner">
             {[
-              { id: "image", label: "Image", icon: TAB_ICONS["image"] },
-              { id: "video", label: "Video", icon: TAB_ICONS["video"] },
-              { id: "gif", label: "GIF", icon: TAB_ICONS["gif"] },
-              { id: "audio", label: "Audio", icon: TAB_ICONS["audio"] }
+              { id: "image", label: "Image", icon: <ImageIcon className="w-3.5 h-3.5" /> },
+              { id: "video", label: "Video", icon: <VideoIcon className="w-3.5 h-3.5" /> },
+              { id: "gif", label: "GIF", icon: <Smile className="w-3.5 h-3.5" /> },
+              { id: "audio", label: "Audio", icon: <Music className="w-3.5 h-3.5" /> }
             ].map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => { setActiveTab(tab.id); setAlertMessage(""); }}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
                   activeTab === tab.id
-                    ? "bg-purple-600 text-white shadow-[0_0_12px_rgba(147,51,234,0.6)] scale-[1.03]"
-                    : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60"
+                    ? "bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white shadow-sm scale-[1.02]"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/40"
                 }`}
               >
-                <span className="text-sm">{tab.icon}</span>
-                <span className="capitalize font-semibold">{tab.label}</span>
+                {tab.icon}
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Center section: Active Layer Contextual Control Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto py-0.5 max-w-full">
-          {activeTextLayer ? (
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs shadow-inner">
-              <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Text Layer</span>
-              
-              {/* Font family picker */}
-              <select
-                value={activeTextLayer.fontFamily || "Impact"}
-                onChange={(e) => updateTextLayer("fontFamily", e.target.value)}
-                className="bg-slate-950 border border-slate-700 text-white text-[11px] rounded-lg px-2 py-1 focus:outline-none"
-              >
-                <option value="Impact">Impact</option>
-                <option value="Arial">Arial Black</option>
-                <option value="Comic Sans MS">Comic Sans</option>
-                <option value="Courier New">Courier</option>
-                <option value="Georgia">Georgia</option>
-                <option value="Trebuchet MS">Trebuchet</option>
-              </select>
-
-              {/* Font size */}
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] text-slate-400">Size</span>
-                <input
-                  type="number"
-                  min="10"
-                  max="180"
-                  value={activeTextLayer.fontSize || 24}
-                  onChange={(e) => updateTextLayer("fontSize", parseInt(e.target.value) || 24)}
-                  className="w-12 bg-slate-950 border border-slate-700 text-white text-[11px] text-center rounded-lg py-1"
-                />
-              </div>
-
-              {/* Text color */}
-              <label className="flex items-center gap-1 cursor-pointer" title="Text Color">
-                <span className="text-[10px] text-slate-400">Color</span>
-                <input
-                  type="color"
-                  value={activeTextLayer.color || "#FFFFFF"}
-                  onChange={(e) => updateTextLayer("color", e.target.value)}
-                  className="w-5 h-5 rounded cursor-pointer border border-slate-700 p-0 bg-transparent"
-                />
-              </label>
-
-              {/* Layer re-order */}
-              <div className="flex items-center gap-1 pl-1 border-l border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => moveLayerUp(activeTextLayer.id)}
-                  title="Move Up"
-                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[10px] font-bold"
-                >▲</button>
-                <button
-                  type="button"
-                  onClick={() => moveLayerDown(activeTextLayer.id)}
-                  title="Move Down"
-                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[10px] font-bold"
-                >▼</button>
-              </div>
-
-              {/* Duplicate & Delete */}
-              <button
-                type="button"
-                onClick={duplicateSelectedText}
-                className="px-2.5 py-1 bg-purple-900/60 hover:bg-purple-600 text-purple-200 hover:text-white rounded-lg text-[10px] font-bold transition"
-              >
-                Copy
-              </button>
-              <button
-                type="button"
-                onClick={deleteSelectedText}
-                className="px-2.5 py-1 bg-red-950/60 hover:bg-red-600 text-red-200 hover:text-white rounded-lg text-[10px] font-bold transition"
-              >
-                Delete
-              </button>
-            </div>
-          ) : activeTab === "video" ? (
-            <div className="flex items-center gap-2 bg-purple-950/40 border border-purple-800/50 px-3 py-1.5 rounded-xl text-xs">
-              <span className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Video Studio Active</span>
-            </div>
-          ) : (
-            <div className="text-xs text-slate-400 italic">
-              Select any text layer on canvas to customize font, colors & scaling
-            </div>
-          )}
-        </div>
-
-        {/* Right section: Global Actions */}
-        <div className="flex items-center gap-2">
+        {/* Right section: Global Actions (Undo/Redo, AI Punchlines, Download, Publish) */}
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Undo / Redo */}
-          <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 gap-1">
+          <div className="flex items-center bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a] gap-0.5">
             <button
               type="button"
               onClick={undoTextLayers}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
-              className="px-2.5 py-1 text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-30 rounded hover:bg-slate-800 transition"
-            >↩</button>
+              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-25 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
             <button
               type="button"
               onClick={redoTextLayers}
               disabled={!canRedo}
               title="Redo (Ctrl+Y)"
-              className="px-2.5 py-1 text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-30 rounded hover:bg-slate-800 transition"
-            >↪</button>
+              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-25 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+            >
+              <Redo2 className="w-4 h-4" />
+            </button>
           </div>
 
           <button
             type="button"
             onClick={() => setShowAiModal(true)}
-            className="bg-purple-600/30 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/50 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow"
+            className="bg-rose-50 hover:bg-rose-100 dark:bg-[#1e101d] dark:hover:bg-[#2c1328] text-rose-600 dark:text-[#f43f5e] border border-rose-200 dark:border-[#e11d48]/60 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs active:scale-95"
           >
-            <span>⚡ AI Punchlines</span>
+            <span>⚡</span>
+            <span>AI Punchlines</span>
           </button>
 
+          {/* Distinct Direct Download Button */}
+          <button
+            type="button"
+            onClick={() => handlePublishSubmit(false)}
+            disabled={loading}
+            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-white border border-slate-300 dark:border-slate-700 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs active:scale-95"
+            title="Download directly to your device"
+          >
+            <Download className="w-3.5 h-3.5" strokeWidth={2.2} />
+            <span>Download</span>
+          </button>
+
+          {/* Distinct Community Publish Button */}
           <button
             type="button"
             onClick={() => setShowSaveModal(true)}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-lg transition flex items-center gap-1.5 active:scale-95"
+            className="bg-gradient-to-r from-[#e11d48] to-[#f43f5e] hover:brightness-110 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5 active:scale-95"
+            title="Publish to community library"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-            <span>Export</span>
+            <Share2 className="w-3.5 h-3.5" strokeWidth={2.2} />
+            <span>Publish</span>
           </button>
         </div>
       </div>
 
       {alertMessage && (
-        <div className="mb-6 p-4 rounded-lg bg-red-100 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-750 font-medium text-sm">
+        <div className="mb-4 p-3.5 rounded-xl bg-red-100 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-750 dark:text-red-300 font-medium text-xs">
           {alertMessage}
         </div>
       )}
@@ -2128,940 +2499,107 @@ const Lab = () => {
         </div>
       )}
 
-      {/* Unified SaaS Workbench Card */}
-      <div className={`flex-1 flex flex-col lg:flex-row min-h-[calc(100vh-160px)] w-full rounded-2xl overflow-hidden shadow-2xl border ${
-        highContrastMode 
-          ? "bg-zinc-950 border-zinc-800 text-white" 
-          : "bg-white border-gray-200 text-gray-800"
-      }`}>
-        
-        {/* 1. LEFT SIDEBAR */}
-        <div className={`w-full lg:w-[310px] border-r flex flex-col shrink-0 h-auto lg:h-full ${
-          highContrastMode
-            ? "bg-zinc-900 border-zinc-800 text-white"
-            : "bg-white border-gray-100 text-gray-800"
-        }`}>
+      {/* ── TWO-COLUMN SAAS WORKSTATION LAYOUT ── */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 w-full min-h-[calc(100vh-140px)]">
 
+        {/* ── LEFT COLUMN: COMPACT CANVAS BOX + BOTTOM CONTROLS CARD ── */}
+        <div className="flex-1 flex flex-col gap-4 min-w-0">
 
-
-          {/* Tool Switcher — Media / Text */}
-          <div className={`px-3 py-2 border-b border-gray-100 dark:border-zinc-800`}>
-            <div className={`flex gap-1 ${
-              highContrastMode ? "" : ""
-            }`}>
-              <button
-                type="button"
-                onClick={() => setActiveControlTab("media")}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition border ${
-                  activeControlTab === "media" ? "bg-purple-50 dark:bg-zinc-700 text-purple-700 dark:text-zinc-200 border-purple-200 dark:border-zinc-600" : "text-gray-500 dark:text-zinc-400 border-transparent hover:text-gray-800 dark:hover:text-zinc-200"
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                Media
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveControlTab("text")}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition border ${
-                  activeControlTab === "text" ? "bg-purple-50 dark:bg-zinc-700 text-purple-700 dark:text-zinc-200 border-purple-200 dark:border-zinc-600" : "text-gray-500 dark:text-zinc-400 border-transparent hover:text-gray-800 dark:hover:text-zinc-200"
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                Text
-              </button>
-            </div>
-          </div>
-
-          {/* Active Tool Panel Content */}
-          <div className="flex-grow px-4 py-4 overflow-y-auto space-y-5">
-            {/* MEDIA CONTROLS */}
-            {activeControlTab === "media" && (
-              <div className="space-y-6">
-
-                {/* Library templates matching the active format */}
-                {(() => {
-                  const DEFAULT_IMAGE_TEMPLATES = [
-                    { id: "preset-sanders", title: "Bernie Asking", media_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Bernie_Sanders_in_January_2020.jpg/440px-Bernie_Sanders_in_January_2020.jpg", format: "image" },
-                    { id: "preset-smart", title: "Smart Logic", media_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Thinker_close_up.jpg/440px-Thinker_close_up.jpg", format: "image" },
-                    { id: "preset-success", title: "Classroom Blackboard", media_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Chalkboard.jpg/440px-Chalkboard.jpg", format: "image" }
-                  ];
-
-                  const dbFormatTemplates = availableTemplates.filter(temp => {
-                    if (activeTab === "image") return !temp.format || temp.format === "image";
-                    return temp.format === activeTab;
-                  });
-
-                  let templatesToDisplay = [
-                    ...dbFormatTemplates,
-                    ...(activeTab === "image" ? DEFAULT_IMAGE_TEMPLATES : [])
-                  ];
-
-                  if (templateSearchQuery.trim()) {
-                    const query = templateSearchQuery.toLowerCase();
-                    templatesToDisplay = templatesToDisplay.filter(temp =>
-                      temp.title.toLowerCase().includes(query)
-                    );
-                  }
-
-                  templatesToDisplay.sort((a, b) => {
-                    const aFeat = !!a.is_featured;
-                    const bFeat = !!b.is_featured;
-                    if (aFeat && !bFeat) return -1;
-                    if (!aFeat && bFeat) return 1;
-                    return 0;
-                  });
-
-                  return (
-                    <div id="lab-template-picker" className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">Templates</span>
-                        {templateSearchQuery && (
-                          <button
-                            onClick={() => setTemplateSearchQuery("")}
-                            className="text-[9px] text-purple-650 dark:text-purple-400 hover:underline font-bold uppercase tracking-wide"
-                          >
-                            Clear
-                          </button>
-                        )}
-                      </div>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="Search templates..."
-                          value={templateSearchQuery}
-                          onChange={(e) => setTemplateSearchQuery(e.target.value)}
-                          className="w-full pl-7 pr-3 py-1 bg-gray-50 dark:bg-zinc-800 border border-gray-255 dark:border-zinc-700 rounded-lg text-[11px] text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                        />
-                        <svg
-                          className="w-3.5 h-3.5 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                          />
-                        </svg>
-                      </div>
-                      {templatesToDisplay.length > 0 ? (
-                        <div className="grid grid-cols-3 gap-1.5 max-h-[148px] overflow-y-auto pr-0.5">
-                          {templatesToDisplay.map((temp) => (
-                            <div key={temp.id} className="relative">
-                              <button
-                                type="button"
-                                onClick={() => handleSelectTemplate(temp)}
-                                title={temp.title}
-                                className={`group relative w-full aspect-video rounded-lg overflow-hidden border transition active:scale-95 ${
-                                  temp.is_featured
-                                    ? "border-indigo-400 dark:border-indigo-500"
-                                    : "border-gray-200 dark:border-zinc-700 hover:border-purple-400"
-                                }`}
-                              >
-                                {temp.format === "video" ? (
-                                  <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                                    <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                                  </div>
-                                ) : temp.format === "audio" ? (
-                                  <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                                    <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
-                                  </div>
-                                ) : (
-                                  <img src={temp.media_url} alt={temp.title} className="w-full h-full object-cover" />
-                                )}
-                                {/* Hover overlay with name */}
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-end p-1">
-                                  <span className="text-white text-[8px] font-bold leading-tight line-clamp-2">{temp.title}</span>
-                                </div>
-                              </button>
-                              {/* 📖 Know More icon — only for db templates with an id */}
-                              {temp.id && !temp.id.startsWith("preset-") && (
-                                <button
-                                  type="button"
-                                  title="Know more about this meme"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setStoryExpanded(false);
-                                    setMemeStoryModal({ open: true, story: null, template: temp, loading: true });
-                                    fetchStoryForTemplate(temp.id);
-                                  }}
-                                  className="absolute top-0.5 right-0.5 w-5 h-5 bg-amber-500/90 hover:bg-amber-500 text-white rounded-md flex items-center justify-center text-[10px] shadow-md transition active:scale-90 z-10"
-                                >
-                                  📖
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-gray-400 text-[10px] italic">No templates yet.</p>
-                      )}
-
-                      {/* Contribute Template button — only for logged-in users */}
-                      {user && (
-                        <button
-                          type="button"
-                          onClick={() => setShowContributeModal(true)}
-                          className="w-full mt-2 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold border border-dashed border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition active:scale-95"
-                        >
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                          Contribute a Template
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
-                
-                {activeTab === "image" && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Upload</span>
-                      <span className="text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-bold px-2 py-0.5 rounded-full">
-                        {images.length}/4
-                      </span>
-                    </div>
-
-                    {/* Compact Dropzone */}
-                    <div 
-                      onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
-                      onDragLeave={() => setIsDragOverDropzone(false)}
-                      onDrop={handleDropzoneDrop}
-                      className={`border-2 border-dashed rounded-xl text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[88px] ${
-                        isDragOverDropzone
-                          ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/20"
-                          : (highContrastMode 
-                              ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
-                              : "border-gray-200 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/30")
-                      }`}
-                    >
-                      <input 
-                        type="file" 
-                        multiple 
-                        accept="image/*" 
-                        onChange={handleImageUpload} 
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      />
-                      <svg className="w-6 h-6 text-gray-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      <span className="text-[11px] text-gray-500">Drop image or <span className="text-purple-600 font-semibold">browse</span></span>
-                    </div>
-
-                    {/* Browse Library Button */}
-                    <button
-                      type="button"
-                      onClick={() => setShowLibraryPickerModal(true)}
-                      className="w-full border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20 font-semibold py-1.5 rounded-lg text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>
-                      Browse Library
-                    </button>
-
-                    {/* Per-image thumbnail strip with individual ✕ removal */}
-                    {images.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                          {images.map((src, idx) => (
-                            <div key={idx} className="relative group w-14 h-14 rounded-lg overflow-hidden border-2 border-gray-200 dark:border-zinc-700 hover:border-purple-500 transition flex-shrink-0">
-                              <img src={src} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
-                              <button
-                                type="button"
-                                onClick={() => removeImage(idx)}
-                                className="absolute top-0 right-0 w-4 h-4 bg-red-600 text-white text-[9px] font-black rounded-bl-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition leading-none"
-                                title={`Remove image ${idx + 1}`}
-                              >
-                                ✕
-                              </button>
-                              <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[8px] text-center py-0.5 font-semibold">{idx + 1}</span>
-                            </div>
-                          ))}
-                          {images.length < 4 && (
-                            <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 dark:border-zinc-700 flex items-center justify-center cursor-pointer hover:border-purple-400 transition flex-shrink-0 relative">
-                              <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-                              <span className="text-xl text-gray-400 leading-none">+</span>
-                            </label>
-                          )}
-                        </div>
-
-                        {/* Layout Organization controls (only shown when ≥2 images) */}
-                        {images.length >= 2 && (
-                          <div className="space-y-2">
-                            <div>
-                              <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Organize Layout</span>
-                              <div className="flex gap-1.5 flex-wrap">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCollageLayout("columns");
-                                    setPanelSizes([1, 1, 1, 1]);
-                                  }}
-                                  className={`text-[10px] font-bold px-2 py-1 rounded-lg transition border flex items-center gap-1 ${
-                                    collageLayout === "columns"
-                                      ? "bg-purple-600 text-white border-purple-600"
-                                      : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-zinc-700 hover:border-purple-400"
-                                  }`}
-                                  title="Arrange in vertical columns"
-                                >
-                                  <span>║</span>
-                                  <span>Columns</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCollageLayout("rows");
-                                    setPanelSizes([1, 1, 1, 1]);
-                                  }}
-                                  className={`text-[10px] font-bold px-2 py-1 rounded-lg transition border flex items-center gap-1 ${
-                                    collageLayout === "rows"
-                                      ? "bg-purple-600 text-white border-purple-600"
-                                      : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-zinc-700 hover:border-purple-400"
-                                  }`}
-                                  title="Arrange in horizontal rows"
-                                >
-                                  <span>═</span>
-                                  <span>Rows</span>
-                                </button>
-                                {images.length === 4 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setCollageLayout("grid");
-                                      setGridSplit({ x: 0.5, y: 0.5, topX: 0.5, bottomX: 0.5 });
-                                    }}
-                                    className={`text-[10px] font-bold px-2 py-1 rounded-lg transition border flex items-center gap-1 ${
-                                      collageLayout === "grid"
-                                        ? "bg-purple-600 text-white border-purple-600"
-                                        : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-zinc-700 hover:border-purple-400"
-                                    }`}
-                                    title="Arrange in a 2x2 grid"
-                                  >
-                                    <span>田</span>
-                                    <span>Grid</span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPanelSizes([1, 1, 1, 1]);
-                                setGridSplit({ y: 0.5, topX: 0.5, bottomX: 0.5 });
-                              }}
-                              className="text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
-                            >
-                              ↺ Reset Split Proportions
-                            </button>
-                          </div>
-                        )}
-
-                        <button
-                          onClick={() => { setImages([]); setImageFiles([]); }}
-                          className="text-xs font-semibold text-red-500 hover:text-red-600 dark:text-red-400 flex items-center gap-1 transition"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          Clear all
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === "video" && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
-                      <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Video Studio Engine</h3>
-                      {videoUrl && (
-                        <span className="text-[10px] bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300 font-bold px-2 py-0.5 rounded-full">
-                          Active
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800/40 space-y-2">
-                      <p className="font-extrabold text-xs text-purple-900 dark:text-purple-300">
-                        🎬 Classic NLE Studio
-                      </p>
-                      <p className="text-[11px] text-purple-700 dark:text-purple-400 leading-relaxed">
-                        Use the interactive Video Studio on the right to upload media, adjust aspect ratios, and manage subtitle tracks.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-
-                {activeTab === "gif" && (
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
-                      <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">GIF Media Assets</h3>
-                      {gifUrl && (
-                        <span className="text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-bold px-2 py-0.5 rounded-full">
-                          Loaded
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-y-4">
-                      {/* Compact Dropzone */}
-                      <div 
-                        onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
-                        onDragLeave={() => setIsDragOverDropzone(false)}
-                        onDrop={handleDropzoneDrop}
-                        className={`border-2 border-dashed rounded-xl text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[88px] ${
-                          isDragOverDropzone
-                            ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/20"
-                            : (highContrastMode 
-                                ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
-                                : "border-gray-200 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/30")
-                        }`}
-                      >
-                        <input 
-                          type="file" 
-                          accept="image/gif" 
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setGifUrl(createObjectURLSafe(file));
-                              setGifFile(file);
-                            }
-                          }} 
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        />
-                        <svg className="w-6 h-6 text-gray-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        <span className="text-[11px] text-gray-500">Drop GIF or <span className="text-purple-600 font-semibold">browse</span></span>
-                      </div>
-
-                      {/* Giphy Search Engine */}
-                      <div>
-                        <label className="block text-[11px] font-semibold uppercase tracking-wider mb-2 text-gray-500">Search Giphy Library</label>
-                        <GiphySearch onSelect={(url) => {
-                          setGifUrl(url);
-                          setGifFile(null);
-                        }} />
-                      </div>
-
-                      {/* Paste URL Collapsible/Advanced details option */}
-                      <details className="text-[10px] font-semibold text-gray-500">
-                        <summary className="cursor-pointer hover:text-purple-600 transition select-none">Advanced: Paste direct GIF URL</summary>
-                        <div className="pt-2">
-                          <input 
-                            type="text" 
-                            value={gifUrl.startsWith("blob:") ? "" : gifUrl} 
-                            onChange={(e) => {
-                              setGifUrl(e.target.value);
-                              setGifFile(null);
-                            }} 
-                            placeholder="Paste Giphy URL or external link..."
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-xs bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-purple-500 outline-none"
-                          />
-                        </div>
-                      </details>
-
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "audio" && (
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
-                      <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Audio Media Assets</h3>
-                      {audioUrl && (
-                        <span className="text-[10px] bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300 font-bold px-2 py-0.5 rounded-full">
-                          Loaded
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-4">
-                      {/* Compact Dropzone */}
-                      <div 
-                        onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
-                        onDragLeave={() => setIsDragOverDropzone(false)}
-                        onDrop={handleDropzoneDrop}
-                        className={`border-2 border-dashed rounded-xl text-center transition cursor-pointer relative flex flex-col items-center justify-center min-h-[88px] ${
-                          isDragOverDropzone
-                            ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/20"
-                            : (highContrastMode 
-                                ? "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500" 
-                                : "border-gray-200 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/30")
-                        }`}
-                      >
-                        <input 
-                          type="file" 
-                          accept="audio/*" 
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setAudioUrl(createObjectURLSafe(file));
-                              setAudioFile(file);
-                            }
-                          }} 
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        />
-                        <svg className="w-6 h-6 text-gray-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                        </svg>
-                        <span className="text-[11px] text-gray-500">Drop audio or <span className="text-purple-600 font-semibold">browse</span> (&lt;20 MB)</span>
-                      </div>
-
-                      <div>
-                        <span className="block text-[11px] font-bold uppercase tracking-wider mb-2 text-gray-500">Or Load Mock Sample</span>
-                        <div className="flex flex-wrap gap-2">
-                          {MEDIA_SAMPLES.audio.map((sample, idx) => (
-                            <button
-                              key={sample.id}
-                              type="button"
-                              onClick={() => selectMediaPreset(sample.url, "audio", 45)}
-                              className="text-[11px] bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 font-bold px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-800/40 hover:bg-purple-100 transition active:scale-95"
-                            >
-                              Sample {idx + 1}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {audioUrl && (
-                      <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <span className="block text-[11px] font-semibold uppercase tracking-wider mb-3 text-gray-500">Crop / Trim Playback Window</span>
-                        <div className="space-y-3 text-xs font-semibold">
-                          <div>
-                            <label className="flex justify-between">
-                              <span>Start Timestamp</span>
-                              <span className="text-purple-600">{audioTrimStart.toFixed(1)}s</span>
-                            </label>
-                            <input 
-                              type="range" 
-                              min="0" 
-                              max={audioTrimEnd} 
-                              step="0.1"
-                              value={audioTrimStart}
-                              onChange={(e) => setAudioTrimStart(parseFloat(e.target.value))}
-                              className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer mt-1"
-                            />
-                          </div>
-                          <div>
-                            <label className="flex justify-between">
-                              <span>End Timestamp</span>
-                              <span className="text-purple-600">{audioTrimEnd.toFixed(1)}s</span>
-                            </label>
-                            <input 
-                              type="range" 
-                              min={audioTrimStart} 
-                              max="45" 
-                              step="0.1"
-                              value={audioTrimEnd}
-                              onChange={(e) => setAudioTrimEnd(parseFloat(e.target.value))}
-                              className="w-full accent-purple-650 h-1 bg-gray-200 rounded-lg cursor-pointer mt-1"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-              </div>
-            )}
-
-            {/* TEXT LAYER CONTROLS */}
-            {activeControlTab === "text" && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-zinc-800">
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-purple-700 dark:text-purple-400">Overlay Text Engine</h3>
-                  {/* Undo / Redo */}
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={undoTextLayers}
-                      disabled={!canUndo}
-                      title="Undo (Ctrl+Z)"
-                      className="w-6 h-6 flex items-center justify-center rounded text-[11px] font-bold disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
-                    >↩</button>
-                    <button
-                      type="button"
-                      onClick={redoTextLayers}
-                      disabled={!canRedo}
-                      title="Redo (Ctrl+Y)"
-                      className="w-6 h-6 flex items-center justify-center rounded text-[11px] font-bold disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
-                    >↪</button>
-                  </div>
-                </div>
-                
+          {/* 1. COMPACT CANVAS AREA BOX (Reduced height & size for optimal viewport fit) */}
+          <div
+            id="lab-canvas-area"
+            className="bg-slate-100/90 dark:bg-[#0b0e14] border border-slate-200 dark:border-[#1b2336] rounded-2xl shadow-sm relative flex items-center justify-center p-2.5 sm:p-3 min-h-[260px] lg:min-h-[280px] overflow-hidden select-none"
+            style={{
+              backgroundImage: highContrastMode
+                ? "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)"
+                : "radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px)",
+              backgroundSize: "20px 20px"
+            }}
+          >
+            {/* Floating Bottom-Left: Zoom Controls Capsule (Image Canvas Only) */}
+            {activeTab === "image" && (
+              <div className="absolute bottom-3 left-3 z-30 flex items-center gap-1.5 bg-white/90 dark:bg-[#101626]/90 backdrop-blur-md border border-slate-200 dark:border-[#1e273d] px-2.5 py-1.5 rounded-xl shadow-md text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <button
                   type="button"
-                  onClick={addTextLayer}
-                  className="w-full bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 font-semibold py-2 px-4 rounded-lg text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
+                  onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))}
+                  className="w-5 h-5 flex items-center justify-center hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-sm font-bold"
+                  title="Zoom Out"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
-                  Add Text Layer
+                  -
                 </button>
-
-                {/* AI Caption & Punchline Generator */}
-                <div id="lab-ai-btn" className="p-3 bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200 dark:border-purple-800/60 rounded-xl space-y-2 mb-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-700 dark:text-purple-300 flex items-center gap-1">
-                      ✨ AI Meme Punchlines
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowAiModal(true)}
-                      className="text-[9px] text-purple-600 dark:text-purple-400 font-bold hover:underline"
-                    >
-                      Credits / Key
-                    </button>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <input
-                      type="text"
-                      placeholder="e.g. Gravity, cell division, test anxiety…"
-                      value={aiPromptTopic}
-                      onChange={e => setAiPromptTopic(e.target.value)}
-                      className="flex-1 px-2.5 py-1 text-xs rounded-lg border border-purple-200 dark:border-purple-800 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    />
-                    <button
-                      type="button"
-                      disabled={aiLoading}
-                      onClick={handleGenerateAiCaptions}
-                      className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 active:scale-95 disabled:opacity-50 text-white font-bold text-xs transition shrink-0"
-                    >
-                      {aiLoading ? "Thinking…" : "Generate"}
-                    </button>
-                  </div>
-
-                  {aiCaptions.length > 0 && (
-                    <div className="space-y-1.5 pt-1">
-                      <span className="text-[9px] text-gray-500 dark:text-gray-400 block font-medium">
-                        Click a suggestion to apply:
-                      </span>
-                      {aiCaptions.map((cap, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => applyAiCaption(cap)}
-                          className="w-full text-left p-2 rounded-lg bg-white dark:bg-zinc-900 hover:bg-purple-100/60 dark:hover:bg-purple-950/40 border border-purple-100 dark:border-purple-900 text-[11px] text-gray-700 dark:text-zinc-200 transition font-normal"
-                        >
-                          "{cap}"
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Layer list */}
-                {textLayers.length > 0 && (
-                  <div className="space-y-1 mb-2">
-                    {textLayers.map((layer, idx) => (
-                      <button
-                        key={layer.id}
-                        type="button"
-                        onClick={() => setSelectedTextId(layer.id)}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-between gap-1 transition ${
-                          selectedTextId === layer.id
-                            ? "bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700"
-                            : "bg-gray-50 dark:bg-zinc-800/60 hover:bg-gray-100 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-700"
-                        }`}
-                      >
-                        <span className="truncate max-w-[140px]">{layer.text || `Layer ${idx + 1}`}</span>
-                        <span className="text-[9px] text-gray-400 font-normal shrink-0">{layer.fontFamily}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {activeTextLayer ? (
-                  <div className="space-y-3 text-xs font-semibold bg-gray-50 dark:bg-zinc-900/60 p-3 rounded-xl border border-gray-150 dark:border-zinc-800">
-                    {/* Text content */}
-                    <div>
-                      <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Text</label>
-                      <textarea
-                        value={activeTextLayer.text}
-                        onChange={(e) => updateTextLayer("text", e.target.value)}
-                        rows="2"
-                        className="w-full px-2 py-1.5 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 outline-none resize-none"
-                      />
-                    </div>
-
-                    {/* Alignment */}
-                    <div className="flex gap-1">
-                      {[("left"), ("center"), ("right")].map(align => (
-                        <button
-                          key={align}
-                          type="button"
-                          onClick={() => updateTextLayer("textAlign", align)}
-                          title={align}
-                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold capitalize transition border ${
-                            (activeTextLayer.textAlign || "left") === align
-                              ? "bg-purple-600 text-white border-purple-600"
-                              : "bg-gray-100 dark:bg-zinc-800 text-gray-500 border-gray-200 dark:border-zinc-700 hover:border-purple-400"
-                          }`}
-                        >
-                          {align === "left" ? (
-                            <svg className="w-3.5 h-3.5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h8m-8 6h12"/></svg>
-                          ) : align === "center" ? (
-                            <svg className="w-3.5 h-3.5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M8 12h8M6 18h12"/></svg>
-                          ) : (
-                            <svg className="w-3.5 h-3.5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M12 12h8M8 18h12"/></svg>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Font + Color row */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Font</label>
-                        <select
-                          value={activeTextLayer.fontFamily}
-                          onChange={(e) => updateTextLayer("fontFamily", e.target.value)}
-                          className="w-full px-2 py-1 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-lg text-xs"
-                          style={{ fontFamily: activeTextLayer.fontFamily }}
-                        >
-                          <optgroup label="Meme Classics">
-                            <option value="Impact" style={{ fontFamily: "Impact" }}>Impact</option>
-                            <option value="Bangers" style={{ fontFamily: "Bangers" }}>Bangers</option>
-                            <option value="Comic Sans MS" style={{ fontFamily: "Comic Sans MS" }}>Comic Sans</option>
-                          </optgroup>
-                          <optgroup label="Modern">
-                            <option value="Poppins" style={{ fontFamily: "Poppins" }}>Poppins Bold</option>
-                            <option value="Oswald" style={{ fontFamily: "Oswald" }}>Oswald Bold</option>
-                            <option value="Pacifico" style={{ fontFamily: "Pacifico" }}>Pacifico</option>
-                          </optgroup>
-                          <optgroup label="Educational">
-                            <option value="Roboto Slab" style={{ fontFamily: "Roboto Slab" }}>Roboto Slab</option>
-                            <option value="Georgia" style={{ fontFamily: "Georgia" }}>Georgia</option>
-                          </optgroup>
-                          <optgroup label="System">
-                            <option value="Arial" style={{ fontFamily: "Arial" }}>Arial</option>
-                            <option value="Courier New" style={{ fontFamily: "Courier New" }}>Courier</option>
-                            <option value="Times New Roman" style={{ fontFamily: "Times New Roman" }}>Times</option>
-                          </optgroup>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Color</label>
-                        <input
-                          type="color"
-                          value={activeTextLayer.color}
-                          onChange={(e) => updateTextLayer("color", e.target.value)}
-                          className="w-full h-8 border border-gray-200 cursor-pointer rounded-lg p-0 bg-transparent"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Suggested Palette Swatches */}
-                    {suggestedColors && suggestedColors.length > 0 && (
-                      <div>
-                        <span className="block text-[9px] text-gray-400 uppercase tracking-wider mb-1 font-bold">
-                          ✨ Suggested from image
-                        </span>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {suggestedColors.map((hex, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => updateTextLayer("color", hex)}
-                              style={{ backgroundColor: hex }}
-                              className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 shadow-sm ${
-                                activeTextLayer.color?.toLowerCase() === hex?.toLowerCase()
-                                  ? "ring-2 ring-purple-600 ring-offset-1 border-white"
-                                  : "border-gray-300 dark:border-zinc-700"
-                              }`}
-                              title={`Set text color to ${hex}`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Font Size */}
-                    <div>
-                      <label className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider mb-1">
-                        <span>Size</span>
-                        <span className="text-purple-500 font-bold">{activeTextLayer.fontSize}px</span>
-                      </label>
-                      <input
-                        type="range"
-                        min="10"
-                        max="80"
-                        value={activeTextLayer.fontSize}
-                        onChange={(e) => updateTextLayer("fontSize", parseInt(e.target.value))}
-                        className="w-full accent-purple-600 h-1 bg-gray-200 dark:bg-zinc-700 rounded-lg cursor-pointer"
-                      />
-                    </div>
-
-                    {/* Advanced options — collapsed by default */}
-                    <details className="group">
-                      <summary className="flex items-center justify-between cursor-pointer select-none text-[10px] text-gray-400 uppercase tracking-wider hover:text-purple-600 transition list-none">
-                        <span>Advanced</span>
-                        <svg className="w-3 h-3 transition group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
-                      </summary>
-                      <div className="mt-3 space-y-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
-                        {/* Opacity */}
-                        <div>
-                          <label className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider mb-1">
-                            <span>Opacity</span>
-                            <span className="text-purple-500 font-bold">{Math.round((activeTextLayer.opacity ?? 1) * 100)}%</span>
-                          </label>
-                          <input
-                            type="range"
-                            min="0" max="1" step="0.05"
-                            value={activeTextLayer.opacity ?? 1}
-                            onChange={(e) => updateTextLayer("opacity", parseFloat(e.target.value))}
-                            className="w-full accent-purple-600 h-1 bg-gray-200 dark:bg-zinc-700 rounded-lg cursor-pointer"
-                          />
-                        </div>
-                        {/* Rotation */}
-                        <div>
-                          <label className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider mb-1">
-                            <span>Rotation</span>
-                            <span className="text-purple-500 font-bold">{activeTextLayer.rotation || 0}°</span>
-                          </label>
-                          <input
-                            type="range"
-                            min="-180" max="180" step="1"
-                            value={activeTextLayer.rotation || 0}
-                            onChange={(e) => updateTextLayer("rotation", parseInt(e.target.value))}
-                            className="w-full accent-purple-600 h-1 bg-gray-200 dark:bg-zinc-700 rounded-lg cursor-pointer"
-                          />
-                        </div>
-                        {/* Stroke */}
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Stroke</label>
-                            <input type="color" value={activeTextLayer.strokeColor} onChange={(e) => updateTextLayer("strokeColor", e.target.value)} className="w-full h-7 border border-gray-200 cursor-pointer rounded p-0 bg-transparent" />
-                          </div>
-                          <div>
-                            <label className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider mb-1">
-                              <span>Width</span>
-                              <span className="text-purple-500 font-bold">{activeTextLayer.strokeWidth}px</span>
-                            </label>
-                            <input type="range" min="0" max="6" value={activeTextLayer.strokeWidth} onChange={(e) => updateTextLayer("strokeWidth", parseInt(e.target.value))} className="w-full accent-purple-600 h-1 bg-gray-200 dark:bg-zinc-700 rounded-lg cursor-pointer" />
-                          </div>
-                        </div>
-                        {/* Text Wrap */}
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={!!activeTextLayer.maxWidth} onChange={(e) => updateTextLayer("maxWidth", e.target.checked ? 200 : null)} className="rounded accent-purple-600" />
-                          <span className="text-[10px] text-gray-500 uppercase">Wrap Text</span>
-                        </label>
-                        {activeTextLayer.maxWidth && (
-                          <div>
-                            <label className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider mb-1">
-                              <span>Max Width</span>
-                              <span className="text-purple-500 font-bold">{activeTextLayer.maxWidth}px</span>
-                            </label>
-                            <input type="range" min="60" max="440" step="10" value={activeTextLayer.maxWidth} onChange={(e) => updateTextLayer("maxWidth", parseInt(e.target.value))} className="w-full accent-purple-600 h-1 bg-gray-200 dark:bg-zinc-700 rounded-lg cursor-pointer" />
-                          </div>
-                        )}
-                      </div>
-                    </details>
-
-                    <div className="pt-3 border-t border-gray-100 dark:border-zinc-800 flex justify-between">
-                      <button type="button" onClick={deleteSelectedText} className="text-red-500 hover:text-red-600 font-semibold">Delete</button>
-                      <button type="button" onClick={duplicateSelectedText} className="text-purple-600 hover:text-purple-700 dark:text-purple-400 font-semibold">Duplicate</button>
-                      <button type="button" onClick={() => setSelectedTextId(null)} className="text-gray-400 hover:text-gray-600 font-semibold">Deselect</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 px-4 text-gray-400 text-xs border border-dashed border-gray-200 dark:border-zinc-700 rounded-xl">
-                    Select a layer above to edit, or add a new one.
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(100)}
+                  className="hover:text-rose-600 dark:hover:text-white transition px-1 text-[11px] font-bold"
+                  title="Reset Zoom"
+                >
+                  {zoomLevel}%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(prev => Math.min(200, prev + 10))}
+                  className="w-5 h-5 flex items-center justify-center hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-sm font-bold"
+                  title="Zoom In"
+                >
+                  +
+                </button>
+                <div className="h-3.5 w-px bg-slate-300 dark:bg-slate-700 mx-0.5" />
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(100)}
+                  className="p-0.5 text-slate-500 hover:text-rose-600 dark:hover:text-white transition"
+                  title="Fit Canvas"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
 
-
-
-          </div>
-        </div>
-
-        {/* 2. RIGHT VIEWPORT WORKSPACE */}
-        <div className={`flex-grow flex flex-col h-full min-w-0 overflow-hidden relative ${
-          "bg-slate-50 dark:bg-zinc-950"
-        }`}>
-          
-          {/* Canvas Controls Bar — aspect ratio + background colour */}
-          <div className={`flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b shrink-0 ${
-            "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800"
-          }`}>
-            {/* Active format label */}
-            <div className="flex items-center gap-2">
-              <span className={`flex items-center gap-1 text-[11px] font-bold capitalize ${
-                "text-gray-700 dark:text-zinc-300"
-              }`}>
-                {TAB_ICONS[activeTab]}
-                <span>{activeTab}</span>
-              </span>
-            </div>
-
-            {/* Canvas Controls — aspect ratio, background (image tab only) */}
+            {/* Floating Right: Aspect Ratio Capsule & BG Color Picker (Image Canvas Only) */}
             {activeTab === "image" && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className={`flex p-0.5 rounded-lg gap-0.5 ${
-                  "bg-gray-100 dark:bg-zinc-800"
-                }`}>
-                  {Object.keys(ASPECT_RATIOS).map(ratio => (
-                    <button
-                      key={ratio}
-                      type="button"
-                      onClick={() => setCanvasAspect(ratio)}
-                      title={`Canvas aspect ratio ${ratio}`}
-                      className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${
-                        canvasAspect === ratio
-                          ? "bg-purple-600 text-white"
-                          : ("text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white")
-                      }`}
-                    >
-                      {ratio}
-                    </button>
-                  ))}
-                </div>
-
-                <label className="flex items-center gap-1.5 cursor-pointer" title="Canvas background color">
-                  <span className={`text-[10px] font-bold uppercase ${
-                    "text-gray-500 dark:text-zinc-400"
-                  }`}>BG</span>
-                  <input
-                    type="color"
-                    value={canvasBg}
-                    onChange={(e) => setCanvasBg(e.target.value)}
-                    className="w-5 h-5 rounded cursor-pointer border border-gray-200 dark:border-zinc-700 p-0 bg-transparent"
-                  />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 bg-white/90 dark:bg-[#101626]/90 backdrop-blur-md border border-slate-200 dark:border-[#1e273d] p-1.5 rounded-xl shadow-md">
+                {["1:1", "16:9", "9:16", "4:3"].map((ratio) => (
+                  <button
+                    key={ratio}
+                    type="button"
+                    onClick={() => setCanvasAspect(ratio)}
+                    className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-all ${
+                      canvasAspect === ratio
+                        ? "bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white shadow-xs scale-105"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                    }`}
+                  >
+                    {ratio}
+                  </button>
+                ))}
+                <div className="w-full h-px bg-slate-200 dark:bg-slate-800 my-0.5" />
+                <label className="flex items-center justify-center gap-1 cursor-pointer py-0.5 px-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-[10px] font-bold text-slate-600 dark:text-slate-400" title="Canvas Background Color">
+                  <span className="text-[9px]">BG</span>
+                  <div
+                    className="w-3.5 h-3.5 rounded border border-slate-400 dark:border-slate-600 relative overflow-hidden shadow-xs"
+                    style={{ backgroundColor: canvasBg }}
+                  >
+                    <input
+                      type="color"
+                      value={canvasBg}
+                      onChange={(e) => setCanvasBg(e.target.value)}
+                      className="opacity-0 absolute inset-0 cursor-pointer"
+                    />
+                  </div>
                 </label>
               </div>
             )}
 
-            {/* Mobile Export */}
-            <button
-              type="button"
-              onClick={() => setShowSaveModal(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded-lg shadow-sm transition text-xs flex items-center gap-1.5 lg:hidden"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              Export
-            </button>
-          </div>
-
-          {/* Drawing Workspace Canvas Container */}
-          <div className="w-full h-full flex-grow overflow-y-auto flex flex-col items-center justify-center p-3 sm:p-6 relative">
-            {/* Subtle dot grid */}
-            <div 
-              className={`absolute inset-0 pointer-events-none ${highContrastMode ? "opacity-[0.08]" : "opacity-[0.15]"}`}
+            {/* Canvas Viewport (Reduced max-width & max-height) */}
+            <div
               style={{
-                backgroundImage: highContrastMode
-                  ? "radial-gradient(circle, #a78bfa 1px, transparent 1px)"
-                  : "radial-gradient(circle, #94a3b8 1px, transparent 1px)",
-                backgroundSize: "28px 28px"
+                transform: activeTab === "image" ? `scale(${zoomLevel / 100})` : undefined,
+                transition: "transform 0.15s ease-out"
               }}
-            />
-
-            {/* Canvas Preview Area */}
-            <div id="lab-canvas-area" className="relative z-10 w-full h-full flex flex-col items-center justify-center">
+              className={`flex items-center justify-center ${activeTab === "video" ? "w-full h-full" : "max-w-full max-h-full"}`}
+            >
               {activeTab === "video" ? (
-                <div className="w-full h-full min-h-[640px] shadow-2xl rounded-2xl overflow-hidden border border-zinc-800 flex flex-col">
+                <div className="w-full h-full min-h-[320px] shadow-lg rounded-2xl overflow-hidden border border-slate-200 dark:border-zinc-800 flex flex-col">
                   <ClassicVideoEditor
                     videoUrl={videoUrl}
                     videoFile={videoFile}
@@ -3101,291 +2639,294 @@ const Lab = () => {
                   />
                 </div>
               ) : (
-                <div 
+                <div
                   ref={canvasContainerRef}
-                  className={`relative w-full max-w-[680px] lg:max-w-[760px] max-h-[78vh] ${ASPECT_RATIOS[canvasAspect]?.css || "aspect-square"} flex items-center justify-center select-none shadow-2xl border ${
-                    highContrastMode 
-                      ? "bg-zinc-900 border-zinc-800" 
-                      : "border-slate-950"
-                  } rounded-2xl overflow-hidden transition-all duration-300`}
-                  style={{ backgroundColor: canvasBg }}
+                  className={`relative w-full max-w-[340px] max-h-[40vh] sm:max-h-[300px] ${
+                    activeTab === "image"
+                      ? (ASPECT_RATIOS[canvasAspect]?.css || "aspect-square")
+                      : activeTab === "audio"
+                      ? "aspect-[16/10] max-w-[420px]"
+                      : "aspect-square"
+                  } flex items-center justify-center select-none shadow-xl border border-slate-300 dark:border-[#1b2336] rounded-2xl overflow-hidden`}
+                  style={{
+                    backgroundColor: canvasBg,
+                    filter: FILTER_MAP[selectedFilter] || undefined
+                  }}
                 >
-                {/* Draggable Text Overlays Layer wrapper */}
-                <div className="absolute inset-0 z-20 pointer-events-none">
-                  {textLayers.map((layer) => (
-                    <div
-                      key={layer.id}
-                      onPointerDown={(e) => handleTextPointerDown(e, layer.id)}
-                      onDoubleClick={() => setEditingTextId(layer.id)}
-                    style={{
-                        position: "absolute",
-                        left: `${layer.x}px`,
-                        top: `${layer.y}px`,
-                        fontFamily: layer.fontFamily,
-                        fontSize: `${layer.fontSize}px`,
-                        color: layer.color,
-                        WebkitTextStroke: `${layer.strokeWidth}px ${layer.strokeColor}`,
-                        cursor: "move",
-                        whiteSpace: layer.maxWidth ? "normal" : "nowrap",
-                        maxWidth: layer.maxWidth ? `${layer.maxWidth}px` : undefined,
-                        opacity: layer.opacity ?? 1,
-                        transform: layer.rotation ? `rotate(${layer.rotation}deg)` : undefined,
-                        textAlign: layer.textAlign || "left",
-                        transformOrigin: "top left",
-                      }}
-                      className={`pointer-events-auto px-2 py-1 rounded transition select-none ${
-                        selectedTextId === layer.id 
-                          ? "border-2 border-dashed border-purple-500 ring-2 ring-purple-350 bg-purple-500/10" 
-                          : ""
-                      }`}
-                    >
-                      {editingTextId === layer.id ? (
-                        <input
-                          type="text"
-                          value={layer.text}
-                          onChange={(e) => updateTextLayer("text", e.target.value)}
-                          onBlur={() => setEditingTextId(null)}
-                          onKeyDown={(e) => { if (e.key === "Enter") setEditingTextId(null); }}
-                          className="bg-black text-white px-1 text-base rounded border border-purple-400 focus:outline-none"
-                          autoFocus
-                        />
-                      ) : (
-                        layer.text
-                      )}
-                      {selectedTextId === layer.id && (
-                        <>
-                          <div
-                            onPointerDown={(e) => handleResizePointerDown(e, layer.id, "nw")}
-                            className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-purple-600 border-2 border-white rounded-full cursor-nw-resize z-30 shadow-md hover:scale-125 transition"
-                            title="Drag to resize text font size"
+                  {/* Draggable Text Overlays */}
+                  <div className="absolute inset-0 z-20 pointer-events-none">
+                    {textLayers.map((layer) => (
+                      <div
+                        key={layer.id}
+                        onPointerDown={(e) => handleTextPointerDown(e, layer.id)}
+                        onDoubleClick={() => setEditingTextId(layer.id)}
+                        style={{
+                          position: "absolute",
+                          left: `${layer.x}px`,
+                          top: `${layer.y}px`,
+                          fontFamily: layer.fontFamily,
+                          fontSize: `${layer.fontSize}px`,
+                          fontWeight: layer.fontWeight || "bold",
+                          fontStyle: layer.fontStyle || "normal",
+                          textDecoration: layer.textDecoration || "none",
+                          color: layer.color,
+                          WebkitTextStroke: `${layer.strokeWidth ?? 2}px ${layer.strokeColor ?? "#000000"}`,
+                          textShadow: textEffectShadow ? "2px 2px 8px rgba(0,0,0,0.9)" : undefined,
+                          cursor: "move",
+                          whiteSpace: layer.maxWidth ? "normal" : "nowrap",
+                          maxWidth: layer.maxWidth ? `${layer.maxWidth}px` : undefined,
+                          opacity: layer.opacity ?? 1,
+                          transform: layer.rotation ? `rotate(${layer.rotation}deg)` : undefined,
+                          textAlign: layer.textAlign || "center",
+                          transformOrigin: "top left",
+                        }}
+                        className={`pointer-events-auto px-2 py-1 rounded transition select-none ${
+                          selectedTextId === layer.id
+                            ? "border-2 border-dashed border-[#e11d48] ring-2 ring-[#e11d48]/50 bg-[#e11d48]/10"
+                            : ""
+                        }`}
+                      >
+                        {editingTextId === layer.id ? (
+                          <input
+                            type="text"
+                            value={layer.text}
+                            onChange={(e) => updateTextLayer("text", e.target.value)}
+                            onBlur={() => setEditingTextId(null)}
+                            onKeyDown={(e) => { if (e.key === "Enter") setEditingTextId(null); }}
+                            className="bg-black/90 text-white px-1 text-sm rounded border border-[#e11d48] focus:outline-none"
+                            autoFocus
                           />
-                          <div
-                            onPointerDown={(e) => handleResizePointerDown(e, layer.id, "ne")}
-                            className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-purple-600 border-2 border-white rounded-full cursor-ne-resize z-30 shadow-md hover:scale-125 transition"
-                            title="Drag to resize text font size"
-                          />
-                          <div
-                            onPointerDown={(e) => handleResizePointerDown(e, layer.id, "sw")}
-                            className="absolute -bottom-1.5 -left-1.5 w-3.5 h-3.5 bg-purple-600 border-2 border-white rounded-full cursor-sw-resize z-30 shadow-md hover:scale-125 transition"
-                            title="Drag to resize text font size"
-                          />
-                          <div
-                            onPointerDown={(e) => handleResizePointerDown(e, layer.id, "se")}
-                            className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 bg-purple-600 border-2 border-white rounded-full cursor-se-resize z-30 shadow-md hover:scale-125 transition"
-                            title="Drag to resize text font size"
-                          />
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Content rendering based on Active Tab */}
-                {activeTab === "image" && (
-                  <div className="w-full h-full flex flex-col">
-                    {images.length > 0 ? (
-                      images.length === 1 ? (
-                        <div className="w-full h-full" style={{ userSelect: "none" }}>
-                          <img
-                            src={images[0]}
-                            alt="Meme visual component"
-                            style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
-                          />
-                        </div>
-                      ) : collageLayout === "columns" ? (
-                        <div className="w-full h-full flex" style={{ userSelect: "none" }}>
-                          {images.map((src, idx) => {
-                            const numImages = images.length;
-                            const activeSizes = panelSizes.slice(0, numImages);
-                            const totalWeight = activeSizes.reduce((a, b) => a + b, 0);
-                            const flexVal = activeSizes[idx] / totalWeight;
-                            const isLast = idx === numImages - 1;
-                            return (
-                              <React.Fragment key={idx}>
-                                <div
-                                  style={{ flexGrow: flexVal, flexShrink: 0, flexBasis: 0, minWidth: 0, position: "relative", overflow: "hidden" }}
-                                >
-                                  <img
-                                    src={src}
-                                    alt={`Collage panel ${idx + 1}`}
-                                    style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
-                                  />
-                                </div>
-                                {!isLast && (
-                                  <div
-                                    style={{
-                                      width: "6px",
-                                      flexShrink: 0,
-                                      cursor: "col-resize",
-                                      background: "rgba(139,92,246,0.4)",
-                                      zIndex: 25,
-                                      position: "relative"
-                                    }}
-                                    onPointerDown={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      const activeSizesNow = panelSizes.slice(0, images.length);
-                                      collageDragRef.current = {
-                                        active: true,
-                                        type: "columns",
-                                        dividerIdx: idx,
-                                        startX: e.clientX,
-                                        startSizes: [...activeSizesNow]
-                                      };
-                                      const containerW = canvasContainerRef.current?.offsetWidth || 480;
-                                      const onMove = (me) => {
-                                        if (!collageDragRef.current.active) return;
-                                        const dx = me.clientX - collageDragRef.current.startX;
-                                        const pxPerUnit = containerW / collageDragRef.current.startSizes.reduce((a, b) => a + b, 0);
-                                        const delta = dx / pxPerUnit;
-                                        const newSizes = [...collageDragRef.current.startSizes];
-                                        const minSize = 0.1;
-                                        newSizes[idx] = Math.max(minSize, newSizes[idx] + delta);
-                                        newSizes[idx + 1] = Math.max(minSize, newSizes[idx + 1] - delta);
-                                        setPanelSizes(prev => {
-                                          const updated = [...prev];
-                                          updated[idx] = newSizes[idx];
-                                          updated[idx + 1] = newSizes[idx + 1];
-                                          return updated;
-                                        });
-                                      };
-                                      const onUp = () => {
-                                        collageDragRef.current.active = false;
-                                        window.removeEventListener("pointermove", onMove);
-                                        window.removeEventListener("pointerup", onUp);
-                                      };
-                                      window.addEventListener("pointermove", onMove);
-                                      window.addEventListener("pointerup", onUp);
-                                    }}
-                                    title="Drag to resize columns"
-                                  >
-                                    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 2, height: 24, background: "rgba(255,255,255,0.7)", borderRadius: 2 }} />
-                                  </div>
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
-                        </div>
-                      ) : collageLayout === "rows" ? (
-                        <div className="w-full h-full flex flex-col" style={{ userSelect: "none" }}>
-                          {images.map((src, idx) => {
-                            const numImages = images.length;
-                            const activeSizes = panelSizes.slice(0, numImages);
-                            const totalWeight = activeSizes.reduce((a, b) => a + b, 0);
-                            const flexVal = activeSizes[idx] / totalWeight;
-                            const isLast = idx === numImages - 1;
-                            return (
-                              <React.Fragment key={idx}>
-                                <div
-                                  style={{ flexGrow: flexVal, flexShrink: 0, flexBasis: 0, minHeight: 0, position: "relative", overflow: "hidden" }}
-                                >
-                                  <img
-                                    src={src}
-                                    alt={`Collage panel ${idx + 1}`}
-                                    style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
-                                  />
-                                </div>
-                                {!isLast && (
-                                  <div
-                                    style={{
-                                      height: "6px",
-                                      flexShrink: 0,
-                                      cursor: "row-resize",
-                                      background: "rgba(139,92,246,0.4)",
-                                      zIndex: 25,
-                                      position: "relative"
-                                    }}
-                                    onPointerDown={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      const activeSizesNow = panelSizes.slice(0, images.length);
-                                      collageDragRef.current = {
-                                        active: true,
-                                        type: "rows",
-                                        dividerIdx: idx,
-                                        startY: e.clientY,
-                                        startSizes: [...activeSizesNow]
-                                      };
-                                      const containerH = canvasContainerRef.current?.offsetHeight || 480;
-                                      const onMove = (me) => {
-                                        if (!collageDragRef.current.active) return;
-                                        const dy = me.clientY - collageDragRef.current.startY;
-                                        const pxPerUnit = containerH / collageDragRef.current.startSizes.reduce((a, b) => a + b, 0);
-                                        const delta = dy / pxPerUnit;
-                                        const newSizes = [...collageDragRef.current.startSizes];
-                                        const minSize = 0.1;
-                                        newSizes[idx] = Math.max(minSize, newSizes[idx] + delta);
-                                        newSizes[idx + 1] = Math.max(minSize, newSizes[idx + 1] - delta);
-                                        setPanelSizes(prev => {
-                                          const updated = [...prev];
-                                          updated[idx] = newSizes[idx];
-                                          updated[idx + 1] = newSizes[idx + 1];
-                                          return updated;
-                                        });
-                                      };
-                                      const onUp = () => {
-                                        collageDragRef.current.active = false;
-                                        window.removeEventListener("pointermove", onMove);
-                                        window.removeEventListener("pointerup", onUp);
-                                      };
-                                      window.addEventListener("pointermove", onMove);
-                                      window.addEventListener("pointerup", onUp);
-                                    }}
-                                    title="Drag to resize rows"
-                                  >
-                                    <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 24, height: 2, background: "rgba(255,255,255,0.7)", borderRadius: 2 }} />
-                                  </div>
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
-                        </div>
-                      ) : collageLayout === "grid" && images.length === 4 ? (
-                        <div className="w-full h-full flex flex-col" style={{ userSelect: "none" }}>
-                          {/* Top Row */}
-                          <div style={{ height: `${gridSplit.y * 100}%`, flexShrink: 0, display: "flex", position: "relative", minHeight: 0 }}>
-                            <div style={{ width: `${gridSplit.topX * 100}%`, flexShrink: 0, position: "relative", height: "100%", overflow: "hidden" }}>
-                              <img src={images[0]} alt="Grid 1" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                            </div>
-                            
-                            {/* Vertical divider top */}
+                        ) : (
+                          layer.text
+                        )}
+                        {selectedTextId === layer.id && (
+                          <>
                             <div
-                              style={{ width: "6px", cursor: "col-resize", background: "rgba(139,92,246,0.4)", zIndex: 25, position: "relative", flexShrink: 0 }}
+                              onPointerDown={(e) => handleResizePointerDown(e, layer.id, "nw")}
+                              className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-[#e11d48] border-2 border-white rounded-full cursor-nw-resize z-30 shadow-md hover:scale-125 transition"
+                              title="Drag to resize text"
+                            />
+                            <div
+                              onPointerDown={(e) => handleResizePointerDown(e, layer.id, "ne")}
+                              className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-[#e11d48] border-2 border-white rounded-full cursor-ne-resize z-30 shadow-md hover:scale-125 transition"
+                              title="Drag to resize text"
+                            />
+                            <div
+                              onPointerDown={(e) => handleResizePointerDown(e, layer.id, "sw")}
+                              className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-[#e11d48] border-2 border-white rounded-full cursor-sw-resize z-30 shadow-md hover:scale-125 transition"
+                              title="Drag to resize text"
+                            />
+                            <div
+                              onPointerDown={(e) => handleResizePointerDown(e, layer.id, "se")}
+                              className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-[#e11d48] border-2 border-white rounded-full cursor-se-resize z-30 shadow-md hover:scale-125 transition"
+                              title="Drag to resize text"
+                            />
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {activeTab === "image" && (
+                    <div className="w-full h-full flex flex-col">
+                      {images.length > 0 ? (
+                        images.length === 1 ? (
+                          <div className="w-full h-full" style={{ userSelect: "none" }}>
+                            <img
+                              src={images[0]}
+                              alt="Meme visual"
+                              style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+                            />
+                          </div>
+                        ) : collageLayout === "columns" ? (
+                          <div className="w-full h-full flex" style={{ userSelect: "none" }}>
+                            {images.map((src, idx) => {
+                              const numImages = images.length;
+                              const activeSizes = panelSizes.slice(0, numImages);
+                              const totalWeight = activeSizes.reduce((a, b) => a + b, 0);
+                              const flexVal = activeSizes[idx] / totalWeight;
+                              const isLast = idx === numImages - 1;
+                              return (
+                                <React.Fragment key={idx}>
+                                  <div
+                                    style={{ flexGrow: flexVal, flexShrink: 0, flexBasis: 0, minWidth: 0, position: "relative", overflow: "hidden" }}
+                                  >
+                                    <img
+                                      src={src}
+                                      alt={`Collage panel ${idx + 1}`}
+                                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                    />
+                                  </div>
+                                  {!isLast && (
+                                    <div
+                                      style={{
+                                        width: "6px",
+                                        flexShrink: 0,
+                                        cursor: "col-resize",
+                                        background: "rgba(225,29,72,0.5)",
+                                        zIndex: 25,
+                                        position: "relative"
+                                      }}
+                                      onPointerDown={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const activeSizesNow = panelSizes.slice(0, images.length);
+                                        collageDragRef.current = {
+                                          active: true,
+                                          type: "columns",
+                                          dividerIdx: idx,
+                                          startX: e.clientX,
+                                          startSizes: [...activeSizesNow]
+                                        };
+                                        const containerW = canvasContainerRef.current?.offsetWidth || 400;
+                                        const onMove = (me) => {
+                                          if (!collageDragRef.current.active) return;
+                                          const dx = me.clientX - collageDragRef.current.startX;
+                                          const pxPerUnit = containerW / collageDragRef.current.startSizes.reduce((a, b) => a + b, 0);
+                                          const delta = dx / pxPerUnit;
+                                          const newSizes = [...collageDragRef.current.startSizes];
+                                          const minSize = 0.1;
+                                          newSizes[idx] = Math.max(minSize, newSizes[idx] + delta);
+                                          newSizes[idx + 1] = Math.max(minSize, newSizes[idx + 1] - delta);
+                                          setPanelSizes(prev => {
+                                            const updated = [...prev];
+                                            updated[idx] = newSizes[idx];
+                                            updated[idx + 1] = newSizes[idx + 1];
+                                            return updated;
+                                          });
+                                        };
+                                        const onUp = () => {
+                                          collageDragRef.current.active = false;
+                                          window.removeEventListener("pointermove", onMove);
+                                          window.removeEventListener("pointerup", onUp);
+                                        };
+                                        window.addEventListener("pointermove", onMove);
+                                        window.addEventListener("pointerup", onUp);
+                                      }}
+                                    >
+                                      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 2, height: 20, background: "rgba(255,255,255,0.7)", borderRadius: 2 }} />
+                                    </div>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </div>
+                        ) : collageLayout === "rows" ? (
+                          <div className="w-full h-full flex flex-col" style={{ userSelect: "none" }}>
+                            {images.map((src, idx) => {
+                              const numImages = images.length;
+                              const activeSizes = panelSizes.slice(0, numImages);
+                              const totalWeight = activeSizes.reduce((a, b) => a + b, 0);
+                              const flexVal = activeSizes[idx] / totalWeight;
+                              const isLast = idx === numImages - 1;
+                              return (
+                                <React.Fragment key={idx}>
+                                  <div
+                                    style={{ flexGrow: flexVal, flexShrink: 0, flexBasis: 0, minHeight: 0, position: "relative", overflow: "hidden" }}
+                                  >
+                                    <img
+                                      src={src}
+                                      alt={`Collage panel ${idx + 1}`}
+                                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                    />
+                                  </div>
+                                  {!isLast && (
+                                    <div
+                                      style={{
+                                        height: "6px",
+                                        flexShrink: 0,
+                                        cursor: "row-resize",
+                                        background: "rgba(225,29,72,0.5)",
+                                        zIndex: 25,
+                                        position: "relative"
+                                      }}
+                                      onPointerDown={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const activeSizesNow = panelSizes.slice(0, images.length);
+                                        collageDragRef.current = {
+                                          active: true,
+                                          type: "rows",
+                                          dividerIdx: idx,
+                                          startY: e.clientY,
+                                          startSizes: [...activeSizesNow]
+                                        };
+                                        const containerH = canvasContainerRef.current?.offsetHeight || 380;
+                                        const onMove = (me) => {
+                                          if (!collageDragRef.current.active) return;
+                                          const dy = me.clientY - collageDragRef.current.startY;
+                                          const pxPerUnit = containerH / collageDragRef.current.startSizes.reduce((a, b) => a + b, 0);
+                                          const delta = dy / pxPerUnit;
+                                          const newSizes = [...collageDragRef.current.startSizes];
+                                          const minSize = 0.1;
+                                          newSizes[idx] = Math.max(minSize, newSizes[idx] + delta);
+                                          newSizes[idx + 1] = Math.max(minSize, newSizes[idx + 1] - delta);
+                                          setPanelSizes(prev => {
+                                            const updated = [...prev];
+                                            updated[idx] = newSizes[idx];
+                                            updated[idx + 1] = newSizes[idx + 1];
+                                            return updated;
+                                          });
+                                        };
+                                        const onUp = () => {
+                                          collageDragRef.current.active = false;
+                                          window.removeEventListener("pointermove", onMove);
+                                          window.removeEventListener("pointerup", onUp);
+                                        };
+                                        window.addEventListener("pointermove", onMove);
+                                        window.addEventListener("pointerup", onUp);
+                                      }}
+                                    >
+                                      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 20, height: 2, background: "rgba(255,255,255,0.7)", borderRadius: 2 }} />
+                                    </div>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </div>
+                        ) : collageLayout === "grid" ? (
+                          <div className="w-full h-full flex flex-col" style={{ userSelect: "none" }}>
+                            {/* Top Row */}
+                            <div style={{ flexGrow: 1, display: "flex", position: "relative", minHeight: 0 }}>
+                              <div style={{ width: `${gridSplit.topX * 100}%`, flexShrink: 0, position: "relative", height: "100%", overflow: "hidden" }}>
+                                <img src={images[0]} alt="Grid 1" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              </div>
+                              <div
+                                style={{ width: "6px", cursor: "col-resize", background: "rgba(225,29,72,0.5)", zIndex: 25, position: "relative", flexShrink: 0 }}
+                                onPointerDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  collageDragRef.current = { active: true, type: "grid-v-top", startX: e.clientX, startSplit: { ...gridSplit } };
+                                  const containerW = canvasContainerRef.current?.offsetWidth || 400;
+                                  const onMove = (me) => {
+                                    if (!collageDragRef.current.active) return;
+                                    const dx = me.clientX - collageDragRef.current.startX;
+                                    const deltaRatio = dx / containerW;
+                                    setGridSplit(prev => ({ ...prev, topX: Math.max(0.1, Math.min(0.9, collageDragRef.current.startSplit.topX + deltaRatio)) }));
+                                  };
+                                  const onUp = () => {
+                                    collageDragRef.current.active = false;
+                                    window.removeEventListener("pointermove", onMove);
+                                    window.removeEventListener("pointerup", onUp);
+                                  };
+                                  window.addEventListener("pointermove", onMove);
+                                  window.addEventListener("pointerup", onUp);
+                                }}
+                              />
+                              <div style={{ flexGrow: 1, position: "relative", height: "100%", overflow: "hidden" }}>
+                                <img src={images[1] || images[0]} alt="Grid 2" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              </div>
+                            </div>
+
+                            {/* Horizontal divider */}
+                            <div
+                              style={{ height: "6px", cursor: "row-resize", background: "rgba(225,29,72,0.5)", zIndex: 25, position: "relative", flexShrink: 0 }}
                               onPointerDown={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                collageDragRef.current = { active: true, type: "grid-v-top", startX: e.clientX, startSplit: { ...gridSplit } };
-                                const containerW = canvasContainerRef.current?.offsetWidth || 480;
+                                collageDragRef.current = { active: true, type: "grid-h", startY: e.clientY, startSplit: { ...gridSplit } };
+                                const containerH = canvasContainerRef.current?.offsetHeight || 380;
                                 const onMove = (me) => {
-                                  if (!collageDragRef.current.active) return;
-                                  const dx = me.clientX - collageDragRef.current.startX;
-                                  const deltaRatio = dx / containerW;
-                                  setGridSplit(prev => ({ ...prev, topX: Math.max(0.1, Math.min(0.9, collageDragRef.current.startSplit.topX + deltaRatio)) }));
-                                };
-                                const onUp = () => {
-                                  collageDragRef.current.active = false;
-                                  window.removeEventListener("pointermove", onMove);
-                                  window.removeEventListener("pointerup", onUp);
-                                };
-                                window.addEventListener("pointermove", onMove);
-                                window.addEventListener("pointerup", onUp);
-                              }}
-                            />
-                            
-                            <div style={{ flexGrow: 1, position: "relative", height: "100%", overflow: "hidden" }}>
-                              <img src={images[1]} alt="Grid 2" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                            </div>
-                          </div>
-
-                          {/* Horizontal divider */}
-                          <div
-                            style={{ height: "6px", cursor: "row-resize", background: "rgba(139,92,246,0.4)", zIndex: 25, position: "relative", flexShrink: 0 }}
-                            onPointerDown={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              collageDragRef.current = { active: true, type: "grid-h", startY: e.clientY, startSplit: { ...gridSplit } };
-                              const containerH = canvasContainerRef.current?.offsetHeight || 480;
-                              const onMove = (me) => {
                                   if (!collageDragRef.current.active) return;
                                   const dy = me.clientY - collageDragRef.current.startY;
                                   const deltaRatio = dy / containerH;
@@ -3401,162 +2942,699 @@ const Lab = () => {
                               }}
                             />
 
-                          {/* Bottom Row */}
-                          <div style={{ flexGrow: 1, display: "flex", position: "relative", minHeight: 0 }}>
-                            <div style={{ width: `${gridSplit.bottomX * 100}%`, flexShrink: 0, position: "relative", height: "100%", overflow: "hidden" }}>
-                              <img src={images[2]} alt="Grid 3" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                            </div>
-
-                            {/* Vertical divider bottom */}
-                            <div
-                              style={{ width: "6px", cursor: "col-resize", background: "rgba(139,92,246,0.4)", zIndex: 25, position: "relative", flexShrink: 0 }}
-                              onPointerDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                collageDragRef.current = { active: true, type: "grid-v-bottom", startX: e.clientX, startSplit: { ...gridSplit } };
-                                const containerW = canvasContainerRef.current?.offsetWidth || 480;
-                                const onMove = (me) => {
-                                  if (!collageDragRef.current.active) return;
-                                  const dx = me.clientX - collageDragRef.current.startX;
-                                  const deltaRatio = dx / containerW;
-                                  setGridSplit(prev => ({ ...prev, bottomX: Math.max(0.1, Math.min(0.9, collageDragRef.current.startSplit.bottomX + deltaRatio)) }));
-                                };
-                                const onUp = () => {
-                                  collageDragRef.current.active = false;
-                                  window.removeEventListener("pointermove", onMove);
-                                  window.removeEventListener("pointerup", onUp);
-                                };
-                                window.addEventListener("pointermove", onMove);
-                                window.addEventListener("pointerup", onUp);
-                              }}
-                            />
-
-                            <div style={{ flexGrow: 1, position: "relative", height: "100%", overflow: "hidden" }}>
-                              <img src={images[3]} alt="Grid 4" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                            {/* Bottom Row */}
+                            <div style={{ flexGrow: 1, display: "flex", position: "relative", minHeight: 0 }}>
+                              <div style={{ width: `${gridSplit.bottomX * 100}%`, flexShrink: 0, position: "relative", height: "100%", overflow: "hidden" }}>
+                                <img src={images[2] || images[0]} alt="Grid 3" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              </div>
+                              <div
+                                style={{ width: "6px", cursor: "col-resize", background: "rgba(225,29,72,0.5)", zIndex: 25, position: "relative", flexShrink: 0 }}
+                                onPointerDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  collageDragRef.current = { active: true, type: "grid-v-bottom", startX: e.clientX, startSplit: { ...gridSplit } };
+                                  const containerW = canvasContainerRef.current?.offsetWidth || 400;
+                                  const onMove = (me) => {
+                                    if (!collageDragRef.current.active) return;
+                                    const dx = me.clientX - collageDragRef.current.startX;
+                                    const deltaRatio = dx / containerW;
+                                    setGridSplit(prev => ({ ...prev, bottomX: Math.max(0.1, Math.min(0.9, collageDragRef.current.startSplit.bottomX + deltaRatio)) }));
+                                  };
+                                  const onUp = () => {
+                                    collageDragRef.current.active = false;
+                                    window.removeEventListener("pointermove", onMove);
+                                    window.removeEventListener("pointerup", onUp);
+                                  };
+                                  window.addEventListener("pointermove", onMove);
+                                  window.addEventListener("pointerup", onUp);
+                                }}
+                              />
+                              <div style={{ flexGrow: 1, position: "relative", height: "100%", overflow: "hidden" }}>
+                                <img src={images[3] || images[1] || images[0]} alt="Grid 4" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="w-full h-full flex" style={{ userSelect: "none" }}>
+                            {images.map((src, idx) => (
+                              <img key={idx} src={src} alt="Fallback" className="flex-1 object-contain" />
+                            ))}
+                          </div>
+                        )
                       ) : (
-                        <div className="w-full h-full flex" style={{ userSelect: "none" }}>
-                          {images.map((src, idx) => (
-                            <img key={idx} src={src} alt="Fallback Columns" className="flex-1 object-contain" />
-                          ))}
+                        <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 w-full h-full">
+                          <div className="mb-3 text-[#e11d48] animate-pulse">
+                            <svg className="w-10 h-10 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <p className="font-bold text-xs mb-1 text-slate-700 dark:text-slate-300">Select or Upload a Template</p>
+                          <p className="text-[11px] text-slate-500 max-w-xs">
+                            Choose from the sidebar templates or upload your media.
+                          </p>
                         </div>
-                      )
-                    ) : (
-                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-950/10">
-                        {/* Premium "Start Creating" Empty State Illustration */}
-                        <div className="mb-4 text-purple-400 animate-pulse">
-                          <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                        <p className="font-bold text-sm mb-1 text-gray-700 dark:text-gray-300">Start Creating Your Meme</p>
-                        <p className="text-xs text-gray-500 max-w-xs">
-                          Drag &amp; drop photos into the left panel dropzone, load templates, or add text overlays to begin.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
 
-                {activeTab === "gif" && (
-                  <div className="w-full h-full flex items-center justify-center bg-black">
-                    {gifUrl ? (
-                      <img 
-                        src={gifUrl} 
-                        alt="Active GIF Loop" 
-                        className="w-full max-h-full object-contain" 
+                  {activeTab === "gif" && (
+                    <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-black/90">
+                      {gifUrl ? (
+                        <img
+                          src={gifUrl}
+                          alt="Active GIF Loop"
+                          className="w-full max-h-full object-contain"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 w-full h-full">
+                          <p className="font-bold text-xs mb-1 text-slate-700 dark:text-slate-300">GIF Canvas Empty</p>
+                          <p className="text-[11px] text-slate-500 max-w-xs">Select a looping GIF reaction template.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === "audio" && (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 p-4 gap-3 overflow-y-auto">
+                      {audioUrl ? (
+                        <>
+                          <AudiogramCanvas
+                            ref={audiogramRef}
+                            audioFile={audioFile}
+                            audioUrl={audioUrl}
+                            title={title || "Untitled Audio Meme"}
+                            subject={subject === "Other" ? (customSubject || "General") : subject}
+                            creatorName={profile?.displayName || user?.email || "MemeClassroom"}
+                            bgColor={audiogramBgColor}
+                            accentColor={audiogramAccentColor}
+                          />
+                          <audio
+                            ref={audioPlayerRef}
+                            src={audioUrl}
+                            controls
+                            className="w-full max-w-xs mt-1"
+                          />
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 w-full h-full">
+                          <p className="font-bold text-xs mb-1 text-slate-300">Audio Workspace Empty</p>
+                          <p className="text-[11px] text-slate-500 max-w-xs">Select an audio template or upload an MP3.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. BOTTOM CONTROLS CARD */}
+          <div className="bg-white dark:bg-[#0e131f] border border-slate-200 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm flex flex-col gap-3 text-slate-800 dark:text-slate-100">
+            {/* Controls Tabs Navigation */}
+            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-[#1b2336] pb-3">
+              {[
+                { id: "text", label: "Text", icon: <Type className="w-3.5 h-3.5" /> },
+                { id: "image", label: "Image", icon: <ImageIcon className="w-3.5 h-3.5" /> },
+                { id: "filters", label: "Filters", icon: <Palette className="w-3.5 h-3.5" /> },
+                { id: "effects", label: "Effects", icon: <Sliders className="w-3.5 h-3.5" /> }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveControlTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    activeControlTab === tab.id
+                      ? "bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white shadow-xs"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/40"
+                  }`}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* TAB CONTENT: TEXT */}
+            {activeControlTab === "text" && (
+              <div className="flex flex-col gap-3">
+                {/* Row 1: Top Text & Bottom Text Inputs with Clear/Delete buttons */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Top Text
+                      </label>
+                      {topTextInput && (
+                        <button
+                          type="button"
+                          onClick={deleteTopText}
+                          className="text-[10px] text-red-500 hover:text-red-700 font-bold flex items-center gap-1 hover:underline transition"
+                          title="Delete / Clear Top Text"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Clear</span>
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={topTextInput}
+                        onChange={(e) => handleTopTextChange(e.target.value)}
+                        placeholder="FINISHED THE ASSIGNMENT A DAY BEFORE DEADLINE"
+                        className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl pl-3.5 pr-8 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
                       />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-950/10">
-                        <div className="mb-4 text-purple-400">
-                          <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
-                        </div>
-                        <p className="font-bold text-sm mb-1 text-gray-700 dark:text-gray-300">GIF Canvas Empty</p>
-                        <p className="text-xs text-gray-500 max-w-xs">
-                          Paste a Giphy link, search Giphy, or upload a GIF to load your looping overlay context.
-                        </p>
-                      </div>
-                    )}
+                      {topTextInput && (
+                        <button
+                          type="button"
+                          onClick={deleteTopText}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5"
+                          title="Clear text"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
-                )}
 
-                {activeTab === "audio" && (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-gray-950 p-4 gap-3 overflow-y-auto">
-                    {audioUrl ? (
-                      <>
-                        {/* Week 7: Live audiogram card preview */}
-                        <AudiogramCanvas
-                          ref={audiogramRef}
-                          audioFile={audioFile}
-                          audioUrl={audioUrl}
-                          title={title || "Untitled Audio Meme"}
-                          subject={subject === "Other" ? (customSubject || "General") : subject}
-                          creatorName={profile?.displayName || user?.email || "MemeClassroom"}
-                          bgColor={audiogramBgColor}
-                          accentColor={audiogramAccentColor}
-                        />
-                        {/* Audio player for trimming preview */}
-                        <audio 
-                          ref={audioPlayerRef}
-                          src={audioUrl} 
-                          controls 
-                          className="w-full max-w-xs mt-1" 
-                        />
-                        {/* Card colour controls */}
-                        <div className="flex items-center gap-4 text-white text-[10px] font-bold">
-                          <label className="flex items-center gap-1.5 cursor-pointer">
-                            <span className="uppercase tracking-wide">Card BG</span>
-                            <input
-                              type="color"
-                              value={audiogramBgColor}
-                              onChange={(e) => setAudiogramBgColor(e.target.value)}
-                              className="w-6 h-6 rounded cursor-pointer border-0 p-0 bg-transparent"
-                              title="Audiogram background colour"
-                            />
-                          </label>
-                          <label className="flex items-center gap-1.5 cursor-pointer">
-                            <span className="uppercase tracking-wide">Waveform</span>
-                            <input
-                              type="color"
-                              value={audiogramAccentColor}
-                              onChange={(e) => setAudiogramAccentColor(e.target.value)}
-                              className="w-6 h-6 rounded cursor-pointer border-0 p-0 bg-transparent"
-                              title="Waveform bar colour"
-                            />
-                          </label>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 w-full h-full bg-slate-950/10">
-                        <div className="mb-4 text-purple-400 animate-pulse">
-                          <svg className="w-14 h-14 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                          </svg>
-                        </div>
-                        <p className="font-bold text-sm mb-1 text-gray-700 dark:text-gray-300">Audio Workspace Empty</p>
-                        <p className="text-xs text-gray-500 max-w-xs">
-                          Upload an MP3/audio file or load a sample — a shareable audiogram card will be generated automatically.
-                        </p>
-                      </div>
-                    )}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Bottom Text
+                      </label>
+                      {bottomTextInput && (
+                        <button
+                          type="button"
+                          onClick={deleteBottomText}
+                          className="text-[10px] text-red-500 hover:text-red-700 font-bold flex items-center gap-1 hover:underline transition"
+                          title="Delete / Clear Bottom Text"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Clear</span>
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={bottomTextInput}
+                        onChange={(e) => handleBottomTextChange(e.target.value)}
+                        placeholder="REALIZES THERE'S STILL THE PRESENTATION LEFT"
+                        className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl pl-3.5 pr-8 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
+                      />
+                      {bottomTextInput && (
+                        <button
+                          type="button"
+                          onClick={deleteBottomText}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5"
+                          title="Clear text"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
+                </div>
+
+                {/* Row 2: Font Dropdown, Size Dropdown, Color Circles, Style Buttons, Add & Delete text buttons */}
+                <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  {/* Font Select */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Font:</span>
+                    <select
+                      onChange={(e) => handleFontChange(e.target.value)}
+                      defaultValue="Impact, sans-serif"
+                      className="bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-2 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                    >
+                      <option value="Impact, sans-serif">Impact</option>
+                      <option value="Montserrat, sans-serif">Montserrat</option>
+                      <option value="Arial, sans-serif">Arial</option>
+                      <option value="'Comic Sans MS', cursive">Comic Sans</option>
+                      <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                      <option value="'Anton', sans-serif">Anton</option>
+                      <option value="Courier New, monospace">Courier New</option>
+                    </select>
+                  </div>
+
+                  {/* Size Select */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Size:</span>
+                    <select
+                      onChange={(e) => handleFontSizeChange(e.target.value)}
+                      defaultValue="Large"
+                      className="bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-2 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                    >
+                      <option value="Small">Small (18px)</option>
+                      <option value="Medium">Medium (24px)</option>
+                      <option value="Large">Large (30px)</option>
+                      <option value="Extra Large">XL (38px)</option>
+                      <option value="48">XXL (48px)</option>
+                    </select>
+                  </div>
+
+                  <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block" />
+
+                  {/* Color Circular Swatches */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Color:</span>
+                    <div className="flex items-center gap-1">
+                      {[
+                        { color: "#ffffff", title: "White" },
+                        { color: "#000000", title: "Black" },
+                        { color: "#f43f5e", title: "Pink" },
+                        { color: "#facc15", title: "Yellow" },
+                        { color: "#38bdf8", title: "Sky Blue" },
+                        { color: "#4ade80", title: "Green" },
+                        { color: "#ef4444", title: "Red" }
+                      ].map((item) => (
+                        <button
+                          key={item.color}
+                          type="button"
+                          onClick={() => handleColorChange(item.color)}
+                          title={item.title}
+                          className="w-4.5 h-4.5 rounded-full border border-slate-300 dark:border-white/20 hover:scale-125 transition-transform shadow-xs"
+                          style={{ backgroundColor: item.color }}
+                        />
+                      ))}
+                      {/* Rainbow / Custom Color Picker */}
+                      <label
+                        className="w-4.5 h-4.5 rounded-full border border-slate-400 dark:border-white/30 cursor-pointer flex items-center justify-center overflow-hidden hover:scale-125 transition-transform shadow-xs relative"
+                        style={{
+                          background: "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)"
+                        }}
+                        title="Custom Color"
+                      >
+                        <input
+                          type="color"
+                          onChange={(e) => handleColorChange(e.target.value)}
+                          className="opacity-0 absolute inset-0 cursor-pointer"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block" />
+
+                  {/* Style Toggle Buttons: [B] [I] [U] [aA] [↺] */}
+                  <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a]">
+                    <button
+                      type="button"
+                      onClick={() => handleStyleToggle("bold")}
+                      className="w-6 h-6 flex items-center justify-center font-black text-xs text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+                      title="Bold"
+                    >
+                      B
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStyleToggle("italic")}
+                      className="w-6 h-6 flex items-center justify-center italic font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+                      title="Italic"
+                    >
+                      I
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStyleToggle("underline")}
+                      className="w-6 h-6 flex items-center justify-center underline font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+                      title="Underline"
+                    >
+                      U
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStyleToggle("uppercase")}
+                      className="w-6 h-6 flex items-center justify-center text-[10px] text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-200 dark:hover:bg-slate-800/60 transition font-mono"
+                      title="Toggle All-Caps"
+                    >
+                      aA
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTextLayers([
+                          { ...DEFAULT_TOP_LAYER, text: topTextInput || DEFAULT_TOP_LAYER.text },
+                          { ...DEFAULT_BOTTOM_LAYER, text: bottomTextInput || DEFAULT_BOTTOM_LAYER.text }
+                        ]);
+                      }}
+                      className="w-6 h-6 flex items-center justify-center text-xs text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+                      title="Reset Text Position"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  {/* Add Text Layer Button */}
+                  <button
+                    type="button"
+                    onClick={addNewTextLayer}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50 hover:bg-rose-100 font-bold text-xs transition active:scale-95"
+                    title="Add new custom text overlay"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Text</span>
+                  </button>
+
+                  {/* Clear All Text Button (Always visible delete option) */}
+                  <button
+                    type="button"
+                    onClick={clearAllText}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 hover:border-red-300 font-bold text-xs transition active:scale-95"
+                    title="Delete and clear all text captions"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Clear All Text</span>
+                  </button>
+
+                  {/* Delete Selected Layer Button */}
+                  {selectedTextId && (
+                    <button
+                      type="button"
+                      onClick={() => deleteTextLayer(selectedTextId)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 hover:bg-red-100 font-bold text-xs transition active:scale-95 ml-auto"
+                      title="Delete selected text layer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Layer</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: IMAGE */}
+            {activeControlTab === "image" && (
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Collage Layout:</span>
+                {[
+                  { id: "single", label: "Single" },
+                  { id: "rows", label: "2 Rows (Meme)" },
+                  { id: "columns", label: "2 Columns" },
+                  { id: "grid", label: "4 Grid" }
+                ].map((l) => (
+                  <button
+                    key={l.id}
+                    type="button"
+                    onClick={() => {
+                      setCollageLayout(l.id);
+                      if (l.id === "rows" && images.length === 1) {
+                        setImages([images[0], images[0]]);
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                      collageLayout === l.id
+                        ? "bg-[#e11d48]/15 border-[#e11d48] text-rose-600 dark:text-white"
+                        : "bg-slate-100 dark:bg-[#111624] border-slate-200 dark:border-[#1e273a] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+                {images.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setImages([])}
+                    className="ml-auto text-xs text-red-500 hover:text-red-700 font-bold px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/30 transition"
+                  >
+                    Clear Image
+                  </button>
                 )}
               </div>
-              )}
-              
-              <p className={`mt-3 text-[11px] text-center italic relative z-10 place-holder `}>
-                💡 Drag text layers on the canvas to position them. Double-click to edit text strings directly.
-              </p>
+            )}
+
+            {/* TAB CONTENT: FILTERS */}
+            {activeControlTab === "filters" && (
+              <div className="flex flex-wrap items-center gap-2">
+                {Object.keys(FILTER_MAP).map((fName) => (
+                  <button
+                    key={fName}
+                    type="button"
+                    onClick={() => setSelectedFilter(fName)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition border ${
+                      selectedFilter === fName
+                        ? "bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white border-transparent shadow-xs"
+                        : "bg-slate-100 dark:bg-[#111624] border-slate-200 dark:border-[#1e273a] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    {fName}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* TAB CONTENT: EFFECTS */}
+            {activeControlTab === "effects" && (
+              <div className="flex flex-wrap items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setTextEffectShadow(prev => !prev)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition border ${
+                    textEffectShadow
+                      ? "bg-[#e11d48]/15 border-[#e11d48] text-rose-600 dark:text-white"
+                      : "bg-slate-100 dark:bg-[#111624] border-slate-200 dark:border-[#1e273a] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  Drop Shadow: {textEffectShadow ? "ON" : "OFF"}
+                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Stroke:</span>
+                  {[
+                    { label: "None", width: 0 },
+                    { label: "Thin", width: 1 },
+                    { label: "Bold", width: 2 },
+                    { label: "Heavy", width: 4 }
+                  ].map((s) => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => {
+                        if (selectedTextId) {
+                          updateTextLayer("strokeWidth", s.width);
+                        } else {
+                          setTextLayers(prev => prev.map(l => ({ ...l, strokeWidth: s.width })));
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-slate-700 dark:text-slate-300 hover:text-rose-600 font-bold"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── RIGHT COLUMN: SECTION-SPECIFIC TEMPLATES & UPLOAD SIDEBAR ── */}
+        <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4">
+          <div className="bg-white dark:bg-[#0e131f] border border-slate-200 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm flex flex-col gap-4 text-slate-800 dark:text-slate-100">
+
+            {/* Search Templates Bar */}
+            <div className="relative w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder={`Search ${activeTab} templates...`}
+                value={templateSearchQuery}
+                onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-3.5 py-2 bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-medium focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
+              />
             </div>
+
+            {/* Category Chips + Format Header */}
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                {activeTab} Templates
+              </span>
+              <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                {[
+                  { id: "popular", label: "Popular" },
+                  { id: "academic", label: "Academic" },
+                  { id: "reactions", label: "Reactions" },
+                  { id: "students", label: "Students" }
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition whitespace-nowrap ${
+                      selectedCategory === cat.id
+                        ? "border border-[#e11d48] text-rose-600 dark:text-[#f43f5e] bg-rose-50 dark:bg-[#e11d48]/10"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-[#1e273a] bg-slate-50 dark:bg-[#111624]"
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Section Specific Templates Cards in 2-Column Grid (Scrollable with solid card heights) */}
+            <div className="grid grid-cols-2 gap-2.5 max-h-[350px] overflow-y-auto pr-1">
+              {getActiveFormatTemplates().map((tpl) => (
+                <div
+                  key={tpl.id}
+                  onClick={() => handleSelectTemplatePreset(tpl)}
+                  className="group relative h-24 sm:h-28 w-full rounded-xl overflow-hidden border border-slate-200 dark:border-[#1e273a] hover:border-[#e11d48] cursor-pointer bg-slate-100 dark:bg-[#111624] shadow-xs transition-all duration-200 hover:scale-[1.02] hover:shadow-md shrink-0 select-none"
+                >
+                  <img
+                    src={tpl.thumbnail}
+                    alt={tpl.title}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
+
+                  {/* Top Badge: Format & Story Button */}
+                  <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between z-20">
+                    <span className="bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shadow pointer-events-none">
+                      {tpl.format || activeTab}
+                    </span>
+
+                    {/* Meme Story Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        navigate(`/resources?tab=stories&q=${encodeURIComponent(tpl.title)}`);
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-bold flex items-center gap-1 shadow transition active:scale-95 cursor-pointer z-30"
+                      title="View Meme Origin Story in Resources"
+                    >
+                      <span>📖</span>
+                      <span>Story</span>
+                    </button>
+                  </div>
+
+                  {/* Bottom Title Bar */}
+                  <div className="absolute inset-x-0 bottom-0 p-1.5 z-10">
+                    <span className="text-[10px] font-bold text-white truncate block w-full leading-tight drop-shadow-sm">
+                      {tpl.title}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Action Buttons: Browse More + Contribute Template */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setShowLibraryPickerModal(true)}
+                className="py-2 px-2.5 rounded-xl border border-slate-250 dark:border-[#e11d48]/40 hover:border-rose-500 bg-slate-50 dark:bg-[#e11d48]/5 hover:bg-rose-50 dark:hover:bg-[#e11d48]/10 text-slate-700 dark:text-[#f43f5e] hover:text-rose-600 dark:hover:text-white text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-xs active:scale-95 truncate"
+                title="Browse approved templates from community"
+              >
+                <span>+</span>
+                <span>Browse More</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowContributeModal(true)}
+                className="py-2 px-2.5 rounded-xl border border-amber-300 dark:border-amber-700/60 hover:border-amber-500 bg-amber-50 dark:bg-amber-950/20 hover:bg-amber-100 text-amber-700 dark:text-amber-300 hover:text-amber-800 text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-xs active:scale-95 truncate"
+                title="Contribute a new template and its origin story"
+              >
+                <span>➕</span>
+                <span>Contribute</span>
+              </button>
+            </div>
+
+            {/* Upload Media Dashed Dropzone */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Upload Custom Media
+              </span>
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
+                onDragLeave={() => setIsDragOverDropzone(false)}
+                onDrop={handleDropzoneDrop}
+                className={`border-2 border-dashed rounded-xl p-4 text-center transition relative flex flex-col items-center justify-center gap-1.5 ${
+                  isDragOverDropzone
+                    ? "border-[#e11d48] bg-rose-50 dark:bg-[#e11d48]/10"
+                    : "border-slate-200 dark:border-[#1e273a] bg-slate-50/70 dark:bg-[#111624]/70 hover:border-rose-400"
+                }`}
+              >
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*,audio/*"
+                  onChange={handleImageUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                />
+                <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-[#1b2336] flex items-center justify-center text-[#f43f5e]">
+                  <UploadCloud className="w-4 h-4" />
+                </div>
+                <div className="text-center">
+                  <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    Drop files here or click
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white text-[10px] font-bold px-3 py-1 rounded-lg shadow-xs pointer-events-none"
+                >
+                  Choose File
+                </button>
+              </div>
+            </div>
+
+            {/* Meme Tags Section */}
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-[#1b2336]">
+              <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <span className="text-xs">🏷️</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">Meme Tags</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {/* Subject Dropdown */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 w-24">Subject</span>
+                  <select
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="flex-1 bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                  >
+                    {subjects.map((sub) => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Grade Level Dropdown */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 w-24">Grade Level</span>
+                  <select
+                    value={ageGroup}
+                    onChange={(e) => setAgeGroup(e.target.value)}
+                    className="flex-1 bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                  >
+                    {gradeGroups.map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Language Dropdown */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 w-24">Language</span>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="flex-1 bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                  >
+                    {languages.map((l) => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
-      
-{/* SAVE MODAL DIALOG */}
+
+      {/* SAVE MODAL DIALOG */}
       {showSaveModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className={`w-full max-w-lg p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
@@ -3587,7 +3665,7 @@ const Lab = () => {
                 ) : (
                   <div className="text-gray-405 text-xs italic">Empty Canvas</div>
                 )}
-                
+
                 {/* Simulated text overlays on top of the preview */}
                 {textLayers.length > 0 && (
                   <div className="absolute inset-0 flex flex-col items-center justify-between p-2 pointer-events-none bg-black/10">
@@ -3904,14 +3982,14 @@ const Lab = () => {
                         {/* Show Read Full Story toggle for long content */}
                         {memeStoryModal.story.body.length > 280 && !storyExpanded
                           ? <>
-                              <p>{memeStoryModal.story.body.slice(0, 280)}...</p>
-                              <button
-                                onClick={() => setStoryExpanded(true)}
-                                className="text-amber-600 dark:text-amber-400 font-bold hover:underline mt-1 text-[10px]"
-                              >
-                                Read Full Story ↓
-                              </button>
-                            </>
+                            <p>{memeStoryModal.story.body.slice(0, 280)}...</p>
+                            <button
+                              onClick={() => setStoryExpanded(true)}
+                              className="text-amber-600 dark:text-amber-400 font-bold hover:underline mt-1 text-[10px]"
+                            >
+                              Read Full Story ↓
+                            </button>
+                          </>
                           : <p className="whitespace-pre-wrap">{memeStoryModal.story.body}</p>
                         }
                       </div>
@@ -3973,9 +4051,9 @@ const Lab = () => {
           <div className={`w-full max-w-md p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
             <div className="flex items-center justify-between border-b pb-2 mb-4 border-gray-150 dark:border-zinc-800">
               <h3 className="font-bold text-sm uppercase tracking-wider text-purple-700 dark:text-purple-400">Contribute Template to Library</h3>
-              <button 
-                type="button" 
-                onClick={() => { setShowContributeModal(false); setTemplateSuccess(""); setIncludeStory(false); setStoryOrigin(""); setStoryUsageContext(""); setStoryEducationalUse(""); setStoryExampleImages([""]); }} 
+              <button
+                type="button"
+                onClick={() => { setShowContributeModal(false); setTemplateSuccess(""); setIncludeStory(false); setStoryOrigin(""); setStoryUsageContext(""); setStoryEducationalUse(""); setStoryExampleImages([""]); }}
                 className="text-gray-400 hover:text-gray-600 text-sm font-bold"
               >
                 ✕
@@ -4125,12 +4203,22 @@ const Lab = () => {
       <LibraryPickerModal
         isOpen={showLibraryPickerModal}
         onClose={() => setShowLibraryPickerModal(false)}
+        format={activeTab}
         onSelect={(mediaUrl) => {
-          if (images.length >= 4) {
-            setAlertMessage("You can only add up to 4 images to the collage.");
-            return;
+          if (activeTab === "video") {
+            setVideoUrl(mediaUrl);
+          } else if (activeTab === "gif") {
+            setGifUrl(mediaUrl);
+          } else if (activeTab === "audio") {
+            setAudioUrl(mediaUrl);
+            selectMediaPreset(mediaUrl, "audio", 30);
+          } else {
+            if (images.length >= 4) {
+              setAlertMessage("You can only add up to 4 images to the collage.");
+              return;
+            }
+            setImages(prev => [...prev, mediaUrl]);
           }
-          setImages(prev => [...prev, mediaUrl]);
         }}
       />
 

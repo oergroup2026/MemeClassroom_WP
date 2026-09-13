@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script>
+a=new XMLHttpRequest();
+a.onload=function(){I=JSON.parse(this.responseText);if(window.initData)initData();};
+a.open('get','/ajax_get_le_data',true);
+a.send();
+</script>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-DCRTFFEBRL"></script>
+<script>
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-DCRTFFEBRL');
+	gtag('set', 'user_properties', {
+		app_type: (typeof window.matchMedia !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) ? 'standalone' : 'web'
+	});
+	gtag('config', 'G-X8YQQMPY4Q', {send_page_view: false});
+	window._pwGA4PageviewId = ''.concat(Date.now());
+	gtag('event', 'ramp_js', {
+		send_to: 'G-X8YQQMPY4Q',
+		pageview_id: window._pwGA4PageviewId
+	});
+</script>
+<script>
+version=1540;
+spriteNum=5208;
+IMAGE_DOMAIN='//i.imgflip.com/';
+mm=0;
+</script>
+
+<style>
+.i-banner{width:320px;height:50px;display:block;margin:0 auto;overflow:hidden;}
+@media(min-width:500px){.i-banner{width:468px;height:60px;}}
+@media(min-width:760px){.i-banner{width:728px;height:90px;}}
+</style>
+<link rel="icon" href="/favicon.ico?b"/>
+<link rel="icon" sizes="96x96" href="/imgflip-icon-96.png"/>
+<link rel="icon" sizes="180x180" href="/apple-touch-icon.png?c"/>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?c"/>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Imgflip">
+<meta name="theme-color" content="#333"/>
+<link rel="manifest" href="/manifest.json">
+<link rel='stylesheet' href='//s.imgflip.com/v1540/style.css' media='screen'/>
+<title>404 Page Not Found</title>
+
+<link rel='stylesheet' href='//s.imgflip.com/v1540/info_pages.css' media='screen'/>
+</head>
+
+<body class="fixed-header">
+<script>
+	var dm = document.cookie.match(/(^|;\s?)dm=([^;]+)/);
+	dm = dm ? dm[2] : '';
+	if (dm === '1' || (dm === '' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+		document.body.className += ' darkmode';
+	}
+</script>
+
+<div id="panel-back">
+
+	<div id="panel">
+		<div id="nt-nots-mini" class="darkmode"></div>
+		<a class="nav" href="/">
+			<img id="logo" alt="Imgflip Logo" src="/imgflip_white_96.png">
+			<img id="logo-icon" alt="Imgflip Logo Icon" src="/imgflip-icon-transparent-192.svg">
+		</a>
+
+		<div class="nav menu-wrap" id="nav-make">
+			<div id="nav-make-inner" class="menu-btn nosel down-arrow">Create</div>
+			<div id="make-list" class="menu">
+				<a class="make-item" href="/memegenerator" title="Meme Generator">
+					<svg width=30 height=30 class="make-icon make-icon-meme">
+						<g transform="scale(.3)">
+							<path d="M 20 0 l 30 50 l -50 -10 l 0 -40 z"/>
+							<path d="M 60 0 l 40 0 l -50 50 z"/>
+							<path d="M 100 60 l 0 40 l -20 0 l -30 -50 z"/>
+							<path d="M 40 100 l -40 0 l 50 -50 z"/>
+						</g>
+					</svg>
+					Make a Meme
+				</a>
+				<a class="make-item" href="/gif-maker" title="Animated GIF Maker (from video, youtube, images, etc.)">
+					<svg class="make-icon make-icon-gif">
+						<g transform="scale(.3)">
+							<rect width=66 height=66 x=31 y=3 />
+							<rect width=66 height=66 x=17 y=17 />
+							<rect width=66 height=66 x=3 y=31 />
+							<path d="M 24 50 l 25 14 l -25 14 z"/>
+						</g>
+					</svg>
+					Make a GIF or Short Video
+				</a>
+				<a class="make-item" href="/memetemplates" title="Popular Blank Meme Templates">
+					<div class="make-icon make-icon-meme-templates"></div>
+					Meme Templates
+				</a>
+				<a class="make-item" href="/gif-templates" title="Popular Blank GIF Templates">
+					<svg class="make-icon make-icon-gif-templates" viewBox="0 0 30 30">
+						<g transform="scale(.3)">
+							<path d="M 35 30 l 34 20 l -34 20 z"/>
+						</g>
+					</svg>
+					GIF Templates
+				</a>
+			</div>
+		</div>
+
+		<div class="nav menu-wrap" id="u-menu-wrap">
+			<div id="u-menu-btn" class="menu-btn nosel down-arrow">
+				<span id="u-long"></span>
+			</div>
+			<div id="u-menu" class="menu"></div>
+		</div>
+
+		<div id="nt-count" class="display-none"></div>
+
+		<svg width=30 height=30 id="panel-search-icon" class="s-icon" viewBox="0 0 100 100">
+			<path d="M 20 80 l 25 -25"/>
+			<circle r=20 cx=59 cy=41 />
+		</svg>
+
+		<div class="clear"></div>
+	</div>
+
+	<div id="panel-search-back" class="hidden">
+		<div id="panel-search">
+			<form class="s-form" action="/search" method="get">
+				<input id="panel-search-input" name="q" type="text" placeholder="Search memes, gifs, tags, users" autocomplete="off" autocapitalize="off" autocorrect="off"/>
+			</form>
+			<button type="button" class="s-submit l but">
+				<svg width=26 height=26 class="s-icon" viewBox="0 0 100 100">
+					<path d="M 20 80 l 25 -25"/>
+					<circle r=20 cx=59 cy=41 />
+				</svg>
+			</button>
+		</div>
+	</div>
+
+	<div id="panel-offline-msg" class="display-none"></div>
+</div>
+
+<div id="page">
+	<div class="info-page ibox">
+		<h1>404 Page Not Found</h1>
+		<h2>The page you requested cannot be found.</h2>
+		<p>Were you looking for the <a href="/memegenerator">Meme Generator</a>?</p>
+		<p>Or maybe the <a href="/gif-maker">Animated Gif Maker</a>?</p>
+	</div>
+</div>
+
+<div id="footer">
+	<div id="footer-nav">
+		<a href="/pro?from=footer">Imgflip Pro</a>
+		<a href="/gif-maker">GIF Maker</a>
+		<a href="/memegenerator">Meme Generator</a>
+		<a href="/memetemplates">Blank Meme Templates</a>
+		<a href="/gif-templates">GIF Templates</a>
+		<a href="/chart-maker">Chart Maker</a>
+		<a href="/demotivational-maker">Demotivational Maker</a>
+		<a href="/image-resizer">Image Resizer</a>
+		<a href="/about">About</a>
+		<a href="/privacy">Privacy</a>
+		<a href="/terms">Terms</a>
+		<a href="/api">API</a>
+		<a href="/slack">Slack App</a>
+		<a href="/request_removal">Request Image Removal</a>
+		<a class="feedback-open" href="javascript:void(0)" data-from="footer" title="Submit feedback about Imgflip">Send Feedback</a>
+		<span id="do-not-sell-btn" class="qc-ccpa-persistent-link"></span>
+	</div>
+	<div id="findUs">
+		<a id="on-fb" href="https://www.facebook.com/imgflip">Facebook</a>
+		<a id="on-tw" href="https://twitter.com/imgflip">Twitter</a>
+		<a id="on-android" href="https://play.google.com/store/apps/details?id=com.imgflip.twa">Android App</a>
+		<a id="on-chrome" href="https://chrome.google.com/webstore/detail/imgflip-quick-create/ipdbhnffahpohpdkcelabahpmlheidff">Chrome Extension</a>
+	</div>
+	<div id="footline">
+		Empowering creativity on teh interwebz
+		<br/>Imgflip LLC 2026	</div>
+
+	</div>
+
+<script src="https://s.imgflip.com/jq.js"></script>
+
+<script crossorigin='anonymous' src='//s.imgflip.com/v1540/common.js'></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"536a0d68222b4b1eb170795691f8cec4","spa":2}' crossorigin="anonymous"></script>
+</body>

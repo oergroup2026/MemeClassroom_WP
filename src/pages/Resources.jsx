@@ -710,9 +710,9 @@ const Resources = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("newest");
 
-  // Sync ?q= from URL (e.g. from global Navbar search)
+  // Sync ?q= or ?search= from URL (e.g. from global Navbar search or Meme Lab template story links)
   useEffect(() => {
-    const q = searchParams.get("q");
+    const q = searchParams.get("q") || searchParams.get("search");
     if (q) {
       setSearchQuery(q);
     }
