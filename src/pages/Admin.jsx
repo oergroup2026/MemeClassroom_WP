@@ -20,7 +20,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { sendPasswordResetEmail } from "firebase/auth";
 import { db, storage, auth } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star } from "lucide-react";
+import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star, BadgeCheck } from "lucide-react";
 import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -49,6 +49,7 @@ const Admin = () => {
 
   // Firestore collections state
   const [users, setUsers] = useState([]);
+  const [pendingVerifications, setPendingVerifications] = useState([]);
   const [memes, setMemes] = useState([]);
   const [resources, setResources] = useState([]);
   const [flags, setFlags] = useState([]);
@@ -231,6 +232,16 @@ const Admin = () => {
       setUsers(list);
     });
 
+    // 1b. Users pending ID card verification
+    const vUnsub = onSnapshot(
+      query(collection(db, "users"), where("verification_status", "==", "id_submitted")),
+      (snap) => {
+        const list = [];
+        snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+        setPendingVerifications(list);
+      }
+    );
+
     // 2. Memes
     const mUnsub = onSnapshot(collection(db, "memes"), (snap) => {
       const list = [];
@@ -377,6 +388,7 @@ const Admin = () => {
 
     return () => {
       uUnsub();
+      vUnsub();
       mUnsub();
       rUnsub();
       fUnsub();
@@ -465,6 +477,32 @@ const Admin = () => {
       triggerAlert("User upgraded to Verified Expert successfully.");
     } catch (e) {
       triggerAlert(e.message || "Failed to approve applicant.", "error");
+    }
+  };
+
+  // ID-card verification: admin approves → set is_verified: true
+  const handleApproveIdVerification = async (userId) => {
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        is_verified: true,
+        verification_status: "verified",
+      });
+      triggerAlert("User institution verified via ID card.");
+    } catch (e) {
+      triggerAlert(e.message || "Failed to approve verification.", "error");
+    }
+  };
+
+  // ID-card verification: admin rejects → clear the submission
+  const handleRejectIdVerification = async (userId) => {
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        verification_status: "rejected",
+        is_verified: false,
+      });
+      triggerAlert("Verification request rejected.");
+    } catch (e) {
+      triggerAlert(e.message || "Failed to reject verification.", "error");
     }
   };
 
@@ -1635,6 +1673,39 @@ const Admin = () => {
     }
   };
 
+  // Small helper: fetches the private verification doc and shows a link
+  const ViewIdCardButton = ({ userId }) => {
+    const [url, setUrl] = React.useState(null);
+    const [loading, setLoading] = React.useState(false);
+    const handleFetch = async () => {
+      if (url) { window.open(url, "_blank"); return; }
+      setLoading(true);
+      try {
+        const snap = await getDoc(doc(db, "users", userId, "private", "verification"));
+        if (snap.exists() && snap.data().id_card_url) {
+          const fetchedUrl = snap.data().id_card_url;
+          setUrl(fetchedUrl);
+          window.open(fetchedUrl, "_blank");
+        } else {
+          alert("ID card not found in storage.");
+        }
+      } catch (e) {
+        alert("Failed to fetch ID card: " + e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    return (
+      <button
+        onClick={handleFetch}
+        disabled={loading}
+        className="text-indigo-600 dark:text-indigo-400 hover:underline text-[10px] font-bold disabled:opacity-50"
+      >
+        {loading ? "Loading…" : url ? "View ↗" : "Fetch & View ↗"}
+      </button>
+    );
+  };
+
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 space-y-8">
       {/* Confirm dialog */}
@@ -2495,6 +2566,64 @@ const Admin = () => {
             )}
           </div>
 
+          {/* ── Pending ID Card Verification Queue ──────────────────────────────── */}
+          {pendingVerifications.length > 0 && (
+            <div className={`p-6 ${containerClass}`}>
+              <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                <BadgeCheck className="w-4 h-4" />
+                Pending Institution ID Verifications ({pendingVerifications.length})
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">
+                Users who uploaded an institution ID card. Review the file and approve or reject their verification request.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className={headerCellClass}>Name</th>
+                      <th className={headerCellClass}>Email</th>
+                      <th className={headerCellClass}>Institution</th>
+                      <th className={headerCellClass}>Type</th>
+                      <th className={headerCellClass}>ID Card</th>
+                      <th className={headerCellClass}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingVerifications.map((uv) => (
+                      <tr key={uv.id}>
+                        <td className={rowCellClass}>
+                          <span className="font-bold">{uv.name || "—"}</span>
+                        </td>
+                        <td className={`${rowCellClass} font-mono text-[10px]`}>{uv.email || "—"}</td>
+                        <td className={rowCellClass}>{uv.institution || "—"}</td>
+                        <td className={rowCellClass}>{uv.institution_type || "—"}</td>
+                        <td className={rowCellClass}>
+                          <ViewIdCardButton userId={uv.id} />
+                        </td>
+                        <td className={rowCellClass}>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleApproveIdVerification(uv.id)}
+                              className={btnClass("green")}
+                            >
+                              ✓ Verify
+                            </button>
+                            <button
+                              onClick={() => handleRejectIdVerification(uv.id)}
+                              className={btnClass("gray")}
+                            >
+                              ✕ Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className={`p-6 ${containerClass}`}>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
@@ -2519,7 +2648,7 @@ const Admin = () => {
                           <div className="flex items-center space-x-1.5">
                             <span className="font-extrabold">{uItem.name}</span>
                             {uItem.is_verified && (
-                              <img src="/verified-badge.png" className="w-4 h-4 ml-1 inline-block" alt="Verified" title="Verified" />
+                              <BadgeCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" title="Institution Verified" />
                             )}
                           </div>
                         </td>
