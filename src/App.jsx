@@ -89,7 +89,7 @@ function App() {
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-all duration-200 ${themeClasses} ${sizeClasses}`}>
       <div id="app-navbar"><Navbar /></div>
-      <main id="main-content" key={location.pathname} className={`flex-grow page-enter overflow-x-hidden ${location.pathname === '/lab' ? 'w-full h-[calc(100dvh-64px)] pb-14 sm:pb-16 overflow-hidden flex flex-col p-1.5 sm:p-2' : location.pathname === '/' ? 'w-full pb-24 sm:pb-28' : 'container mx-auto px-4 py-6 pb-24 sm:pb-28'}`}>
+      <main id="main-content" key={location.pathname} className={`flex-grow page-enter overflow-x-hidden ${location.pathname === '/lab' ? 'w-full min-h-[calc(100dvh-64px)] pb-24 sm:pb-28 overflow-y-auto flex flex-col p-1.5 sm:p-2 bg-[#FAFAF9] dark:bg-[#090D16] text-slate-800 dark:text-white transition-colors duration-200' : location.pathname === '/' ? 'w-full pb-24 sm:pb-28' : 'container mx-auto px-4 py-6 pb-24 sm:pb-28'}`}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Home />} />
