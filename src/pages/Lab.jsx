@@ -58,6 +58,7 @@ import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useVideoTrim } from "../hooks/useVideoTrim";
 import { compileVideoMeme } from "../utils/videoCompiler";
 import LibraryPickerModal from "../components/LibraryPickerModal";
+import RichTextArea from "../components/RichTextArea";
 import GiphySearch from "../components/GiphySearch";
 import AudiogramCanvas from "../components/AudiogramCanvas";
 import { useToast } from "../components/ToastNotification";
@@ -943,6 +944,9 @@ const Lab = () => {
   // Hotkey listener for video studio playback (Space, Left/Right arrows, M key)
   useEffect(() => {
     if (activeTab !== "video") return;
+    const anyModalOpen = showSaveModal || showTutorialModal || showLibraryPickerModal
+      || showAiPunchlinesModal || showAiModal || showContributeModal || showSplitModal;
+    if (anyModalOpen) return;
     const handleKeyDown = (e) => {
       // Ignore key events when typing in inputs or textareas
       if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
@@ -977,16 +981,20 @@ const Lab = () => {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeTab, videoDuration]);
+  }, [activeTab, videoDuration, showSaveModal, showTutorialModal, showLibraryPickerModal, showAiPunchlinesModal, showAiModal, showContributeModal, showSplitModal]);
 
   // --- AI Meme Caption Generator State ---
   const [showAiModal, setShowAiModal] = useState(false);
+  const [showAiPunchlinesModal, setShowAiPunchlinesModal] = useState(false);
   const [aiPromptTopic, setAiPromptTopic] = useState("");
   const [aiCaptions, setAiCaptions] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   const handleGenerateAiCaptions = async () => {
     setAiLoading(true);
+    setAiError("");
+    setAiCaptions([]);
     try {
       const activeSub = subject === "Other" ? customSubject : subject;
       const resText = await generateMemeCaptions({
@@ -1002,9 +1010,10 @@ const Lab = () => {
       setAiCaptions(lines.length ? lines : [resText]);
     } catch (err) {
       if (err.message === "QUOTA_EXCEEDED") {
+        setShowAiPunchlinesModal(false);
         setShowAiModal(true);
       } else {
-        setAlertMessage(err.message || "Failed to generate AI captions.");
+        setAiError(err.message || "Failed to generate AI captions.");
       }
     } finally {
       setAiLoading(false);
@@ -1017,6 +1026,7 @@ const Lab = () => {
     } else {
       addTextLayer(captionText);
     }
+    setShowAiPunchlinesModal(false);
   };
 
   // --- Week 6: ffmpeg.wasm trim state ---
@@ -1056,29 +1066,17 @@ const Lab = () => {
   const timelineTrackRef = useRef(null);
   const dragInfoRef = useRef({ isDragging: false, textId: null, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
   const resizeInfoRef = useRef({ isResizing: false, handle: null, textId: null, startX: 0, startY: 0, startFontSize: 24 });
-  const [activeTool, setActiveTool] = useState("text"); // "select" | "text" | "media" | "video" | "templates" | "filters" | "layers"
-  const [showRightInspector, setShowRightInspector] = useState(true);
-
   // --- Compact Studio Controls & Filter States ---
-  const [bottomControlTab, setBottomControlTab] = useState("text"); // "text" | "image" | "filters" | "effects"
-  const [canvasZoom, setCanvasZoom] = useState(100);
-  const [templateCategory, setTemplateCategory] = useState("popular"); // "all" | "popular" | "academic" | "reactions" | "students"
-  const [activeFilter, setActiveFilter] = useState("none");
   const [activeEffect, setActiveEffect] = useState("none");
   const [filterBrightness, setFilterBrightness] = useState(100);
   const [filterContrast, setFilterContrast] = useState(100);
   const [filterSaturation, setFilterSaturation] = useState(100);
 
+  // Builds the canvas ctx.filter string from the SAME `selectedFilter` state
+  // the live on-screen preview uses (FILTER_MAP), so exported memes match what's shown.
   const getCanvasFilterString = () => {
     const parts = [];
-    if (activeFilter === "grayscale") parts.push("grayscale(100%)");
-    else if (activeFilter === "sepia") parts.push("sepia(80%)");
-    else if (activeFilter === "contrast") parts.push("contrast(160%)");
-    else if (activeFilter === "vintage") parts.push("sepia(40%) contrast(120%) saturate(120%)");
-    else if (activeFilter === "cool") parts.push("hue-rotate(180deg) saturate(120%)");
-    else if (activeFilter === "warm") parts.push("sepia(30%) saturate(140%)");
-    else if (activeFilter === "invert") parts.push("invert(100%)");
-    else if (activeFilter === "dramatic") parts.push("grayscale(100%) contrast(180%) brightness(95%)");
+    if (FILTER_MAP[selectedFilter]) parts.push(FILTER_MAP[selectedFilter]);
 
     if (activeEffect === "deepfry") parts.push("contrast(250%) saturate(300%) brightness(110%)");
     else if (activeEffect === "blur") parts.push("blur(2px)");
@@ -1324,13 +1322,13 @@ const Lab = () => {
     });
   };
 
-  const addTextLayer = () => {
+  const addTextLayer = (text = "New Text Layer") => {
     const newId = `txt-${Date.now()}`;
     setTextLayers(prev => [
       ...prev,
       {
         id: newId,
-        text: "New Text Layer",
+        text,
         x: 100 + Math.random() * 50,
         y: 100 + Math.random() * 50,
         fontSize: 24,
@@ -2017,22 +2015,34 @@ const Lab = () => {
             URL.revokeObjectURL(url);
           }
         } else if (activeTab === "gif") {
-          const workspaceElement = canvasContainerRef.current;
-          if (workspaceElement) {
-            const canvasResult = await html2canvas(workspaceElement, {
-              useCORS: true,
-              backgroundColor: canvasBg || "#FFFFFF"
-            });
-            const blob = await new Promise(resolve => canvasResult.toBlob(resolve, "image/png"));
-            if (blob) {
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.download = `${title.trim() || "gif_meme"}.png`;
-              a.href = url;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
+          if (textLayers.length === 0 && gifUrl) {
+            // No text overlays to burn in — keep the GIF animated instead of flattening to a PNG
+            const a = document.createElement("a");
+            a.download = `${title.trim() || "gif_meme"}.gif`;
+            a.href = gifUrl;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          } else {
+            const workspaceElement = canvasContainerRef.current;
+            if (workspaceElement) {
+              const canvasResult = await html2canvas(workspaceElement, {
+                useCORS: true,
+                backgroundColor: canvasBg || "#FFFFFF"
+              });
+              const blob = await new Promise(resolve => canvasResult.toBlob(resolve, "image/png"));
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.download = `${title.trim() || "gif_meme"}.png`;
+                a.href = url;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }
             }
           }
         } else if (activeTab === "video") {
@@ -2237,7 +2247,9 @@ const Lab = () => {
           fileUrl = audioFileUrl;
         }
       }
-      // 4. Download local GIF file if it is loaded, using html2canvas to merge text overlays
+      // 4. GIF: upload the animated file as-is. Only flatten to a PNG (via html2canvas)
+      //    when text overlays need to be burned in — otherwise the published/downloaded
+      //    meme stays a real animated GIF instead of a frozen frame.
       else if (activeTab === "gif") {
         if (gifFile) {
           const storageRef = ref(storage, `memes/${user.uid}_gif_${Date.now()}.gif`);
@@ -2245,34 +2257,46 @@ const Lab = () => {
           fileUrl = await getDownloadURL(snapshot.ref);
         }
 
-        // Generate flat preview screenshot with overlays for library display
-        const workspaceElement = canvasContainerRef.current;
-        if (workspaceElement) {
-          try {
-            const canvasResult = await html2canvas(workspaceElement, {
-              useCORS: true,
-              backgroundColor: canvasBg || "#FFFFFF"
-            });
-            const overlayBlob = await new Promise(resolve => canvasResult.toBlob(resolve, "image/png"));
-            if (overlayBlob) {
-              // Upload flat preview PNG to Firebase Storage so the library can show it
-              const storageRef = ref(storage, `memes/${user.uid}_gif_preview_${Date.now()}.png`);
-              const snapshot = await uploadBytes(storageRef, overlayBlob);
-              fileUrl = await getDownloadURL(snapshot.ref);
+        if (textLayers.length > 0) {
+          // Generate flat preview screenshot with overlays for library display
+          const workspaceElement = canvasContainerRef.current;
+          if (workspaceElement) {
+            try {
+              const canvasResult = await html2canvas(workspaceElement, {
+                useCORS: true,
+                backgroundColor: canvasBg || "#FFFFFF"
+              });
+              const overlayBlob = await new Promise(resolve => canvasResult.toBlob(resolve, "image/png"));
+              if (overlayBlob) {
+                // Upload flat preview PNG to Firebase Storage so the library can show it
+                const storageRef = ref(storage, `memes/${user.uid}_gif_preview_${Date.now()}.png`);
+                const snapshot = await uploadBytes(storageRef, overlayBlob);
+                fileUrl = await getDownloadURL(snapshot.ref);
 
-              // Local download of the flat PNG meme (GIF frames frozen, text overlays burned in)
-              const downloadUrl = URL.createObjectURL(overlayBlob);
-              const link = document.createElement("a");
-              link.download = `${title.trim() || 'meme'}.png`;
-              link.href = downloadUrl;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              URL.revokeObjectURL(downloadUrl);
+                // Local download of the flat PNG meme (GIF frames frozen, text overlays burned in)
+                const downloadUrl = URL.createObjectURL(overlayBlob);
+                const link = document.createElement("a");
+                link.download = `${title.trim() || 'meme'}.png`;
+                link.href = downloadUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(downloadUrl);
+              }
+            } catch (err) {
+              console.error("html2canvas screenshot failed", err);
             }
-          } catch (err) {
-            console.error("html2canvas screenshot failed", err);
           }
+        } else {
+          // No overlays — download the original animated GIF unmodified
+          const link = document.createElement("a");
+          link.download = `${title.trim() || 'meme'}.gif`;
+          link.href = fileUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
         }
       }
 
@@ -2518,7 +2542,7 @@ const Lab = () => {
 
           <button
             type="button"
-            onClick={() => setShowAiModal(true)}
+            onClick={() => { setAiError(""); setShowAiPunchlinesModal(true); }}
             className="bg-slate-100 dark:bg-[#111624] hover:bg-slate-200/80 dark:hover:bg-[#1e273a] text-slate-800 dark:text-white border border-slate-200 dark:border-[#1e273a] hover:border-[#e11d48]/60 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs active:scale-95"
           >
             <span className="text-[#f43f5e]">⚡</span>
@@ -2539,7 +2563,7 @@ const Lab = () => {
       </div>
 
       {alertMessage && (
-        <div className="mb-4 p-3.5 rounded-xl bg-red-100 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-750 dark:text-red-300 font-medium text-xs">
+        <div className="mb-4 p-3.5 rounded-xl bg-red-100 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 font-medium text-xs">
           {alertMessage}
         </div>
       )}
@@ -2698,6 +2722,7 @@ const Lab = () => {
                     handleDeleteCaptionIndex={handleDeleteCaptionIndex}
                     handleEditCaptionText={handleEditCaptionText}
                     handleSplitVideoAtCurrentTime={handleSplitVideoAtCurrentTime}
+                    selectMediaPreset={selectMediaPreset}
                     parseCaptionLines={parseCaptionLines}
                     formatTime={formatTime}
                     rebuildCaptionsString={rebuildCaptionsString}
@@ -3364,21 +3389,26 @@ const Lab = () => {
                     <button
                       type="button"
                       onClick={() => handleStyleToggle("uppercase")}
-                      className="w-7 h-7 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336] rounded-lg transition"
+                      className="w-7 h-7 flex items-center justify-center text-[10px] font-black tracking-tighter text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336] rounded-lg transition"
                       title="Toggle All-Caps"
                     >
-                      ↻
+                      Aa
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        setTextLayers([
-                          { ...DEFAULT_TOP_LAYER, text: topTextInput || DEFAULT_TOP_LAYER.text },
-                          { ...DEFAULT_BOTTOM_LAYER, text: bottomTextInput || DEFAULT_BOTTOM_LAYER.text }
-                        ]);
+                        setTextLayers(prev => prev.map(l => {
+                          if (l.role === "top" || l.id === "txt-top") {
+                            return { ...l, x: DEFAULT_TOP_LAYER.x, y: DEFAULT_TOP_LAYER.y, rotation: 0 };
+                          }
+                          if (l.role === "bottom" || l.id === "txt-bottom") {
+                            return { ...l, x: DEFAULT_BOTTOM_LAYER.x, y: DEFAULT_BOTTOM_LAYER.y, rotation: 0 };
+                          }
+                          return { ...l, rotation: 0 };
+                        }));
                       }}
                       className="w-7 h-7 flex items-center justify-center text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336] rounded-lg transition"
-                      title="Reset Text Position"
+                      title="Reset position & rotation of all text layers (keeps your text and layer count)"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                     </button>
@@ -3520,6 +3550,28 @@ const Lab = () => {
                     </button>
                   ))}
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Image Effect:</span>
+                  {[
+                    { id: "none", label: "None" },
+                    { id: "deepfry", label: "Deep Fry" },
+                    { id: "blur", label: "Blur" },
+                    { id: "whiteborder", label: "White Border" }
+                  ].map((eff) => (
+                    <button
+                      key={eff.id}
+                      type="button"
+                      onClick={() => setActiveEffect(prev => prev === eff.id ? "none" : eff.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition border ${
+                        activeEffect === eff.id
+                          ? "bg-[#e11d48]/15 border-[#e11d48] text-rose-600 dark:text-white"
+                          : "bg-slate-100 dark:bg-[#111624] border-slate-200 dark:border-[#1e273a] text-slate-700 dark:text-slate-300 hover:text-rose-600"
+                      }`}
+                    >
+                      {eff.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -3566,6 +3618,16 @@ const Lab = () => {
                 More ⌄
               </span>
             </div>
+
+            {/* Live Giphy Search (GIF tab only) */}
+            {activeTab === "gif" && (
+              <div className="pb-1">
+                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-2">
+                  Search Giphy
+                </span>
+                <GiphySearch onSelect={(url) => { setGifUrl(url); setGifFile(null); }} />
+              </div>
+            )}
 
             {/* Database & Section Templates Cards in 3-Column Grid */}
             <div className="grid grid-cols-3 gap-2 max-h-[220px] overflow-y-auto pr-1">
@@ -3726,7 +3788,7 @@ const Lab = () => {
             </p>
 
             {/* Visual Draft Preview */}
-            <div className="mb-5 bg-gray-50 dark:bg-zinc-950/60 rounded-xl p-3 border border-gray-150 dark:border-zinc-800 flex flex-col items-center justify-center">
+            <div className="mb-5 bg-gray-50 dark:bg-zinc-950/60 rounded-xl p-3 border border-gray-200 dark:border-zinc-800 flex flex-col items-center justify-center">
               <span className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Meme Composition Draft</span>
               <div className="w-56 aspect-video rounded-lg overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center relative shadow-sm">
                 {activeTab === "image" && images.length > 0 ? (
@@ -3745,7 +3807,7 @@ const Lab = () => {
                     Audio Waveform Card
                   </div>
                 ) : (
-                  <div className="text-gray-405 text-xs italic">Empty Canvas</div>
+                  <div className="text-gray-400 text-xs italic">Empty Canvas</div>
                 )}
 
                 {/* Simulated text overlays on top of the preview */}
@@ -4131,7 +4193,7 @@ const Lab = () => {
       {showContributeModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className={`w-full max-w-md p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
-            <div className="flex items-center justify-between border-b pb-2 mb-4 border-gray-150 dark:border-zinc-800">
+            <div className="flex items-center justify-between border-b pb-2 mb-4 border-gray-200 dark:border-zinc-800">
               <h3 className="font-bold text-sm uppercase tracking-wider text-purple-700 dark:text-purple-400">Contribute Template to Library</h3>
               <button
                 type="button"
@@ -4304,14 +4366,106 @@ const Lab = () => {
         }}
       />
 
+      {/* AI PUNCHLINES GENERATOR MODAL */}
+      {showAiPunchlinesModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn"
+          onClick={() => setShowAiPunchlinesModal(false)}
+        >
+          <div
+            className="bg-white dark:bg-[#111624] border border-gray-200 dark:border-[#1e273a] rounded-2xl w-full max-w-md shadow-2xl p-6 relative animate-scaleIn"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span className="text-[#f43f5e]">⚡</span> AI Punchlines
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAiPunchlinesModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200"
+              >
+                <span className="sr-only">Close</span>✕
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-zinc-400 mb-4">
+              Generate witty, subject-aware caption ideas for your {subject === "Other" ? (customSubject || "topic") : subject} meme, then apply one to your selected text layer.
+            </p>
+
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                value={aiPromptTopic}
+                onChange={(e) => setAiPromptTopic(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !aiLoading) handleGenerateAiCaptions(); }}
+                placeholder="Topic (e.g. Photosynthesis, Algebra II)..."
+                className="flex-1 bg-slate-50 dark:bg-[#0e131f] border border-slate-200 dark:border-[#1e273a] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#e11d48] focus:border-[#e11d48] transition"
+              />
+              <button
+                type="button"
+                onClick={handleGenerateAiCaptions}
+                disabled={aiLoading}
+                className="px-4 py-2 rounded-xl bg-[#e11d48] hover:bg-[#f43f5e] disabled:opacity-50 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md active:scale-95 shrink-0"
+              >
+                {aiLoading ? (
+                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                <span>Generate</span>
+              </button>
+            </div>
+
+            {aiError && (
+              <div className="mb-3 p-2.5 rounded-lg bg-red-100 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-[11px] font-medium">
+                {aiError}
+              </div>
+            )}
+
+            {aiLoading ? (
+              <div className="py-8 flex flex-col items-center justify-center gap-2 text-slate-400 dark:text-zinc-500 text-xs">
+                <div className="w-6 h-6 border-2 border-[#e11d48] border-t-transparent rounded-full animate-spin" />
+                Brainstorming punchlines...
+              </div>
+            ) : aiCaptions.length > 0 ? (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-0.5">
+                {aiCaptions.map((cap, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => applyAiCaption(cap)}
+                    className="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-[#1e273a] bg-slate-50 dark:bg-[#0e131f] hover:border-[#e11d48] hover:bg-rose-50/60 dark:hover:bg-[#1e273a] transition text-xs font-semibold text-slate-800 dark:text-zinc-200 flex items-start justify-between gap-2 group"
+                  >
+                    <span>{cap}</span>
+                    <span className="shrink-0 text-[10px] font-bold text-[#e11d48] opacity-0 group-hover:opacity-100 transition">Use</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="py-6 text-center text-xs text-slate-400 dark:text-zinc-500">
+                Enter a topic (optional) and hit Generate to get 3 caption ideas.
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => { setShowAiPunchlinesModal(false); setShowAiModal(true); }}
+              className="mt-4 w-full text-center text-[10px] font-semibold text-slate-400 dark:text-zinc-500 hover:text-[#e11d48] transition"
+            >
+              View AI credits & quota
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* VIDEO SPLITTING MODAL */}
       {showSplitModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-white dark:bg-zinc-900 border border-gray-150 dark:border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 relative animate-scaleIn">
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 relative animate-scaleIn">
             <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
               <span>✂️</span> Split Video Clip
             </h3>
-            <p className="text-xs text-gray-550 dark:text-zinc-400 mb-6">
+            <p className="text-xs text-gray-500 dark:text-zinc-400 mb-6">
               Split the video at the current playhead position: <strong className="text-purple-600 font-mono">{videoCurrentTime.toFixed(1)}s</strong>.
             </p>
 
@@ -4357,7 +4511,7 @@ const Lab = () => {
                     <button
                       type="button"
                       onClick={handleSaveBothPartsAsDrafts}
-                      className="w-full py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
+                      className="w-full py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 active:scale-95"
                     >
                       <span>📁</span> Save Both as Library Drafts
                     </button>
@@ -4366,7 +4520,7 @@ const Lab = () => {
                   <button
                     type="button"
                     onClick={() => setShowSplitModal(false)}
-                    className="w-full py-2 px-4 rounded-xl border border-gray-250 dark:border-zinc-800 text-gray-600 dark:text-zinc-400 font-semibold text-xs hover:bg-gray-50 dark:hover:bg-zinc-800 transition"
+                    className="w-full py-2 px-4 rounded-xl border border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-400 font-semibold text-xs hover:bg-gray-50 dark:hover:bg-zinc-800 transition"
                   >
                     Cancel
                   </button>

@@ -103,6 +103,7 @@ async function drawAudiogramCard({
   creatorName,
   bgColor,
   accentColor,
+  precomputedAmplitudes, // optional cached waveform — skips re-decoding the audio file
 }) {
   const canvas = document.createElement("canvas");
   canvas.width = CARD_W;
@@ -146,7 +147,7 @@ async function drawAudiogramCard({
   }
 
   // --- Waveform bars ---
-  let amplitudes = await extractWaveform(audioSource, BAR_COUNT);
+  let amplitudes = precomputedAmplitudes || await extractWaveform(audioSource, BAR_COUNT);
   if (!amplitudes) amplitudes = placeholderWaveform(BAR_COUNT);
 
   const waveAreaX = 24;
@@ -261,6 +262,12 @@ const AudiogramCanvas = forwardRef(function AudiogramCanvas(
 ) {
   const previewCanvasRef = useRef(null);
   const [isRendering, setIsRendering] = useState(false);
+  // Caches the decoded waveform so cosmetic changes (title/color/subject) don't
+  // re-fetch and re-decode the whole audio file on every render.
+  const waveformCacheRef = useRef({ key: null, amplitudes: null });
+
+  const getAudioSourceKey = (file, url) =>
+    file ? `file:${file.name}:${file.size}:${file.lastModified}` : `url:${url || ""}`;
 
   // Expose generateCardBlob() to parent via ref
   useImperativeHandle(ref, () => ({
@@ -287,6 +294,15 @@ const AudiogramCanvas = forwardRef(function AudiogramCanvas(
     setIsRendering(true);
     try {
       const audioSource = audioFile || audioUrl;
+      const sourceKey = getAudioSourceKey(audioFile, audioUrl);
+      let precomputedAmplitudes = waveformCacheRef.current.key === sourceKey
+        ? waveformCacheRef.current.amplitudes
+        : null;
+      if (!precomputedAmplitudes) {
+        precomputedAmplitudes = await extractWaveform(audioSource, BAR_COUNT);
+        waveformCacheRef.current = { key: sourceKey, amplitudes: precomputedAmplitudes };
+      }
+
       const offscreen = await drawAudiogramCard({
         audioSource,
         audioUrl,
@@ -295,6 +311,7 @@ const AudiogramCanvas = forwardRef(function AudiogramCanvas(
         creatorName,
         bgColor,
         accentColor,
+        precomputedAmplitudes,
       });
 
       // Copy offscreen → preview canvas
