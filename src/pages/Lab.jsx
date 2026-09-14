@@ -424,12 +424,19 @@ const Lab = () => {
   const [audioTrimEnd, setAudioTrimEnd] = useState(15);
 
   // --- Text Overlay State (with undo/redo history) ---
+  // Text layer coordinate system:
+  //   x, y, maxWidth  — percentages (0-100) of the canvas width (x, maxWidth) / height (y).
+  //                      Rendered with plain CSS %, so they always track the actual canvas
+  //                      box regardless of its on-screen size or aspect ratio.
+  //   fontSize, strokeWidth — "reference px" authored against a 640px-wide canvas, converted
+  //                      to CSS container-query width units (cqw) at render time and to
+  //                      canvas-pixel units at export time via TEXT_LAYER_REF_WIDTH.
   const DEFAULT_TOP_LAYER = {
     id: "txt-top",
     role: "top",
     text: "FINISHED THE ASSIGNMENT A DAY BEFORE DEADLINE",
-    x: 20,
-    y: 20,
+    x: 6,
+    y: 5,
     fontSize: 26,
     color: "#FFFFFF",
     fontFamily: "Impact",
@@ -438,7 +445,7 @@ const Lab = () => {
     textAlign: "center",
     opacity: 1,
     rotation: 0,
-    maxWidth: 620,
+    maxWidth: 88,
     fontWeight: "bold",
   };
 
@@ -446,8 +453,8 @@ const Lab = () => {
     id: "txt-bottom",
     role: "bottom",
     text: "REALIZES THERE'S STILL THE PRESENTATION LEFT",
-    x: 20,
-    y: 390,
+    x: 6,
+    y: 80,
     fontSize: 26,
     color: "#FFFFFF",
     fontFamily: "Impact",
@@ -456,9 +463,12 @@ const Lab = () => {
     textAlign: "center",
     opacity: 1,
     rotation: 0,
-    maxWidth: 620,
+    maxWidth: 88,
     fontWeight: "bold",
   };
+
+  // Reference canvas width that layer.fontSize/strokeWidth values are authored against.
+  const TEXT_LAYER_REF_WIDTH = 640;
 
   const {
     state: textLayers,
@@ -821,8 +831,8 @@ const Lab = () => {
     const newLayer = {
       id: newId,
       text: "CUSTOM CAPTION",
-      x: 30,
-      y: 150,
+      x: 25 + Math.random() * 15,
+      y: 40 + Math.random() * 15,
       fontSize: 24,
       color: "#FFFFFF",
       fontFamily: "Impact, sans-serif",
@@ -831,7 +841,7 @@ const Lab = () => {
       textAlign: "center",
       opacity: 1,
       rotation: 0,
-      maxWidth: 360,
+      maxWidth: 60,
       fontWeight: "bold",
     };
     setTextLayers(prev => [...prev, newLayer]);
@@ -1180,7 +1190,11 @@ const Lab = () => {
       startX: e.clientX,
       startY: e.clientY,
       startLeft: layer.x,
-      startTop: layer.y
+      startTop: layer.y,
+      // Captured once at drag-start: converts screen-px mouse movement into
+      // percentage-of-canvas deltas, since layer.x/y are stored as percentages.
+      containerW: canvasContainerRef.current?.offsetWidth || 340,
+      containerH: canvasContainerRef.current?.offsetHeight || 340
     };
   };
 
@@ -1197,7 +1211,10 @@ const Lab = () => {
       textId: textId,
       startX: e.clientX,
       startY: e.clientY,
-      startFontSize: layer.fontSize || 24
+      startFontSize: layer.fontSize || 24,
+      // fontSize is stored in "reference px" (see TEXT_LAYER_REF_WIDTH) — convert
+      // screen-px resize movement into that same reference scale.
+      containerW: canvasContainerRef.current?.offsetWidth || 340
     };
   };
 
@@ -1218,7 +1235,8 @@ const Lab = () => {
         delta = -deltaX - deltaY;
       }
 
-      const newFontSize = Math.max(10, Math.min(180, Math.round(rInfo.startFontSize + delta * 0.3)));
+      const refScale = TEXT_LAYER_REF_WIDTH / (rInfo.containerW || 340);
+      const newFontSize = Math.max(10, Math.min(180, Math.round(rInfo.startFontSize + delta * 0.3 * refScale)));
 
       setTextLayers(prev =>
         prev.map(layer => {
@@ -1236,14 +1254,16 @@ const Lab = () => {
 
     const deltaX = e.clientX - info.startX;
     const deltaY = e.clientY - info.startY;
+    const deltaXPercent = (deltaX / (info.containerW || 340)) * 100;
+    const deltaYPercent = (deltaY / (info.containerH || 340)) * 100;
 
     setTextLayers(prev =>
       prev.map(layer => {
         if (layer.id === info.textId) {
           return {
             ...layer,
-            x: info.startLeft + deltaX,
-            y: info.startTop + deltaY
+            x: info.startLeft + deltaXPercent,
+            y: info.startTop + deltaYPercent
           };
         }
         return layer;
@@ -1287,17 +1307,17 @@ const Lab = () => {
       {
         id: newId,
         text,
-        x: 100 + Math.random() * 50,
-        y: 100 + Math.random() * 50,
+        x: 20 + Math.random() * 15,
+        y: 35 + Math.random() * 15,
         fontSize: 24,
         color: "#FFFFFF",
         fontFamily: "Impact",
         strokeColor: "#000000",
         strokeWidth: 2,
-        textAlign: "left",
+        textAlign: "center",
         opacity: 1,
         rotation: 0,
-        maxWidth: null,
+        maxWidth: 60,
       }
     ]);
     setSelectedTextId(newId);
@@ -1326,7 +1346,7 @@ const Lab = () => {
     const layer = textLayers.find(l => l.id === selectedTextId);
     if (!layer) return;
     const newId = `txt-${Date.now()}`;
-    setTextLayers(prev => [...prev, { ...layer, id: newId, x: layer.x + 20, y: layer.y + 20 }]);
+    setTextLayers(prev => [...prev, { ...layer, id: newId, x: Math.min(90, layer.x + 4), y: Math.min(90, layer.y + 4) }]);
     setSelectedTextId(newId);
   };
 
@@ -1951,13 +1971,17 @@ const Lab = () => {
     }
 
     // Draw text overlays — supports align, opacity, rotation, maxWidth, bold, italic, allCaps
+    // layer.x/y/maxWidth are percentages of the canvas; fontSize/strokeWidth are
+    // "reference px" against TEXT_LAYER_REF_WIDTH — matches the live DOM preview's
+    // %/cqw units exactly so the export always looks like what was on screen.
+    const textRefScale = width / TEXT_LAYER_REF_WIDTH;
     textLayers.forEach(layer => {
       ctx.save();
       ctx.globalAlpha = layer.opacity ?? 1;
 
-      const scaledX = layer.x * scale;
-      const scaledY = layer.y * scale;
-      const scaledFontSize = layer.fontSize * scale;
+      const scaledX = (layer.x / 100) * width;
+      const scaledY = (layer.y / 100) * height;
+      const scaledFontSize = layer.fontSize * textRefScale;
 
       // Rotate around the text origin point
       if (layer.rotation) {
@@ -1972,11 +1996,11 @@ const Lab = () => {
       ctx.font = `${fontStyle}${fontWeight}${scaledFontSize}px ${layer.fontFamily || 'Impact'}`;
       ctx.fillStyle = layer.color || '#FFFFFF';
       ctx.strokeStyle = layer.strokeColor || '#000000';
-      ctx.lineWidth = (layer.strokeWidth || 0) * 2 * scale;
+      ctx.lineWidth = (layer.strokeWidth || 0) * 2 * textRefScale;
       ctx.textBaseline = 'top';
       ctx.textAlign = layer.textAlign || 'left';
 
-      const maxW = layer.maxWidth ? layer.maxWidth * scale : undefined;
+      const maxW = layer.maxWidth ? (layer.maxWidth / 100) * width : undefined;
       const renderText = layer.isAllCaps ? (layer.text || "").toUpperCase() : (layer.text || "");
 
       if (layer.strokeWidth > 0) {
@@ -2743,31 +2767,37 @@ const Lab = () => {
                   } flex items-center justify-center select-none shadow-xl border border-slate-300 dark:border-[#1b2336] rounded-2xl overflow-hidden`}
                   style={{
                     backgroundColor: canvasBg,
-                    filter: FILTER_MAP[selectedFilter] || undefined
+                    filter: FILTER_MAP[selectedFilter] || undefined,
+                    // Establishes a query container so descendant text layers can size
+                    // fontSize/stroke with `cqw` units (percentage of this box's width).
+                    containerType: "inline-size"
                   }}
                 >
                   {/* Draggable Text Overlays */}
                   <div className="absolute inset-0 z-20 pointer-events-none">
-                    {textLayers.map((layer) => (
+                    {textLayers.map((layer) => {
+                      const fontSizeCqw = (layer.fontSize / TEXT_LAYER_REF_WIDTH) * 100;
+                      const strokeWidthCqw = ((layer.strokeWidth ?? 2) / TEXT_LAYER_REF_WIDTH) * 100;
+                      return (
                       <div
                         key={layer.id}
                         onPointerDown={(e) => handleTextPointerDown(e, layer.id)}
                         onDoubleClick={() => setEditingTextId(layer.id)}
                         style={{
                           position: "absolute",
-                          left: `${layer.x}px`,
-                          top: `${layer.y}px`,
+                          left: `${layer.x}%`,
+                          top: `${layer.y}%`,
                           fontFamily: layer.fontFamily,
-                          fontSize: `${layer.fontSize}px`,
+                          fontSize: `${fontSizeCqw}cqw`,
                           fontWeight: layer.fontWeight || "bold",
                           fontStyle: layer.fontStyle || "normal",
                           textDecoration: layer.textDecoration || "none",
                           color: layer.color,
-                          WebkitTextStroke: `${layer.strokeWidth ?? 2}px ${layer.strokeColor ?? "#000000"}`,
+                          WebkitTextStroke: `${strokeWidthCqw}cqw ${layer.strokeColor ?? "#000000"}`,
                           textShadow: textEffectShadow ? "2px 2px 8px rgba(0,0,0,0.9)" : undefined,
                           cursor: "move",
                           whiteSpace: layer.maxWidth ? "normal" : "nowrap",
-                          maxWidth: layer.maxWidth ? `${layer.maxWidth}px` : undefined,
+                          maxWidth: layer.maxWidth ? `${layer.maxWidth}%` : undefined,
                           opacity: layer.opacity ?? 1,
                           transform: layer.rotation ? `rotate(${layer.rotation}deg)` : undefined,
                           textAlign: layer.textAlign || "center",
@@ -2817,7 +2847,8 @@ const Lab = () => {
                           </>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {activeTab === "image" && (

@@ -7,6 +7,11 @@
 
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 
+// Text layer x/y/maxWidth are percentages of the output frame (matching the Lab.jsx
+// image/GIF editor's coordinate system); fontSize/strokeWidth are "reference px"
+// authored against this width — must stay in sync with TEXT_LAYER_REF_WIDTH in Lab.jsx.
+const TEXT_LAYER_REF_WIDTH = 640;
+
 // Helper to convert Canvas content to a Uint8Array PNG for FFmpeg virtual file system
 const canvasToUint8Array = async (canvasElement) => {
   const blob = await new Promise(resolve => canvasElement.toBlob(resolve, "image/png"));
@@ -143,18 +148,19 @@ async function compileVideoMemeCanvas({
             }
 
             // Text layers
+            const fontRefScale = width / TEXT_LAYER_REF_WIDTH;
             textLayers.forEach((layer) => {
               ctx.save();
-              ctx.translate(layer.x * scale, layer.y * scale);
+              ctx.translate((layer.x / 100) * width, (layer.y / 100) * height);
               if (layer.rotation) ctx.rotate((layer.rotation * Math.PI) / 180);
               ctx.globalAlpha = layer.opacity ?? 1;
-              ctx.font = `${layer.fontSize * scale}px "${layer.fontFamily || "Arial"}"`;
+              ctx.font = `${layer.fontSize * fontRefScale}px "${layer.fontFamily || "Arial"}"`;
               ctx.fillStyle = layer.color || "#ffffff";
               ctx.textAlign = layer.textAlign || "left";
               ctx.textBaseline = "top";
               if (layer.strokeWidth) {
                 ctx.strokeStyle = layer.strokeColor || "#000000";
-                ctx.lineWidth = layer.strokeWidth * scale * 2;
+                ctx.lineWidth = layer.strokeWidth * fontRefScale * 2;
                 ctx.strokeText(layer.text, 0, 0);
               }
               ctx.fillText(layer.text, 0, 0);
@@ -293,18 +299,19 @@ export async function compileVideoMeme({
       textCanvas.height = height;
       const textCtx = textCanvas.getContext("2d");
 
+      const fontRefScale = width / TEXT_LAYER_REF_WIDTH;
       textLayers.forEach((layer) => {
         textCtx.save();
-        textCtx.translate(layer.x * scale, layer.y * scale);
+        textCtx.translate((layer.x / 100) * width, (layer.y / 100) * height);
         if (layer.rotation) textCtx.rotate((layer.rotation * Math.PI) / 180);
         textCtx.globalAlpha = layer.opacity ?? 1;
-        textCtx.font = `${layer.fontSize * scale}px "${layer.fontFamily || "Arial"}"`;
+        textCtx.font = `${layer.fontSize * fontRefScale}px "${layer.fontFamily || "Arial"}"`;
         textCtx.fillStyle = layer.color || "#ffffff";
         textCtx.textAlign = layer.textAlign || "left";
         textCtx.textBaseline = "top";
         if (layer.strokeWidth) {
           textCtx.strokeStyle = layer.strokeColor || "#000000";
-          textCtx.lineWidth = layer.strokeWidth * scale * 2;
+          textCtx.lineWidth = layer.strokeWidth * fontRefScale * 2;
           textCtx.strokeText(layer.text, 0, 0);
         }
         textCtx.fillText(layer.text, 0, 0);
