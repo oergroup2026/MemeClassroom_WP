@@ -44,6 +44,7 @@ import {
   increment,
   query,
   where,
+  limit,
   onSnapshot
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -182,38 +183,70 @@ const Lab = () => {
     }
   }, [searchParams]);
 
-  // Fetch approved templates from Firestore
+  // Fetch approved templates and public database memes from Firestore
   useEffect(() => {
-    const q = query(
+    // 1. Templates collection
+    const qTemplates = query(
       collection(db, "templates"),
       where("status", "==", "approved")
     );
-    const unsub = onSnapshot(q, (snap) => {
-      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const unsubTemplates = onSnapshot(qTemplates, (snap) => {
+      const list = snap.docs.map(doc => ({ id: doc.id, isTemplate: true, ...doc.data() }));
       setAvailableTemplates(list);
     }, (error) => {
-      console.error("Templates subscription failed:", error);
+      console.warn("Templates subscription failed:", error);
     });
-    return () => unsub();
+
+    // 2. Public Memes from database (usable in Lab)
+    const qMemes = query(
+      collection(db, "memes"),
+      where("visibility", "==", "public"),
+      limit(60)
+    );
+    const unsubMemes = onSnapshot(qMemes, (snap) => {
+      const list = snap.docs.map(doc => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          title: d.title || "Community Meme",
+          media_url: d.media_url || d.image_url,
+          thumbnail: d.media_url || d.image_url,
+          format: d.format || "image",
+          subject: d.subject || "General",
+          grade_group: d.grade_group,
+          isDatabase: true,
+          ...d
+        };
+      }).filter(m => m.media_url);
+      setDbMemes(list);
+    }, (error) => {
+      console.warn("Memes subscription failed:", error);
+    });
+
+    return () => {
+      unsubTemplates();
+      unsubMemes();
+    };
   }, []);
 
   const handleSelectTemplate = (temp) => {
     setTemplateId(temp.id);
+    const mediaUrl = temp.media_url || temp.image_url || temp.thumbnail || (temp.images && temp.images[0]);
     if (temp.format === "image" || !temp.format) {
       if (images.length >= 4) {
         setAlertMessage("You can only add up to 4 images to the collage.");
         return;
       }
-      setImages(prev => [...prev, temp.media_url]);
+      setImages(prev => (prev.length === 0 ? [mediaUrl] : [...prev, mediaUrl]));
       setActiveTab("image");
     } else if (temp.format === "video") {
-      setVideoUrl(temp.media_url);
+      setVideoUrl(mediaUrl);
       setActiveTab("video");
     } else if (temp.format === "gif") {
-      setGifUrl(temp.media_url);
+      setGifUrl(mediaUrl);
       setActiveTab("gif");
     } else if (temp.format === "audio") {
-      setAudioUrl(temp.media_url);
+      setAudioUrl(mediaUrl);
       setActiveTab("audio");
     }
   };
@@ -323,7 +356,7 @@ const Lab = () => {
   }, [searchParams]);
 
   // --- Image Tab State ---
-  const [images, setImages] = useState(["/templates/leonardo-toast.jpg", "/templates/leonardo-toast.jpg"]); // Array of base64/object URLs
+  const [images, setImages] = useState([]); // Array of base64/object URLs
   const [imageFiles, setImageFiles] = useState([]); // Array of raw File objects
 
   // Collage layout format: "columns" | "rows" | "grid"
@@ -433,7 +466,7 @@ const Lab = () => {
     redo: redoTextLayers,
     canUndo,
     canRedo,
-  } = useUndoRedo([DEFAULT_TOP_LAYER, DEFAULT_BOTTOM_LAYER]);
+  } = useUndoRedo([]);
 
   // Convenience wrapper that also accepts functional updaters
   const setTextLayers = useCallback((updater) => {
@@ -459,8 +492,8 @@ const Lab = () => {
   const [activeControlTab, setActiveControlTab] = useState("text"); // "text" | "image" | "filters" | "effects"
   const [zoomLevel, setZoomLevel] = useState(100);
   const [selectedCategory, setSelectedCategory] = useState("popular");
-  const [topTextInput, setTopTextInput] = useState("FINISHED THE ASSIGNMENT A DAY BEFORE DEADLINE");
-  const [bottomTextInput, setBottomTextInput] = useState("REALIZES THERE'S STILL THE PRESENTATION LEFT");
+  const [topTextInput, setTopTextInput] = useState("");
+  const [bottomTextInput, setBottomTextInput] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("none");
   const [textEffectShadow, setTextEffectShadow] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -646,55 +679,91 @@ const Lab = () => {
     }
   ];
 
-  // Helper to get active section templates
+  // Helper to get active section templates (combines Firestore database templates, database memes, and presets)
   const getActiveFormatTemplates = () => {
     let list = [];
     if (activeTab === "image") {
-      list = [...IMAGE_TEMPLATES];
-      const dbImages = availableTemplates.filter(t => !t.format || t.format === "image");
-      list = [...list, ...dbImages.map(t => ({
-        id: t.id,
-        title: t.title,
-        thumbnail: t.media_url,
-        images: [t.media_url],
-        format: "image"
-      }))];
+      // 1. Approved database templates
+      const dbTemplates = availableTemplates
+        .filter(t => !t.format || t.format === "image")
+        .map(t => ({
+          id: t.id,
+          title: t.title || "Template",
+          thumbnail: t.media_url || t.thumbnail_url || t.image_url,
+          images: [t.media_url || t.thumbnail_url || t.image_url],
+          format: "image",
+          category: t.category || (t.subject ? "academic" : "popular"),
+          subject: t.subject || "",
+          isDatabase: true
+        }));
+
+      // 2. Public memes from database
+      const dbMemeList = dbMemes
+        .filter(m => !m.format || m.format === "image")
+        .map(m => ({
+          id: m.id,
+          title: m.title || "Community Meme",
+          thumbnail: m.media_url || m.image_url,
+          images: [m.media_url || m.image_url],
+          format: "image",
+          category: m.subject === "Biology" || m.subject === "Chemistry" || m.subject === "Physics" || m.subject === "Math" || m.subject === "History" ? "academic" : "popular",
+          subject: m.subject || "",
+          isDatabase: true
+        }));
+
+      // Combine database items first, followed by fallback presets
+      list = [...dbTemplates, ...dbMemeList, ...IMAGE_TEMPLATES];
     } else if (activeTab === "video") {
-      list = [...VIDEO_TEMPLATES];
       const dbVideos = availableTemplates.filter(t => t.format === "video");
-      list = [...list, ...dbVideos.map(t => ({
-        id: t.id,
-        title: t.title,
-        thumbnail: t.media_url || "/templates/drake.jpg",
-        url: t.media_url,
-        format: "video"
-      }))];
+      const dbVideoMemes = dbMemes.filter(m => m.format === "video");
+      list = [
+        ...dbVideos.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url, url: t.media_url, format: "video", isDatabase: true })),
+        ...dbVideoMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "video", isDatabase: true })),
+        ...VIDEO_TEMPLATES
+      ];
     } else if (activeTab === "gif") {
-      list = [...GIF_TEMPLATES];
       const dbGifs = availableTemplates.filter(t => t.format === "gif");
-      list = [...list, ...dbGifs.map(t => ({
-        id: t.id,
-        title: t.title,
-        thumbnail: t.media_url,
-        url: t.media_url,
-        format: "gif"
-      }))];
+      const dbGifMemes = dbMemes.filter(m => m.format === "gif");
+      list = [
+        ...dbGifs.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url, url: t.media_url, format: "gif", isDatabase: true })),
+        ...dbGifMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "gif", isDatabase: true })),
+        ...GIF_TEMPLATES
+      ];
     } else if (activeTab === "audio") {
-      list = [...AUDIO_TEMPLATES];
       const dbAudio = availableTemplates.filter(t => t.format === "audio");
-      list = [...list, ...dbAudio.map(t => ({
-        id: t.id,
-        title: t.title,
-        thumbnail: t.media_url || "/templates/leonardo-toast.jpg",
-        url: t.media_url,
-        format: "audio"
-      }))];
+      const dbAudioMemes = dbMemes.filter(m => m.format === "audio");
+      list = [
+        ...dbAudio.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url || "/templates/leonardo-toast.jpg", url: t.media_url, format: "audio", isDatabase: true })),
+        ...dbAudioMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url || "/templates/leonardo-toast.jpg", url: m.media_url, format: "audio", isDatabase: true })),
+        ...AUDIO_TEMPLATES
+      ];
     }
 
+    // Filter by search query
     if (templateSearchQuery && templateSearchQuery.trim()) {
       const q = templateSearchQuery.toLowerCase();
-      list = list.filter(t => t.title.toLowerCase().includes(q));
+      list = list.filter(t => t.title?.toLowerCase().includes(q));
     }
+
+    // Filter by category
+    if (selectedCategory && selectedCategory !== "all" && selectedCategory !== "popular") {
+      const filtered = list.filter(t => {
+        if (selectedCategory === "academic") {
+          return t.category === "academic" || Boolean(t.subject && t.subject !== "General");
+        }
+        if (selectedCategory === "reactions") {
+          return t.category === "reactions" || t.title?.toLowerCase().includes("reaction") || t.format === "gif";
+        }
+        if (selectedCategory === "students") {
+          return t.category === "students" || t.title?.toLowerCase().includes("student") || t.title?.toLowerCase().includes("assignment") || t.title?.toLowerCase().includes("exam");
+        }
+        return true;
+      });
+      if (filtered.length > 0) {
+        list = filtered;
+      }
+    }
+
     return list;
   };
 
@@ -827,6 +896,7 @@ const Lab = () => {
   };
 
   const handleSelectTemplatePreset = (tpl) => {
+    if (tpl.id) setTemplateId(tpl.id);
     if (tpl.format === "video" || activeTab === "video") {
       const vUrl = tpl.url || tpl.media_url;
       if (vUrl) {
@@ -844,9 +914,14 @@ const Lab = () => {
         selectMediaPreset(aUrl, "audio", 30);
       }
     } else {
+      const imgUrl = tpl.thumbnail || tpl.media_url || (tpl.images && tpl.images[0]);
       if (tpl.images && tpl.images.length > 0) {
         setImages(tpl.images);
         if (tpl.collage) setCollageLayout(tpl.collage);
+        else setCollageLayout("single");
+      } else if (imgUrl) {
+        setImages([imgUrl]);
+        setCollageLayout("single");
       }
       if (tpl.defaultTop !== undefined) handleTopTextChange(tpl.defaultTop);
       if (tpl.defaultBottom !== undefined) handleBottomTextChange(tpl.defaultBottom);
@@ -960,6 +1035,7 @@ const Lab = () => {
   const [templateLoading, setTemplateLoading] = useState(false);
   const [templateSuccess, setTemplateSuccess] = useState("");
   const [availableTemplates, setAvailableTemplates] = useState([]);
+  const [dbMemes, setDbMemes] = useState([]);
   const [showContributeModal, setShowContributeModal] = useState(false);
   const [templateSearchQuery, setTemplateSearchQuery] = useState("");
 
@@ -1751,7 +1827,11 @@ const Lab = () => {
 
   // --- Canvas Settings State ---
   const [canvasAspect, setCanvasAspect] = useState("1:1"); // "1:1" | "16:9" | "9:16" | "4:3"
-  const [canvasBg, setCanvasBg] = useState("#1e293b"); // background fill color
+  const [canvasBg, setCanvasBg] = useState(highContrastMode ? "#111624" : "#ffffff"); // background fill color
+
+  useEffect(() => {
+    setCanvasBg(highContrastMode ? "#111624" : "#ffffff");
+  }, [highContrastMode]);
 
   const ASPECT_RATIOS = {
     "1:1": { css: "aspect-square", w: 1, h: 1 },
@@ -2374,18 +2454,18 @@ const Lab = () => {
   const activeTextLayer = textLayers.find(l => l.id === selectedTextId);
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 py-3 flex flex-col min-h-[calc(100vh-70px)]" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
+    <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 py-3 flex flex-col min-h-[calc(100vh-70px)] pb-16 bg-[#FAFAF9] dark:bg-[#090D16] text-slate-800 dark:text-white transition-colors duration-200" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
 
       {/* ── TOP STUDIO WORKBENCH NAVIGATION BAR ─────────────────────────── */}
-      <div className="bg-white/95 dark:bg-[#0e131f]/95 border border-slate-200 dark:border-[#1d2638] text-slate-800 dark:text-white rounded-2xl p-3 mb-4 flex flex-wrap items-center justify-between gap-4 shadow-sm backdrop-blur-xl select-none">
+      <div className="bg-white dark:bg-[#0e131f] border border-slate-200/80 dark:border-[#1b2336] text-slate-800 dark:text-white rounded-2xl p-2.5 sm:p-3 mb-3 flex flex-wrap items-center justify-between gap-3 shadow-sm dark:shadow-lg transition-colors duration-200 select-none">
         {/* Left section: Studio Brand + Unified Format Tabs */}
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 px-3.5 py-1.5 bg-rose-50 dark:bg-[#250a18] border border-rose-300 dark:border-[#e11d48] rounded-full text-xs font-black tracking-wider text-rose-600 dark:text-[#f43f5e] shadow-xs">
+          <div className="flex items-center gap-2 px-3.5 py-1.5 bg-rose-50 dark:bg-[#250a18] border border-rose-200 dark:border-[#e11d48]/40 rounded-full text-xs font-black tracking-wider text-[#e11d48] dark:text-[#f43f5e] shadow-xs">
             <span className="text-sm">🎨</span>
             <span>MEME STUDIO</span>
           </div>
 
-          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
+          <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block" />
 
           {/* Format Switcher Tabs */}
           <div className="flex bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a] gap-1 shadow-inner">
@@ -2401,8 +2481,8 @@ const Lab = () => {
                 onClick={() => { setActiveTab(tab.id); setAlertMessage(""); }}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
                   activeTab === tab.id
-                    ? "bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white shadow-sm scale-[1.02]"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/40"
+                    ? "bg-[#e11d48] text-white shadow-md shadow-[#e11d48]/25 font-bold scale-[1.02]"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/80 dark:hover:bg-[#1b2336] font-semibold"
                 }`}
               >
                 {tab.icon}
@@ -2412,16 +2492,16 @@ const Lab = () => {
           </div>
         </div>
 
-        {/* Right section: Global Actions (Undo/Redo, AI Punchlines, Download, Publish) */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Right section: Global Actions (Undo/Redo, AI Punchlines, Export) */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           {/* Undo / Redo */}
-          <div className="flex items-center bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a] gap-0.5">
+          <div className="flex items-center bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a] gap-0.5 shadow-inner">
             <button
               type="button"
               onClick={undoTextLayers}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
-              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-25 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-25 rounded-lg hover:bg-slate-200/70 dark:hover:bg-[#1e273a] transition"
             >
               <Undo2 className="w-4 h-4" />
             </button>
@@ -2430,7 +2510,7 @@ const Lab = () => {
               onClick={redoTextLayers}
               disabled={!canRedo}
               title="Redo (Ctrl+Y)"
-              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-25 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-25 rounded-lg hover:bg-slate-200/70 dark:hover:bg-[#1e273a] transition"
             >
               <Redo2 className="w-4 h-4" />
             </button>
@@ -2439,33 +2519,21 @@ const Lab = () => {
           <button
             type="button"
             onClick={() => setShowAiModal(true)}
-            className="bg-rose-50 hover:bg-rose-100 dark:bg-[#1e101d] dark:hover:bg-[#2c1328] text-rose-600 dark:text-[#f43f5e] border border-rose-200 dark:border-[#e11d48]/60 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs active:scale-95"
+            className="bg-slate-100 dark:bg-[#111624] hover:bg-slate-200/80 dark:hover:bg-[#1e273a] text-slate-800 dark:text-white border border-slate-200 dark:border-[#1e273a] hover:border-[#e11d48]/60 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs active:scale-95"
           >
-            <span>⚡</span>
+            <span className="text-[#f43f5e]">⚡</span>
             <span>AI Punchlines</span>
           </button>
 
-          {/* Distinct Direct Download Button */}
-          <button
-            type="button"
-            onClick={() => handlePublishSubmit(false)}
-            disabled={loading}
-            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-white border border-slate-300 dark:border-slate-700 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs active:scale-95"
-            title="Download directly to your device"
-          >
-            <Download className="w-3.5 h-3.5" strokeWidth={2.2} />
-            <span>Download</span>
-          </button>
-
-          {/* Distinct Community Publish Button */}
+          {/* Single Vibrant Neon Pink Export Button matching screenshot */}
           <button
             type="button"
             onClick={() => setShowSaveModal(true)}
-            className="bg-gradient-to-r from-[#e11d48] to-[#f43f5e] hover:brightness-110 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5 active:scale-95"
-            title="Publish to community library"
+            className="bg-[#e11d48] hover:bg-[#f43f5e] text-white font-extrabold text-xs px-4.5 py-2 rounded-xl shadow-lg shadow-[#e11d48]/30 hover:shadow-[#e11d48]/50 transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+            title="Export & publish your meme composition"
           >
-            <Share2 className="w-3.5 h-3.5" strokeWidth={2.2} />
-            <span>Publish</span>
+            <Download className="w-4 h-4" strokeWidth={2.2} />
+            <span>Export</span>
           </button>
         </div>
       </div>
@@ -2982,16 +3050,36 @@ const Lab = () => {
                           </div>
                         )
                       ) : (
-                        <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 w-full h-full">
-                          <div className="mb-3 text-[#e11d48] animate-pulse">
-                            <svg className="w-10 h-10 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <div className="flex flex-col items-center justify-center p-8 text-center w-full h-full select-none">
+                          <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-[#1b2336] border border-rose-200 dark:border-[#e11d48]/30 flex items-center justify-center mb-3 shadow-xs text-[#e11d48] dark:text-[#f43f5e]">
+                            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                           </div>
-                          <p className="font-bold text-xs mb-1 text-slate-700 dark:text-slate-300">Select or Upload a Template</p>
-                          <p className="text-[11px] text-slate-500 max-w-xs">
-                            Choose from the sidebar templates or upload your media.
+                          <p className="font-bold text-sm mb-1 text-slate-800 dark:text-slate-200">Start Your Meme Creation</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mb-4">
+                            Choose a template from the database on the right or upload your own media.
                           </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setShowLibraryPickerModal(true)}
+                              className="px-3.5 py-1.5 rounded-xl bg-[#e11d48] hover:bg-[#f43f5e] text-white text-xs font-bold shadow-md shadow-[#e11d48]/20 transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                            >
+                              <span>+</span>
+                              <span>Browse Templates</span>
+                            </button>
+                            <label className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                              <span>⬆️</span>
+                              <span>Upload Image</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -3049,9 +3137,9 @@ const Lab = () => {
           </div>
 
           {/* 2. BOTTOM CONTROLS CARD */}
-          <div className="bg-white dark:bg-[#0e131f] border border-slate-200 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm flex flex-col gap-3 text-slate-800 dark:text-slate-100">
+          <div className="bg-white dark:bg-[#0e131f] border border-slate-200/80 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm dark:shadow-xl flex flex-col gap-3 text-slate-800 dark:text-white transition-colors duration-200">
             {/* Controls Tabs Navigation */}
-            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-[#1b2336] pb-3">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-[#1b2336] pb-3">
               {[
                 { id: "text", label: "Text", icon: <Type className="w-3.5 h-3.5" /> },
                 { id: "image", label: "Image", icon: <ImageIcon className="w-3.5 h-3.5" /> },
@@ -3062,10 +3150,10 @@ const Lab = () => {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveControlTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                     activeControlTab === tab.id
-                      ? "bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white shadow-xs"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/40"
+                      ? "bg-[#e11d48] text-white shadow-md shadow-[#e11d48]/25 font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#111624]"
                   }`}
                 >
                   {tab.icon}
@@ -3088,7 +3176,7 @@ const Lab = () => {
                         <button
                           type="button"
                           onClick={deleteTopText}
-                          className="text-[10px] text-red-500 hover:text-red-700 font-bold flex items-center gap-1 hover:underline transition"
+                          className="text-[10px] text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-bold flex items-center gap-1 hover:underline transition"
                           title="Delete / Clear Top Text"
                         >
                           <Trash2 className="w-3 h-3" />
@@ -3101,8 +3189,8 @@ const Lab = () => {
                         type="text"
                         value={topTextInput}
                         onChange={(e) => handleTopTextChange(e.target.value)}
-                        placeholder="FINISHED THE ASSIGNMENT A DAY BEFORE DEADLINE"
-                        className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl pl-3.5 pr-8 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
+                        placeholder="e.g. FINISHED ASSIGNMENT BEFORE DEADLINE"
+                        className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
                       />
                       {topTextInput && (
                         <button
@@ -3126,7 +3214,7 @@ const Lab = () => {
                         <button
                           type="button"
                           onClick={deleteBottomText}
-                          className="text-[10px] text-red-500 hover:text-red-700 font-bold flex items-center gap-1 hover:underline transition"
+                          className="text-[10px] text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-bold flex items-center gap-1 hover:underline transition"
                           title="Delete / Clear Bottom Text"
                         >
                           <Trash2 className="w-3 h-3" />
@@ -3139,8 +3227,8 @@ const Lab = () => {
                         type="text"
                         value={bottomTextInput}
                         onChange={(e) => handleBottomTextChange(e.target.value)}
-                        placeholder="REALIZES THERE'S STILL THE PRESENTATION LEFT"
-                        className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl pl-3.5 pr-8 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
+                        placeholder="e.g. REALIZES THERE'S A PRESENTATION LEFT"
+                        className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
                       />
                       {bottomTextInput && (
                         <button
@@ -3157,14 +3245,14 @@ const Lab = () => {
                 </div>
 
                 {/* Row 2: Font Dropdown, Size Dropdown, Color Circles, Style Buttons, Add & Delete text buttons */}
-                <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                <div className="flex flex-wrap items-center gap-3 pt-1">
                   {/* Font Select */}
-                  <div className="flex items-center gap-1">
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Font:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Font:</span>
                     <select
                       onChange={(e) => handleFontChange(e.target.value)}
                       defaultValue="Impact, sans-serif"
-                      className="bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-2 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                      className="bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
                     >
                       <option value="Impact, sans-serif">Impact</option>
                       <option value="Montserrat, sans-serif">Montserrat</option>
@@ -3177,12 +3265,12 @@ const Lab = () => {
                   </div>
 
                   {/* Size Select */}
-                  <div className="flex items-center gap-1">
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Size:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Size:</span>
                     <select
                       onChange={(e) => handleFontSizeChange(e.target.value)}
                       defaultValue="Large"
-                      className="bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-2 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                      className="bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
                     >
                       <option value="Small">Small (18px)</option>
                       <option value="Medium">Medium (24px)</option>
@@ -3195,9 +3283,9 @@ const Lab = () => {
                   <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block" />
 
                   {/* Color Circular Swatches */}
-                  <div className="flex items-center gap-1">
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Color:</span>
-                    <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Color:</span>
+                    <div className="flex items-center gap-1.5">
                       {[
                         { color: "#ffffff", title: "White" },
                         { color: "#000000", title: "Black" },
@@ -3212,13 +3300,13 @@ const Lab = () => {
                           type="button"
                           onClick={() => handleColorChange(item.color)}
                           title={item.title}
-                          className="w-4.5 h-4.5 rounded-full border border-slate-300 dark:border-white/20 hover:scale-125 transition-transform shadow-xs"
+                          className="w-5 h-5 rounded-full border border-slate-300 dark:border-white/20 hover:scale-125 transition-transform shadow-xs cursor-pointer"
                           style={{ backgroundColor: item.color }}
                         />
                       ))}
                       {/* Rainbow / Custom Color Picker */}
                       <label
-                        className="w-4.5 h-4.5 rounded-full border border-slate-400 dark:border-white/30 cursor-pointer flex items-center justify-center overflow-hidden hover:scale-125 transition-transform shadow-xs relative"
+                        className="w-5 h-5 rounded-full border border-slate-300 dark:border-white/30 cursor-pointer flex items-center justify-center overflow-hidden hover:scale-125 transition-transform shadow-xs relative"
                         style={{
                           background: "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)"
                         }}
@@ -3235,12 +3323,16 @@ const Lab = () => {
 
                   <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block" />
 
-                  {/* Style Toggle Buttons: [B] [I] [U] [aA] [↺] */}
-                  <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a]">
+                  {/* Style Toggle Buttons: [B] [I] [U] [↻] */}
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a]">
                     <button
                       type="button"
                       onClick={() => handleStyleToggle("bold")}
-                      className="w-6 h-6 flex items-center justify-center font-black text-xs text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+                      className={`w-7 h-7 flex items-center justify-center font-black text-xs rounded-lg transition ${
+                        (selectedTextId ? activeTextLayer?.fontWeight === "bold" : textLayers.some(l => l.fontWeight === "bold"))
+                          ? "bg-[#e11d48]/25 border border-[#e11d48] text-[#e11d48] dark:text-white shadow-xs"
+                          : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336]"
+                      }`}
                       title="Bold"
                     >
                       B
@@ -3248,7 +3340,11 @@ const Lab = () => {
                     <button
                       type="button"
                       onClick={() => handleStyleToggle("italic")}
-                      className="w-6 h-6 flex items-center justify-center italic font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+                      className={`w-7 h-7 flex items-center justify-center italic font-bold text-xs rounded-lg transition ${
+                        (selectedTextId ? activeTextLayer?.fontStyle === "italic" : textLayers.some(l => l.fontStyle === "italic"))
+                          ? "bg-[#e11d48]/25 border border-[#e11d48] text-[#e11d48] dark:text-white shadow-xs"
+                          : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336]"
+                      }`}
                       title="Italic"
                     >
                       I
@@ -3256,7 +3352,11 @@ const Lab = () => {
                     <button
                       type="button"
                       onClick={() => handleStyleToggle("underline")}
-                      className="w-6 h-6 flex items-center justify-center underline font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+                      className={`w-7 h-7 flex items-center justify-center underline font-bold text-xs rounded-lg transition ${
+                        (selectedTextId ? activeTextLayer?.textDecoration === "underline" : textLayers.some(l => l.textDecoration === "underline"))
+                          ? "bg-[#e11d48]/25 border border-[#e11d48] text-[#e11d48] dark:text-white shadow-xs"
+                          : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336]"
+                      }`}
                       title="Underline"
                     >
                       U
@@ -3264,10 +3364,10 @@ const Lab = () => {
                     <button
                       type="button"
                       onClick={() => handleStyleToggle("uppercase")}
-                      className="w-6 h-6 flex items-center justify-center text-[10px] text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-200 dark:hover:bg-slate-800/60 transition font-mono"
+                      className="w-7 h-7 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336] rounded-lg transition"
                       title="Toggle All-Caps"
                     >
-                      aA
+                      ↻
                     </button>
                     <button
                       type="button"
@@ -3277,10 +3377,10 @@ const Lab = () => {
                           { ...DEFAULT_BOTTOM_LAYER, text: bottomTextInput || DEFAULT_BOTTOM_LAYER.text }
                         ]);
                       }}
-                      className="w-6 h-6 flex items-center justify-center text-xs text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-200 dark:hover:bg-slate-800/60 transition"
+                      className="w-7 h-7 flex items-center justify-center text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336] rounded-lg transition"
                       title="Reset Text Position"
                     >
-                      <RotateCcw className="w-3 h-3" />
+                      <RotateCcw className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
@@ -3288,7 +3388,7 @@ const Lab = () => {
                   <button
                     type="button"
                     onClick={addNewTextLayer}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50 hover:bg-rose-100 font-bold text-xs transition active:scale-95"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50 hover:bg-rose-100 font-bold text-xs transition active:scale-95 cursor-pointer"
                     title="Add new custom text overlay"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -3426,56 +3526,59 @@ const Lab = () => {
         </div>
 
         {/* ── RIGHT COLUMN: SECTION-SPECIFIC TEMPLATES & UPLOAD SIDEBAR ── */}
-        <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4">
-          <div className="bg-white dark:bg-[#0e131f] border border-slate-200 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm flex flex-col gap-4 text-slate-800 dark:text-slate-100">
+        <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-3.5">
+          <div className="bg-white dark:bg-[#0e131f] border border-slate-200/80 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm dark:shadow-xl flex flex-col gap-3.5 text-slate-800 dark:text-white transition-colors duration-200">
 
             {/* Search Templates Bar */}
             <div className="relative w-full">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder={`Search ${activeTab} templates...`}
+                placeholder="Search templates..."
                 value={templateSearchQuery}
                 onChange={(e) => setTemplateSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3.5 py-2 bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-medium focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-medium focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
               />
             </div>
 
-            {/* Category Chips + Format Header */}
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                {activeTab} Templates
+            {/* Category Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {[
+                { id: "popular", label: "Popular" },
+                { id: "academic", label: "Academic" },
+                { id: "reactions", label: "Reactions" },
+                { id: "students", label: "Students" }
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition whitespace-nowrap ${
+                    selectedCategory === cat.id
+                      ? "border border-[#e11d48] text-[#e11d48] dark:text-[#f43f5e] bg-rose-50 dark:bg-[#e11d48]/15 shadow-xs font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#111624] border border-transparent"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+              <span className="text-slate-500 dark:text-slate-400 text-xs font-medium px-1 cursor-pointer hover:text-slate-900 dark:hover:text-white flex items-center gap-0.5">
+                More ⌄
               </span>
-              <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                {[
-                  { id: "popular", label: "Popular" },
-                  { id: "academic", label: "Academic" },
-                  { id: "reactions", label: "Reactions" },
-                  { id: "students", label: "Students" }
-                ].map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition whitespace-nowrap ${
-                      selectedCategory === cat.id
-                        ? "border border-[#e11d48] text-rose-600 dark:text-[#f43f5e] bg-rose-50 dark:bg-[#e11d48]/10"
-                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-[#1e273a] bg-slate-50 dark:bg-[#111624]"
-                    }`}
-                  >
-                    {cat.label}
-                  </button>
-                ))}
-              </div>
             </div>
 
-            {/* Section Specific Templates Cards in 2-Column Grid (Scrollable with solid card heights) */}
-            <div className="grid grid-cols-2 gap-2.5 max-h-[350px] overflow-y-auto pr-1">
+            {/* Database & Section Templates Cards in 3-Column Grid */}
+            <div className="grid grid-cols-3 gap-2 max-h-[220px] overflow-y-auto pr-1">
               {getActiveFormatTemplates().map((tpl) => (
                 <div
                   key={tpl.id}
                   onClick={() => handleSelectTemplatePreset(tpl)}
-                  className="group relative h-24 sm:h-28 w-full rounded-xl overflow-hidden border border-slate-200 dark:border-[#1e273a] hover:border-[#e11d48] cursor-pointer bg-slate-100 dark:bg-[#111624] shadow-xs transition-all duration-200 hover:scale-[1.02] hover:shadow-md shrink-0 select-none"
+                  className={`group relative h-20 sm:h-22 w-full rounded-xl overflow-hidden border cursor-pointer bg-slate-100 dark:bg-[#111624] shadow-xs transition-all duration-200 hover:scale-[1.03] hover:shadow-md shrink-0 select-none ${
+                    tpl.id === templateId
+                      ? "border-[#e11d48] ring-2 ring-[#e11d48] shadow-[#e11d48]/20"
+                      : "border-slate-200 dark:border-[#1e273a] hover:border-[#e11d48]"
+                  }`}
+                  title={tpl.title}
                 >
                   <img
                     src={tpl.thumbnail}
@@ -3483,33 +3586,18 @@ const Lab = () => {
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-300"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent pointer-events-none" />
 
-                  {/* Top Badge: Format & Story Button */}
-                  <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between z-20">
-                    <span className="bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shadow pointer-events-none">
+                  {/* Format Pill */}
+                  <div className="absolute top-1 left-1 z-20">
+                    <span className="bg-black/65 backdrop-blur-xs text-white text-[8px] font-bold uppercase px-1 py-0.5 rounded shadow pointer-events-none">
                       {tpl.format || activeTab}
                     </span>
-
-                    {/* Meme Story Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        navigate(`/resources?tab=stories&q=${encodeURIComponent(tpl.title)}`);
-                      }}
-                      className="px-1.5 py-0.5 rounded bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-bold flex items-center gap-1 shadow transition active:scale-95 cursor-pointer z-30"
-                      title="View Meme Origin Story in Resources"
-                    >
-                      <span>📖</span>
-                      <span>Story</span>
-                    </button>
                   </div>
 
                   {/* Bottom Title Bar */}
-                  <div className="absolute inset-x-0 bottom-0 p-1.5 z-10">
-                    <span className="text-[10px] font-bold text-white truncate block w-full leading-tight drop-shadow-sm">
+                  <div className="absolute inset-x-0 bottom-0 p-1 z-10">
+                    <span className="text-[9px] font-bold text-white truncate block w-full leading-tight drop-shadow-sm">
                       {tpl.title}
                     </span>
                   </div>
@@ -3517,33 +3605,21 @@ const Lab = () => {
               ))}
             </div>
 
-            {/* Action Buttons: Browse More + Contribute Template */}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setShowLibraryPickerModal(true)}
-                className="py-2 px-2.5 rounded-xl border border-slate-250 dark:border-[#e11d48]/40 hover:border-rose-500 bg-slate-50 dark:bg-[#e11d48]/5 hover:bg-rose-50 dark:hover:bg-[#e11d48]/10 text-slate-700 dark:text-[#f43f5e] hover:text-rose-600 dark:hover:text-white text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-xs active:scale-95 truncate"
-                title="Browse approved templates from community"
-              >
-                <span>+</span>
-                <span>Browse More</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowContributeModal(true)}
-                className="py-2 px-2.5 rounded-xl border border-amber-300 dark:border-amber-700/60 hover:border-amber-500 bg-amber-50 dark:bg-amber-950/20 hover:bg-amber-100 text-amber-700 dark:text-amber-300 hover:text-amber-800 text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-xs active:scale-95 truncate"
-                title="Contribute a new template and its origin story"
-              >
-                <span>➕</span>
-                <span>Contribute</span>
-              </button>
-            </div>
+            {/* Browse More Templates Button */}
+            <button
+              type="button"
+              onClick={() => setShowLibraryPickerModal(true)}
+              className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-[#1e273a] bg-slate-50 dark:bg-[#111624] hover:bg-slate-100 dark:hover:bg-[#1b2336] hover:border-[#e11d48] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-xs active:scale-95 cursor-pointer"
+              title="Browse all community templates and database memes"
+            >
+              <span>+</span>
+              <span>Browse More Templates</span>
+            </button>
 
             {/* Upload Media Dashed Dropzone */}
             <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Upload Custom Media
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                Upload Media
               </span>
               <div
                 onDragOver={(e) => { e.preventDefault(); setIsDragOverDropzone(true); }}
@@ -3551,8 +3627,8 @@ const Lab = () => {
                 onDrop={handleDropzoneDrop}
                 className={`border-2 border-dashed rounded-xl p-4 text-center transition relative flex flex-col items-center justify-center gap-1.5 ${
                   isDragOverDropzone
-                    ? "border-[#e11d48] bg-rose-50 dark:bg-[#e11d48]/10"
-                    : "border-slate-200 dark:border-[#1e273a] bg-slate-50/70 dark:bg-[#111624]/70 hover:border-rose-400"
+                    ? "border-[#e11d48] bg-rose-50/60 dark:bg-[#e11d48]/10"
+                    : "border-slate-300 dark:border-[#1e273a] bg-slate-50/60 dark:bg-[#0b0e14]/60 hover:border-[#e11d48]/60"
                 }`}
               >
                 <input
@@ -3562,38 +3638,42 @@ const Lab = () => {
                   onChange={handleImageUpload}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-[#1b2336] flex items-center justify-center text-[#f43f5e]">
+                <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-[#1b2336] flex items-center justify-center text-[#e11d48] dark:text-[#f43f5e]">
                   <UploadCloud className="w-4 h-4" />
                 </div>
                 <div className="text-center">
-                  <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                    Drop files here or click
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                    Drag and drop an image, video or audio file here,
                   </p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">or</p>
                 </div>
                 <button
                   type="button"
-                  className="bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white text-[10px] font-bold px-3 py-1 rounded-lg shadow-xs pointer-events-none"
+                  className="bg-[#e11d48] hover:bg-[#f43f5e] text-white text-xs font-bold px-5 py-1.5 rounded-xl shadow-md shadow-[#e11d48]/25 transition pointer-events-none"
                 >
                   Choose File
                 </button>
+                <span className="text-[10px] text-slate-500 mt-0.5">
+                  Supports: JPG, PNG, GIF, MP4, WEBP (Max 10MB)
+                </span>
               </div>
             </div>
 
             {/* Meme Tags Section */}
-            <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-[#1b2336]">
+            <div className="flex flex-col gap-2.5 pt-2 border-t border-slate-100 dark:border-[#1b2336]">
               <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <span className="text-xs">🏷️</span>
                 <span className="text-[11px] font-bold uppercase tracking-wider">Meme Tags</span>
               </div>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-2.5">
                 {/* Subject Dropdown */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 w-24">Subject</span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subject</span>
                   <select
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    className="flex-1 bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                    className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-medium rounded-xl px-3 py-2 focus:border-[#e11d48] focus:outline-none cursor-pointer"
                   >
+                    <option value="">Select a subject</option>
                     {subjects.map((sub) => (
                       <option key={sub} value={sub}>{sub}</option>
                     ))}
@@ -3601,13 +3681,14 @@ const Lab = () => {
                 </div>
 
                 {/* Grade Level Dropdown */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 w-24">Grade Level</span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Grade Level</span>
                   <select
                     value={ageGroup}
                     onChange={(e) => setAgeGroup(e.target.value)}
-                    className="flex-1 bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                    className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-medium rounded-xl px-3 py-2 focus:border-[#e11d48] focus:outline-none cursor-pointer"
                   >
+                    <option value="">Select grade level</option>
                     {gradeGroups.map((g) => (
                       <option key={g} value={g}>{g}</option>
                     ))}
@@ -3615,13 +3696,14 @@ const Lab = () => {
                 </div>
 
                 {/* Language Dropdown */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 w-24">Language</span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Language</span>
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
-                    className="flex-1 bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-slate-200 font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                    className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-medium rounded-xl px-3 py-2 focus:border-[#e11d48] focus:outline-none cursor-pointer"
                   >
+                    <option value="">Select language</option>
                     {languages.map((l) => (
                       <option key={l} value={l}>{l}</option>
                     ))}

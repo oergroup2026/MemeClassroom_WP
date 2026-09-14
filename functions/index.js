@@ -2,6 +2,7 @@
  * MemeClassroom – Firebase Cloud Functions: Notifications System (Phase 3)
  *
  * Triggers:
+ * 
  *  1. onCommentCreated       – notify meme/post author when someone comments
  *  2. onCommentLiked         – notify comment author when their comment is liked
  *  3. onMemeReply            – notify parent comment author on reply
