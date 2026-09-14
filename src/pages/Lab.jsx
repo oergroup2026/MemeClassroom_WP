@@ -941,48 +941,6 @@ const Lab = () => {
     neon: "contrast(130%) saturate(180%) drop-shadow(0 0 6px rgba(244,63,94,0.6))"
   };
 
-  // Hotkey listener for video studio playback (Space, Left/Right arrows, M key)
-  useEffect(() => {
-    if (activeTab !== "video") return;
-    const anyModalOpen = showSaveModal || showTutorialModal || showLibraryPickerModal
-      || showAiPunchlinesModal || showAiModal || showContributeModal || showSplitModal;
-    if (anyModalOpen) return;
-    const handleKeyDown = (e) => {
-      // Ignore key events when typing in inputs or textareas
-      if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
-
-      if (e.code === "Space") {
-        e.preventDefault();
-        const video = videoPlayerRef.current;
-        if (video) {
-          if (video.paused) video.play().catch(() => { });
-          else video.pause();
-        }
-      } else if (e.code === "ArrowLeft") {
-        e.preventDefault();
-        const video = videoPlayerRef.current;
-        if (video) {
-          const target = Math.max(0, video.currentTime - 0.5);
-          video.currentTime = target;
-          setVideoCurrentTime(target);
-        }
-      } else if (e.code === "ArrowRight") {
-        e.preventDefault();
-        const video = videoPlayerRef.current;
-        if (video) {
-          const target = Math.min(videoDuration, video.currentTime + 0.5);
-          video.currentTime = target;
-          setVideoCurrentTime(target);
-        }
-      } else if (e.code === "KeyM") {
-        e.preventDefault();
-        setVideoMuted(prev => !prev);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeTab, videoDuration, showSaveModal, showTutorialModal, showLibraryPickerModal, showAiPunchlinesModal, showAiModal, showContributeModal, showSplitModal]);
-
   // --- AI Meme Caption Generator State ---
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiPunchlinesModal, setShowAiPunchlinesModal] = useState(false);
@@ -1529,6 +1487,48 @@ const Lab = () => {
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [splitLoading, setSplitLoading] = useState(false);
   const [splitProgress, setSplitProgress] = useState("");
+
+  // Hotkey listener for video studio playback (Space, Left/Right arrows, M key)
+  useEffect(() => {
+    if (activeTab !== "video") return;
+    const anyModalOpen = showSaveModal || showTutorialModal || showLibraryPickerModal
+      || showAiPunchlinesModal || showAiModal || showContributeModal || showSplitModal;
+    if (anyModalOpen) return;
+    const handleKeyDown = (e) => {
+      // Ignore key events when typing in inputs or textareas
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        const video = videoPlayerRef.current;
+        if (video) {
+          if (video.paused) video.play().catch(() => { });
+          else video.pause();
+        }
+      } else if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        const video = videoPlayerRef.current;
+        if (video) {
+          const target = Math.max(0, video.currentTime - 0.5);
+          video.currentTime = target;
+          setVideoCurrentTime(target);
+        }
+      } else if (e.code === "ArrowRight") {
+        e.preventDefault();
+        const video = videoPlayerRef.current;
+        if (video) {
+          const target = Math.min(videoDuration, video.currentTime + 0.5);
+          video.currentTime = target;
+          setVideoCurrentTime(target);
+        }
+      } else if (e.code === "KeyM") {
+        e.preventDefault();
+        setVideoMuted(prev => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeTab, videoDuration, showSaveModal, showTutorialModal, showLibraryPickerModal, showAiPunchlinesModal, showAiModal, showContributeModal, showSplitModal]);
 
   const handleSplitVideoAtCurrentTime = () => {
     if (!videoUrl) {
