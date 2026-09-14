@@ -1034,6 +1034,24 @@ const Lab = () => {
   const timelineTrackRef = useRef(null);
   const dragInfoRef = useRef({ isDragging: false, textId: null, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
   const resizeInfoRef = useRef({ isResizing: false, handle: null, textId: null, startX: 0, startY: 0, startFontSize: 24 });
+
+  // Tracks the live rendered width of the canvas box, so text-layer fontSize/strokeWidth
+  // (authored as "reference px" against TEXT_LAYER_REF_WIDTH) can scale to match it.
+  // NOTE: deliberately NOT using CSS `container-type` for this — applying it to
+  // canvasContainerRef collapses its size to 0 in this flex/aspect-ratio layout.
+  const [canvasBoxWidth, setCanvasBoxWidth] = useState(340);
+  useEffect(() => {
+    const el = canvasContainerRef.current;
+    if (!el) return;
+    const update = () => setCanvasBoxWidth(el.offsetWidth || 340);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // Only re-attach when the element itself swaps (activeTab toggles whether
+    // canvasContainerRef is mounted at all); ResizeObserver handles all other
+    // size changes (aspect-ratio switch, window resize) without needing more deps.
+  }, [activeTab]);
   // --- Compact Studio Controls & Filter States ---
   const [activeEffect, setActiveEffect] = useState("none");
   const [filterBrightness, setFilterBrightness] = useState(100);
@@ -2767,17 +2785,15 @@ const Lab = () => {
                   } flex items-center justify-center select-none shadow-xl border border-slate-300 dark:border-[#1b2336] rounded-2xl overflow-hidden`}
                   style={{
                     backgroundColor: canvasBg,
-                    filter: FILTER_MAP[selectedFilter] || undefined,
-                    // Establishes a query container so descendant text layers can size
-                    // fontSize/stroke with `cqw` units (percentage of this box's width).
-                    containerType: "inline-size"
+                    filter: FILTER_MAP[selectedFilter] || undefined
                   }}
                 >
                   {/* Draggable Text Overlays */}
                   <div className="absolute inset-0 z-20 pointer-events-none">
                     {textLayers.map((layer) => {
-                      const fontSizeCqw = (layer.fontSize / TEXT_LAYER_REF_WIDTH) * 100;
-                      const strokeWidthCqw = ((layer.strokeWidth ?? 2) / TEXT_LAYER_REF_WIDTH) * 100;
+                      const fontRefScale = canvasBoxWidth / TEXT_LAYER_REF_WIDTH;
+                      const scaledFontSizePx = layer.fontSize * fontRefScale;
+                      const scaledStrokeWidthPx = (layer.strokeWidth ?? 2) * fontRefScale;
                       return (
                       <div
                         key={layer.id}
@@ -2788,12 +2804,12 @@ const Lab = () => {
                           left: `${layer.x}%`,
                           top: `${layer.y}%`,
                           fontFamily: layer.fontFamily,
-                          fontSize: `${fontSizeCqw}cqw`,
+                          fontSize: `${scaledFontSizePx}px`,
                           fontWeight: layer.fontWeight || "bold",
                           fontStyle: layer.fontStyle || "normal",
                           textDecoration: layer.textDecoration || "none",
                           color: layer.color,
-                          WebkitTextStroke: `${strokeWidthCqw}cqw ${layer.strokeColor ?? "#000000"}`,
+                          WebkitTextStroke: `${scaledStrokeWidthPx}px ${layer.strokeColor ?? "#000000"}`,
                           textShadow: textEffectShadow ? "2px 2px 8px rgba(0,0,0,0.9)" : undefined,
                           cursor: "move",
                           whiteSpace: layer.maxWidth ? "normal" : "nowrap",

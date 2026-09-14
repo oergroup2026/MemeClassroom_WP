@@ -81,11 +81,13 @@ const TourOverlay = ({
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] pointer-events-none">
-      {/* Dimmed backdrop with cutout / focus */}
-      <div 
-        className="fixed inset-0 bg-black/45 dark:bg-black/60 transition-opacity duration-300 pointer-events-auto"
-        onClick={onSkip}
-      />
+      {/* Dimmed backdrop — visual only, deliberately pointer-events-none.
+          It used to capture clicks (dismissing the tour on click), which meant a
+          user's first click on the page underneath (e.g. a template thumbnail)
+          was silently swallowed with no feedback that anything happened. Letting
+          clicks pass through keeps the page fully usable while the tour is up;
+          users dismiss it via the X button, Next/Got it, or Escape instead. */}
+      <div className="fixed inset-0 bg-black/45 dark:bg-black/60 transition-opacity duration-300 pointer-events-none" />
 
       {/* Target Element Highlight Outline */}
       {targetRect && (
