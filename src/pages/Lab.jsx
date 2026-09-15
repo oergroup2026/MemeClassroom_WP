@@ -1669,11 +1669,15 @@ const Lab = () => {
         if (src.startsWith("http") && !src.startsWith(window.location.origin)) {
           const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(src)}`;
           const response = await fetch(proxiedUrl);
-          if (response.ok) {
-            const blob = await response.blob();
-            blobUrl = URL.createObjectURL(blob);
-            finalSrc = blobUrl;
+          if (!response.ok) {
+            // Fall through to the catch block's crossOrigin="anonymous" fallback
+            // instead of silently loading the original URL untagged, which would
+            // taint the canvas and make canvas.toBlob() throw a SecurityError later.
+            throw new Error(`CORS proxy fetch failed: ${response.status}`);
           }
+          const blob = await response.blob();
+          blobUrl = URL.createObjectURL(blob);
+          finalSrc = blobUrl;
         }
 
         const img = new Image();
