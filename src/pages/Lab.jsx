@@ -3618,6 +3618,28 @@ const Lab = () => {
               </div>
             </div>
 
+            {/* Contribute Template */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                Contribute Template
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!user) {
+                    setAlertMessage("Please sign in to contribute a template to the library.");
+                    return;
+                  }
+                  setShowContributeModal(true);
+                }}
+                className="w-full py-2.5 px-3 rounded-xl border-2 border-dashed border-slate-300 dark:border-[#1e273a] bg-slate-50/60 dark:bg-[#0b0e14]/60 hover:border-[#e11d48]/60 hover:bg-rose-50/60 dark:hover:bg-[#e11d48]/10 text-slate-600 dark:text-slate-400 hover:text-[#e11d48] dark:hover:text-[#f43f5e] text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                title="Share a new template with the community library"
+              >
+                <span>+</span>
+                <span>Contribute a Template</span>
+              </button>
+            </div>
+
           </div>
         </div>
       </div>
@@ -4045,34 +4067,18 @@ const Lab = () => {
 
               {/* ── Meme Story toggle section ── */}
               <div className="border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 bg-amber-50/50 dark:bg-amber-950/10 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeStory}
+                    onChange={(e) => setIncludeStory(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-amber-500 cursor-pointer"
+                  />
+                  <span>
                     <p className="font-bold text-gray-700 dark:text-gray-200 text-xs">📖 Add the background story of this meme?</p>
                     <p className="text-[10px] text-gray-500 mt-0.5">Help other users understand the meme's origin and context.</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="includeStory"
-                      checked={!includeStory}
-                      onChange={() => setIncludeStory(false)}
-                      className="accent-amber-500"
-                    />
-                    <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">No, skip</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="includeStory"
-                      checked={includeStory}
-                      onChange={() => setIncludeStory(true)}
-                      className="accent-amber-500"
-                    />
-                    <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Yes, add story</span>
-                  </label>
-                </div>
+                  </span>
+                </label>
 
                 {includeStory && (
                   <div className="space-y-3 pt-2 border-t border-amber-200 dark:border-amber-800/40">
