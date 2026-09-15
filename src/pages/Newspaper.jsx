@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Heart, Eye, Share2, Bookmark, Flag as FlagIcon, Clock,
-  ExternalLink, Plus, Newspaper as NewspaperIcon, TrendingUp, Rss, X
+  ExternalLink, Plus, Newspaper as NewspaperIcon, TrendingUp, X
 } from "lucide-react";
 import {
   collection, query, where, onSnapshot, doc, setDoc, deleteDoc,
@@ -284,52 +284,43 @@ export default function Newspaper() {
 
     return (
       <div className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
-        {/* Header: category pill + auto-fetched/pending badges */}
-        <div className="flex items-center justify-between gap-2 px-3.5 pt-3 pb-2">
-          <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border truncate ${style.pill}`}>
-            {cat.label}
-          </span>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {item.auto_fetched && (
-              <span className="flex items-center gap-1 text-[9px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 rounded-full" title="Automatically pulled in from the web">
-                <Rss className="w-2.5 h-2.5" /> Auto
-              </span>
-            )}
+        {/* Thumbnail — image (or gradient placeholder) with title readable on top of it */}
+        <div
+          onClick={openDetail}
+          className={`relative w-full bg-gradient-to-br ${style.ph} flex items-center justify-center overflow-hidden cursor-pointer flex-shrink-0`}
+          style={{ height: 180 }}
+        >
+          {item.image_url ? (
+            <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          ) : socialPlatform ? (
+            <span className="text-sm font-bold opacity-60 capitalize">{socialPlatform} post</span>
+          ) : (
+            <NewspaperIcon className="w-10 h-10" strokeWidth={1.25} />
+          )}
+
+          {/* Scrim so badges/title stay readable over any image */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/5 to-black/35" />
+
+          {/* Category + pending badges */}
+          <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2">
+            <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-white/95 dark:bg-zinc-900/95 text-gray-800 dark:text-gray-100 truncate shadow-sm">
+              {cat.label}
+            </span>
             {isPending && (
-              <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
+              <span className="flex items-center gap-1 text-[9px] font-bold text-white bg-amber-500/95 px-2 py-0.5 rounded-full flex-shrink-0 shadow-sm">
                 <Clock className="w-2.5 h-2.5" /> Pending
               </span>
             )}
           </div>
-        </div>
 
-        {/* Thumbnail — always a static image/placeholder here; live embeds only render in the detail popup */}
-        <div
-          onClick={openDetail}
-          className={`relative w-full bg-gradient-to-br ${style.ph} flex items-center justify-center overflow-hidden cursor-pointer flex-shrink-0`}
-          style={{ height: 100 }}
-        >
-          {item.image_url ? (
-            <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
-          ) : socialPlatform ? (
-            <span className="text-xs font-bold opacity-60 capitalize">{socialPlatform} post</span>
-          ) : (
-            <NewspaperIcon className="w-8 h-8" strokeWidth={1.25} />
-          )}
-        </div>
-
-        {/* Title only */}
-        <div className="px-3.5 pt-2.5 pb-2 flex-grow flex flex-col">
-          <button
-            onClick={openDetail}
-            className="font-extrabold text-sm text-left hover:text-rose-600 dark:hover:text-rose-400 transition text-gray-900 dark:text-white leading-snug line-clamp-2"
-          >
+          {/* Title overlaid at the bottom, readable via the scrim above */}
+          <h3 className="absolute bottom-0 left-0 right-0 p-3 text-white font-extrabold text-sm leading-snug line-clamp-2 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
             {item.title}
-          </button>
+          </h3>
         </div>
 
         {/* View More */}
-        <div className="px-3.5 pb-3">
+        <div className="px-3.5 py-2.5">
           <button
             onClick={openDetail}
             className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline"
@@ -363,11 +354,6 @@ export default function Newspaper() {
               <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border ${style.pill}`}>
                 {cat.label}
               </span>
-              {item.auto_fetched && (
-                <span className="flex items-center gap-1 text-[9px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 rounded-full">
-                  <Rss className="w-2.5 h-2.5" /> Auto
-                </span>
-              )}
               {isPending && (
                 <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
                   <Clock className="w-2.5 h-2.5" /> Pending

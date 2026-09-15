@@ -42,7 +42,30 @@ const db = admin.firestore();
 // unauthenticated requests that use a generic client User-Agent.
 const rssParser = new Parser({
   headers: { "User-Agent": "MemeClassroomNewspaperBot/1.0 (+https://memeclassroom-98d2b.web.app)" },
+  customFields: {
+    item: [
+      ["media:content", "mediaContent", { keepArray: true }],
+      ["media:thumbnail", "mediaThumbnail", { keepArray: true }],
+    ],
+  },
 });
+
+/**
+ * Best-effort thumbnail extraction from an RSS/Atom item. Tries, in order:
+ * a plain <enclosure> image, <media:content>/<media:thumbnail>, then the
+ * first <img> found in the item's HTML content/description.
+ */
+function extractThumbnail(entry) {
+  if (entry.enclosure?.url && (!entry.enclosure.type || entry.enclosure.type.startsWith("image/"))) {
+    return entry.enclosure.url;
+  }
+  const mediaUrl = entry.mediaContent?.[0]?.$?.url || entry.mediaThumbnail?.[0]?.$?.url;
+  if (mediaUrl) return mediaUrl;
+
+  const html = entry["content:encoded"] || entry.content || entry.summary || entry.contentSnippet || "";
+  const match = /<img[^>]+src=["']([^"'>]+)["']/i.exec(html);
+  return match ? match[1] : "";
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -336,7 +359,7 @@ exports.fetchNewspaperItems = onSchedule(
             summary_text: rawSummary.replace(/\s+/g, " ").trim().slice(0, 400),
             classroom_talking_point: "",
             category: source.default_category || "general",
-            image_url: "",
+            image_url: extractThumbnail(entry),
             keywords: [],
             source_trust: isTrusted ? "trusted" : "unverified",
             admin_approved: isTrusted,
