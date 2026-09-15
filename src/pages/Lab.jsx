@@ -2238,7 +2238,7 @@ const Lab = () => {
       navigate("/library");
     } catch (err) {
       console.error(err);
-      setAlertMessage("Failed to save and publish the creation.");
+      setAlertMessage(`Failed to save and publish the creation: ${err.code || err.message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }
