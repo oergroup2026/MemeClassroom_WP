@@ -3610,59 +3610,6 @@ const Lab = () => {
               </div>
             </div>
 
-            {/* Meme Tags Section */}
-            <div className="flex flex-col gap-2.5 pt-2 border-t border-slate-100 dark:border-[#1b2336]">
-              <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Meme Tags</span>
-              </div>
-              <div className="grid grid-cols-1 gap-2.5">
-                {/* Subject Dropdown */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subject</span>
-                  <select
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-medium rounded-xl px-3 py-2 focus:border-[#e11d48] focus:outline-none cursor-pointer"
-                  >
-                    <option value="">Select a subject</option>
-                    {subjects.map((sub) => (
-                      <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Grade Level Dropdown */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Grade Level</span>
-                  <select
-                    value={ageGroup}
-                    onChange={(e) => setAgeGroup(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-medium rounded-xl px-3 py-2 focus:border-[#e11d48] focus:outline-none cursor-pointer"
-                  >
-                    <option value="">Select grade level</option>
-                    {gradeGroups.map((g) => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Language Dropdown */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Language</span>
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-medium rounded-xl px-3 py-2 focus:border-[#e11d48] focus:outline-none cursor-pointer"
-                  >
-                    <option value="">Select language</option>
-                    {languages.map((l) => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
           </div>
         </div>
       </div>
