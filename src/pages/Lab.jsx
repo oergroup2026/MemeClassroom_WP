@@ -3824,6 +3824,18 @@ const Lab = () => {
                     setAlertMessage("Select at least one option: Download or Publish.");
                     return;
                   }
+                  if (activeTab === "video" && !videoUrl && !videoFile) {
+                    setAlertMessage("Please select or upload a video before exporting.");
+                    return;
+                  }
+                  if (activeTab === "gif" && !gifUrl && !gifFile) {
+                    setAlertMessage("Please select or upload a GIF before exporting.");
+                    return;
+                  }
+                  if (activeTab === "image" && images.length === 0) {
+                    setAlertMessage("Please add at least one image before exporting.");
+                    return;
+                  }
                   if (doPublish && !title.trim()) {
                     setAlertMessage("Creations published to the library require a Meme Title.");
                     return;
