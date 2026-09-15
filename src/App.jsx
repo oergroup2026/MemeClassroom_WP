@@ -17,6 +17,7 @@ import Home from './pages/Home';
 const Library = lazy(() => import('./pages/Library'));
 const Lab = lazy(() => import('./pages/Lab'));
 const Resources = lazy(() => import('./pages/Resources'));
+const Newspaper = lazy(() => import('./pages/Newspaper'));
 const MemeStoryDetail = lazy(() => import('./pages/MemeStoryDetail'));
 const ActivityDetail = lazy(() => import('./pages/ActivityDetail'));
 const Staffroom = lazy(() => import('./pages/Staffroom'));
@@ -98,6 +99,7 @@ function App() {
             <Route path="/resources" element={<Resources />} />
             <Route path="/resources/story/:id" element={<MemeStoryDetail />} />
             <Route path="/resources/activity/:id" element={<ActivityDetail />} />
+            <Route path="/newspaper" element={<Newspaper />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/about" element={<About />} />
             

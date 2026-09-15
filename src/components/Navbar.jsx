@@ -21,6 +21,7 @@ import {
   FlaskConical,
   MessageSquare,
   BookOpenCheck,
+  Newspaper as NewspaperIcon,
   Info,
   User,
   Settings,
@@ -159,6 +160,7 @@ const Navbar = () => {
     { to: "/library", label: "Library", Icon: BookOpen },
     { to: "/lab", label: "Lab", Icon: FlaskConical },
     { to: "/staffroom", label: "Staffroom", Icon: MessageSquare },
+    { to: "/newspaper", label: "Newspaper", Icon: NewspaperIcon },
   ];
 
   return (
@@ -405,14 +407,14 @@ const Navbar = () => {
           </div>
 
           {/* Center: Mathematically Centered Navigation Items */}
-          <div className={`absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-0.5 sm:gap-1.5 md:gap-2 transition-all duration-200 ${searchExpanded ? 'hidden sm:flex opacity-40 md:opacity-100 pointer-events-none md:pointer-events-auto' : 'flex'}`}>
+          <div className={`absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-0.5 sm:gap-1 md:gap-1.5 transition-all duration-200 ${searchExpanded ? 'hidden sm:flex opacity-40 md:opacity-100 pointer-events-none md:pointer-events-auto' : 'flex'}`}>
             {bottomNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) =>
-                  `relative flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl text-[10px] sm:text-xs transition-all duration-200 group ${isActive
+                  `relative flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl text-[10px] sm:text-xs transition-all duration-200 group ${isActive
                     ? "text-ruby-600 dark:text-ruby-400 font-extrabold bg-ruby-50/90 dark:bg-ruby-950/50 shadow-xs"
                     : "text-gray-600 dark:text-zinc-400 hover:text-ruby-600 dark:hover:text-ruby-400 font-medium hover:bg-gray-100/80 dark:hover:bg-zinc-850/80"
                   }`
@@ -425,7 +427,7 @@ const Navbar = () => {
                         }`}
                       strokeWidth={isActive ? 2.4 : 2}
                     />
-                    <span className="hidden xs:inline sm:inline">{item.label}</span>
+                    <span className="hidden md:inline">{item.label}</span>
                     {/* Active Windows taskbar indicator pill */}
                     {isActive && (
                       <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-4 sm:w-6 h-0.5 sm:h-1 bg-ruby-600 dark:bg-ruby-400 rounded-full shadow-sm" />
@@ -581,6 +583,15 @@ const Navbar = () => {
                 >
                   <MessageSquare className="w-4 h-4 text-teal-500" />
                   <span>Staffroom</span>
+                </Link>
+
+                <Link
+                  to="/newspaper"
+                  onClick={() => setDrawerOpen(false)}
+                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-gray-800 dark:text-zinc-200 hover:bg-ruby-50 dark:hover:bg-ruby-950/30 hover:text-ruby-600 transition"
+                >
+                  <NewspaperIcon className="w-4 h-4 text-rose-500" />
+                  <span>Newspaper</span>
                 </Link>
 
                 <Link

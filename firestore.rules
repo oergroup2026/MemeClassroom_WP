@@ -176,6 +176,33 @@ service cloud.firestore {
       allow update, delete: if isLoggedIn() && (resource.data.contributor_id == request.auth.uid || isAdmin());
     }
 
+    // ─── Newspaper Items ───────────────────────────────────────────────────────
+    // Public read (including guests). Any logged-in user can submit, but only
+    // admins can flip admin_approved/status — closes the gap that exists on
+    // /resources today where an author can self-approve their own submission.
+    match /newspaper_items/{itemId} {
+      allow read: if true;
+      allow create: if isLoggedIn() && (
+        isAdmin() ||
+        (request.resource.data.author_id == request.auth.uid && request.resource.data.admin_approved == false)
+      );
+      allow update: if isLoggedIn() && (
+        isAdmin() ||
+        (
+          resource.data.author_id == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['admin_approved', 'status', 'author_id', 'view_count', 'likes_count', 'flag_count'])
+        )
+      );
+      allow delete: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
+    }
+
+    // ─── Newspaper Likes ─────────────────────────────────────────────────────
+    match /newspaper_likes/{likeId} {
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+    }
+
     // ─── Saves (Bookmarks) ───────────────────────────────────────────────────
     match /saves/{saveId} {
       allow read: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());

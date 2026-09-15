@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Clock, Search, BookOpen, Image, Heart, Eye, Share2, Bookmark, Flag as FlagIcon, MessageSquare, LayoutGrid, FileText, Layers, GraduationCap, ExternalLink, ClipboardCheck, Plus, ChevronLeft } from "lucide-react";
+import { Clock, Search, BookOpen, Image, Heart, Eye, Share2, Bookmark, Flag as FlagIcon, MessageSquare, LayoutGrid, FileText, Layers, GraduationCap, ExternalLink, ClipboardCheck, Plus, ChevronLeft, Newspaper as NewspaperIcon } from "lucide-react";
 import {
   collection,
   query,
@@ -1779,6 +1779,20 @@ const Resources = () => {
                   )}
                 </button>
               ))}
+
+              {/* Newspaper Tile — navigates to the separate Newspaper page, not a Resources tab */}
+              <button
+                onClick={() => navigate("/newspaper")}
+                className="group relative flex flex-col items-start gap-3 p-5 rounded-2xl bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 hover:border-rose-400/40 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left group-hover:bg-rose-50 dark:group-hover:bg-rose-950/20 w-full"
+              >
+                <div className="p-2.5 rounded-xl bg-gray-100 dark:bg-zinc-800 text-rose-600 dark:text-rose-400 transition-colors">
+                  <NewspaperIcon className="w-6 h-6" strokeWidth={1.75} />
+                </div>
+                <div className="flex-1">
+                  <p className="font-extrabold text-sm text-gray-900 dark:text-white leading-snug">Newspaper</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed line-clamp-2">Meme culture in the news — for classroom discussion</p>
+                </div>
+              </button>
 
               {/* Contribute Tile */}
               <button
