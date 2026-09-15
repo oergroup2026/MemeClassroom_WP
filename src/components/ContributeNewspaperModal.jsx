@@ -10,7 +10,8 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { collection, doc, runTransaction, increment, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { X } from "lucide-react";
 import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
@@ -38,6 +39,8 @@ export default function ContributeNewspaperModal({ onClose, onSuccess }) {
     category: NEWSPAPER_CATEGORIES[0].value,
     classroomTalkingPoint: "",
     imageUrl: "",
+    imageFile: null,
+    imagePreview: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -61,6 +64,13 @@ export default function ContributeNewspaperModal({ onClose, onSuccess }) {
     setError("");
 
     try {
+      let imageUrl = form.imageUrl.trim();
+      if (form.imageFile) {
+        const imgRef = ref(storage, `newspaper/${user.uid}_${Date.now()}`);
+        const snap = await uploadBytes(imgRef, form.imageFile);
+        imageUrl = await getDownloadURL(snap.ref);
+      }
+
       const itemsColRef = collection(db, "newspaper_items");
       const statsDocRef = doc(db, "user_stats", user.uid);
 
@@ -74,7 +84,7 @@ export default function ContributeNewspaperModal({ onClose, onSuccess }) {
           summary_text: form.summaryText.trim().slice(0, SUMMARY_MAX),
           classroom_talking_point: form.classroomTalkingPoint.trim(),
           category: form.category,
-          image_url: form.imageUrl.trim(),
+          image_url: imageUrl,
           keywords: [],
           source_trust: "user_submitted",
           admin_approved: false,
@@ -193,13 +203,36 @@ export default function ContributeNewspaperModal({ onClose, onSuccess }) {
           </div>
 
           <div>
-            <label className={labelClass}>Thumbnail Image URL (optional)</label>
+            <label className={labelClass}>Thumbnail Image (optional)</label>
+            <div className="flex items-center gap-3">
+              {form.imagePreview && (
+                <img src={form.imagePreview} alt="Thumbnail preview" className="w-16 h-12 object-cover rounded-lg border border-gray-200 dark:border-zinc-700 flex-shrink-0" />
+              )}
+              <label className="cursor-pointer bg-gray-100 dark:bg-zinc-800 hover:bg-rose-50 dark:hover:bg-rose-950/20 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold px-3 py-2 rounded-xl transition inline-block">
+                📁 Choose Image
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setForm((f) => ({
+                      ...f,
+                      imageFile: file,
+                      imagePreview: file ? URL.createObjectURL(file) : "",
+                    }));
+                  }}
+                />
+              </label>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1.5">Or paste a link to an image instead:</p>
             <input
               type="url"
               value={form.imageUrl}
               onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
               placeholder="https://... (leave blank for a default card look)"
-              className={inputBase}
+              className={`${inputBase} mt-1`}
+              disabled={!!form.imageFile}
             />
           </div>
         </form>
