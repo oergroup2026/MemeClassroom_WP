@@ -20,6 +20,7 @@ import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { X, FileText, Image as ImageIcon, Link, BookOpen, User } from "lucide-react";
 import ActivityContributeModal from "./ActivityContributeModal";
+import ContributeNewspaperModal from "./ContributeNewspaperModal";
 import RichTextArea from "./RichTextArea";
 import ReadabilityIndicator from "./ReadabilityIndicator";
 
@@ -92,6 +93,13 @@ const TYPE_CONFIG = {
     description: "Any other educational resource or tool",
     placeholder: "e.g. Interactive Meme Timeline Tool",
   },
+  newspaper: {
+    label: "Newspaper Item",
+    icon: "📰",
+    color: "rose",
+    description: "Share a meme-related news link, study, or trend for the Newspaper feed",
+    placeholder: "e.g. How a Meme Sparked a Public Health Conversation",
+  },
 };
 
 const COLOR_RING = {
@@ -101,6 +109,7 @@ const COLOR_RING = {
   emerald:"border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30",
   amber:  "border-amber-400 bg-amber-50 dark:bg-amber-950/30",
   gray:   "border-gray-400 bg-gray-50 dark:bg-gray-800/30",
+  rose:   "border-rose-400 bg-rose-50 dark:bg-rose-950/30",
 };
 
 const COLOR_BADGE = {
@@ -110,6 +119,7 @@ const COLOR_BADGE = {
   emerald:"bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300",
   amber:  "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300",
   gray:   "bg-gray-100 dark:bg-gray-800/40 text-gray-700 dark:text-gray-300",
+  rose:   "bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300",
 };
 
 // ─── Type Picker (Step 1 when no default type) ────────────────────────────────
@@ -504,6 +514,8 @@ export default function ContributeResourceModal({
 
   // If the selected type is "activity" we delegate entirely to ActivityContributeModal
   const delegateToActivity = selectedType === "activity";
+  // "newspaper" delegates entirely to ContributeNewspaperModal (different collection/fields)
+  const delegateToNewspaper = selectedType === "newspaper";
 
   // ── Universal form state ────────────────────────────────────────────────────
   const defaultForm = {
@@ -675,6 +687,16 @@ export default function ContributeResourceModal({
         gradeGroups={gradeGroups}
         availableTags={availableTags}
         activityToEdit={editingResource}
+      />
+    );
+  }
+
+  // ── If delegating to Newspaper modal ────────────────────────────────────────
+  if (delegateToNewspaper) {
+    return (
+      <ContributeNewspaperModal
+        onClose={onClose}
+        onSuccess={onSuccess}
       />
     );
   }

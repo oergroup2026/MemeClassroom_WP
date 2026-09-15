@@ -20,13 +20,14 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { sendPasswordResetEmail } from "firebase/auth";
 import { db, storage, auth } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star, BadgeCheck, ShieldAlert } from "lucide-react";
+import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star, BadgeCheck, ShieldAlert, Newspaper as NewspaperIcon, Plus } from "lucide-react";
 import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
 import RichTextArea from "../components/RichTextArea";
 import AdminAnalyticsDashboard from "../components/AdminAnalyticsDashboard";
 import { DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
+import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
 import { basicQuestions } from "../data/memeTestQuestionsBasic";
 
 const Admin = () => {
@@ -54,6 +55,11 @@ const Admin = () => {
   const [memes, setMemes] = useState([]);
   const [resources, setResources] = useState([]);
   const [flags, setFlags] = useState([]);
+  const [newspaperItems, setNewspaperItems] = useState([]);
+  const [newspaperForm, setNewspaperForm] = useState({
+    title: "", sourceUrl: "", summaryText: "", category: NEWSPAPER_CATEGORIES[0].value,
+    classroomTalkingPoint: "", imageUrl: "",
+  });
   const [expertApps, setExpertApps] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [sponsoredAds, setSponsoredAds] = useState([]);
@@ -393,6 +399,13 @@ const Admin = () => {
       setUnbanRequests(list);
     });
 
+    // 17. Newspaper Items
+    const newsUnsub = onSnapshot(collection(db, "newspaper_items"), (snap) => {
+      const list = [];
+      snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+      setNewspaperItems(list);
+    });
+
     return () => {
       uUnsub();
       vUnsub();
@@ -406,6 +419,7 @@ const Admin = () => {
       pUnsub();
       taxUnsub();
       attUnsub();
+      newsUnsub();
       allPostsUnsub();
       allRepliesUnsub();
       ltTestsUnsub();
@@ -443,6 +457,8 @@ const Admin = () => {
         await updateDoc(doc(db, "memes", contentId), { visibility: "flagged_hidden" });
       } else if (contentType === "post") {
         await deleteDoc(doc(db, "staffroom_posts", contentId));
+      } else if (contentType === "newspaper_item") {
+        await deleteDoc(doc(db, "newspaper_items", contentId));
       }
       triggerAlert("Content actioned by admin. Flag resolved.");
     } catch (e) {
@@ -457,6 +473,78 @@ const Admin = () => {
       triggerAlert("Resource approved. 'Pending Admin Approval' badge removed.");
     } catch (e) {
       triggerAlert(e.message || "Approval failed.", "error");
+    }
+  };
+
+  // NEWSPAPER APPROVAL ACTIONS
+  const handleApproveNewspaperItem = async (itemId) => {
+    try {
+      await updateDoc(doc(db, "newspaper_items", itemId), { admin_approved: true });
+      triggerAlert("Newspaper item approved. 'Pending Admin Approval' badge removed.");
+    } catch (e) {
+      triggerAlert(e.message || "Approval failed.", "error");
+    }
+  };
+
+  const handleDeleteNewspaperItem = (itemId) => {
+    openConfirm({
+      title: "Delete Newspaper Item?",
+      message: "Permanently delete this newspaper item? This cannot be undone.",
+      variant: "danger",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "newspaper_items", itemId));
+          triggerAlert("Newspaper item permanently removed.");
+        } catch (e) {
+          triggerAlert(e.message || "Deletion failed.", "error");
+        }
+      },
+    });
+  };
+
+  const handleToggleNewspaperVisibility = async (itemId, currentStatus) => {
+    try {
+      const newStatus = currentStatus === "admin_hidden" ? "live" : "admin_hidden";
+      await updateDoc(doc(db, "newspaper_items", itemId), { status: newStatus });
+      triggerAlert(newStatus === "admin_hidden" ? "Newspaper item hidden." : "Newspaper item restored.");
+    } catch (e) {
+      triggerAlert(e.message || "Action failed.", "error");
+    }
+  };
+
+  const handleAddNewspaperItem = async (formState, resetForm) => {
+    try {
+      let domain = "";
+      try { domain = new URL(formState.sourceUrl.trim()).hostname.replace(/^www\./, ""); } catch (_) {}
+      await addDoc(collection(db, "newspaper_items"), {
+        title: formState.title.trim(),
+        source_url: formState.sourceUrl.trim(),
+        source_domain: domain,
+        summary_text: formState.summaryText.trim(),
+        classroom_talking_point: formState.classroomTalkingPoint.trim(),
+        category: formState.category,
+        image_url: formState.imageUrl.trim(),
+        keywords: [],
+        source_trust: "trusted",
+        admin_approved: true,
+        status: "live",
+        author_id: "admin",
+        author_name: "Admin",
+        view_count: 0,
+        likes_count: 0,
+        flag_count: 0,
+        auto_fetched: false,
+        fetch_source_id: null,
+        external_id: null,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      });
+      triggerAlert("Newspaper item published.");
+      resetForm();
+    } catch (e) {
+      triggerAlert(e.message || "Publish failed.", "error");
     }
   };
 
@@ -1783,6 +1871,7 @@ const Admin = () => {
         {[
           { id: "analytics", label: "Analytics", roles: ["admin", "manager"] },
           { id: "moderation", label: "Moderation Queue", roles: ["admin", "manager"] },
+          { id: "newspaper", label: "Newspaper", roles: ["admin", "manager"] },
           { id: "archivist", label: "Content Archivist", roles: ["admin", "manager"] },
           { id: "users", label: "User Directory", roles: ["admin", "manager"] },
           { id: "content", label: "Content Manager", roles: ["admin"] },
@@ -1817,6 +1906,204 @@ const Admin = () => {
       )}
 
       {/* TAB CONTENT B: MODERATION & APPROVAL QUEUES */}
+      {activeTab === "newspaper" && (
+        <div className="space-y-8">
+
+          {/* Newspaper Items Pending Admin Approval */}
+          {(() => {
+            const pendingNews = newspaperItems.filter(n => !n.admin_approved);
+            return (
+              <div className={`p-6 ${containerClass}`}>
+                <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-450" /> Newspaper Items Pending Approval ({pendingNews.length})
+                </h3>
+                <p className="text-xs text-gray-400 mb-4">These items are live on the Newspaper page but need your review. Approve to remove the 'Pending Admin Approval' badge, or delete if inappropriate.</p>
+                {pendingNews.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr>
+                          <th className={headerCellClass}>Title</th>
+                          <th className={headerCellClass}>Category</th>
+                          <th className={headerCellClass}>Source</th>
+                          <th className={headerCellClass}>Author ID</th>
+                          <th className={headerCellClass}>Date</th>
+                          <th className={headerCellClass}>Flags</th>
+                          <th className={headerCellClass}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingNews.map((item) => (
+                          <tr key={item.id}>
+                            <td className={rowCellClass}>
+                              <span className="font-semibold">{item.title}</span>
+                            </td>
+                            <td className={`${rowCellClass} capitalize`}>{item.category?.replace(/_/g, " ")}</td>
+                            <td className={rowCellClass}>
+                              <a href={item.source_url} target="_blank" rel="noreferrer" className="text-indigo-600 text-[10px] hover:underline">{item.source_domain || "link"} ↗</a>
+                            </td>
+                            <td className={`${rowCellClass} font-mono text-[10px]`}>{item.author_id}</td>
+                            <td className={rowCellClass}>
+                              {item.created_at ? new Date(item.created_at.seconds * 1000).toLocaleDateString() : "—"}
+                            </td>
+                            <td className={rowCellClass}>
+                              {(item.flag_count || 0) > 0 ? (
+                                <span className="text-red-500 font-bold">🏳️ {item.flag_count}</span>
+                              ) : "—"}
+                            </td>
+                            <td className={rowCellClass}>
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleApproveNewspaperItem(item.id)}
+                                  className={btnClass("green")}
+                                >
+                                  ✅ Approve
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteNewspaperItem(item.id)}
+                                  className={btnClass("red")}
+                                >
+                                  🗑️ Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">All newspaper items have been reviewed. No pending approvals.</p>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Add Newspaper Item (admin-authored, always approved) */}
+          <div className={`p-6 ${containerClass}`}>
+            <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-gray-400 flex items-center gap-1.5">
+              <NewspaperIcon className="w-4 h-4" /> Add Newspaper Item
+            </h3>
+            <p className="text-xs text-gray-400 mb-4">Published directly, live and already approved.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                type="text"
+                value={newspaperForm.title}
+                onChange={e => setNewspaperForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="Title"
+                className={inputClass}
+              />
+              <input
+                type="url"
+                value={newspaperForm.sourceUrl}
+                onChange={e => setNewspaperForm(f => ({ ...f, sourceUrl: e.target.value }))}
+                placeholder="Source link (https://...)"
+                className={inputClass}
+              />
+              <select
+                value={newspaperForm.category}
+                onChange={e => setNewspaperForm(f => ({ ...f, category: e.target.value }))}
+                className={inputClass}
+              >
+                {NEWSPAPER_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+              <input
+                type="url"
+                value={newspaperForm.imageUrl}
+                onChange={e => setNewspaperForm(f => ({ ...f, imageUrl: e.target.value }))}
+                placeholder="Thumbnail image URL (optional)"
+                className={inputClass}
+              />
+              <textarea
+                value={newspaperForm.summaryText}
+                onChange={e => setNewspaperForm(f => ({ ...f, summaryText: e.target.value }))}
+                placeholder="Short summary"
+                rows={2}
+                className={`${inputClass} sm:col-span-2`}
+              />
+              <textarea
+                value={newspaperForm.classroomTalkingPoint}
+                onChange={e => setNewspaperForm(f => ({ ...f, classroomTalkingPoint: e.target.value }))}
+                placeholder="Why this matters for class (optional)"
+                rows={2}
+                className={`${inputClass} sm:col-span-2`}
+              />
+            </div>
+            <button
+              onClick={() => {
+                if (!newspaperForm.title.trim() || !newspaperForm.sourceUrl.trim() || !newspaperForm.summaryText.trim()) {
+                  triggerAlert("Title, source link, and summary are required.", "error");
+                  return;
+                }
+                handleAddNewspaperItem(newspaperForm, () => setNewspaperForm({
+                  title: "", sourceUrl: "", summaryText: "", category: NEWSPAPER_CATEGORIES[0].value,
+                  classroomTalkingPoint: "", imageUrl: "",
+                }));
+              }}
+              className={`${btnClass("purple")} mt-3 flex items-center gap-1.5`}
+            >
+              <Plus className="w-3.5 h-3.5" /> Publish Item
+            </button>
+          </div>
+
+          {/* All Newspaper Items — management list */}
+          <div className={`p-6 ${containerClass}`}>
+            <h3 className="text-sm font-extrabold mb-4 border-b pb-2 uppercase text-gray-400">
+              All Newspaper Items ({newspaperItems.length})
+            </h3>
+            {newspaperItems.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className={headerCellClass}>Title</th>
+                      <th className={headerCellClass}>Category</th>
+                      <th className={headerCellClass}>Status</th>
+                      <th className={headerCellClass}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {newspaperItems.map((item) => (
+                      <tr key={item.id}>
+                        <td className={rowCellClass}>{item.title}</td>
+                        <td className={`${rowCellClass} capitalize`}>{item.category?.replace(/_/g, " ")}</td>
+                        <td className={rowCellClass}>
+                          {item.status === "admin_hidden" ? (
+                            <span className="text-gray-400">Hidden</span>
+                          ) : !item.admin_approved ? (
+                            <span className="text-yellow-600">Pending</span>
+                          ) : (
+                            <span className="text-green-600">Live</span>
+                          )}
+                        </td>
+                        <td className={rowCellClass}>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleToggleNewspaperVisibility(item.id, item.status)}
+                              className={btnClass("gray")}
+                            >
+                              {item.status === "admin_hidden" ? "Restore" : "Hide"}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteNewspaperItem(item.id)}
+                              className={btnClass("red")}
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">No newspaper items yet.</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {activeTab === "moderation" && (
         <div className="space-y-8">
 
