@@ -14,6 +14,7 @@ import { useToast } from "../components/ToastNotification";
 import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
 import { fuzzySearch } from "../utils/searchUtils";
 import ContributeNewspaperModal from "../components/ContributeNewspaperModal";
+import SocialEmbed, { getSocialPlatform } from "../components/SocialEmbed";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -274,6 +275,7 @@ export default function Newspaper() {
     const isLiked = !!likesMap[item.id];
     const isBookmarked = !!savesMap[item.id];
     const alreadyFlagged = !!flagsMap[item.id];
+    const socialPlatform = getSocialPlatform(item.source_url);
 
     return (
       <div className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
@@ -296,23 +298,29 @@ export default function Newspaper() {
           </div>
         </div>
 
-        {/* Thumbnail */}
-        <div
-          onClick={() => handleViewLink(item)}
-          className={`relative w-full bg-gradient-to-br ${style.ph} flex items-center justify-center overflow-hidden group cursor-pointer flex-shrink-0`}
-          style={{ height: 140 }}
-        >
-          {item.image_url ? (
-            <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
-          ) : (
-            <NewspaperIcon className="w-10 h-10" strokeWidth={1.25} />
-          )}
-          <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <span className="bg-white/90 dark:bg-zinc-900/90 text-gray-900 dark:text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm flex items-center gap-1">
-              Read source <ExternalLink className="w-3 h-3" />
-            </span>
+        {/* Thumbnail — a live embed for Instagram/X posts, otherwise an image/placeholder */}
+        {socialPlatform ? (
+          <div className="w-full max-h-[420px] overflow-y-auto bg-gray-50 dark:bg-zinc-950 border-b border-gray-100 dark:border-zinc-800 flex-shrink-0 py-2">
+            <SocialEmbed url={item.source_url} />
           </div>
-        </div>
+        ) : (
+          <div
+            onClick={() => handleViewLink(item)}
+            className={`relative w-full bg-gradient-to-br ${style.ph} flex items-center justify-center overflow-hidden group cursor-pointer flex-shrink-0`}
+            style={{ height: 140 }}
+          >
+            {item.image_url ? (
+              <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+            ) : (
+              <NewspaperIcon className="w-10 h-10" strokeWidth={1.25} />
+            )}
+            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <span className="bg-white/90 dark:bg-zinc-900/90 text-gray-900 dark:text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm flex items-center gap-1">
+                Read source <ExternalLink className="w-3 h-3" />
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Body */}
         <div className="px-4 pt-3 pb-2 flex-grow flex flex-col gap-1.5">

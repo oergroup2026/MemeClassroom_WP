@@ -58,7 +58,7 @@ const Admin = () => {
   const [newspaperItems, setNewspaperItems] = useState([]);
   const [newspaperForm, setNewspaperForm] = useState({
     title: "", sourceUrl: "", summaryText: "", category: NEWSPAPER_CATEGORIES[0].value,
-    classroomTalkingPoint: "", imageUrl: "",
+    classroomTalkingPoint: "", imageUrl: "", imageFile: null, imagePreview: "",
   });
   const [expertApps, setExpertApps] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -518,6 +518,14 @@ const Admin = () => {
     try {
       let domain = "";
       try { domain = new URL(formState.sourceUrl.trim()).hostname.replace(/^www\./, ""); } catch (_) {}
+
+      let imageUrl = formState.imageUrl.trim();
+      if (formState.imageFile) {
+        const imgRef = ref(storage, `newspaper/admin_${Date.now()}`);
+        const snap = await uploadBytes(imgRef, formState.imageFile);
+        imageUrl = await getDownloadURL(snap.ref);
+      }
+
       await addDoc(collection(db, "newspaper_items"), {
         title: formState.title.trim(),
         source_url: formState.sourceUrl.trim(),
@@ -525,7 +533,7 @@ const Admin = () => {
         summary_text: formState.summaryText.trim(),
         classroom_talking_point: formState.classroomTalkingPoint.trim(),
         category: formState.category,
-        image_url: formState.imageUrl.trim(),
+        image_url: imageUrl,
         keywords: [],
         source_trust: "trusted",
         admin_approved: true,
@@ -2007,13 +2015,35 @@ const Admin = () => {
               >
                 {NEWSPAPER_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
-              <input
-                type="url"
-                value={newspaperForm.imageUrl}
-                onChange={e => setNewspaperForm(f => ({ ...f, imageUrl: e.target.value }))}
-                placeholder="Thumbnail image URL (optional)"
-                className={inputClass}
-              />
+              <div className="flex items-center gap-3 sm:col-span-2">
+                {newspaperForm.imagePreview && (
+                  <img src={newspaperForm.imagePreview} alt="Thumbnail preview" className="w-16 h-12 object-cover rounded-lg border border-gray-200 dark:border-zinc-700 flex-shrink-0" />
+                )}
+                <label className="cursor-pointer bg-gray-100 dark:bg-zinc-800 hover:bg-purple-50 dark:hover:bg-purple-950/20 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold px-3 py-2 rounded-xl transition inline-block">
+                  📁 Choose Thumbnail
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0] || null;
+                      setNewspaperForm(f => ({
+                        ...f,
+                        imageFile: file,
+                        imagePreview: file ? URL.createObjectURL(file) : "",
+                      }));
+                    }}
+                  />
+                </label>
+                <input
+                  type="url"
+                  value={newspaperForm.imageUrl}
+                  onChange={e => setNewspaperForm(f => ({ ...f, imageUrl: e.target.value }))}
+                  placeholder="...or paste a thumbnail image URL instead"
+                  className={`${inputClass} flex-1`}
+                  disabled={!!newspaperForm.imageFile}
+                />
+              </div>
               <textarea
                 value={newspaperForm.summaryText}
                 onChange={e => setNewspaperForm(f => ({ ...f, summaryText: e.target.value }))}
@@ -2037,7 +2067,7 @@ const Admin = () => {
                 }
                 handleAddNewspaperItem(newspaperForm, () => setNewspaperForm({
                   title: "", sourceUrl: "", summaryText: "", category: NEWSPAPER_CATEGORIES[0].value,
-                  classroomTalkingPoint: "", imageUrl: "",
+                  classroomTalkingPoint: "", imageUrl: "", imageFile: null, imagePreview: "",
                 }));
               }}
               className={`${btnClass("purple")} mt-3 flex items-center gap-1.5`}

@@ -38,7 +38,11 @@ const { TRUSTED_NEWS_DOMAINS, DEFAULT_NEWSPAPER_SOURCES } = require("./newspaper
 
 admin.initializeApp();
 const db = admin.firestore();
-const rssParser = new Parser();
+// A descriptive User-Agent avoids Reddit's default rate-limiting/blocking of
+// unauthenticated requests that use a generic client User-Agent.
+const rssParser = new Parser({
+  headers: { "User-Agent": "MemeClassroomNewspaperBot/1.0 (+https://memeclassroom-98d2b.web.app)" },
+});
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

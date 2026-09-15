@@ -88,6 +88,14 @@ service firebase.storage {
         && request.resource.size <= maxMB(50);
     }
 
+    // ── Newspaper thumbnails ─────────────────────────────────────────────────
+    match /newspaper/{allPaths=**} {
+      allow read: if true;
+      allow write: if isLoggedIn()
+        && isImageType()
+        && request.resource.size <= maxMB(10);
+    }
+
     // ── Staffroom post attachments ───────────────────────────────────────────
     // Documents (PDF, Word, PowerPoint), images only — no executables
     match /staffroom/{allPaths=**} {
