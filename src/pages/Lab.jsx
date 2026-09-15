@@ -518,6 +518,7 @@ const Lab = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [publishToLibrary, setPublishToLibrary] = useState(true);
+  const [downloadLocally, setDownloadLocally] = useState(true);
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("Biology");
   const [customSubject, setCustomSubject] = useState("");
@@ -1878,11 +1879,10 @@ const Lab = () => {
   };
 
   // --- Final Publish & Save Workflow ---
-  const handlePublishSubmit = async (overridePublish) => {
-    const isPublic = typeof overridePublish === "boolean" ? overridePublish : publishToLibrary;
-
+  const handlePublishSubmit = async (doDownload, doPublish) => {
     // --- CASE A: DOWNLOAD ONLY FLOW (Bypass cloud database & validations) ---
-    if (!isPublic) {
+    if (!doPublish) {
+      if (!doDownload) return;
       setLoading(true);
       setAlertMessage("");
       try {
@@ -2040,15 +2040,17 @@ const Lab = () => {
           const snapshot = await uploadBytes(storageRef, blob);
           fileUrl = await getDownloadURL(snapshot.ref);
 
-          // Local file download trigger
-          const downloadUrl = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.download = `${title.trim() || 'meme'}.png`;
-          link.href = downloadUrl;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(downloadUrl);
+          if (doDownload) {
+            // Local file download trigger
+            const downloadUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.download = `${title.trim() || 'meme'}.png`;
+            link.href = downloadUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(downloadUrl);
+          }
         }
       }
       // 2. Week 6: Real video compiler → upload compiled video to Storage
@@ -2083,15 +2085,17 @@ const Lab = () => {
         const snapshot = await uploadBytes(storageRef, videoBlob);
         fileUrl = await getDownloadURL(snapshot.ref);
 
-        // Local download of compiled video
-        const compiledUrl = URL.createObjectURL(videoBlob);
-        const link = document.createElement("a");
-        link.download = `${title.trim() || 'meme'}.mp4`;
-        link.href = compiledUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(compiledUrl);
+        if (doDownload) {
+          // Local download of compiled video
+          const compiledUrl = URL.createObjectURL(videoBlob);
+          const link = document.createElement("a");
+          link.download = `${title.trim() || 'meme'}.mp4`;
+          link.href = compiledUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(compiledUrl);
+        }
       }
       // 3. Week 7: Generate audiogram PNG card → upload as the meme's media_url
       else if (activeTab === "audio") {
@@ -2113,15 +2117,17 @@ const Lab = () => {
               const cardSnapshot = await uploadBytes(cardStorageRef, cardBlob);
               fileUrl = await getDownloadURL(cardSnapshot.ref); // audiogram PNG becomes media_url
 
-              // Local download of the card PNG
-              const downloadUrl = URL.createObjectURL(cardBlob);
-              const link = document.createElement("a");
-              link.download = `${title.trim() || 'audio_meme'}_card.png`;
-              link.href = downloadUrl;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              URL.revokeObjectURL(downloadUrl);
+              if (doDownload) {
+                // Local download of the card PNG
+                const downloadUrl = URL.createObjectURL(cardBlob);
+                const link = document.createElement("a");
+                link.download = `${title.trim() || 'audio_meme'}_card.png`;
+                link.href = downloadUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(downloadUrl);
+              }
             }
           } catch (cardErr) {
             console.warn("Audiogram card generation failed, using raw audio URL:", cardErr);
@@ -2157,21 +2163,23 @@ const Lab = () => {
                 const snapshot = await uploadBytes(storageRef, overlayBlob);
                 fileUrl = await getDownloadURL(snapshot.ref);
 
-                // Local download of the flat PNG meme (GIF frames frozen, text overlays burned in)
-                const downloadUrl = URL.createObjectURL(overlayBlob);
-                const link = document.createElement("a");
-                link.download = `${title.trim() || 'meme'}.png`;
-                link.href = downloadUrl;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(downloadUrl);
+                if (doDownload) {
+                  // Local download of the flat PNG meme (GIF frames frozen, text overlays burned in)
+                  const downloadUrl = URL.createObjectURL(overlayBlob);
+                  const link = document.createElement("a");
+                  link.download = `${title.trim() || 'meme'}.png`;
+                  link.href = downloadUrl;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(downloadUrl);
+                }
               }
             } catch (err) {
               console.error("html2canvas screenshot failed", err);
             }
           }
-        } else {
+        } else if (doDownload) {
           // No overlays — download the original animated GIF unmodified
           const link = document.createElement("a");
           link.download = `${title.trim() || 'meme'}.gif`;
@@ -3617,240 +3625,110 @@ const Lab = () => {
       {/* SAVE MODAL DIALOG */}
       {showSaveModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className={`w-full max-w-lg p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
-            <h2 className="text-lg font-bold mb-1">Export & Publish Meme Studio</h2>
+          <div className={`w-full max-w-md p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
+            <h2 className="text-lg font-bold mb-1">Export Meme</h2>
             <p className="text-xs text-gray-500 mb-5">
-              Review your visual composition draft and download it locally, or enter details to publish to the community library.
+              Give your creation a title, choose how you'd like to export it, then confirm below.
             </p>
 
-            {/* Visual Draft Preview */}
-            <div className="mb-5 bg-gray-50 dark:bg-zinc-950/60 rounded-xl p-3 border border-gray-200 dark:border-zinc-800 flex flex-col items-center justify-center">
-              <span className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Meme Composition Draft</span>
-              <div className="w-56 aspect-video rounded-lg overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center relative shadow-sm">
-                {activeTab === "image" && images.length > 0 ? (
-                  <div className="w-full h-full flex flex-wrap">
-                    {images.map((src, idx) => (
-                      <img key={idx} src={src} className="flex-1 object-cover min-w-[50%] h-full" alt="preview" />
-                    ))}
-                  </div>
-                ) : activeTab === "gif" && gifUrl ? (
-                  <img src={gifUrl} className="w-full h-full object-contain" alt="preview" />
-                ) : activeTab === "video" && videoUrl ? (
-                  <video src={videoUrl} className="w-full h-full object-contain" />
-                ) : activeTab === "audio" && audioUrl ? (
-                  <div className="text-center p-4 text-gray-500 text-xs">
-                    <span className="text-3xl block mb-1">🎵</span>
-                    Audio Waveform Card
-                  </div>
-                ) : (
-                  <div className="text-gray-400 text-xs italic">Empty Canvas</div>
-                )}
-
-                {/* Simulated text overlays on top of the preview */}
-                {textLayers.length > 0 && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-between p-2 pointer-events-none bg-black/10">
-                    <div className="bg-black/60 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow">
-                      {textLayers[0].text.length > 20 ? `${textLayers[0].text.substring(0, 20)}...` : textLayers[0].text}
-                    </div>
-                    {textLayers.length > 1 && (
-                      <div className="bg-black/60 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow">
-                        {textLayers[1].text.length > 20 ? `${textLayers[1].text.substring(0, 20)}...` : textLayers[1].text}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+            <div className="mb-5">
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Meme Title</label>
+              <input
+                type="text"
+                placeholder="e.g. Mitosis Explanation Meme"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+              />
             </div>
 
-            {/* Quick Download Only / Local Export (Before the form) */}
-            <div className="mb-5 bg-purple-50/50 dark:bg-purple-950/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800/40 text-center">
-              <span className="block text-[10px] text-purple-700 dark:text-purple-300 font-bold mb-2 uppercase tracking-wider">Just want the file locally?</span>
-              <button
-                type="button"
-                onClick={() => handlePublishSubmit(false)}
-                disabled={loading}
-                className="w-full bg-purple-600 hover:bg-purple-750 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
-              >
-                <span>📥</span>
-                <span>Download Only (Bypass Publish Details)</span>
-              </button>
-            </div>
-
-            <div className="flex items-center my-5">
-              <div className="flex-grow border-t border-gray-200 dark:border-zinc-800" />
-              <span className="px-3 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Or Publish to Library</span>
-              <div className="flex-grow border-t border-gray-200 dark:border-zinc-800" />
-            </div>
-
-            <div className={`space-y-4 text-xs font-semibold mb-6 ${!user ? "opacity-50 pointer-events-none select-none" : ""}`}>
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">Meme Title</label>
+            <div className="flex flex-col gap-2.5 mb-5">
+              <label className="flex items-start gap-2.5 p-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/60 cursor-pointer">
                 <input
-                  type="text"
-                  placeholder="e.g. Mitosis Explanation Meme"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
-                  required
+                  type="checkbox"
+                  checked={downloadLocally}
+                  onChange={(e) => setDownloadLocally(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-purple-600 cursor-pointer"
                 />
-              </div>
+                <span className="text-xs">
+                  <span className="block font-bold text-gray-700 dark:text-gray-200">📥 Download to my device</span>
+                  <span className="block text-[11px] text-gray-500 mt-0.5">Save the exported file locally.</span>
+                </span>
+              </label>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Subject</label>
-                  <input
-                    type="text"
-                    placeholder="Search subject..."
-                    value={formSubjectSearch}
-                    onChange={(e) => setFormSubjectSearch(e.target.value)}
-                    className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
-                  />
-                  <select
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
-                  >
-                    {subjects
-                      .filter(s => s.toLowerCase().includes(formSubjectSearch.toLowerCase()))
-                      .map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                  </select>
-                  {subject === "Other" && (
-                    <input
-                      type="text"
-                      placeholder="Type custom subject..."
-                      value={customSubject}
-                      onChange={(e) => setCustomSubject(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2"
-                      required
-                    />
-                  )}
-                </div>
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Grade Level</label>
-                  <select
-                    value={ageGroup}
-                    onChange={(e) => setAgeGroup(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
-                  >
-                    {gradeGroups.map((g) => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Language</label>
-                  <input
-                    type="text"
-                    placeholder="Search language..."
-                    value={formLanguageSearch}
-                    onChange={(e) => setFormLanguageSearch(e.target.value)}
-                    className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
-                  />
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
-                  >
-                    {languages
-                      .filter(lang => lang.toLowerCase().includes(formLanguageSearch.toLowerCase()))
-                      .map(lang => (
-                        <option key={lang} value={lang}>{lang}</option>
-                      ))}
-                  </select>
-                  {language === "Other" && (
-                    <input
-                      type="text"
-                      placeholder="Type custom language..."
-                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2 text-xs"
-                      value={customLanguage}
-                      onChange={(e) => setCustomLanguage(e.target.value)}
-                      required
-                    />
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Topic / Keywords (Separate with comma)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. mitosis, cells, science jokes"
-                    value={keywords}
-                    onChange={(e) => setKeywords(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded placeholder-gray-400"
-                  />
-                </div>
-              </div>
-
+              <label className={`flex items-start gap-2.5 p-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/60 ${user ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}>
+                <input
+                  type="checkbox"
+                  checked={!!user && publishToLibrary}
+                  onChange={(e) => setPublishToLibrary(e.target.checked)}
+                  disabled={!user}
+                  className="mt-0.5 w-4 h-4 accent-purple-600 cursor-pointer"
+                />
+                <span className="text-xs">
+                  <span className="block font-bold text-gray-700 dark:text-gray-200">🚀 Publish to the community library</span>
+                  <span className="block text-[11px] text-gray-500 mt-0.5">
+                    {user ? (
+                      "Share it publicly and earn contributor points."
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => { setShowSaveModal(false); navigate("/auth"); }} className="text-purple-500 hover:underline font-semibold">Sign in</button>
+                        {" "}to publish to the library.
+                      </>
+                    )}
+                  </span>
+                </span>
+              </label>
             </div>
 
-            {/* Clearer Call-To-Action (CTA) Grid */}
-            {user ? (
-              <div className="flex flex-col gap-2 mt-6 border-t pt-4 border-gray-100 dark:border-zinc-800">
-                {/* CC licence & Educational Fair Use disclosure */}
-                <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 text-center space-y-1">
-                  <p className="text-[10px] text-gray-600 dark:text-gray-300 leading-relaxed">
-                    💡 <strong>Educational Fair Use:</strong> Memes created here are for non-commercial learning, teaching, and criticism (Indian Copyright Act Sec 52 & Fair Use).
-                  </p>
-                  <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-relaxed">
-                    Published under{" "}
-                    <a
-                      href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-500 hover:underline font-semibold"
-                    >
-                      CC BY-NC-SA 4.0
-                    </a>{" "}
-                    — others may share and remix non-commercially with attribution.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handlePublishSubmit(true)}
-                  disabled={loading}
-                  className="w-full bg-purple-650 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
-                >
-                  <span>🚀</span>
-                  <span>Publish to Library & Download</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowSaveModal(false)}
-                  className="w-full text-[10px] text-gray-400 hover:text-gray-500 font-bold py-1.5 text-center mt-1.5 transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 mt-6 border-t pt-4 border-gray-100 dark:border-zinc-800 text-center">
-                <p className="text-[11px] text-gray-500 mb-2">
-                  To publish your meme to the community library and earn points, please sign in.
+            {user && publishToLibrary && (
+              <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 text-center space-y-1 mb-5">
+                <p className="text-[10px] text-gray-600 dark:text-gray-300 leading-relaxed">
+                  💡 <strong>Educational Fair Use:</strong> Memes created here are for non-commercial learning, teaching, and criticism (Indian Copyright Act Sec 52 & Fair Use).
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSaveModal(false);
-                    navigate("/auth");
-                  }}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
-                >
-                  <span>🔑</span>
-                  <span>Sign In to Publish</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowSaveModal(false)}
-                  className="w-full text-[10px] text-gray-400 hover:text-gray-500 font-bold py-1.5 text-center mt-1.5 transition"
-                >
-                  Cancel
-                </button>
+                <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-relaxed">
+                  Published under{" "}
+                  <a
+                    href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-500 hover:underline font-semibold"
+                  >
+                    CC BY-NC-SA 4.0
+                  </a>{" "}
+                  — others may share and remix non-commercially with attribution.
+                </p>
               </div>
             )}
+
+            <div className="flex flex-col gap-2 border-t pt-4 border-gray-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => {
+                  const doPublish = !!user && publishToLibrary;
+                  if (!downloadLocally && !doPublish) {
+                    setAlertMessage("Select at least one option: Download or Publish.");
+                    return;
+                  }
+                  if (doPublish && !title.trim()) {
+                    setAlertMessage("Creations published to the library require a Meme Title.");
+                    return;
+                  }
+                  handlePublishSubmit(downloadLocally, doPublish);
+                }}
+                disabled={loading || (!downloadLocally && !(user && publishToLibrary))}
+                className="w-full bg-purple-650 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span>✅</span>
+                <span>Export</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="w-full text-[10px] text-gray-400 hover:text-gray-500 font-bold py-1.5 text-center mt-1.5 transition"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
