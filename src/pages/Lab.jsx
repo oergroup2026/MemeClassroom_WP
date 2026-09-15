@@ -3681,6 +3681,99 @@ const Lab = () => {
             </div>
 
             {user && publishToLibrary && (
+              <div className="space-y-4 text-xs font-semibold mb-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Subject</label>
+                    <input
+                      type="text"
+                      placeholder="Search subject..."
+                      value={formSubjectSearch}
+                      onChange={(e) => setFormSubjectSearch(e.target.value)}
+                      className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
+                    />
+                    <select
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                    >
+                      {subjects
+                        .filter(s => s.toLowerCase().includes(formSubjectSearch.toLowerCase()))
+                        .map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                    </select>
+                    {subject === "Other" && (
+                      <input
+                        type="text"
+                        placeholder="Type custom subject..."
+                        value={customSubject}
+                        onChange={(e) => setCustomSubject(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Grade Level</label>
+                    <select
+                      value={ageGroup}
+                      onChange={(e) => setAgeGroup(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                    >
+                      {gradeGroups.map((g) => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Language</label>
+                    <input
+                      type="text"
+                      placeholder="Search language..."
+                      value={formLanguageSearch}
+                      onChange={(e) => setFormLanguageSearch(e.target.value)}
+                      className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
+                    />
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                    >
+                      {languages
+                        .filter(lang => lang.toLowerCase().includes(formLanguageSearch.toLowerCase()))
+                        .map(lang => (
+                          <option key={lang} value={lang}>{lang}</option>
+                        ))}
+                    </select>
+                    {language === "Other" && (
+                      <input
+                        type="text"
+                        placeholder="Type custom language..."
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2 text-xs"
+                        value={customLanguage}
+                        onChange={(e) => setCustomLanguage(e.target.value)}
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Topic / Keywords (Separate with comma)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. mitosis, cells, science jokes"
+                      value={keywords}
+                      onChange={(e) => setKeywords(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded placeholder-gray-400"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {user && publishToLibrary && (
               <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 text-center space-y-1 mb-5">
                 <p className="text-[10px] text-gray-600 dark:text-gray-300 leading-relaxed">
                   💡 <strong>Educational Fair Use:</strong> Memes created here are for non-commercial learning, teaching, and criticism (Indian Copyright Act Sec 52 & Fair Use).
