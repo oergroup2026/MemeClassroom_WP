@@ -501,6 +501,14 @@ const Lab = () => {
 
   // --- General Modals & Alert States ---
   const [activeControlTab, setActiveControlTab] = useState("text"); // "text" | "image" | "filters" | "effects"
+
+  // The Text/Subtitle tool is built around the image canvas — hide it once
+  // another format tab (video/gif/audio) is active instead of leaving it selected but blank.
+  useEffect(() => {
+    if (activeTab !== "image" && activeControlTab === "text") {
+      setActiveControlTab("filters");
+    }
+  }, [activeTab, activeControlTab]);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [selectedCategory, setSelectedCategory] = useState("popular");
   const [topTextInput, setTopTextInput] = useState("");
@@ -3217,7 +3225,7 @@ const Lab = () => {
                 { id: "image", label: "Image", icon: <ImageIcon className="w-3.5 h-3.5" /> },
                 { id: "filters", label: "Filters", icon: <Palette className="w-3.5 h-3.5" /> },
                 { id: "effects", label: "Effects", icon: <Sliders className="w-3.5 h-3.5" /> }
-              ].map((tab) => (
+              ].filter((tab) => tab.id !== "text" || activeTab === "image").map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
@@ -3235,7 +3243,7 @@ const Lab = () => {
             </div>
 
             {/* TAB CONTENT: TEXT */}
-            {activeControlTab === "text" && (
+            {activeControlTab === "text" && activeTab === "image" && (
               <div className="flex flex-col gap-3">
                 {/* Row 1: Top Text & Bottom Text Inputs with Clear/Delete buttons */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
