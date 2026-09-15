@@ -1660,52 +1660,47 @@ const Lab = () => {
   }, [user, title, subject, customSubject, ageGroup, activeTab, language, customLanguage, keywords, images, videoUrl, gifUrl, audioUrl, textLayers]);
 
   const loadImage = (src) => {
-    return new Promise(async (resolve, reject) => {
-      let blobUrl = null;
-      try {
-        let finalSrc = src;
+    const isCrossOrigin = src.startsWith("http") && !src.startsWith(window.location.origin);
 
-        // Fetch external templates via CORS proxy as Blobs to bypass canvas taint errors
-        if (src.startsWith("http") && !src.startsWith(window.location.origin)) {
-          const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(src)}`;
-          const response = await fetch(proxiedUrl);
-          if (!response.ok) {
-            // Fall through to the catch block's crossOrigin="anonymous" fallback
-            // instead of silently loading the original URL untagged, which would
-            // taint the canvas and make canvas.toBlob() throw a SecurityError later.
-            throw new Error(`CORS proxy fetch failed: ${response.status}`);
-          }
-          const blob = await response.blob();
-          blobUrl = URL.createObjectURL(blob);
-          finalSrc = blobUrl;
-        }
-
-        const img = new Image();
-        img.src = finalSrc;
-        img.onload = () => {
-          resolve(img);
-          if (blobUrl) {
-            URL.revokeObjectURL(blobUrl);
-          }
-        };
-        img.onerror = (e) => {
-          if (blobUrl) {
-            URL.revokeObjectURL(blobUrl);
-          }
-          reject(e);
-        };
-      } catch (err) {
-        // Fallback to loading original source with crossOrigin anonymous if fetch fails
-        if (blobUrl) {
-          URL.revokeObjectURL(blobUrl);
-        }
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = src;
-        img.onload = () => resolve(img);
-        img.onerror = (e) => reject(e);
-      }
+    // Cross-origin sources (e.g. Firebase Storage) need crossOrigin="anonymous"
+    // set BEFORE loading, or the image will visually load fine but "taint" the
+    // canvas, making canvas.toBlob() throw a SecurityError later at export time.
+    const loadDirect = () => new Promise((resolve, reject) => {
+      const img = new Image();
+      if (isCrossOrigin) img.crossOrigin = "anonymous";
+      img.src = src;
+      img.onload = () => resolve(img);
+      img.onerror = (e) => reject(e);
     });
+
+    // Fallback for sources that don't send CORS headers at all (so the direct,
+    // CORS-tagged load fails outright): fetch through a public CORS proxy and
+    // draw the resulting same-origin blob instead.
+    const loadViaProxy = () => new Promise((resolve, reject) => {
+      const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(src)}`;
+      fetch(proxiedUrl)
+        .then((response) => {
+          if (!response.ok) throw new Error(`CORS proxy fetch failed: ${response.status}`);
+          return response.blob();
+        })
+        .then((blob) => {
+          const blobUrl = URL.createObjectURL(blob);
+          const img = new Image();
+          img.src = blobUrl;
+          img.onload = () => {
+            resolve(img);
+            URL.revokeObjectURL(blobUrl);
+          };
+          img.onerror = (e) => {
+            URL.revokeObjectURL(blobUrl);
+            reject(e);
+          };
+        })
+        .catch(reject);
+    });
+
+    if (!isCrossOrigin) return loadDirect();
+    return loadDirect().catch(loadViaProxy);
   };
 
   // --- Canvas Settings State ---
