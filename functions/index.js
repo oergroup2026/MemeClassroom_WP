@@ -286,7 +286,7 @@ function extractDomain(url) {
 }
 
 exports.fetchNewspaperItems = onSchedule(
-  { schedule: "every 12 hours", timeoutSeconds: 300 },
+  { schedule: "every 48 hours", timeoutSeconds: 300 },
   async () => {
     let sources = DEFAULT_NEWSPAPER_SOURCES;
     try {
