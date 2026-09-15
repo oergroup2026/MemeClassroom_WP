@@ -219,17 +219,24 @@ const FeatureCarousel = () => {
       {/* NOTE: The actual Navbar renders above this in the DOM.
                This spacer keeps content from hiding under it. */}
 
+      {/* ── Top darkening gradient — independent of the per-slide overlay,
+             guarantees the hero title stays legible over any background image ── */}
+      <div
+        className="absolute inset-x-0 top-0 z-[1] h-64 sm:h-80 pointer-events-none"
+        style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.15) 80%, transparent 100%)" }}
+      />
+
       {/* ── Hero branding block (Badge + Title + Tagline) ────────────────── */}
       <div className="absolute inset-x-0 top-0 z-10 flex flex-col items-center justify-center pt-12 sm:pt-16 px-4 text-center pointer-events-none">
         {/* Badge */}
-        <div className="inline-flex items-center px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/25 text-white/90 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-4">
+        <div className="inline-flex items-center px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/25 text-white/90 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-5">
           Open Pedagogical Resources for Memes
         </div>
 
         {/* Main title */}
         <h1
           className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.12]"
-          style={{ textShadow: "0 2px 20px rgba(0,0,0,0.7)" }}
+          style={{ textShadow: "0 4px 28px rgba(0,0,0,0.9)" }}
         >
           Meme
           <span className="text-[#E0115F]">Classroom</span>
@@ -237,8 +244,8 @@ const FeatureCarousel = () => {
 
         {/* Tagline */}
         <p
-          className="mt-3 text-sm sm:text-base font-semibold text-white/80 max-w-lg leading-snug"
-          style={{ textShadow: "0 1px 10px rgba(0,0,0,0.6)" }}
+          className="mt-4 text-sm sm:text-base font-semibold text-white/85 max-w-lg leading-snug"
+          style={{ textShadow: "0 2px 14px rgba(0,0,0,0.8)" }}
         >
           A collaborative space to learn, co-create and share meme pedagogy.
         </p>

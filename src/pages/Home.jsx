@@ -459,7 +459,7 @@ const Home = () => {
       </section>
 
       {/* ──────────────────────────────────────────────────────────────────────────
-          SECTION 3: YOUR JOURNEY IN MEMECLASSROOM (3 Connected Glowing Circular Cards)
+          SECTION 3: YOUR JOURNEY IN MEMECLASSROOM (simple linear step panel)
           ────────────────────────────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto w-full px-4 pt-6 pb-10 space-y-10">
         {/* Section Header */}
@@ -478,145 +478,59 @@ const Home = () => {
           </p>
         </div>
 
-        {/* Triangular Molecular Network */}
-        <div className="relative max-w-4xl mx-auto">
-
-          {/* Warm ambient backdrop */}
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/70 via-purple-50/40 to-cyan-50/30 dark:from-zinc-900/50 dark:via-purple-950/20 dark:to-teal-950/20 blur-2xl -z-10 scale-110" />
-
-          {/* SVG connector lines — desktop only */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none hidden md:block"
-            viewBox="0 0 700 460"
-            preserveAspectRatio="xMidYMid meet"
-          >
-            <defs>
-              {/* Node 1 (top-left ~175,120) → Node 2 (top-right ~525,120) */}
-              <linearGradient id="jrn-grad-12" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#A855F7" stopOpacity="0.55" />
-                <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.55" />
-              </linearGradient>
-              {/* Node 1 (top-left ~175,120) → Node 3 (bottom-center ~350,355) */}
-              <linearGradient id="jrn-grad-13" x1="0%" y1="0%" x2="50%" y2="100%">
-                <stop offset="0%" stopColor="#A855F7" stopOpacity="0.45" />
-                <stop offset="100%" stopColor="#2DD4BF" stopOpacity="0.55" />
-              </linearGradient>
-              {/* Node 2 (top-right ~525,120) → Node 3 (bottom-center ~350,355) */}
-              <linearGradient id="jrn-grad-23" x1="100%" y1="0%" x2="50%" y2="100%">
-                <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.45" />
-                <stop offset="100%" stopColor="#2DD4BF" stopOpacity="0.55" />
-              </linearGradient>
-            </defs>
-
-            {/* Line 1→2 : gentle upward arc */}
-            <path
-              d="M 205 108 C 280 72, 420 72, 495 108"
-              fill="none"
-              stroke="url(#jrn-grad-12)"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-            {/* Line 1→3 : flowing left-to-bottom arc */}
-            <path
-              d="M 160 155 C 130 240, 200 330, 318 355"
-              fill="none"
-              stroke="url(#jrn-grad-13)"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-            {/* Line 2→3 : flowing right-to-bottom arc */}
-            <path
-              d="M 540 155 C 570 240, 500 330, 382 355"
-              fill="none"
-              stroke="url(#jrn-grad-23)"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-            />
-
-            {/* Subtle midpoint accent dots on lines */}
-            <circle cx="350" cy="78"  r="3" fill="#C084FC" opacity="0.6" />
-            <circle cx="218" cy="255" r="3" fill="#818CF8" opacity="0.5" />
-            <circle cx="482" cy="255" r="3" fill="#60A5FA" opacity="0.5" />
-          </svg>
-
-          {/* Mobile vertical connector */}
-          <div className="absolute left-1/2 top-12 bottom-12 w-px -translate-x-1/2 bg-gradient-to-b from-purple-400/40 via-blue-400/30 to-teal-400/40 md:hidden" />
-
-          {/* ── Triangular grid: 2-col top row + centered bottom ── */}
-          <div className="relative z-10 pt-6 pb-2">
-
-            {/* Top row: Node 1 & Node 2 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-8 md:mb-0">
-
-              {/* Node 1 — Purple — Learn the Foundations */}
-              <div className="flex justify-center md:justify-end md:pr-6">
-                <Link
-                  to="/resources"
-                  className="group relative flex flex-col items-center justify-center w-52 h-52 sm:w-60 sm:h-60 rounded-full
-                    bg-white/60 dark:bg-white/5 backdrop-blur-xl
-                    border border-purple-300/60 dark:border-purple-500/30
-                    shadow-[0_0_28px_rgba(168,85,247,0.12),0_8px_32px_rgba(0,0,0,0.06)]
-                    hover:shadow-[0_0_48px_rgba(168,85,247,0.28),0_12px_40px_rgba(0,0,0,0.08)]
-                    hover:border-purple-400/80 hover:scale-105
-                    transition-all duration-300 cursor-pointer select-none text-center p-5"
-                >
-                  {/* Ambient inner glow */}
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-100/60 via-purple-50/30 to-transparent dark:from-purple-900/20 dark:via-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
-                  {/* Step number */}
-                  <span className="relative z-10 text-2xl font-black text-purple-500 dark:text-purple-400 tracking-tight leading-none mb-1.5">1</span>
-                  {/* Icon */}
-                  <BookOpen className="relative z-10 w-7 h-7 text-purple-500/80 dark:text-purple-400 mb-2.5 group-hover:scale-110 transition-transform duration-200" />
-                  {/* Title */}
-                  <h3 className="relative z-10 text-sm sm:text-base font-black text-gray-800 dark:text-white leading-snug">
-                    Learn the<br />Foundations
-                  </h3>
-                </Link>
+        {/* Simple linear step panel */}
+        <div className="max-w-2xl mx-auto rounded-3xl bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-gray-200 dark:border-zinc-800 shadow-lg divide-y divide-gray-200 dark:divide-zinc-800 overflow-hidden">
+          {[
+            {
+              number: "1",
+              icon: BookOpen,
+              title: "Learn the Foundations",
+              subject: "Media literacy & pedagogical theory",
+              link: "/resources",
+              color: "text-purple-500 dark:text-purple-400",
+              iconBg: "bg-purple-500/10 border border-purple-500/30",
+            },
+            {
+              number: "2",
+              icon: Pencil,
+              title: "Explore Activities & Create",
+              subject: "Meme Lab & classroom activities",
+              link: "/lab",
+              color: "text-blue-500 dark:text-blue-400",
+              iconBg: "bg-blue-500/10 border border-blue-500/30",
+            },
+            {
+              number: "3",
+              icon: Users,
+              title: "Share, Reflect & Contribute",
+              subject: "Staffroom community & feedback",
+              link: "/staffroom",
+              color: "text-teal-500 dark:text-teal-400",
+              iconBg: "bg-teal-500/10 border border-teal-500/30",
+            },
+          ].map((step) => (
+            <Link
+              key={step.number}
+              to={step.link}
+              className="group flex items-center gap-4 sm:gap-5 p-5 sm:p-6 hover:bg-purple-50/60 dark:hover:bg-purple-950/20 transition-colors"
+            >
+              <span className={`shrink-0 text-xl sm:text-2xl font-black tracking-tight ${step.color}`}>
+                {step.number}
+              </span>
+              <div className={`shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center ${step.iconBg}`}>
+                <step.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${step.color}`} />
               </div>
-
-              {/* Node 2 — Blue — Explore Activities & Create */}
-              <div className="flex justify-center md:justify-start md:pl-6">
-                <Link
-                  to="/lab"
-                  className="group relative flex flex-col items-center justify-center w-52 h-52 sm:w-60 sm:h-60 rounded-full
-                    bg-white/60 dark:bg-white/5 backdrop-blur-xl
-                    border border-blue-300/60 dark:border-blue-500/30
-                    shadow-[0_0_28px_rgba(59,130,246,0.12),0_8px_32px_rgba(0,0,0,0.06)]
-                    hover:shadow-[0_0_48px_rgba(59,130,246,0.28),0_12px_40px_rgba(0,0,0,0.08)]
-                    hover:border-blue-400/80 hover:scale-105
-                    transition-all duration-300 cursor-pointer select-none text-center p-5"
-                >
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-100/60 via-blue-50/30 to-transparent dark:from-blue-900/20 dark:via-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
-                  <span className="relative z-10 text-2xl font-black text-blue-500 dark:text-blue-400 tracking-tight leading-none mb-1.5">2</span>
-                  <Pencil className="relative z-10 w-7 h-7 text-blue-500/80 dark:text-blue-400 mb-2.5 group-hover:scale-110 transition-transform duration-200" />
-                  <h3 className="relative z-10 text-sm sm:text-base font-black text-gray-800 dark:text-white leading-snug">
-                    Explore Activities<br />&amp; Create
-                  </h3>
-                </Link>
-              </div>
-            </div>
-
-            {/* Bottom row: Node 3 centered below the gap */}
-            <div className="flex justify-center md:-mt-8">
-              <Link
-                to="/staffroom"
-                className="group relative flex flex-col items-center justify-center w-52 h-52 sm:w-60 sm:h-60 rounded-full
-                  bg-white/60 dark:bg-white/5 backdrop-blur-xl
-                  border border-teal-300/60 dark:border-teal-500/30
-                  shadow-[0_0_28px_rgba(45,212,191,0.12),0_8px_32px_rgba(0,0,0,0.06)]
-                  hover:shadow-[0_0_48px_rgba(45,212,191,0.28),0_12px_40px_rgba(0,0,0,0.08)]
-                  hover:border-teal-400/80 hover:scale-105
-                  transition-all duration-300 cursor-pointer select-none text-center p-5"
-              >
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-teal-100/60 via-cyan-50/30 to-transparent dark:from-teal-900/20 dark:via-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
-                <span className="relative z-10 text-2xl font-black text-teal-500 dark:text-teal-400 tracking-tight leading-none mb-1.5">3</span>
-                <Users className="relative z-10 w-7 h-7 text-teal-500/80 dark:text-teal-400 mb-2.5 group-hover:scale-110 transition-transform duration-200" />
-                <h3 className="relative z-10 text-sm sm:text-base font-black text-gray-800 dark:text-white leading-snug">
-                  Share, Reflect<br />&amp; Contribute
+              <div className="flex-1 text-left min-w-0">
+                <h3 className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-snug">
+                  {step.title}
                 </h3>
-              </Link>
-            </div>
-
-          </div>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium truncate">
+                  {step.subject}
+                </p>
+              </div>
+              <ArrowRight className="shrink-0 w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:translate-x-1 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-all" />
+            </Link>
+          ))}
         </div>
       </section>
 
