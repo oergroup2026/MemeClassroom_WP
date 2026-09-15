@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Heart, Eye, Share2, Bookmark, Flag as FlagIcon, Clock,
-  ExternalLink, Plus, Newspaper as NewspaperIcon, TrendingUp
+  ExternalLink, Plus, Newspaper as NewspaperIcon, TrendingUp, Rss
 } from "lucide-react";
 import {
   collection, query, where, onSnapshot, doc, setDoc, deleteDoc,
@@ -277,16 +277,23 @@ export default function Newspaper() {
 
     return (
       <div className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
-        {/* Header: category pill + pending badge */}
+        {/* Header: category pill + auto-fetched/pending badges */}
         <div className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-2.5">
           <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border truncate ${style.pill}`}>
             {cat.label}
           </span>
-          {isPending && (
-            <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full flex-shrink-0">
-              <Clock className="w-2.5 h-2.5" /> Pending
-            </span>
-          )}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {item.auto_fetched && (
+              <span className="flex items-center gap-1 text-[9px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 rounded-full" title="Automatically pulled in from the web">
+                <Rss className="w-2.5 h-2.5" /> Auto
+              </span>
+            )}
+            {isPending && (
+              <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
+                <Clock className="w-2.5 h-2.5" /> Pending
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Thumbnail */}

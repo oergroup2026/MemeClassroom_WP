@@ -31,10 +31,14 @@
 "use strict";
 
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
+const Parser = require("rss-parser");
+const { TRUSTED_NEWS_DOMAINS, DEFAULT_NEWSPAPER_SOURCES } = require("./newspaperConfig");
 
 admin.initializeApp();
 const db = admin.firestore();
+const rssParser = new Parser();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -265,3 +269,89 @@ exports.onUserFollowed = onDocumentCreated("follows/{followId}", async (event) =
     entityId: actorId,
   });
 });
+
+// ─── Newspaper Auto-Fetch (Stage 2) ───────────────────────────────────────────
+// Runs on a schedule, pulls items from configs/newspaper_sources (falling back
+// to DEFAULT_NEWSPAPER_SOURCES if that doc doesn't exist), and writes new items
+// into /newspaper_items — the same collection manual/admin/user submissions use.
+// Items from a domain in TRUSTED_NEWS_DOMAINS publish immediately; everything
+// else queues for admin review, exactly like a human submission does.
+
+function extractDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+exports.fetchNewspaperItems = onSchedule(
+  { schedule: "every 12 hours", timeoutSeconds: 300 },
+  async () => {
+    let sources = DEFAULT_NEWSPAPER_SOURCES;
+    try {
+      const sourcesSnap = await db.collection("configs").doc("newspaper_sources").get();
+      const configured = sourcesSnap.exists ? sourcesSnap.data().sources : null;
+      if (Array.isArray(configured) && configured.length > 0) {
+        sources = configured;
+      }
+    } catch (e) {
+      console.error("Failed to load configs/newspaper_sources, using defaults", e);
+    }
+
+    for (const source of sources) {
+      let feed;
+      try {
+        feed = await rssParser.parseURL(source.url);
+      } catch (e) {
+        console.error(`Failed to fetch/parse Newspaper source ${source.id || source.url}`, e.message);
+        continue;
+      }
+
+      for (const entry of (feed.items || []).slice(0, 15)) {
+        const link = entry.link || "";
+        if (!link) continue;
+        const externalId = entry.guid || link;
+
+        try {
+          // Dedupe: skip if this item was already stored on a previous run
+          const existing = await db.collection("newspaper_items")
+            .where("external_id", "==", externalId)
+            .limit(1)
+            .get();
+          if (!existing.empty) continue;
+
+          const domain = extractDomain(link);
+          const isTrusted = TRUSTED_NEWS_DOMAINS.includes(domain);
+          const rawSummary = entry.contentSnippet || entry.content || "";
+
+          await db.collection("newspaper_items").add({
+            title: (entry.title || "Untitled").slice(0, 200),
+            source_url: link,
+            source_domain: domain,
+            summary_text: rawSummary.replace(/\s+/g, " ").trim().slice(0, 400),
+            classroom_talking_point: "",
+            category: source.default_category || "general",
+            image_url: "",
+            keywords: [],
+            source_trust: isTrusted ? "trusted" : "unverified",
+            admin_approved: isTrusted,
+            status: "live",
+            author_id: "system",
+            author_name: "Auto-Fetched",
+            view_count: 0,
+            likes_count: 0,
+            flag_count: 0,
+            auto_fetched: true,
+            fetch_source_id: source.id || null,
+            external_id: externalId,
+            created_at: admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          console.error(`Failed to store Newspaper item from ${source.id || source.url}`, e.message);
+        }
+      }
+    }
+  }
+);
