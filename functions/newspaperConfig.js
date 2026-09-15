@@ -48,6 +48,39 @@ const DEFAULT_NEWSPAPER_SOURCES = [
     url: "https://news.google.com/rss/search?q=internet+slang+new+word&hl=en-US&gl=US&ceid=US:en",
     default_category: "new_slang_meme",
   },
+  // Classroom/education-specific searches, added per user request — mirrors
+  // vocabulary already used across the app (see homepage_content.md:
+  // "meme pedagogy", "memes in the classroom", "meme literacy").
+  {
+    id: "gnews_classroom",
+    url: "https://news.google.com/rss/search?q=%22classroom+memes%22+OR+%22memes+for+classroom%22+OR+%22educational+memes%22+OR+%22meme+pedagogy%22&hl=en-US&gl=US&ceid=US:en",
+    default_category: "classroom_use",
+  },
+  {
+    id: "gnews_academia",
+    url: "https://news.google.com/rss/search?q=%22academic+memes%22+OR+%22college+memes%22+OR+%22study+memes%22&hl=en-US&gl=US&ceid=US:en",
+    default_category: "classroom_use",
+  },
+  {
+    id: "gnews_meme_literacy",
+    url: "https://news.google.com/rss/search?q=%22meme+literacy%22+OR+%22digital+literacy+memes%22&hl=en-US&gl=US&ceid=US:en",
+    default_category: "study_research",
+  },
+  // Meme community sources, added per user request (example: cheezburger.com's
+  // "Academia Memes for Struggling Students and Scholars"). These aren't news
+  // outlets, so items from them are NOT in TRUSTED_NEWS_DOMAINS — every item
+  // still queues for admin review before it's visible, same as any other
+  // auto-fetched item from an unlisted domain.
+  {
+    id: "reddit_academic_memes",
+    url: "https://www.reddit.com/r/AcademicMemes/.rss",
+    default_category: "classroom_use",
+  },
+  {
+    id: "reddit_college_memes",
+    url: "https://www.reddit.com/r/CollegeMemes/.rss",
+    default_category: "classroom_use",
+  },
 ];
 
 module.exports = { TRUSTED_NEWS_DOMAINS, DEFAULT_NEWSPAPER_SOURCES };
