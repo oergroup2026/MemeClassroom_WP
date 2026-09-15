@@ -42,7 +42,30 @@ const db = admin.firestore();
 // unauthenticated requests that use a generic client User-Agent.
 const rssParser = new Parser({
   headers: { "User-Agent": "MemeClassroomNewspaperBot/1.0 (+https://memeclassroom-98d2b.web.app)" },
+  customFields: {
+    item: [
+      ["media:content", "mediaContent", { keepArray: true }],
+      ["media:thumbnail", "mediaThumbnail", { keepArray: true }],
+    ],
+  },
 });
+
+/**
+ * Best-effort thumbnail extraction from an RSS/Atom item. Tries, in order:
+ * a plain <enclosure> image, <media:content>/<media:thumbnail>, then the
+ * first <img> found in the item's HTML content/description.
+ */
+function extractThumbnail(entry) {
+  if (entry.enclosure?.url && (!entry.enclosure.type || entry.enclosure.type.startsWith("image/"))) {
+    return entry.enclosure.url;
+  }
+  const mediaUrl = entry.mediaContent?.[0]?.$?.url || entry.mediaThumbnail?.[0]?.$?.url;
+  if (mediaUrl) return mediaUrl;
+
+  const html = entry["content:encoded"] || entry.content || entry.summary || entry.contentSnippet || "";
+  const match = /<img[^>]+src=["']([^"'>]+)["']/i.exec(html);
+  return match ? match[1] : "";
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -290,7 +313,7 @@ function extractDomain(url) {
 }
 
 exports.fetchNewspaperItems = onSchedule(
-  { schedule: "every 48 hours", timeoutSeconds: 300 },
+  { schedule: "every 168 hours", timeoutSeconds: 300 },
   async () => {
     let sources = DEFAULT_NEWSPAPER_SOURCES;
     try {
@@ -303,7 +326,27 @@ exports.fetchNewspaperItems = onSchedule(
       console.error("Failed to load configs/newspaper_sources, using defaults", e);
     }
 
+    // Cap: at most one new auto-fetched item per category per 7-day window.
+    // Filtering by auto_fetched happens in JS (not the query) so this needs
+    // no composite Firestore index.
+    const categoriesFilledThisWeek = new Set();
+    try {
+      const sevenDaysAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const recentSnap = await db.collection("newspaper_items")
+        .where("created_at", ">=", sevenDaysAgo)
+        .get();
+      recentSnap.forEach((docSnap) => {
+        const d = docSnap.data();
+        if (d.auto_fetched && d.category) categoriesFilledThisWeek.add(d.category);
+      });
+    } catch (e) {
+      console.error("Failed to check this week's categories, proceeding without the cap", e.message);
+    }
+
     for (const source of sources) {
+      const category = source.default_category || "general";
+      if (categoriesFilledThisWeek.has(category)) continue; // already have one for this category this week
+
       let feed;
       try {
         feed = await rssParser.parseURL(source.url);
@@ -313,6 +356,8 @@ exports.fetchNewspaperItems = onSchedule(
       }
 
       for (const entry of (feed.items || []).slice(0, 15)) {
+        if (categoriesFilledThisWeek.has(category)) break; // filled by an earlier entry from this same source
+
         const link = entry.link || "";
         if (!link) continue;
         const externalId = entry.guid || link;
@@ -335,8 +380,8 @@ exports.fetchNewspaperItems = onSchedule(
             source_domain: domain,
             summary_text: rawSummary.replace(/\s+/g, " ").trim().slice(0, 400),
             classroom_talking_point: "",
-            category: source.default_category || "general",
-            image_url: "",
+            category,
+            image_url: extractThumbnail(entry),
             keywords: [],
             source_trust: isTrusted ? "trusted" : "unverified",
             admin_approved: isTrusted,
@@ -352,6 +397,8 @@ exports.fetchNewspaperItems = onSchedule(
             created_at: admin.firestore.FieldValue.serverTimestamp(),
             updated_at: admin.firestore.FieldValue.serverTimestamp(),
           });
+
+          categoriesFilledThisWeek.add(category);
         } catch (e) {
           console.error(`Failed to store Newspaper item from ${source.id || source.url}`, e.message);
         }
