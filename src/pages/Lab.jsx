@@ -535,170 +535,7 @@ const Lab = () => {
   const [autoSaveToast, setAutoSaveToast] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Preset templates categorized by media format
-  const IMAGE_TEMPLATES = [
-    {
-      id: "tpl-leo-toast",
-      title: "Leonardo Toast & Stressed",
-      images: ["/templates/leonardo-toast.jpg", "/templates/leonardo-toast.jpg"],
-      collage: "rows",
-      category: "popular",
-      thumbnail: "/templates/leonardo-toast.jpg",
-      defaultTop: "FINISHED THE ASSIGNMENT A DAY BEFORE DEADLINE",
-      defaultBottom: "REALIZES THERE'S STILL THE PRESENTATION LEFT",
-      format: "image"
-    },
-    {
-      id: "tpl-distracted-bf",
-      title: "Distracted Boyfriend",
-      images: ["/templates/distracted-boyfriend.jpg"],
-      collage: "single",
-      category: "popular",
-      thumbnail: "/templates/distracted-boyfriend.jpg",
-      defaultTop: "NEW TEACHING FRAMEWORK",
-      defaultBottom: "CURRENT LESSON PLANS",
-      format: "image"
-    },
-    {
-      id: "tpl-woman-cat",
-      title: "Woman Yelling at Cat",
-      images: ["/templates/woman-cat.jpg"],
-      collage: "single",
-      category: "popular",
-      thumbnail: "/templates/woman-cat.jpg",
-      defaultTop: "YOU SAID THE EXAM WAS EASY",
-      defaultBottom: "IT WAS EASY TO FAIL",
-      format: "image"
-    },
-    {
-      id: "tpl-drake",
-      title: "Drake Hotline Bling",
-      images: ["/templates/drake.jpg"],
-      collage: "single",
-      category: "popular",
-      thumbnail: "/templates/drake.jpg",
-      defaultTop: "30-PAGE TEXTBOOK HOMEWORK",
-      defaultBottom: "CREATING MEMES FOR HOMEWORK",
-      format: "image"
-    },
-    {
-      id: "tpl-wolverine",
-      title: "Batman Slapping Robin",
-      images: ["/templates/wolverine.jpg"],
-      collage: "single",
-      category: "popular",
-      thumbnail: "/templates/wolverine.jpg",
-      defaultTop: "CAN I CRAM 5 CHAPTERS TONIGHT?",
-      defaultBottom: "START STUDYING EARLY!",
-      format: "image"
-    },
-    {
-      id: "tpl-spongebob",
-      title: "Imagination Spongebob",
-      images: ["/templates/spongebob.jpg"],
-      collage: "single",
-      category: "popular",
-      thumbnail: "/templates/spongebob.jpg",
-      defaultTop: "WHEN THE CODE RUNS",
-      defaultBottom: "WITHOUT ANY ERRORS",
-      format: "image"
-    }
-  ];
-
-  const VIDEO_TEMPLATES = [
-    {
-      id: "v-tpl-1",
-      title: "Cell Division (Mitosis)",
-      thumbnail: "/templates/drake.jpg",
-      url: MEDIA_SAMPLES?.video?.[0]?.url || "",
-      format: "video"
-    },
-    {
-      id: "v-tpl-2",
-      title: "Water Cycle Animation",
-      thumbnail: "/templates/leonardo-toast.jpg",
-      url: MEDIA_SAMPLES?.video?.[1]?.url || "",
-      format: "video"
-    },
-    {
-      id: "v-tpl-3",
-      title: "Earth Rotation & Orbit",
-      thumbnail: "/templates/woman-cat.jpg",
-      url: MEDIA_SAMPLES?.video?.[2]?.url || "",
-      format: "video"
-    },
-    {
-      id: "v-tpl-4",
-      title: "Physics Pendulum Motion",
-      thumbnail: "/templates/spongebob.jpg",
-      url: MEDIA_SAMPLES?.video?.[3]?.url || "",
-      format: "video"
-    }
-  ];
-
-  const GIF_TEMPLATES = [
-    {
-      id: "g-tpl-1",
-      title: "Confused Math Reaction",
-      thumbnail: MEDIA_SAMPLES?.gif?.[0]?.url || "",
-      url: MEDIA_SAMPLES?.gif?.[0]?.url || "",
-      format: "gif"
-    },
-    {
-      id: "g-tpl-2",
-      title: "Eureka! Light Bulb Moment",
-      thumbnail: MEDIA_SAMPLES?.gif?.[1]?.url || "",
-      url: MEDIA_SAMPLES?.gif?.[1]?.url || "",
-      format: "gif"
-    },
-    {
-      id: "g-tpl-3",
-      title: "Student Standing Ovation",
-      thumbnail: MEDIA_SAMPLES?.gif?.[2]?.url || "",
-      url: MEDIA_SAMPLES?.gif?.[2]?.url || "",
-      format: "gif"
-    },
-    {
-      id: "g-tpl-4",
-      title: "Mind Blown Discovery",
-      thumbnail: MEDIA_SAMPLES?.gif?.[3]?.url || "",
-      url: MEDIA_SAMPLES?.gif?.[3]?.url || "",
-      format: "gif"
-    }
-  ];
-
-  const AUDIO_TEMPLATES = [
-    {
-      id: "a-tpl-1",
-      title: "Newton's Apple — Lecture Clip",
-      thumbnail: "/templates/leonardo-toast.jpg",
-      url: MEDIA_SAMPLES?.audio?.[0]?.url || "",
-      format: "audio"
-    },
-    {
-      id: "a-tpl-2",
-      title: "Gettysburg Address (1863)",
-      thumbnail: "/templates/distracted-boyfriend.jpg",
-      url: MEDIA_SAMPLES?.audio?.[1]?.url || "",
-      format: "audio"
-    },
-    {
-      id: "a-tpl-3",
-      title: "School Bell Chime",
-      thumbnail: "/templates/batman-robin.jpg",
-      url: MEDIA_SAMPLES?.audio?.[2]?.url || "",
-      format: "audio"
-    },
-    {
-      id: "a-tpl-4",
-      title: "Quiz Game Buzzer",
-      thumbnail: "/templates/drake.jpg",
-      url: MEDIA_SAMPLES?.audio?.[3]?.url || "",
-      format: "audio"
-    }
-  ];
-
-  // Helper to get active section templates (combines Firestore database templates, database memes, and presets)
+  // Helper to get active section templates (combines Firestore database templates and database memes)
   const getActiveFormatTemplates = () => {
     let list = [];
     if (activeTab === "image") {
@@ -730,31 +567,28 @@ const Lab = () => {
           isDatabase: true
         }));
 
-      // Combine database items first, followed by fallback presets
-      list = [...dbTemplates, ...dbMemeList, ...IMAGE_TEMPLATES];
+      // Combine database items only — no hardcoded fallback presets
+      list = [...dbTemplates, ...dbMemeList];
     } else if (activeTab === "video") {
       const dbVideos = availableTemplates.filter(t => t.format === "video");
       const dbVideoMemes = dbMemes.filter(m => m.format === "video");
       list = [
         ...dbVideos.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url, url: t.media_url, format: "video", isDatabase: true })),
-        ...dbVideoMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "video", isDatabase: true })),
-        ...VIDEO_TEMPLATES
+        ...dbVideoMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "video", isDatabase: true }))
       ];
     } else if (activeTab === "gif") {
       const dbGifs = availableTemplates.filter(t => t.format === "gif");
       const dbGifMemes = dbMemes.filter(m => m.format === "gif");
       list = [
         ...dbGifs.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url, url: t.media_url, format: "gif", isDatabase: true })),
-        ...dbGifMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "gif", isDatabase: true })),
-        ...GIF_TEMPLATES
+        ...dbGifMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "gif", isDatabase: true }))
       ];
     } else if (activeTab === "audio") {
       const dbAudio = availableTemplates.filter(t => t.format === "audio");
       const dbAudioMemes = dbMemes.filter(m => m.format === "audio");
       list = [
         ...dbAudio.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url || "/templates/leonardo-toast.jpg", url: t.media_url, format: "audio", isDatabase: true })),
-        ...dbAudioMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url || "/templates/leonardo-toast.jpg", url: m.media_url, format: "audio", isDatabase: true })),
-        ...AUDIO_TEMPLATES
+        ...dbAudioMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url || "/templates/leonardo-toast.jpg", url: m.media_url, format: "audio", isDatabase: true }))
       ];
     }
 
