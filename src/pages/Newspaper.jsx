@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Heart, Eye, Share2, Bookmark, Flag as FlagIcon, Clock,
-  ExternalLink, Plus, Newspaper as NewspaperIcon, TrendingUp, Rss
+  ExternalLink, Plus, Newspaper as NewspaperIcon, TrendingUp, Rss, X
 } from "lucide-react";
 import {
   collection, query, where, onSnapshot, doc, setDoc, deleteDoc,
@@ -75,6 +76,7 @@ export default function Newspaper() {
   const [sortBy, setSortBy] = useState("newest");
   const [currentPage, setCurrentPage] = useState(1);
   const [showContributeModal, setShowContributeModal] = useState(false);
+  const [detailItem, setDetailItem] = useState(null);
 
   const [likesMap, setLikesMap] = useState({});
   const [savesMap, setSavesMap] = useState({});
@@ -183,8 +185,9 @@ export default function Newspaper() {
   );
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
+  // View count increments once, when the detail popup opens (see NewsCard's
+  // openDetail) — this just opens the external link without double-counting.
   const handleViewLink = useCallback((item) => {
-    updateDoc(doc(db, "newspaper_items", item.id), { view_count: increment(1) }).catch(() => {});
     window.open(item.source_url, "_blank", "noopener,noreferrer");
   }, []);
 
@@ -267,20 +270,22 @@ export default function Newspaper() {
     setShowContributeModal(true);
   };
 
-  // ─── Card ────────────────────────────────────────────────────────────────────
+  // ─── Card (compact: thumbnail + title only) ─────────────────────────────────
   const NewsCard = ({ item }) => {
     const cat = categoryMeta(item.category);
     const style = CATEGORY_STYLES[cat.color] || CATEGORY_STYLES.gray;
     const isPending = !item.admin_approved;
-    const isLiked = !!likesMap[item.id];
-    const isBookmarked = !!savesMap[item.id];
-    const alreadyFlagged = !!flagsMap[item.id];
     const socialPlatform = getSocialPlatform(item.source_url);
+
+    const openDetail = () => {
+      setDetailItem(item);
+      updateDoc(doc(db, "newspaper_items", item.id), { view_count: increment(1) }).catch(() => {});
+    };
 
     return (
       <div className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
         {/* Header: category pill + auto-fetched/pending badges */}
-        <div className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-2.5">
+        <div className="flex items-center justify-between gap-2 px-3.5 pt-3 pb-2">
           <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border truncate ${style.pill}`}>
             {cat.label}
           </span>
@@ -298,90 +303,149 @@ export default function Newspaper() {
           </div>
         </div>
 
-        {/* Thumbnail — a live embed for Instagram/X posts, otherwise an image/placeholder */}
-        {socialPlatform ? (
-          <div className="w-full max-h-[420px] overflow-y-auto bg-gray-50 dark:bg-zinc-950 border-b border-gray-100 dark:border-zinc-800 flex-shrink-0 py-2">
-            <SocialEmbed url={item.source_url} />
-          </div>
-        ) : (
-          <div
-            onClick={() => handleViewLink(item)}
-            className={`relative w-full bg-gradient-to-br ${style.ph} flex items-center justify-center overflow-hidden group cursor-pointer flex-shrink-0`}
-            style={{ height: 140 }}
-          >
-            {item.image_url ? (
-              <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
-            ) : (
-              <NewspaperIcon className="w-10 h-10" strokeWidth={1.25} />
-            )}
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <span className="bg-white/90 dark:bg-zinc-900/90 text-gray-900 dark:text-white px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm flex items-center gap-1">
-                Read source <ExternalLink className="w-3 h-3" />
-              </span>
-            </div>
-          </div>
-        )}
+        {/* Thumbnail — always a static image/placeholder here; live embeds only render in the detail popup */}
+        <div
+          onClick={openDetail}
+          className={`relative w-full bg-gradient-to-br ${style.ph} flex items-center justify-center overflow-hidden cursor-pointer flex-shrink-0`}
+          style={{ height: 100 }}
+        >
+          {item.image_url ? (
+            <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+          ) : socialPlatform ? (
+            <span className="text-xs font-bold opacity-60 capitalize">{socialPlatform} post</span>
+          ) : (
+            <NewspaperIcon className="w-8 h-8" strokeWidth={1.25} />
+          )}
+        </div>
 
-        {/* Body */}
-        <div className="px-4 pt-3 pb-2 flex-grow flex flex-col gap-1.5">
+        {/* Title only */}
+        <div className="px-3.5 pt-2.5 pb-2 flex-grow flex flex-col">
           <button
-            onClick={() => handleViewLink(item)}
+            onClick={openDetail}
             className="font-extrabold text-sm text-left hover:text-rose-600 dark:hover:text-rose-400 transition text-gray-900 dark:text-white leading-snug line-clamp-2"
           >
             {item.title}
           </button>
-          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3 leading-relaxed flex-grow">{item.summary_text}</p>
-          {item.classroom_talking_point && (
-            <div className="mt-1 p-2 bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900 rounded-lg text-[10px] text-sky-700 dark:text-sky-400 line-clamp-2">
-              🎓 {item.classroom_talking_point}
-            </div>
-          )}
-          <button
-            onClick={() => handleViewLink(item)}
-            className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 truncate text-left flex items-center gap-1 mt-1"
-          >
-            <ExternalLink className="w-3 h-3 flex-shrink-0" /> {item.source_domain || "source"}
-          </button>
         </div>
 
-        {/* Footer icon bar */}
-        <div className="px-4 py-2 border-t border-gray-100 dark:border-zinc-800/60 flex items-center justify-between text-gray-400 dark:text-gray-500">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => handleLikeToggle(item.id)}
-              className={`flex items-center gap-1 hover:scale-105 active:scale-95 transition ${isLiked ? "text-red-500 font-bold" : "hover:text-red-500"}`}
-              title="Like"
-            >
-              <Heart className={`w-3.5 h-3.5 ${isLiked ? "fill-current" : ""}`} strokeWidth={1.5} />
-              <span className="text-[10px] font-semibold tabular-nums">{item.likes_count || 0}</span>
-            </button>
-            {(item.view_count || 0) > 0 && (
-              <span className="flex items-center gap-1 text-[10px] font-medium">
-                <Eye className="w-3.5 h-3.5" strokeWidth={1.5} /> {item.view_count}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => handleShare(item)} className="hover:text-green-500 hover:scale-105 active:scale-95 transition" title="Share">
-              <Share2 className="w-3.5 h-3.5" strokeWidth={1.5} />
-            </button>
-            <button
-              onClick={() => handleBookmarkToggle(item.id)}
-              className={`hover:scale-105 active:scale-95 transition ${isBookmarked ? "text-amber-500" : "hover:text-amber-500"}`}
-              title={isBookmarked ? "Remove" : "Save"}
-            >
-              <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? "fill-current" : ""}`} strokeWidth={1.5} />
-            </button>
-            <button
-              onClick={() => handleFlag(item.id)}
-              className={`hover:scale-105 active:scale-95 transition ${alreadyFlagged ? "text-orange-500" : "hover:text-orange-400"}`}
-              title={alreadyFlagged ? "Already reported" : "Report"}
-            >
-              <FlagIcon className="w-3.5 h-3.5" strokeWidth={1.5} />
-            </button>
-          </div>
+        {/* View More */}
+        <div className="px-3.5 pb-3">
+          <button
+            onClick={openDetail}
+            className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline"
+          >
+            View More →
+          </button>
         </div>
       </div>
+    );
+  };
+
+  // ─── Detail popup (everything the compact card doesn't show) ────────────────
+  const NewsItemDetailModal = ({ item, onClose }) => {
+    const cat = categoryMeta(item.category);
+    const style = CATEGORY_STYLES[cat.color] || CATEGORY_STYLES.gray;
+    const isPending = !item.admin_approved;
+    const isLiked = !!likesMap[item.id];
+    const isBookmarked = !!savesMap[item.id];
+    const alreadyFlagged = !!flagsMap[item.id];
+    const socialPlatform = getSocialPlatform(item.source_url);
+
+    return createPortal(
+      <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={onClose}>
+        <div
+          className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between gap-2 px-5 py-3.5 border-b border-gray-100 dark:border-zinc-800 flex-shrink-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border ${style.pill}`}>
+                {cat.label}
+              </span>
+              {item.auto_fetched && (
+                <span className="flex items-center gap-1 text-[9px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 px-2 py-0.5 rounded-full">
+                  <Rss className="w-2.5 h-2.5" /> Auto
+                </span>
+              )}
+              {isPending && (
+                <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
+                  <Clock className="w-2.5 h-2.5" /> Pending
+                </span>
+              )}
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-1 flex-shrink-0">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto">
+            {socialPlatform ? (
+              <div className="w-full bg-gray-50 dark:bg-zinc-950 border-b border-gray-100 dark:border-zinc-800 py-3">
+                <SocialEmbed url={item.source_url} />
+              </div>
+            ) : item.image_url ? (
+              <img src={item.image_url} alt={item.title} className="w-full max-h-64 object-cover" />
+            ) : null}
+
+            <div className="px-5 py-4 space-y-3">
+              <h2 className="font-extrabold text-lg text-gray-900 dark:text-white leading-snug">{item.title}</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{item.summary_text}</p>
+              {item.classroom_talking_point && (
+                <div className="p-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900 rounded-lg text-xs text-sky-700 dark:text-sky-400">
+                  🎓 {item.classroom_talking_point}
+                </div>
+              )}
+              <button
+                onClick={() => handleViewLink(item)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Read at {item.source_domain || "source"}
+              </button>
+            </div>
+          </div>
+
+          {/* Footer icon bar */}
+          <div className="px-5 py-3 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between text-gray-400 dark:text-gray-500 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => handleLikeToggle(item.id)}
+                className={`flex items-center gap-1 hover:scale-105 active:scale-95 transition ${isLiked ? "text-red-500 font-bold" : "hover:text-red-500"}`}
+                title="Like"
+              >
+                <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} strokeWidth={1.5} />
+                <span className="text-xs font-semibold tabular-nums">{item.likes_count || 0}</span>
+              </button>
+              {(item.view_count || 0) > 0 && (
+                <span className="flex items-center gap-1 text-xs font-medium">
+                  <Eye className="w-4 h-4" strokeWidth={1.5} /> {item.view_count}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={() => handleShare(item)} className="hover:text-green-500 hover:scale-105 active:scale-95 transition" title="Share">
+                <Share2 className="w-4 h-4" strokeWidth={1.5} />
+              </button>
+              <button
+                onClick={() => handleBookmarkToggle(item.id)}
+                className={`hover:scale-105 active:scale-95 transition ${isBookmarked ? "text-amber-500" : "hover:text-amber-500"}`}
+                title={isBookmarked ? "Remove" : "Save"}
+              >
+                <Bookmark className={`w-4 h-4 ${isBookmarked ? "fill-current" : ""}`} strokeWidth={1.5} />
+              </button>
+              <button
+                onClick={() => handleFlag(item.id)}
+                className={`hover:scale-105 active:scale-95 transition ${alreadyFlagged ? "text-orange-500" : "hover:text-orange-400"}`}
+                title={alreadyFlagged ? "Already reported" : "Report"}
+              >
+                <FlagIcon className="w-4 h-4" strokeWidth={1.5} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>,
+      document.body
     );
   };
 
@@ -500,6 +564,10 @@ export default function Newspaper() {
           onClose={() => setShowContributeModal(false)}
           onSuccess={() => toast("Newspaper item published! Pending admin review.", "success")}
         />
+      )}
+
+      {detailItem && (
+        <NewsItemDetailModal item={detailItem} onClose={() => setDetailItem(null)} />
       )}
     </div>
   );
