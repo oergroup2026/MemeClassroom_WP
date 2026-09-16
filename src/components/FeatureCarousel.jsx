@@ -1,10 +1,20 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Brain,
+  BookOpenCheck,
+  Eye,
+  MessageSquare,
+  Layers,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 // Shared brand treatment across every slide (was a different accent color
 // per slide before — unified to ruby so the carousel reads as one brand,
 // with images/copy carrying the visual variety instead of clashing hues).
+const RUBY_BADGE = "bg-white/10 border border-white/25 text-white backdrop-blur-sm";
 const RUBY_CTA =
   "bg-gradient-to-r from-[#E0115F] to-[#b00742] hover:from-[#f55b8b] hover:to-[#c7094e] text-white shadow-[0_4px_18px_rgba(224,17,95,0.45)]";
 const RUBY_HEX = "#E0115F";
@@ -15,6 +25,7 @@ const SLIDES = [
   {
     id: "teaching-tools",
     category: "Why Memes Work",
+    icon: Brain,
     title: "Memes as\nTeaching Tools",
     description:
       "Familiar and easy to grasp — memes turn a hard concept into something that sticks.",
@@ -25,13 +36,15 @@ const SLIDES = [
     image: "/slide-lab.jpg",
     imageAlt: "Students and teacher laughing at memes on a classroom screen",
     overlayGradient:
-      "linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 45%, rgba(0,0,0,0) 70%)",
+      "linear-gradient(to top, rgba(14,4,10,0.96) 0%, rgba(14,4,10,0.65) 35%, rgba(14,4,10,0.30) 60%, rgba(14,4,10,0.15) 100%)",
     accentHex: RUBY_HEX,
+    badgeBg: RUBY_BADGE,
     ctaBg: RUBY_CTA,
   },
   {
     id: "critical-objects",
     category: "Critical Meme Literacy",
+    icon: Eye,
     title: "Memes as\nCritical Objects",
     description:
       "Memes shape how people think fast — learn to spot the bias and tell satire from real misinformation.",
@@ -42,13 +55,15 @@ const SLIDES = [
     image: "/slide-literacy.jpg",
     imageAlt: "Student analysing memes with annotations on a screen",
     overlayGradient:
-      "linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 45%, rgba(0,0,0,0) 70%)",
+      "linear-gradient(to top, rgba(8,8,24,0.97) 0%, rgba(8,8,24,0.68) 35%, rgba(8,8,24,0.30) 60%, rgba(8,8,24,0.15) 100%)",
     accentHex: RUBY_HEX,
+    badgeBg: RUBY_BADGE,
     ctaBg: RUBY_CTA,
   },
   {
     id: "learn-about",
     category: "Learn About Memes",
+    icon: BookOpenCheck,
     title: "Learn With, On\n& About Memes",
     description:
       "See how memes communicate, and learn to read the ideas hidden inside them.",
@@ -59,13 +74,15 @@ const SLIDES = [
     image: "/slide-oer.jpg",
     imageAlt: "Open educational resources books and laptop in a library",
     overlayGradient:
-      "linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 45%, rgba(0,0,0,0) 70%)",
+      "linear-gradient(to top, rgba(8,12,4,0.97) 0%, rgba(8,12,4,0.65) 35%, rgba(8,12,4,0.28) 60%, rgba(8,12,4,0.12) 100%)",
     accentHex: RUBY_HEX,
+    badgeBg: RUBY_BADGE,
     ctaBg: RUBY_CTA,
   },
   {
     id: "pedagogical-integration",
     category: "Pedagogical Integration",
+    icon: Layers,
     title: "Grounded in Real\nClassroom Practice",
     description:
       "Courses, real classroom examples, activity guides, and research — all in one place.",
@@ -74,13 +91,15 @@ const SLIDES = [
     image: "/slide-activities.jpg",
     imageAlt: "Students collaborating on meme creation activity on whiteboards",
     overlayGradient:
-      "linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 45%, rgba(0,0,0,0) 70%)",
+      "linear-gradient(to top, rgba(10,6,2,0.97) 0%, rgba(10,6,2,0.65) 35%, rgba(10,6,2,0.28) 60%, rgba(10,6,2,0.12) 100%)",
     accentHex: RUBY_HEX,
+    badgeBg: RUBY_BADGE,
     ctaBg: RUBY_CTA,
   },
   {
     id: "share-reflect",
     category: "Educator Community",
+    icon: MessageSquare,
     title: "Share Experiences\n& Reflect",
     description:
       "Swap what worked in class, remix templates in the Lab, and grow with other educators.",
@@ -91,8 +110,9 @@ const SLIDES = [
     image: "/slide-staffroom.jpg",
     imageAlt: "Diverse group of teachers sharing memes and laughing together",
     overlayGradient:
-      "linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 45%, rgba(0,0,0,0) 70%)",
+      "linear-gradient(to top, rgba(4,12,10,0.97) 0%, rgba(4,12,10,0.65) 35%, rgba(4,12,10,0.28) 60%, rgba(4,12,10,0.12) 100%)",
     accentHex: RUBY_HEX,
+    badgeBg: RUBY_BADGE,
     ctaBg: RUBY_CTA,
   },
 ];
@@ -166,6 +186,7 @@ const FeatureCarousel = () => {
   };
 
   const slide = SLIDES[activeIdx];
+  const SlideIcon = slide.icon;
 
   return (
     <section
@@ -213,7 +234,7 @@ const FeatureCarousel = () => {
           of which slide/image is showing. */}
       <div
         className="absolute inset-x-0 top-0 z-[5] pointer-events-none h-[220px] sm:h-[280px]"
-        style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 55%, rgba(0,0,0,0) 100%)" }}
+        style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 55%, rgba(0,0,0,0) 100%)" }}
       />
 
       {/* ── Hero branding block (Badge + Title + Tagline) ────────────────── */}
@@ -241,7 +262,7 @@ const FeatureCarousel = () => {
         </p>
       </div>
 
-      {/* ── Slide content (title + description + CTA on a light panel) ────── */}
+      {/* ── Slide content (badge + title + description + CTA) ─────────────── */}
       <div
         className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end px-5 sm:px-10 md:px-16 pb-12 sm:pb-16"
         style={{
@@ -255,35 +276,49 @@ const FeatureCarousel = () => {
             "opacity 0.32s cubic-bezier(0.4,0,0.2,1), transform 0.32s cubic-bezier(0.4,0,0.2,1)",
         }}
       >
-        <div className="max-w-xl rounded-3xl bg-white/92 backdrop-blur-md border border-white/60 shadow-[0_8px_30px_rgba(15,23,42,0.25)] px-5 py-5 sm:px-7 sm:py-6">
-          {/* Slide title */}
-          <h2 className="text-2xl sm:text-4xl lg:text-[2.6rem] font-black text-[#0f172a] leading-[1.1] tracking-tight mb-3 whitespace-pre-line">
-            {slide.title}
-          </h2>
+        {/* Slide badge */}
+        <div className="flex items-center gap-2 mb-3">
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-sm ${slide.badgeBg}`}
+          >
+            <SlideIcon className="w-3 h-3" />
+            {slide.category}
+          </span>
+        </div>
 
-          {/* Slide description */}
-          <p className="text-sm sm:text-base text-[#374151] font-medium leading-snug mb-5 max-w-md">
-            {slide.description}
-          </p>
+        {/* Slide title */}
+        <h2
+          className="text-2xl sm:text-4xl lg:text-[2.6rem] font-black text-white leading-[1.1] tracking-tight mb-3 whitespace-pre-line"
+          style={{ textShadow: "0 2px 16px rgba(0,0,0,0.7)" }}
+        >
+          {slide.title}
+        </h2>
 
-          {/* CTA button + optional secondary link — stacks vertically on mobile */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+        {/* Slide description */}
+        <p
+          className="text-sm sm:text-base text-white/80 font-medium leading-snug mb-5 max-w-md"
+          style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}
+        >
+          {slide.description}
+        </p>
+
+        {/* CTA button + optional secondary link — stacks vertically on mobile */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <Link
+            to={slide.ctaLink}
+            className={`inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl text-sm font-black transition-all duration-200 hover:-translate-y-0.5 active:scale-95 ${slide.ctaBg}`}
+          >
+            {slide.cta}
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+          {slide.secondaryCta && slide.secondaryLink && (
             <Link
-              to={slide.ctaLink}
-              className={`inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl text-sm font-black transition-all duration-200 hover:-translate-y-0.5 active:scale-95 ${slide.ctaBg}`}
+              to={slide.secondaryLink}
+              className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-white/85 hover:text-white underline underline-offset-4 decoration-white/40 hover:decoration-white transition-colors"
             >
-              {slide.cta}
-              <ArrowRight className="w-4 h-4" />
+              {slide.secondaryCta}
             </Link>
-            {slide.secondaryCta && slide.secondaryLink && (
-              <Link
-                to={slide.secondaryLink}
-                className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-ruby-600 hover:text-ruby-700 underline underline-offset-4 decoration-ruby-300 hover:decoration-ruby-600 transition-colors"
-              >
-                {slide.secondaryCta}
-              </Link>
-            )}
-          </div>
+          )}
         </div>
       </div>
 

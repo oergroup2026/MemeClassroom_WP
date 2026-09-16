@@ -14,7 +14,6 @@ import { db } from "../firebase";
 import MemeLiteracyBanner from "../components/MemeLiteracyBanner";
 import FeatureCarousel from "../components/FeatureCarousel";
 import {
-  Sparkles,
   FlaskConical,
   BookOpen,
   MessageSquare,
@@ -22,7 +21,6 @@ import {
   BrainCircuit,
   ArrowRight,
   GraduationCap,
-  Users,
   Compass,
   ChevronDown,
   ChevronUp,
@@ -34,8 +32,7 @@ import {
   Info,
   Layers,
   Zap,
-  CheckCircle2,
-  Pencil
+  CheckCircle2
 } from "lucide-react";
 
 // SlideFeatureVisual replaced by FeatureCarousel component
@@ -469,7 +466,6 @@ const Home = () => {
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto space-y-3">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-950/60 dark:bg-purple-950/70 border border-purple-500/40 text-purple-300 text-xs font-black uppercase tracking-widest shadow-[0_0_20px_rgba(168,85,247,0.25)]">
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
             <span>How to Get Started</span>
           </div>
 
@@ -486,33 +482,27 @@ const Home = () => {
         <div className="max-w-5xl mx-auto rounded-3xl bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-gray-200 dark:border-zinc-800 shadow-lg overflow-hidden divide-y divide-gray-200 dark:divide-zinc-800 md:divide-y-0 md:divide-x md:grid md:grid-cols-3">
           {[
             {
-              number: "1",
-              icon: BookOpen,
+              number: "Step 1",
               title: "Start with Resources",
               description: "Explore real classroom use cases, and read research papers and articles to build your pedagogical grounding.",
               color: "text-purple-500 dark:text-purple-400",
-              iconBg: "bg-purple-500/10 border border-purple-500/30",
               links: [{ label: "Explore Resources", to: "/resources" }],
             },
             {
-              number: "2",
-              icon: Pencil,
+              number: "Step 2",
               title: "Explore Activities & Create",
               description: "Incorporate memes in your classroom, find examples in the Library & create memes in Lab.",
               color: "text-blue-500 dark:text-blue-400",
-              iconBg: "bg-blue-500/10 border border-blue-500/30",
               links: [
                 { label: "Library", to: "/library" },
                 { label: "Lab", to: "/lab" },
               ],
             },
             {
-              number: "3",
-              icon: Users,
+              number: "Step 3",
               title: "Share, Reflect & Contribute",
               description: "Share your experiences in the staffroom and contribute resources.",
               color: "text-teal-500 dark:text-teal-400",
-              iconBg: "bg-teal-500/10 border border-teal-500/30",
               links: [
                 { label: "Staffroom", to: "/staffroom" },
                 { label: "Contribute", to: "/resources" },
@@ -527,9 +517,6 @@ const Home = () => {
                 <span className={`shrink-0 text-xl sm:text-2xl font-black tracking-tight ${step.color}`}>
                   {step.number}
                 </span>
-                <div className={`shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center ${step.iconBg}`}>
-                  <step.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${step.color}`} />
-                </div>
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-snug mb-1">
