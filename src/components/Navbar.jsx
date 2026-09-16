@@ -222,7 +222,7 @@ const Navbar = () => {
                   to="/"
                   className="group inline-flex items-center gap-1.5 text-xl sm:text-2xl font-black tracking-tight text-gray-900 dark:text-white hover:text-ruby-600 dark:hover:text-ruby-400 transition"
                 >
-                  <span className="text-ruby-600 dark:text-ruby-400">Meme</span>
+                  <span style={{ fontFamily: "'Pacifico', cursive" }} className="text-ruby-600 dark:text-ruby-400">Meme</span>
                   <span className="font-extrabold tracking-tight">Classroom</span>
                   <span className="w-2 h-2 rounded-full bg-ruby-600 dark:bg-ruby-400 animate-pulse" />
                 </Link>
