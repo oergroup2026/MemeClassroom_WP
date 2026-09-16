@@ -392,28 +392,32 @@ const Home = () => {
 
   return (
     <div className="relative overflow-visible min-h-screen flex flex-col justify-start space-y-12 sm:space-y-20">
-      
-      {/* Background Ruby Glow Lighting Blobs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
-        <div 
-          className="absolute -top-[5%] left-[10%] w-[320px] sm:w-[550px] h-[320px] sm:h-[550px] rounded-full bg-ruby-500/20 dark:bg-ruby-600/25 blur-[90px] mix-blend-multiply dark:mix-blend-screen animate-pulse" 
-          style={{ animationDuration: "8s" }} 
-        />
-        <div 
-          className="absolute top-[30%] right-[5%] w-[350px] sm:w-[500px] h-[350px] sm:h-[500px] rounded-full bg-amber-500/15 dark:bg-amber-600/20 blur-[90px] mix-blend-multiply dark:mix-blend-screen animate-pulse" 
-          style={{ animationDuration: "7s" }} 
-        />
-        <div 
-          className="absolute top-[65%] left-[5%] w-[300px] sm:w-[450px] h-[300px] sm:h-[450px] rounded-full bg-indigo-500/15 dark:bg-indigo-600/20 blur-[80px] mix-blend-multiply dark:mix-blend-screen animate-pulse" 
-          style={{ animationDuration: "10s" }} 
-        />
-      </div>
 
       {/* ──────────────────────────────────────────────────────────────────────────
           SECTION 1: FULL-BLEED CINEMATIC FEATURE DISCOVERY CAROUSEL
-          Hero branding (badge, title, tagline) + slide content live inside FeatureCarousel
+          Hero branding (badge, title, tagline) + slide content live inside FeatureCarousel.
+          Rendered as the FIRST child (before the decorative glow blobs below) so it
+          doesn't pick up a top margin from this container's `space-y-*` utility —
+          the hero needs to sit flush at y=0 for the floating Navbar header to merge
+          into it with no gap.
           ────────────────────────────────────────────────────────────────────────── */}
       <FeatureCarousel />
+
+      {/* Background Ruby Glow Lighting Blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        <div
+          className="absolute -top-[5%] left-[10%] w-[320px] sm:w-[550px] h-[320px] sm:h-[550px] rounded-full bg-ruby-500/20 dark:bg-ruby-600/25 blur-[90px] mix-blend-multiply dark:mix-blend-screen animate-pulse"
+          style={{ animationDuration: "8s" }}
+        />
+        <div
+          className="absolute top-[30%] right-[5%] w-[350px] sm:w-[500px] h-[350px] sm:h-[500px] rounded-full bg-amber-500/15 dark:bg-amber-600/20 blur-[90px] mix-blend-multiply dark:mix-blend-screen animate-pulse"
+          style={{ animationDuration: "7s" }}
+        />
+        <div
+          className="absolute top-[65%] left-[5%] w-[300px] sm:w-[450px] h-[300px] sm:h-[450px] rounded-full bg-indigo-500/15 dark:bg-indigo-600/20 blur-[80px] mix-blend-multiply dark:mix-blend-screen animate-pulse"
+          style={{ animationDuration: "10s" }}
+        />
+      </div>
 
       {/* ──────────────────────────────────────────────────────────────────────────
           SECTION 2: LIVE STATS BAR (Clean & Compact)

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
-  FlaskConical,
+  Brain,
   BookOpenCheck,
   Eye,
   MessageSquare,
@@ -11,97 +11,109 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-// ─── Slide Data (source of truth: homepage_content.md Section 1) ───────────
+// Shared brand treatment across every slide (was a different accent color
+// per slide before — unified to ruby so the carousel reads as one brand,
+// with images/copy carrying the visual variety instead of clashing hues).
+const RUBY_BADGE = "bg-white/10 border border-white/25 text-white backdrop-blur-sm";
+const RUBY_CTA =
+  "bg-gradient-to-r from-[#E0115F] to-[#b00742] hover:from-[#f55b8b] hover:to-[#c7094e] text-white shadow-[0_4px_18px_rgba(224,17,95,0.45)]";
+const RUBY_HEX = "#E0115F";
+
+// ─── Slide Data — why memes matter pedagogically, and how this platform
+// helps, rather than promoting individual app pages one by one. ───────────
 const SLIDES = [
   {
-    id: "lab",
-    category: "Meme Lab",
-    icon: FlaskConical,
-    title: "Create. Remix.\nTeach Visually.",
+    id: "teaching-tools",
+    category: "Why Memes Work",
+    icon: Brain,
+    title: "Memes as\nTeaching Tools",
     description:
-      "Multi-format editor for images, GIFs, video & audio. Craft pedagogical memes with auto-captions.",
-    cta: "Open Meme Lab",
-    ctaLink: "/lab",
+      "Familiar and easy to grasp — memes turn a hard concept into something that sticks.",
+    cta: "Explore Classroom Use Cases",
+    ctaLink: "/resources",
+    secondaryCta: "Also see: Meme Lab",
+    secondaryLink: "/lab",
     image: "/slide-lab.jpg",
     imageAlt: "Students and teacher laughing at memes on a classroom screen",
     overlayGradient:
       "linear-gradient(to top, rgba(14,4,10,0.96) 0%, rgba(14,4,10,0.65) 35%, rgba(14,4,10,0.30) 60%, rgba(14,4,10,0.15) 100%)",
-    accentHex: "#E0115F",
-    badgeBg: "bg-rose-500/20 border border-rose-400/40 text-rose-300",
-    ctaBg:
-      "bg-gradient-to-r from-[#E0115F] to-[#b00742] hover:from-[#f55b8b] hover:to-[#c7094e] text-white shadow-[0_4px_18px_rgba(224,17,95,0.45)]",
+    accentHex: RUBY_HEX,
+    badgeBg: RUBY_BADGE,
+    ctaBg: RUBY_CTA,
   },
   {
-    id: "literacy",
-    category: "Media Literacy",
+    id: "critical-objects",
+    category: "Critical Meme Literacy",
     icon: Eye,
-    title: "Decode Bias.\nThink Critically.",
+    title: "Memes as\nCritical Objects",
     description:
-      "Evaluate visual rhetoric, subtext & satire across 6 key dimensions. Earn a shareable digital literacy badge.",
-    cta: "Take Literacy Test",
+      "Memes shape how people think fast — learn to spot the bias and tell satire from real misinformation.",
+    cta: "Take the Meme Literacy Test",
     ctaLink: "/meme-literacy-test",
+    secondaryCta: "Also see: The Newspaper",
+    secondaryLink: "/newspaper",
     image: "/slide-literacy.jpg",
     imageAlt: "Student analysing memes with annotations on a screen",
     overlayGradient:
       "linear-gradient(to top, rgba(8,8,24,0.97) 0%, rgba(8,8,24,0.68) 35%, rgba(8,8,24,0.30) 60%, rgba(8,8,24,0.15) 100%)",
-    accentHex: "#6366f1",
-    badgeBg: "bg-indigo-500/20 border border-indigo-400/40 text-indigo-300",
-    ctaBg:
-      "bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-500 hover:to-purple-600 text-white shadow-[0_4px_18px_rgba(99,102,241,0.4)]",
+    accentHex: RUBY_HEX,
+    badgeBg: RUBY_BADGE,
+    ctaBg: RUBY_CTA,
   },
   {
-    id: "activities",
-    category: "Activities",
-    icon: Layers,
-    title: "Real Lessons.\nReal Engagement.",
+    id: "learn-about",
+    category: "Learn About Memes",
+    icon: BookOpenCheck,
+    title: "Learn With, On\n& About Memes",
     description:
-      "Classroom activity guides built on meme pedagogy. From icebreakers to critical discussion starters.",
-    cta: "Explore Activities",
+      "See how memes communicate, and learn to read the ideas hidden inside them.",
+    cta: "Browse the Newspaper",
+    ctaLink: "/newspaper",
+    secondaryCta: "Also see: Meme Literacy Test",
+    secondaryLink: "/meme-literacy-test",
+    image: "/slide-oer.jpg",
+    imageAlt: "Open educational resources books and laptop in a library",
+    overlayGradient:
+      "linear-gradient(to top, rgba(8,12,4,0.97) 0%, rgba(8,12,4,0.65) 35%, rgba(8,12,4,0.28) 60%, rgba(8,12,4,0.12) 100%)",
+    accentHex: RUBY_HEX,
+    badgeBg: RUBY_BADGE,
+    ctaBg: RUBY_CTA,
+  },
+  {
+    id: "pedagogical-integration",
+    category: "Pedagogical Integration",
+    icon: Layers,
+    title: "Grounded in Real\nClassroom Practice",
+    description:
+      "Courses, real classroom examples, activity guides, and research — all in one place.",
+    cta: "Browse Teaching Resources",
     ctaLink: "/resources",
     image: "/slide-activities.jpg",
     imageAlt: "Students collaborating on meme creation activity on whiteboards",
     overlayGradient:
       "linear-gradient(to top, rgba(10,6,2,0.97) 0%, rgba(10,6,2,0.65) 35%, rgba(10,6,2,0.28) 60%, rgba(10,6,2,0.12) 100%)",
-    accentHex: "#f97316",
-    badgeBg: "bg-orange-500/20 border border-orange-400/40 text-orange-300",
-    ctaBg:
-      "bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-400 hover:to-amber-500 text-white shadow-[0_4px_18px_rgba(249,115,22,0.4)]",
+    accentHex: RUBY_HEX,
+    badgeBg: RUBY_BADGE,
+    ctaBg: RUBY_CTA,
   },
   {
-    id: "oer",
-    category: "OER Resources",
-    icon: BookOpenCheck,
-    title: "Open Materials.\nFree Forever.",
-    description:
-      "Peer-rated memes, classroom use cases, syllabus modules & open courseware. Adapt, remix & use freely.",
-    cta: "Browse Resources",
-    ctaLink: "/resources",
-    image: "/slide-oer.jpg",
-    imageAlt: "Open educational resources books and laptop in a library",
-    overlayGradient:
-      "linear-gradient(to top, rgba(8,12,4,0.97) 0%, rgba(8,12,4,0.65) 35%, rgba(8,12,4,0.28) 60%, rgba(8,12,4,0.12) 100%)",
-    accentHex: "#10b981",
-    badgeBg: "bg-emerald-500/20 border border-emerald-400/40 text-emerald-300",
-    ctaBg:
-      "bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white shadow-[0_4px_18px_rgba(16,185,129,0.4)]",
-  },
-  {
-    id: "staffroom",
-    category: "Staffroom",
+    id: "share-reflect",
+    category: "Educator Community",
     icon: MessageSquare,
-    title: "Connect. Reflect.\nGrow Together.",
+    title: "Share Experiences\n& Reflect",
     description:
-      "Join a community of educators sharing classroom experiments, reflections, and best practices.",
-    cta: "Join Staffroom",
+      "Swap what worked in class, remix templates in the Lab, and grow with other educators.",
+    cta: "Join the Staffroom",
     ctaLink: "/staffroom",
+    secondaryCta: "Also see: Meme Lab",
+    secondaryLink: "/lab",
     image: "/slide-staffroom.jpg",
     imageAlt: "Diverse group of teachers sharing memes and laughing together",
     overlayGradient:
       "linear-gradient(to top, rgba(4,12,10,0.97) 0%, rgba(4,12,10,0.65) 35%, rgba(4,12,10,0.28) 60%, rgba(4,12,10,0.12) 100%)",
-    accentHex: "#14b8a6",
-    badgeBg: "bg-teal-500/20 border border-teal-400/40 text-teal-300",
-    ctaBg:
-      "bg-gradient-to-r from-teal-600 to-cyan-700 hover:from-teal-500 hover:to-cyan-600 text-white shadow-[0_4px_18px_rgba(20,184,166,0.4)]",
+    accentHex: RUBY_HEX,
+    badgeBg: RUBY_BADGE,
+    ctaBg: RUBY_CTA,
   },
 ];
 
@@ -179,7 +191,7 @@ const FeatureCarousel = () => {
   return (
     <section
       className="relative w-full select-none"
-      style={{ minHeight: "clamp(480px, 85vw, 680px)" }}
+      style={{ minHeight: "clamp(600px, 85vw, 680px)" }}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={handleTouchStart}
@@ -215,32 +227,38 @@ const FeatureCarousel = () => {
         </div>
       ))}
 
-      {/* ── Top header overlay (logo + nav icons) ────────────────────────── */}
-      {/* NOTE: The actual Navbar renders above this in the DOM.
-               This spacer keeps content from hiding under it. */}
+      {/* ── Top-down scrim ────────────────────────────────────────────────
+          Independent of each slide's own bottom-heavy overlayGradient
+          (which is lightest right at the top) — guarantees the floating
+          Navbar icons and the brand block below stay legible regardless
+          of which slide/image is showing. */}
+      <div
+        className="absolute inset-x-0 top-0 z-[5] pointer-events-none h-[220px] sm:h-[280px]"
+        style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 55%, rgba(0,0,0,0) 100%)" }}
+      />
 
       {/* ── Hero branding block (Badge + Title + Tagline) ────────────────── */}
-      <div className="absolute inset-x-0 top-0 z-10 flex flex-col items-center justify-center pt-12 sm:pt-16 px-4 text-center pointer-events-none">
+      <div className="absolute inset-x-0 top-0 z-10 flex flex-col items-center justify-center pt-14 sm:pt-20 px-4 text-center pointer-events-none">
         {/* Badge */}
-        <div className="inline-flex items-center px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/25 text-white/90 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-4">
+        <div className="inline-flex items-center px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/25 text-white/90 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-3 sm:mb-4">
           Open Pedagogical Resources for Memes
         </div>
 
         {/* Main title */}
         <h1
-          className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.12]"
+          className="text-2xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.12]"
           style={{ textShadow: "0 2px 20px rgba(0,0,0,0.7)" }}
         >
           Meme
-          <span className="text-[#E0115F]">Classroom</span>
+          <span className="text-ruby-600">Classroom</span>
         </h1>
 
         {/* Tagline */}
         <p
-          className="mt-3 text-sm sm:text-base font-semibold text-white/80 max-w-lg leading-snug"
+          className="mt-2 sm:mt-3 text-xs sm:text-base font-semibold text-white/80 max-w-[280px] sm:max-w-lg leading-snug"
           style={{ textShadow: "0 1px 10px rgba(0,0,0,0.6)" }}
         >
-          A collaborative space to learn, co-create and share meme pedagogy.
+          MemeClassroom isn't a content silo — it's your space to learn, teach, and think critically with memes.
         </p>
       </div>
 
@@ -284,15 +302,23 @@ const FeatureCarousel = () => {
           {slide.description}
         </p>
 
-        {/* CTA button */}
-        <div>
+        {/* CTA button + optional secondary link — stacks vertically on mobile */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <Link
             to={slide.ctaLink}
-            className={`inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl text-sm font-black transition-all duration-200 hover:-translate-y-0.5 active:scale-95 ${slide.ctaBg}`}
+            className={`inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl text-sm font-black transition-all duration-200 hover:-translate-y-0.5 active:scale-95 ${slide.ctaBg}`}
           >
             {slide.cta}
             <ArrowRight className="w-4 h-4" />
           </Link>
+          {slide.secondaryCta && slide.secondaryLink && (
+            <Link
+              to={slide.secondaryLink}
+              className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-white/85 hover:text-white underline underline-offset-4 decoration-white/40 hover:decoration-white transition-colors"
+            >
+              {slide.secondaryCta}
+            </Link>
+          )}
         </div>
       </div>
 
