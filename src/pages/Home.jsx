@@ -482,58 +482,76 @@ const Home = () => {
           </p>
         </div>
 
-        {/* Simple linear step panel */}
-        <div className="max-w-2xl mx-auto rounded-3xl bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-gray-200 dark:border-zinc-800 shadow-lg divide-y divide-gray-200 dark:divide-zinc-800 overflow-hidden">
+        {/* Attached step columns (was stacked rows) */}
+        <div className="max-w-5xl mx-auto rounded-3xl bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-gray-200 dark:border-zinc-800 shadow-lg overflow-hidden divide-y divide-gray-200 dark:divide-zinc-800 md:divide-y-0 md:divide-x md:grid md:grid-cols-3">
           {[
             {
               number: "1",
               icon: BookOpen,
-              title: "Learn the Foundations",
-              subject: "Media literacy & pedagogical theory",
-              link: "/resources",
+              title: "Start with Resources",
+              description: "Explore real classroom use cases, and read research papers and articles to build your pedagogical grounding.",
               color: "text-purple-500 dark:text-purple-400",
               iconBg: "bg-purple-500/10 border border-purple-500/30",
+              links: [{ label: "Explore Resources", to: "/resources" }],
             },
             {
               number: "2",
               icon: Pencil,
               title: "Explore Activities & Create",
-              subject: "Meme Lab & classroom activities",
-              link: "/lab",
+              description: "Incorporate memes in your classroom, find examples in the Library & create memes in Lab.",
               color: "text-blue-500 dark:text-blue-400",
               iconBg: "bg-blue-500/10 border border-blue-500/30",
+              links: [
+                { label: "Library", to: "/library" },
+                { label: "Lab", to: "/lab" },
+              ],
             },
             {
               number: "3",
               icon: Users,
               title: "Share, Reflect & Contribute",
-              subject: "Staffroom community & feedback",
-              link: "/staffroom",
+              description: "Share your experiences in the staffroom and contribute resources.",
               color: "text-teal-500 dark:text-teal-400",
               iconBg: "bg-teal-500/10 border border-teal-500/30",
+              links: [
+                { label: "Staffroom", to: "/staffroom" },
+                { label: "Contribute", to: "/resources" },
+              ],
             },
           ].map((step) => (
-            <Link
+            <div
               key={step.number}
-              to={step.link}
-              className="group flex items-center gap-4 sm:gap-5 p-5 sm:p-6 hover:bg-purple-50/60 dark:hover:bg-purple-950/20 transition-colors"
+              className="group flex flex-col gap-4 p-5 sm:p-6 hover:bg-purple-50/60 dark:hover:bg-purple-950/20 transition-colors"
             >
-              <span className={`shrink-0 text-xl sm:text-2xl font-black tracking-tight ${step.color}`}>
-                {step.number}
-              </span>
-              <div className={`shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center ${step.iconBg}`}>
-                <step.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${step.color}`} />
+              <div className="flex items-center gap-4 sm:gap-5">
+                <span className={`shrink-0 text-xl sm:text-2xl font-black tracking-tight ${step.color}`}>
+                  {step.number}
+                </span>
+                <div className={`shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center ${step.iconBg}`}>
+                  <step.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${step.color}`} />
+                </div>
               </div>
-              <div className="flex-1 text-left min-w-0">
-                <h3 className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-snug">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm sm:text-base font-black text-gray-900 dark:text-white leading-snug mb-1">
                   {step.title}
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium truncate">
-                  {step.subject}
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
+                  {step.description}
                 </p>
               </div>
-              <ArrowRight className="shrink-0 w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:translate-x-1 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-all" />
-            </Link>
+              <div className="flex items-center gap-4 mt-auto pt-1">
+                {step.links.map((l) => (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    className="group/link inline-flex items-center gap-1 text-xs sm:text-sm font-black text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  >
+                    {l.label}
+                    <ArrowRight className="w-4 h-4 text-gray-400 dark:text-gray-500 group-hover/link:translate-x-1 group-hover/link:text-gray-700 dark:group-hover/link:text-gray-200 transition-all" />
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </section>
