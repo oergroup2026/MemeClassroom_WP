@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { NavLink, Link, useNavigate } from "react-router-dom";
+import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import {
@@ -55,6 +55,20 @@ const Navbar = () => {
   const [globalIndex, setGlobalIndex] = useState([]);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isHome = location.pathname === "/";
+
+  // On the Home page only, the header floats transparently over the hero
+  // until the user scrolls a little, then becomes today's solid header.
+  const [scrolledPastHero, setScrolledPastHero] = useState(false);
+  useEffect(() => {
+    if (!isHome) { setScrolledPastHero(false); return; }
+    const onScroll = () => setScrolledPastHero(window.scrollY > 30);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isHome]);
+  const isFloatingHeader = isHome && !scrolledPastHero;
 
   // Load global search items
   useEffect(() => {
@@ -168,7 +182,20 @@ const Navbar = () => {
       {/* ──────────────────────────────────────────────────────────────────────────
           1. TOP HEADER (Central Classroom Title + Menu Trigger & Quick Actions)
           ────────────────────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-md border-b border-gray-200/80 dark:border-zinc-800/80 text-gray-850 dark:text-zinc-100 transition-all duration-200">
+      <header
+        className={
+          isFloatingHeader
+            ? "fixed top-0 inset-x-0 z-30 bg-transparent border-b border-transparent text-white transition-all duration-300"
+            : isHome
+              // Solid state on Home stays `fixed` too (never `sticky`) — switching
+              // position type mid-scroll breaks sticky's "stuck to viewport"
+              // behavior, since its in-flow anchor point is above the scrolled
+              // viewport by then. A permanently-fixed header on Home just overlays
+              // content once scrolled, which is fine given this page's spacing.
+              ? "fixed top-0 inset-x-0 z-30 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-md border-b border-gray-200/80 dark:border-zinc-800/80 text-gray-850 dark:text-zinc-100 transition-all duration-200"
+              : "sticky top-0 z-30 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-md border-b border-gray-200/80 dark:border-zinc-800/80 text-gray-850 dark:text-zinc-100 transition-all duration-200"
+        }
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
 
@@ -176,25 +203,30 @@ const Navbar = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setDrawerOpen(true)}
-                className="inline-flex items-center justify-center p-2 rounded-xl bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 hover:bg-ruby-50 hover:text-ruby-600 dark:hover:bg-ruby-950/40 dark:hover:text-ruby-400 transition border border-gray-200 dark:border-zinc-700 shadow-xs"
+                className={
+                  isFloatingHeader
+                    ? "inline-flex items-center justify-center p-2 rounded-xl bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition border border-white/20"
+                    : "inline-flex items-center justify-center p-2 rounded-xl bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 hover:bg-ruby-50 hover:text-ruby-600 dark:hover:bg-ruby-950/40 dark:hover:text-ruby-400 transition border border-gray-200 dark:border-zinc-700 shadow-xs"
+                }
                 aria-label="Open menu drawer"
               >
-                <Menu className="w-5 h-5 text-ruby-600 dark:text-ruby-400" />
+                <Menu className={isFloatingHeader ? "w-5 h-5 text-white" : "w-5 h-5 text-ruby-600 dark:text-ruby-400"} />
               </button>
             </div>
 
-            {/* Center: Centralized Classroom Title */}
+            {/* Center: Centralized Classroom Title — hidden while floating over the
+                hero (the hero's own big "MemeClassroom" title sits right below it) */}
             <div className="flex items-center justify-center flex-1">
-              <Link
-                to="/"
-                className="group inline-flex items-center gap-1.5 text-xl sm:text-2xl font-black tracking-tight text-gray-900 dark:text-white hover:text-ruby-600 dark:hover:text-ruby-400 transition"
-              >
-                <span style={{ fontFamily: "'Pacifico', cursive" }} className="text-ruby-600 dark:text-ruby-400">
-                  Meme
-                </span>
-                <span className="font-extrabold tracking-tight">Classroom</span>
-                <span className="w-2 h-2 rounded-full bg-ruby-600 dark:bg-ruby-400 animate-pulse" />
-              </Link>
+              {!isFloatingHeader && (
+                <Link
+                  to="/"
+                  className="group inline-flex items-center gap-1.5 text-xl sm:text-2xl font-black tracking-tight text-gray-900 dark:text-white hover:text-ruby-600 dark:hover:text-ruby-400 transition"
+                >
+                  <span style={{ fontFamily: "'Pacifico', cursive" }} className="text-ruby-600 dark:text-ruby-400">Meme</span>
+                  <span className="font-extrabold tracking-tight">Classroom</span>
+                  <span className="w-2 h-2 rounded-full bg-ruby-600 dark:bg-ruby-400 animate-pulse" />
+                </Link>
+              )}
             </div>
 
             {/* Right: Accessibility Toggle, Notifications, User Avatar */}
@@ -202,10 +234,14 @@ const Navbar = () => {
               {/* Accessibility / High Contrast Toggle */}
               <button
                 onClick={toggleHighContrast}
-                className={`p-2 rounded-full border transition ${highContrastMode
-                  ? "border-ruby-500 bg-ruby-600/10 text-ruby-400 hover:bg-ruby-600/20"
-                  : "border-gray-200 dark:border-zinc-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
-                  }`}
+                className={
+                  isFloatingHeader
+                    ? "p-2 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition"
+                    : `p-2 rounded-full border transition ${highContrastMode
+                      ? "border-ruby-500 bg-ruby-600/10 text-ruby-400 hover:bg-ruby-600/20"
+                      : "border-gray-200 dark:border-zinc-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                      }`
+                }
                 title={highContrastMode ? "Disable Dark Theme" : "Enable Dark Theme"}
                 aria-label="Toggle Dark Theme"
               >
@@ -223,7 +259,11 @@ const Navbar = () => {
                       navigate("/auth");
                     }
                   }}
-                  className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 relative focus:outline-none transition border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                  className={
+                    isFloatingHeader
+                      ? "p-2 rounded-full text-white relative focus:outline-none transition border border-white/20 bg-white/10 backdrop-blur-sm hover:bg-white/20"
+                      : "p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 relative focus:outline-none transition border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                  }
                   aria-label="View notifications"
                 >
                   {unreadCount > 0 && (
