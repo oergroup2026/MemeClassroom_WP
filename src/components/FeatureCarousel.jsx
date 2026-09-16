@@ -247,7 +247,7 @@ const FeatureCarousel = () => {
         {/* Main title */}
         <h1
           className="text-2xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.12]"
-          style={{ textShadow: "0 2px 20px rgba(0,0,0,0.7)" }}
+          style={{ textShadow: "0 4px 28px rgba(0,0,0,0.9)" }}
         >
           Meme
           <span className="text-ruby-600">Classroom</span>
@@ -256,7 +256,7 @@ const FeatureCarousel = () => {
         {/* Tagline */}
         <p
           className="mt-2 sm:mt-3 text-xs sm:text-base font-semibold text-white/80 max-w-[280px] sm:max-w-lg leading-snug"
-          style={{ textShadow: "0 1px 10px rgba(0,0,0,0.6)" }}
+          style={{ textShadow: "0 2px 14px rgba(0,0,0,0.8)" }}
         >
           MemeClassroom isn't a content silo — it's your space to learn, teach, and think critically with memes.
         </p>

@@ -33,6 +33,10 @@ async function compileVideoMemeCanvas({
   subtitlePosition = "bottom",
   onProgress
 }) {
+  if (!videoUrl) {
+    return Promise.reject(new Error("No video source provided."));
+  }
+
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
     video.src = videoUrl;
@@ -50,7 +54,16 @@ async function compileVideoMemeCanvas({
     let frameId;
     const chunks = [];
 
+    // Guards against video.src being invalid/unsupported in a way that
+    // fires neither oncanplay nor onerror, which would otherwise hang
+    // this promise (and the caller's await) forever.
+    const loadTimeout = setTimeout(() => {
+      reject(new Error("Timed out waiting for the video to become playable."));
+      cleanup();
+    }, 15000);
+
     const cleanup = () => {
+      clearTimeout(loadTimeout);
       cancelAnimationFrame(frameId);
       if (video) {
         video.pause();
@@ -63,6 +76,7 @@ async function compileVideoMemeCanvas({
     };
 
     video.oncanplay = () => {
+      clearTimeout(loadTimeout);
       video.oncanplay = null;
       const finalTrimEnd = Math.min(videoTrimEnd, video.duration || videoTrimEnd);
       const durationToRecord = finalTrimEnd - videoTrimStart;
@@ -234,6 +248,10 @@ export async function compileVideoMeme({
   subtitlePosition = "bottom",
   onProgress
 }) {
+  if (!videoUrl) {
+    throw new Error("No video source provided.");
+  }
+
   // 1. Setup layout dimensions
   let width = 720;
   let height = 720;

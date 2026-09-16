@@ -501,6 +501,14 @@ const Lab = () => {
 
   // --- General Modals & Alert States ---
   const [activeControlTab, setActiveControlTab] = useState("text"); // "text" | "image" | "filters" | "effects"
+
+  // The Text/Subtitle tool is built around the image canvas — hide it once
+  // another format tab (video/gif/audio) is active instead of leaving it selected but blank.
+  useEffect(() => {
+    if (activeTab !== "image" && activeControlTab === "text") {
+      setActiveControlTab("filters");
+    }
+  }, [activeTab, activeControlTab]);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [selectedCategory, setSelectedCategory] = useState("popular");
   const [topTextInput, setTopTextInput] = useState("");
@@ -510,6 +518,7 @@ const Lab = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [publishToLibrary, setPublishToLibrary] = useState(true);
+  const [downloadLocally, setDownloadLocally] = useState(true);
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("Biology");
   const [customSubject, setCustomSubject] = useState("");
@@ -527,170 +536,7 @@ const Lab = () => {
   const [autoSaveToast, setAutoSaveToast] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Preset templates categorized by media format
-  const IMAGE_TEMPLATES = [
-    {
-      id: "tpl-leo-toast",
-      title: "Leonardo Toast & Stressed",
-      images: ["/templates/leonardo-toast.jpg", "/templates/leonardo-toast.jpg"],
-      collage: "rows",
-      category: "popular",
-      thumbnail: "/templates/leonardo-toast.jpg",
-      defaultTop: "FINISHED THE ASSIGNMENT A DAY BEFORE DEADLINE",
-      defaultBottom: "REALIZES THERE'S STILL THE PRESENTATION LEFT",
-      format: "image"
-    },
-    {
-      id: "tpl-distracted-bf",
-      title: "Distracted Boyfriend",
-      images: ["/templates/distracted-boyfriend.jpg"],
-      collage: "single",
-      category: "popular",
-      thumbnail: "/templates/distracted-boyfriend.jpg",
-      defaultTop: "NEW TEACHING FRAMEWORK",
-      defaultBottom: "CURRENT LESSON PLANS",
-      format: "image"
-    },
-    {
-      id: "tpl-woman-cat",
-      title: "Woman Yelling at Cat",
-      images: ["/templates/woman-cat.jpg"],
-      collage: "single",
-      category: "popular",
-      thumbnail: "/templates/woman-cat.jpg",
-      defaultTop: "YOU SAID THE EXAM WAS EASY",
-      defaultBottom: "IT WAS EASY TO FAIL",
-      format: "image"
-    },
-    {
-      id: "tpl-drake",
-      title: "Drake Hotline Bling",
-      images: ["/templates/drake.jpg"],
-      collage: "single",
-      category: "popular",
-      thumbnail: "/templates/drake.jpg",
-      defaultTop: "30-PAGE TEXTBOOK HOMEWORK",
-      defaultBottom: "CREATING MEMES FOR HOMEWORK",
-      format: "image"
-    },
-    {
-      id: "tpl-wolverine",
-      title: "Batman Slapping Robin",
-      images: ["/templates/wolverine.jpg"],
-      collage: "single",
-      category: "popular",
-      thumbnail: "/templates/wolverine.jpg",
-      defaultTop: "CAN I CRAM 5 CHAPTERS TONIGHT?",
-      defaultBottom: "START STUDYING EARLY!",
-      format: "image"
-    },
-    {
-      id: "tpl-spongebob",
-      title: "Imagination Spongebob",
-      images: ["/templates/spongebob.jpg"],
-      collage: "single",
-      category: "popular",
-      thumbnail: "/templates/spongebob.jpg",
-      defaultTop: "WHEN THE CODE RUNS",
-      defaultBottom: "WITHOUT ANY ERRORS",
-      format: "image"
-    }
-  ];
-
-  const VIDEO_TEMPLATES = [
-    {
-      id: "v-tpl-1",
-      title: "Cell Division (Mitosis)",
-      thumbnail: "/templates/drake.jpg",
-      url: MEDIA_SAMPLES?.video?.[0]?.url || "",
-      format: "video"
-    },
-    {
-      id: "v-tpl-2",
-      title: "Water Cycle Animation",
-      thumbnail: "/templates/leonardo-toast.jpg",
-      url: MEDIA_SAMPLES?.video?.[1]?.url || "",
-      format: "video"
-    },
-    {
-      id: "v-tpl-3",
-      title: "Earth Rotation & Orbit",
-      thumbnail: "/templates/woman-cat.jpg",
-      url: MEDIA_SAMPLES?.video?.[2]?.url || "",
-      format: "video"
-    },
-    {
-      id: "v-tpl-4",
-      title: "Physics Pendulum Motion",
-      thumbnail: "/templates/spongebob.jpg",
-      url: MEDIA_SAMPLES?.video?.[3]?.url || "",
-      format: "video"
-    }
-  ];
-
-  const GIF_TEMPLATES = [
-    {
-      id: "g-tpl-1",
-      title: "Confused Math Reaction",
-      thumbnail: MEDIA_SAMPLES?.gif?.[0]?.url || "",
-      url: MEDIA_SAMPLES?.gif?.[0]?.url || "",
-      format: "gif"
-    },
-    {
-      id: "g-tpl-2",
-      title: "Eureka! Light Bulb Moment",
-      thumbnail: MEDIA_SAMPLES?.gif?.[1]?.url || "",
-      url: MEDIA_SAMPLES?.gif?.[1]?.url || "",
-      format: "gif"
-    },
-    {
-      id: "g-tpl-3",
-      title: "Student Standing Ovation",
-      thumbnail: MEDIA_SAMPLES?.gif?.[2]?.url || "",
-      url: MEDIA_SAMPLES?.gif?.[2]?.url || "",
-      format: "gif"
-    },
-    {
-      id: "g-tpl-4",
-      title: "Mind Blown Discovery",
-      thumbnail: MEDIA_SAMPLES?.gif?.[3]?.url || "",
-      url: MEDIA_SAMPLES?.gif?.[3]?.url || "",
-      format: "gif"
-    }
-  ];
-
-  const AUDIO_TEMPLATES = [
-    {
-      id: "a-tpl-1",
-      title: "Newton's Apple — Lecture Clip",
-      thumbnail: "/templates/leonardo-toast.jpg",
-      url: MEDIA_SAMPLES?.audio?.[0]?.url || "",
-      format: "audio"
-    },
-    {
-      id: "a-tpl-2",
-      title: "Gettysburg Address (1863)",
-      thumbnail: "/templates/distracted-boyfriend.jpg",
-      url: MEDIA_SAMPLES?.audio?.[1]?.url || "",
-      format: "audio"
-    },
-    {
-      id: "a-tpl-3",
-      title: "School Bell Chime",
-      thumbnail: "/templates/batman-robin.jpg",
-      url: MEDIA_SAMPLES?.audio?.[2]?.url || "",
-      format: "audio"
-    },
-    {
-      id: "a-tpl-4",
-      title: "Quiz Game Buzzer",
-      thumbnail: "/templates/drake.jpg",
-      url: MEDIA_SAMPLES?.audio?.[3]?.url || "",
-      format: "audio"
-    }
-  ];
-
-  // Helper to get active section templates (combines Firestore database templates, database memes, and presets)
+  // Helper to get active section templates (combines Firestore database templates and database memes)
   const getActiveFormatTemplates = () => {
     let list = [];
     if (activeTab === "image") {
@@ -722,31 +568,28 @@ const Lab = () => {
           isDatabase: true
         }));
 
-      // Combine database items first, followed by fallback presets
-      list = [...dbTemplates, ...dbMemeList, ...IMAGE_TEMPLATES];
+      // Combine database items only — no hardcoded fallback presets
+      list = [...dbTemplates, ...dbMemeList];
     } else if (activeTab === "video") {
       const dbVideos = availableTemplates.filter(t => t.format === "video");
       const dbVideoMemes = dbMemes.filter(m => m.format === "video");
       list = [
         ...dbVideos.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url, url: t.media_url, format: "video", isDatabase: true })),
-        ...dbVideoMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "video", isDatabase: true })),
-        ...VIDEO_TEMPLATES
+        ...dbVideoMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "video", isDatabase: true }))
       ];
     } else if (activeTab === "gif") {
       const dbGifs = availableTemplates.filter(t => t.format === "gif");
       const dbGifMemes = dbMemes.filter(m => m.format === "gif");
       list = [
         ...dbGifs.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url, url: t.media_url, format: "gif", isDatabase: true })),
-        ...dbGifMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "gif", isDatabase: true })),
-        ...GIF_TEMPLATES
+        ...dbGifMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "gif", isDatabase: true }))
       ];
     } else if (activeTab === "audio") {
       const dbAudio = availableTemplates.filter(t => t.format === "audio");
       const dbAudioMemes = dbMemes.filter(m => m.format === "audio");
       list = [
         ...dbAudio.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url || "/templates/leonardo-toast.jpg", url: t.media_url, format: "audio", isDatabase: true })),
-        ...dbAudioMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url || "/templates/leonardo-toast.jpg", url: m.media_url, format: "audio", isDatabase: true })),
-        ...AUDIO_TEMPLATES
+        ...dbAudioMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url || "/templates/leonardo-toast.jpg", url: m.media_url, format: "audio", isDatabase: true }))
       ];
     }
 
@@ -1817,48 +1660,47 @@ const Lab = () => {
   }, [user, title, subject, customSubject, ageGroup, activeTab, language, customLanguage, keywords, images, videoUrl, gifUrl, audioUrl, textLayers]);
 
   const loadImage = (src) => {
-    return new Promise(async (resolve, reject) => {
-      let blobUrl = null;
-      try {
-        let finalSrc = src;
+    const isCrossOrigin = src.startsWith("http") && !src.startsWith(window.location.origin);
 
-        // Fetch external templates via CORS proxy as Blobs to bypass canvas taint errors
-        if (src.startsWith("http") && !src.startsWith(window.location.origin)) {
-          const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(src)}`;
-          const response = await fetch(proxiedUrl);
-          if (response.ok) {
-            const blob = await response.blob();
-            blobUrl = URL.createObjectURL(blob);
-            finalSrc = blobUrl;
-          }
-        }
-
-        const img = new Image();
-        img.src = finalSrc;
-        img.onload = () => {
-          resolve(img);
-          if (blobUrl) {
-            URL.revokeObjectURL(blobUrl);
-          }
-        };
-        img.onerror = (e) => {
-          if (blobUrl) {
-            URL.revokeObjectURL(blobUrl);
-          }
-          reject(e);
-        };
-      } catch (err) {
-        // Fallback to loading original source with crossOrigin anonymous if fetch fails
-        if (blobUrl) {
-          URL.revokeObjectURL(blobUrl);
-        }
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = src;
-        img.onload = () => resolve(img);
-        img.onerror = (e) => reject(e);
-      }
+    // Cross-origin sources (e.g. Firebase Storage) need crossOrigin="anonymous"
+    // set BEFORE loading, or the image will visually load fine but "taint" the
+    // canvas, making canvas.toBlob() throw a SecurityError later at export time.
+    const loadDirect = () => new Promise((resolve, reject) => {
+      const img = new Image();
+      if (isCrossOrigin) img.crossOrigin = "anonymous";
+      img.src = src;
+      img.onload = () => resolve(img);
+      img.onerror = (e) => reject(e);
     });
+
+    // Fallback for sources that don't send CORS headers at all (so the direct,
+    // CORS-tagged load fails outright): fetch through a public CORS proxy and
+    // draw the resulting same-origin blob instead.
+    const loadViaProxy = () => new Promise((resolve, reject) => {
+      const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(src)}`;
+      fetch(proxiedUrl)
+        .then((response) => {
+          if (!response.ok) throw new Error(`CORS proxy fetch failed: ${response.status}`);
+          return response.blob();
+        })
+        .then((blob) => {
+          const blobUrl = URL.createObjectURL(blob);
+          const img = new Image();
+          img.src = blobUrl;
+          img.onload = () => {
+            resolve(img);
+            URL.revokeObjectURL(blobUrl);
+          };
+          img.onerror = (e) => {
+            URL.revokeObjectURL(blobUrl);
+            reject(e);
+          };
+        })
+        .catch(reject);
+    });
+
+    if (!isCrossOrigin) return loadDirect();
+    return loadDirect().catch(loadViaProxy);
   };
 
   // --- Canvas Settings State ---
@@ -2036,11 +1878,10 @@ const Lab = () => {
   };
 
   // --- Final Publish & Save Workflow ---
-  const handlePublishSubmit = async (overridePublish) => {
-    const isPublic = typeof overridePublish === "boolean" ? overridePublish : publishToLibrary;
-
+  const handlePublishSubmit = async (doDownload, doPublish) => {
     // --- CASE A: DOWNLOAD ONLY FLOW (Bypass cloud database & validations) ---
-    if (!isPublic) {
+    if (!doPublish) {
+      if (!doDownload) return;
       setLoading(true);
       setAlertMessage("");
       try {
@@ -2198,15 +2039,17 @@ const Lab = () => {
           const snapshot = await uploadBytes(storageRef, blob);
           fileUrl = await getDownloadURL(snapshot.ref);
 
-          // Local file download trigger
-          const downloadUrl = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.download = `${title.trim() || 'meme'}.png`;
-          link.href = downloadUrl;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(downloadUrl);
+          if (doDownload) {
+            // Local file download trigger
+            const downloadUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.download = `${title.trim() || 'meme'}.png`;
+            link.href = downloadUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(downloadUrl);
+          }
         }
       }
       // 2. Week 6: Real video compiler → upload compiled video to Storage
@@ -2241,15 +2084,17 @@ const Lab = () => {
         const snapshot = await uploadBytes(storageRef, videoBlob);
         fileUrl = await getDownloadURL(snapshot.ref);
 
-        // Local download of compiled video
-        const compiledUrl = URL.createObjectURL(videoBlob);
-        const link = document.createElement("a");
-        link.download = `${title.trim() || 'meme'}.mp4`;
-        link.href = compiledUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(compiledUrl);
+        if (doDownload) {
+          // Local download of compiled video
+          const compiledUrl = URL.createObjectURL(videoBlob);
+          const link = document.createElement("a");
+          link.download = `${title.trim() || 'meme'}.mp4`;
+          link.href = compiledUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(compiledUrl);
+        }
       }
       // 3. Week 7: Generate audiogram PNG card → upload as the meme's media_url
       else if (activeTab === "audio") {
@@ -2271,15 +2116,17 @@ const Lab = () => {
               const cardSnapshot = await uploadBytes(cardStorageRef, cardBlob);
               fileUrl = await getDownloadURL(cardSnapshot.ref); // audiogram PNG becomes media_url
 
-              // Local download of the card PNG
-              const downloadUrl = URL.createObjectURL(cardBlob);
-              const link = document.createElement("a");
-              link.download = `${title.trim() || 'audio_meme'}_card.png`;
-              link.href = downloadUrl;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              URL.revokeObjectURL(downloadUrl);
+              if (doDownload) {
+                // Local download of the card PNG
+                const downloadUrl = URL.createObjectURL(cardBlob);
+                const link = document.createElement("a");
+                link.download = `${title.trim() || 'audio_meme'}_card.png`;
+                link.href = downloadUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(downloadUrl);
+              }
             }
           } catch (cardErr) {
             console.warn("Audiogram card generation failed, using raw audio URL:", cardErr);
@@ -2315,21 +2162,23 @@ const Lab = () => {
                 const snapshot = await uploadBytes(storageRef, overlayBlob);
                 fileUrl = await getDownloadURL(snapshot.ref);
 
-                // Local download of the flat PNG meme (GIF frames frozen, text overlays burned in)
-                const downloadUrl = URL.createObjectURL(overlayBlob);
-                const link = document.createElement("a");
-                link.download = `${title.trim() || 'meme'}.png`;
-                link.href = downloadUrl;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(downloadUrl);
+                if (doDownload) {
+                  // Local download of the flat PNG meme (GIF frames frozen, text overlays burned in)
+                  const downloadUrl = URL.createObjectURL(overlayBlob);
+                  const link = document.createElement("a");
+                  link.download = `${title.trim() || 'meme'}.png`;
+                  link.href = downloadUrl;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(downloadUrl);
+                }
               }
             } catch (err) {
               console.error("html2canvas screenshot failed", err);
             }
           }
-        } else {
+        } else if (doDownload) {
           // No overlays — download the original animated GIF unmodified
           const link = document.createElement("a");
           link.download = `${title.trim() || 'meme'}.gif`;
@@ -2388,7 +2237,7 @@ const Lab = () => {
       navigate("/library");
     } catch (err) {
       console.error(err);
-      setAlertMessage("Failed to save and publish the creation.");
+      setAlertMessage(`Failed to save and publish the creation: ${err.code || err.message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }
@@ -3217,7 +3066,7 @@ const Lab = () => {
                 { id: "image", label: "Image", icon: <ImageIcon className="w-3.5 h-3.5" /> },
                 { id: "filters", label: "Filters", icon: <Palette className="w-3.5 h-3.5" /> },
                 { id: "effects", label: "Effects", icon: <Sliders className="w-3.5 h-3.5" /> }
-              ].map((tab) => (
+              ].filter((tab) => tab.id !== "text" || activeTab === "image").map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
@@ -3235,7 +3084,7 @@ const Lab = () => {
             </div>
 
             {/* TAB CONTENT: TEXT */}
-            {activeControlTab === "text" && (
+            {activeControlTab === "text" && activeTab === "image" && (
               <div className="flex flex-col gap-3">
                 {/* Row 1: Top Text & Bottom Text Inputs with Clear/Delete buttons */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -3768,57 +3617,26 @@ const Lab = () => {
               </div>
             </div>
 
-            {/* Meme Tags Section */}
-            <div className="flex flex-col gap-2.5 pt-2 border-t border-slate-100 dark:border-[#1b2336]">
-              <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Meme Tags</span>
-              </div>
-              <div className="grid grid-cols-1 gap-2.5">
-                {/* Subject Dropdown */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subject</span>
-                  <select
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-medium rounded-xl px-3 py-2 focus:border-[#e11d48] focus:outline-none cursor-pointer"
-                  >
-                    <option value="">Select a subject</option>
-                    {subjects.map((sub) => (
-                      <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Grade Level Dropdown */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Grade Level</span>
-                  <select
-                    value={ageGroup}
-                    onChange={(e) => setAgeGroup(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-medium rounded-xl px-3 py-2 focus:border-[#e11d48] focus:outline-none cursor-pointer"
-                  >
-                    <option value="">Select grade level</option>
-                    {gradeGroups.map((g) => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Language Dropdown */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Language</span>
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-medium rounded-xl px-3 py-2 focus:border-[#e11d48] focus:outline-none cursor-pointer"
-                  >
-                    <option value="">Select language</option>
-                    {languages.map((l) => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+            {/* Contribute Template */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                Contribute Template
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!user) {
+                    setAlertMessage("Please sign in to contribute a template to the library.");
+                    return;
+                  }
+                  setShowContributeModal(true);
+                }}
+                className="w-full py-2.5 px-3 rounded-xl border-2 border-dashed border-slate-300 dark:border-[#1e273a] bg-slate-50/60 dark:bg-[#0b0e14]/60 hover:border-[#e11d48]/60 hover:bg-rose-50/60 dark:hover:bg-[#e11d48]/10 text-slate-600 dark:text-slate-400 hover:text-[#e11d48] dark:hover:text-[#f43f5e] text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                title="Share a new template with the community library"
+              >
+                <span>+</span>
+                <span>Contribute a Template</span>
+              </button>
             </div>
 
           </div>
@@ -3828,240 +3646,207 @@ const Lab = () => {
       {/* SAVE MODAL DIALOG */}
       {showSaveModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className={`w-full max-w-lg p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
-            <h2 className="text-lg font-bold mb-1">Export & Publish Meme Studio</h2>
+          <div className={`w-full max-w-md p-6 rounded-xl overflow-y-auto max-h-[90vh] ${containerClass}`}>
+            <h2 className="text-lg font-bold mb-1">Export Meme</h2>
             <p className="text-xs text-gray-500 mb-5">
-              Review your visual composition draft and download it locally, or enter details to publish to the community library.
+              Give your creation a title, choose how you'd like to export it, then confirm below.
             </p>
 
-            {/* Visual Draft Preview */}
-            <div className="mb-5 bg-gray-50 dark:bg-zinc-950/60 rounded-xl p-3 border border-gray-200 dark:border-zinc-800 flex flex-col items-center justify-center">
-              <span className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Meme Composition Draft</span>
-              <div className="w-56 aspect-video rounded-lg overflow-hidden border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-center relative shadow-sm">
-                {activeTab === "image" && images.length > 0 ? (
-                  <div className="w-full h-full flex flex-wrap">
-                    {images.map((src, idx) => (
-                      <img key={idx} src={src} className="flex-1 object-cover min-w-[50%] h-full" alt="preview" />
-                    ))}
-                  </div>
-                ) : activeTab === "gif" && gifUrl ? (
-                  <img src={gifUrl} className="w-full h-full object-contain" alt="preview" />
-                ) : activeTab === "video" && videoUrl ? (
-                  <video src={videoUrl} className="w-full h-full object-contain" />
-                ) : activeTab === "audio" && audioUrl ? (
-                  <div className="text-center p-4 text-gray-500 text-xs">
-                    <span className="text-3xl block mb-1">🎵</span>
-                    Audio Waveform Card
-                  </div>
-                ) : (
-                  <div className="text-gray-400 text-xs italic">Empty Canvas</div>
-                )}
+            <div className="mb-5">
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Meme Title</label>
+              <input
+                type="text"
+                placeholder="e.g. Mitosis Explanation Meme"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+              />
+            </div>
 
-                {/* Simulated text overlays on top of the preview */}
-                {textLayers.length > 0 && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-between p-2 pointer-events-none bg-black/10">
-                    <div className="bg-black/60 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow">
-                      {textLayers[0].text.length > 20 ? `${textLayers[0].text.substring(0, 20)}...` : textLayers[0].text}
-                    </div>
-                    {textLayers.length > 1 && (
-                      <div className="bg-black/60 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow">
-                        {textLayers[1].text.length > 20 ? `${textLayers[1].text.substring(0, 20)}...` : textLayers[1].text}
-                      </div>
+            <div className="flex flex-col gap-2.5 mb-5">
+              <label className="flex items-start gap-2.5 p-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/60 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={downloadLocally}
+                  onChange={(e) => setDownloadLocally(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-purple-600 cursor-pointer"
+                />
+                <span className="text-xs">
+                  <span className="block font-bold text-gray-700 dark:text-gray-200">📥 Download to my device</span>
+                  <span className="block text-[11px] text-gray-500 mt-0.5">Save the exported file locally.</span>
+                </span>
+              </label>
+
+              <label className={`flex items-start gap-2.5 p-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/60 ${user ? "cursor-pointer" : "opacity-60 cursor-not-allowed"}`}>
+                <input
+                  type="checkbox"
+                  checked={!!user && publishToLibrary}
+                  onChange={(e) => setPublishToLibrary(e.target.checked)}
+                  disabled={!user}
+                  className="mt-0.5 w-4 h-4 accent-purple-600 cursor-pointer"
+                />
+                <span className="text-xs">
+                  <span className="block font-bold text-gray-700 dark:text-gray-200">🚀 Publish to the community library</span>
+                  <span className="block text-[11px] text-gray-500 mt-0.5">
+                    {user ? (
+                      "Share it publicly and earn contributor points."
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => { setShowSaveModal(false); navigate("/auth"); }} className="text-purple-500 hover:underline font-semibold">Sign in</button>
+                        {" "}to publish to the library.
+                      </>
+                    )}
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            {user && publishToLibrary && (
+              <div className="space-y-4 text-xs font-semibold mb-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Subject</label>
+                    <input
+                      type="text"
+                      placeholder="Search subject..."
+                      value={formSubjectSearch}
+                      onChange={(e) => setFormSubjectSearch(e.target.value)}
+                      className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
+                    />
+                    <select
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                    >
+                      {subjects
+                        .filter(s => s.toLowerCase().includes(formSubjectSearch.toLowerCase()))
+                        .map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                    </select>
+                    {subject === "Other" && (
+                      <input
+                        type="text"
+                        placeholder="Type custom subject..."
+                        value={customSubject}
+                        onChange={(e) => setCustomSubject(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2"
+                      />
                     )}
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Download Only / Local Export (Before the form) */}
-            <div className="mb-5 bg-purple-50/50 dark:bg-purple-950/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800/40 text-center">
-              <span className="block text-[10px] text-purple-700 dark:text-purple-300 font-bold mb-2 uppercase tracking-wider">Just want the file locally?</span>
-              <button
-                type="button"
-                onClick={() => handlePublishSubmit(false)}
-                disabled={loading}
-                className="w-full bg-purple-600 hover:bg-purple-750 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
-              >
-                <span>📥</span>
-                <span>Download Only (Bypass Publish Details)</span>
-              </button>
-            </div>
-
-            <div className="flex items-center my-5">
-              <div className="flex-grow border-t border-gray-200 dark:border-zinc-800" />
-              <span className="px-3 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Or Publish to Library</span>
-              <div className="flex-grow border-t border-gray-200 dark:border-zinc-800" />
-            </div>
-
-            <div className={`space-y-4 text-xs font-semibold mb-6 ${!user ? "opacity-50 pointer-events-none select-none" : ""}`}>
-              <div>
-                <label className="block text-gray-500 uppercase mb-1">Meme Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Mitosis Explanation Meme"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Subject</label>
-                  <input
-                    type="text"
-                    placeholder="Search subject..."
-                    value={formSubjectSearch}
-                    onChange={(e) => setFormSubjectSearch(e.target.value)}
-                    className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
-                  />
-                  <select
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
-                  >
-                    {subjects
-                      .filter(s => s.toLowerCase().includes(formSubjectSearch.toLowerCase()))
-                      .map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                  </select>
-                  {subject === "Other" && (
-                    <input
-                      type="text"
-                      placeholder="Type custom subject..."
-                      value={customSubject}
-                      onChange={(e) => setCustomSubject(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2"
-                      required
-                    />
-                  )}
-                </div>
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Grade Level</label>
-                  <select
-                    value={ageGroup}
-                    onChange={(e) => setAgeGroup(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
-                  >
-                    {gradeGroups.map((g) => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Language</label>
-                  <input
-                    type="text"
-                    placeholder="Search language..."
-                    value={formLanguageSearch}
-                    onChange={(e) => setFormLanguageSearch(e.target.value)}
-                    className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
-                  />
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
-                  >
-                    {languages
-                      .filter(lang => lang.toLowerCase().includes(formLanguageSearch.toLowerCase()))
-                      .map(lang => (
-                        <option key={lang} value={lang}>{lang}</option>
-                      ))}
-                  </select>
-                  {language === "Other" && (
-                    <input
-                      type="text"
-                      placeholder="Type custom language..."
-                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2 text-xs"
-                      value={customLanguage}
-                      onChange={(e) => setCustomLanguage(e.target.value)}
-                      required
-                    />
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-gray-500 uppercase mb-1">Topic / Keywords (Separate with comma)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. mitosis, cells, science jokes"
-                    value={keywords}
-                    onChange={(e) => setKeywords(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded placeholder-gray-400"
-                  />
-                </div>
-              </div>
-
-            </div>
-
-            {/* Clearer Call-To-Action (CTA) Grid */}
-            {user ? (
-              <div className="flex flex-col gap-2 mt-6 border-t pt-4 border-gray-100 dark:border-zinc-800">
-                {/* CC licence & Educational Fair Use disclosure */}
-                <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 text-center space-y-1">
-                  <p className="text-[10px] text-gray-600 dark:text-gray-300 leading-relaxed">
-                    💡 <strong>Educational Fair Use:</strong> Memes created here are for non-commercial learning, teaching, and criticism (Indian Copyright Act Sec 52 & Fair Use).
-                  </p>
-                  <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-relaxed">
-                    Published under{" "}
-                    <a
-                      href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-500 hover:underline font-semibold"
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Grade Level</label>
+                    <select
+                      value={ageGroup}
+                      onChange={(e) => setAgeGroup(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
                     >
-                      CC BY-NC-SA 4.0
-                    </a>{" "}
-                    — others may share and remix non-commercially with attribution.
-                  </p>
+                      {gradeGroups.map((g) => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handlePublishSubmit(true)}
-                  disabled={loading}
-                  className="w-full bg-purple-650 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
-                >
-                  <span>🚀</span>
-                  <span>Publish to Library & Download</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowSaveModal(false)}
-                  className="w-full text-[10px] text-gray-400 hover:text-gray-500 font-bold py-1.5 text-center mt-1.5 transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 mt-6 border-t pt-4 border-gray-100 dark:border-zinc-800 text-center">
-                <p className="text-[11px] text-gray-500 mb-2">
-                  To publish your meme to the community library and earn points, please sign in.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSaveModal(false);
-                    navigate("/auth");
-                  }}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10"
-                >
-                  <span>🔑</span>
-                  <span>Sign In to Publish</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowSaveModal(false)}
-                  className="w-full text-[10px] text-gray-400 hover:text-gray-500 font-bold py-1.5 text-center mt-1.5 transition"
-                >
-                  Cancel
-                </button>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Language</label>
+                    <input
+                      type="text"
+                      placeholder="Search language..."
+                      value={formLanguageSearch}
+                      onChange={(e) => setFormLanguageSearch(e.target.value)}
+                      className="w-full px-2 py-1 mb-1 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded text-[10px]"
+                    />
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded"
+                    >
+                      {languages
+                        .filter(lang => lang.toLowerCase().includes(formLanguageSearch.toLowerCase()))
+                        .map(lang => (
+                          <option key={lang} value={lang}>{lang}</option>
+                        ))}
+                    </select>
+                    {language === "Other" && (
+                      <input
+                        type="text"
+                        placeholder="Type custom language..."
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded mt-2 text-xs"
+                        value={customLanguage}
+                        onChange={(e) => setCustomLanguage(e.target.value)}
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-500 uppercase mb-1">Topic / Keywords (Separate with comma)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. mitosis, cells, science jokes"
+                      value={keywords}
+                      onChange={(e) => setKeywords(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded placeholder-gray-400"
+                    />
+                  </div>
+                </div>
               </div>
             )}
+
+            {user && publishToLibrary && (
+              <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 text-center space-y-1 mb-5">
+                <p className="text-[10px] text-gray-600 dark:text-gray-300 leading-relaxed">
+                  💡 <strong>Educational Fair Use:</strong> Memes created here are for non-commercial learning, teaching, and criticism (Indian Copyright Act Sec 52 & Fair Use).
+                </p>
+                <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-relaxed">
+                  Published under{" "}
+                  <a
+                    href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-500 hover:underline font-semibold"
+                  >
+                    CC BY-NC-SA 4.0
+                  </a>{" "}
+                  — others may share and remix non-commercially with attribution.
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 border-t pt-4 border-gray-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => {
+                  const doPublish = !!user && publishToLibrary;
+                  if (!downloadLocally && !doPublish) {
+                    setAlertMessage("Select at least one option: Download or Publish.");
+                    return;
+                  }
+                  if (activeTab === "video" && !videoUrl && !videoFile) {
+                    setAlertMessage("Please select or upload a video before exporting.");
+                    return;
+                  }
+                  if (doPublish && !title.trim()) {
+                    setAlertMessage("Creations published to the library require a Meme Title.");
+                    return;
+                  }
+                  handlePublishSubmit(downloadLocally, doPublish);
+                }}
+                disabled={loading || (!downloadLocally && !(user && publishToLibrary))}
+                className="w-full bg-purple-650 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span>✅</span>
+                <span>Export</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="w-full text-[10px] text-gray-400 hover:text-gray-500 font-bold py-1.5 text-center mt-1.5 transition"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -4285,34 +4070,18 @@ const Lab = () => {
 
               {/* ── Meme Story toggle section ── */}
               <div className="border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 bg-amber-50/50 dark:bg-amber-950/10 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeStory}
+                    onChange={(e) => setIncludeStory(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-amber-500 cursor-pointer"
+                  />
+                  <span>
                     <p className="font-bold text-gray-700 dark:text-gray-200 text-xs">📖 Add the background story of this meme?</p>
                     <p className="text-[10px] text-gray-500 mt-0.5">Help other users understand the meme's origin and context.</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="includeStory"
-                      checked={!includeStory}
-                      onChange={() => setIncludeStory(false)}
-                      className="accent-amber-500"
-                    />
-                    <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">No, skip</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="includeStory"
-                      checked={includeStory}
-                      onChange={() => setIncludeStory(true)}
-                      className="accent-amber-500"
-                    />
-                    <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Yes, add story</span>
-                  </label>
-                </div>
+                  </span>
+                </label>
 
                 {includeStory && (
                   <div className="space-y-3 pt-2 border-t border-amber-200 dark:border-amber-800/40">
