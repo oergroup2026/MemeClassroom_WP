@@ -2401,9 +2401,18 @@ const Admin = () => {
 
           {/* All Newspaper Items — management list */}
           <div className={`p-6 ${containerClass}`}>
-            <h3 className="text-sm font-extrabold mb-4 border-b pb-2 uppercase text-gray-400">
-              All Newspaper Items ({newspaperItems.length})
-            </h3>
+            <div className="flex items-center justify-between border-b pb-2 mb-4">
+              <h3 className="text-sm font-extrabold uppercase text-gray-400">
+                All Newspaper Items ({newspaperItems.length})
+              </h3>
+              <button
+                onClick={handleClearAllNewspaperItems}
+                disabled={isClearingNewspaper}
+                className={btnClass("red") + " border border-red-650 bg-red-900/10 hover:bg-red-900/20 text-red-500"}
+              >
+                {isClearingNewspaper ? "Clearing..." : "🗑️ Clear All Newspaper Items"}
+              </button>
+            </div>
             {newspaperItems.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
@@ -4041,13 +4050,6 @@ const Admin = () => {
                   className={btnClass("red") + " border border-red-650 bg-red-900/10 hover:bg-red-900/20 text-red-500"}
                 >
                   {isWiping ? "Wiping..." : "🗑️ Wipe Placeholder Data"}
-                </button>
-                <button
-                  onClick={handleClearAllNewspaperItems}
-                  disabled={isClearingNewspaper}
-                  className={btnClass("red") + " border border-red-650 bg-red-900/10 hover:bg-red-900/20 text-red-500"}
-                >
-                  {isClearingNewspaper ? "Clearing..." : "🗞️ Clear All Newspaper Items"}
                 </button>
               </div>
             </div>
