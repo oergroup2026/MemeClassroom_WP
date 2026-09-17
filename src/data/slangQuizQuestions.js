@@ -3,6 +3,8 @@
 // is empty or unreachable, and merged with it otherwise. Kept intentionally
 // large (45+) so a random 10-question sample rarely repeats between attempts.
 // Admins can grow this pool further from the Admin panel without a deploy.
+// Each explanation includes a short usage example, shown to the learner
+// right after they answer (see SlangQuiz.jsx's "explanation" phase).
 
 export const SLANG_QUIZ_QUESTIONS = [
   {
@@ -11,7 +13,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "If someone says a plan is \"bet\", what do they mean?",
     options: ["They disagree with it", "They agree / it's confirmed", "They're placing a bet", "They're unsure"],
     correct_index: 1,
-    explanation: "\"Bet\" is a casual way of saying \"okay\" or \"agreed\".",
+    explanation: "\"Bet\" is a casual way of saying \"okay\" or \"agreed\". Example: \"Let's meet at 5?\" \"Bet.\"",
   },
   {
     id: "sq2",
@@ -19,7 +21,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"no cap\" mean?",
     options: ["No hat allowed", "I'm telling the truth", "I'm joking", "I'm out of ideas"],
     correct_index: 1,
-    explanation: "\"Cap\" means a lie, so \"no cap\" means you're being honest.",
+    explanation: "\"Cap\" means a lie, so \"no cap\" means you're being honest. Example: \"That test was so easy, no cap.\"",
   },
   {
     id: "sq3",
@@ -27,7 +29,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "Someone describes a movie as \"mid\". What are they saying?",
     options: ["It's amazing", "It's terrible", "It's just average", "It's halfway through"],
     correct_index: 2,
-    explanation: "\"Mid\" means average or unimpressive — not great, not awful.",
+    explanation: "\"Mid\" means average or unimpressive — not great, not awful. Example: \"The movie was kind of mid, honestly.\"",
   },
   {
     id: "sq4",
@@ -35,7 +37,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What is a \"glow up\"?",
     options: ["A power outage", "A big positive change in appearance or confidence", "Getting sunburned", "A type of lightbulb"],
     correct_index: 1,
-    explanation: "A \"glow up\" refers to a noticeable positive transformation over time.",
+    explanation: "A \"glow up\" refers to a noticeable positive transformation over time. Example: \"She had such a glow up since freshman year.\"",
   },
   {
     id: "sq5",
@@ -43,7 +45,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "If a friend says they got \"the ick\", what happened?",
     options: ["They got sick", "They suddenly lost attraction to someone", "They won a prize", "They got a good grade"],
     correct_index: 1,
-    explanation: "\"The ick\" describes a sudden feeling of being turned off by someone, often over something small.",
+    explanation: "\"The ick\" describes a sudden feeling of being turned off by someone, often over something small. Example: \"He tripped in front of everyone and I got the ick.\"",
   },
   {
     id: "sq6",
@@ -51,7 +53,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does it mean to \"slay\"?",
     options: ["To do something extremely well", "To fail badly", "To fall asleep", "To argue with someone"],
     correct_index: 0,
-    explanation: "\"Slay\" is an enthusiastic way of saying someone did great or looked amazing.",
+    explanation: "\"Slay\" is an enthusiastic way of saying someone did great or looked amazing. Example: \"You slayed that presentation!\"",
   },
   {
     id: "sq7",
@@ -59,7 +61,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "\"I'm lowkey nervous about the test.\" What does \"lowkey\" mean here?",
     options: ["Extremely / obviously", "Somewhat / secretly", "Not at all", "Loudly"],
     correct_index: 1,
-    explanation: "\"Lowkey\" softens a statement, meaning \"somewhat\" or \"kind of secretly\".",
+    explanation: "\"Lowkey\" softens a statement, meaning \"somewhat\" or \"kind of secretly\". Its opposite, \"highkey\", means very much or obviously — e.g. \"I'm highkey excited for this.\"",
   },
   {
     id: "sq8",
@@ -67,7 +69,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"delulu\" mean?",
     options: ["Delicious", "Delusional / unrealistically optimistic", "Delayed", "Deleted"],
     correct_index: 1,
-    explanation: "\"Delulu\" is a playful shortening of \"delusional\", used for wishful or unrealistic thinking.",
+    explanation: "\"Delulu\" is a playful shortening of \"delusional\", used for wishful or unrealistic thinking. Example: \"I think I'll finish this project in one night... I know, delulu.\"",
   },
   {
     id: "sq9",
@@ -75,7 +77,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "Calling someone a \"sigma\" usually means they are seen as...",
     options: ["Very talkative", "Independent and not seeking approval from others", "Bad at sports", "Always late"],
     correct_index: 1,
-    explanation: "\"Sigma\" describes someone who acts independently and doesn't care about fitting in — often used jokingly.",
+    explanation: "\"Sigma\" describes someone who acts independently and doesn't care about fitting in — often used jokingly. Example: \"He didn't even react, he just walked off — such a sigma moment.\"",
   },
   {
     id: "sq10",
@@ -83,7 +85,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What is a \"rizzler\"?",
     options: ["A type of snack", "Someone with a lot of charisma/\"rizz\"", "A video game character", "A dance move"],
     correct_index: 1,
-    explanation: "A \"rizzler\" is someone known for having a lot of \"rizz\" — charisma, especially when flirting.",
+    explanation: "A \"rizzler\" is someone known for having a lot of \"rizz\" — charisma, especially when flirting. Example: \"Watch out, the rizzler is coming through.\"",
   },
   {
     id: "sq11",
@@ -91,7 +93,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "The word \"skibidi\" is best described as...",
     options: ["A real English word meaning 'fast'", "A nonsense word from an animated web series, used loosely for fun", "A type of homework", "An abbreviation for a school subject"],
     correct_index: 1,
-    explanation: "\"Skibidi\" originated from a viral animated series and is now used by younger kids with no fixed meaning, mostly for fun.",
+    explanation: "\"Skibidi\" originated from a viral animated series and is now used by younger kids with no fixed meaning, mostly for fun. Example: \"That's so skibidi\" — used playfully, without a literal meaning.",
   },
   {
     id: "sq12",
@@ -99,7 +101,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "If a friend takes some of your fries without asking, you might jokingly call it...",
     options: ["A glow up", "The fanum tax", "Getting ratioed", "Brainrot"],
     correct_index: 1,
-    explanation: "\"Fanum tax\" jokingly refers to a friend taking a bit of your food — named after an internet streamer known for doing this.",
+    explanation: "\"Fanum tax\" jokingly refers to a friend taking a bit of your food — named after an internet streamer known for doing this. Example: \"I only have half my fries left — fanum tax.\"",
   },
   {
     id: "sq13",
@@ -107,7 +109,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "Gaining \"aura points\" after doing something impressive means...",
     options: ["You lost energy", "Your 'cool factor' went up", "You got in trouble", "You finished your homework"],
     correct_index: 1,
-    explanation: "\"Aura\" is a playful way to describe someone's cool factor — impressive moments earn points, embarrassing ones lose them.",
+    explanation: "\"Aura\" is a playful way to describe someone's cool factor — impressive moments earn points, embarrassing ones lose them. Example: \"He tripped on stage, minus 100 aura points.\"",
   },
   {
     id: "sq14",
@@ -115,7 +117,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "Calling someone an \"NPC\" online is usually implying that they...",
     options: ["Are a professional gamer", "Act robotic or unoriginal, just following the crowd", "Are very creative", "Never go online"],
     correct_index: 1,
-    explanation: "\"NPC\" (Non-Playable Character) is borrowed from video games to describe someone acting scripted or unoriginal.",
+    explanation: "\"NPC\" (Non-Playable Character) is borrowed from video games to describe someone acting scripted or unoriginal. Example: \"He just repeats whatever the group says, total NPC behavior.\"",
   },
   {
     id: "sq15",
@@ -123,7 +125,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"brainrot\" refer to?",
     options: ["A medical condition", "Low-quality, repetitive internet content (or too much exposure to it)", "A type of computer virus", "Studying too much"],
     correct_index: 1,
-    explanation: "\"Brainrot\" jokingly describes low-effort viral content, or someone who has consumed too much of it.",
+    explanation: "\"Brainrot\" jokingly describes low-effort viral content, or someone who has consumed too much of it. Example: \"I've watched so many of these clips, it's actual brainrot.\"",
   },
   {
     id: "sq16",
@@ -131,7 +133,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "\"Spill the tea\" is a request to...",
     options: ["Make a cup of tea", "Share gossip or interesting news", "Clean up a mess", "Apologize"],
     correct_index: 1,
-    explanation: "\"Tea\" is slang for gossip/news, so \"spill the tea\" means share the details.",
+    explanation: "\"Tea\" is slang for gossip/news, so \"spill the tea\" means share the details. Example: \"Okay, spill the tea — what happened at lunch?\"",
   },
   {
     id: "sq17",
@@ -139,7 +141,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "A \"simp\" is someone who...",
     options: ["Ignores everyone", "Shows excessive one-sided admiration toward someone", "Is very competitive", "Never uses social media"],
     correct_index: 1,
-    explanation: "\"Simp\" describes someone giving excessive, one-sided attention or admiration to another person.",
+    explanation: "\"Simp\" describes someone giving excessive, one-sided attention or admiration to another person. Example: \"He replies to all her posts instantly — total simp.\"",
   },
   {
     id: "sq18",
@@ -147,7 +149,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "On social media, getting \"ratioed\" means...",
     options: ["Your post got more likes than anyone else's", "A reply got more engagement than your original post, implying disagreement", "You were blocked", "Your account was verified"],
     correct_index: 1,
-    explanation: "A \"ratio\" happens when a reply outperforms the original post, usually signaling the original was unpopular.",
+    explanation: "A \"ratio\" happens when a reply outperforms the original post, usually signaling the original was unpopular. Example: \"That comment got ratioed hard.\"",
   },
   {
     id: "sq19",
@@ -155,7 +157,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "Calling a comment \"based\" is usually meant as...",
     options: ["An insult about being boring", "A compliment for confidently stating an opinion", "A comment about location", "A math term"],
     correct_index: 1,
-    explanation: "\"Based\" praises someone for confidently sharing an opinion regardless of what others think.",
+    explanation: "\"Based\" praises someone for confidently sharing an opinion regardless of what others think. Example: \"He said exactly what everyone was thinking — that's so based.\"",
   },
   {
     id: "sq20",
@@ -163,7 +165,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "\"Ghosting\" someone means...",
     options: ["Scaring them with a prank", "Suddenly cutting off all communication without explanation", "Complimenting them a lot", "Following their social media"],
     correct_index: 1,
-    explanation: "\"Ghosting\" is abruptly ending communication with someone, without any explanation.",
+    explanation: "\"Ghosting\" is abruptly ending communication with someone, without any explanation. Example: \"We were texting all week and then he just started ghosting me.\"",
   },
   {
     id: "sq21",
@@ -171,7 +173,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "A \"vibe check\" is best described as...",
     options: ["A medical exam", "A playful way of assessing someone's or something's mood/energy", "A school test", "Checking your phone battery"],
     correct_index: 1,
-    explanation: "\"Vibe check\" is an informal, playful assessment of mood or atmosphere.",
+    explanation: "\"Vibe check\" is an informal, playful assessment of mood or atmosphere. Example: \"New classroom decorations? Vibe check: passed.\"",
   },
   {
     id: "sq22",
@@ -179,7 +181,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"IDK\" stand for?",
     options: ["I Dislike Kittens", "I Don't Know", "It's Definitely Known", "I Deleted Kindly"],
     correct_index: 1,
-    explanation: "\"IDK\" is short for \"I Don't Know\".",
+    explanation: "\"IDK\" is short for \"I Don't Know\". Example: \"IDK what time the movie starts, let me check.\"",
   },
   {
     id: "sq23",
@@ -187,7 +189,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"GG\" mean at the end of a game?",
     options: ["Get Going", "Good Game", "Game Glitch", "Go Get it"],
     correct_index: 1,
-    explanation: "\"GG\" stands for \"Good Game\" — a sportsmanlike way to end a match.",
+    explanation: "\"GG\" stands for \"Good Game\" — a sportsmanlike way to end a match, win or lose. Example: \"GG everyone, that was a close match!\"",
   },
   {
     id: "sq24",
@@ -195,7 +197,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"BRB\" mean?",
     options: ["Be Right Back", "Bring Real Bread", "Better Read Books", "Big Random Break"],
     correct_index: 0,
-    explanation: "\"BRB\" means \"Be Right Back\" — stepping away briefly.",
+    explanation: "\"BRB\" means \"Be Right Back\" — stepping away briefly. Example: \"BRB, getting a snack.\"",
   },
   {
     id: "sq25",
@@ -203,7 +205,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"FR\" (or \"FR FR\") mean?",
     options: ["First Response", "For Real", "Friend Request", "Full Refund"],
     correct_index: 1,
-    explanation: "\"FR\" means \"For Real\" — used to show sincerity or strong agreement.",
+    explanation: "\"FR\" means \"For Real\" — used to show sincerity or strong agreement. Example: \"That concert was amazing, fr fr.\"",
   },
   {
     id: "sq26",
@@ -211,7 +213,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"TBH\" mean?",
     options: ["To Be Honest", "Try Being Happy", "Totally By Hand", "Text Back Here"],
     correct_index: 0,
-    explanation: "\"TBH\" stands for \"To Be Honest\".",
+    explanation: "\"TBH\" stands for \"To Be Honest\". Example: \"TBH, I didn't expect that ending.\"",
   },
   {
     id: "sq27",
@@ -219,7 +221,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"OMG\" express?",
     options: ["Boredom", "Surprise or excitement", "Anger", "Confusion"],
     correct_index: 1,
-    explanation: "\"OMG\" (Oh My God/Gosh) expresses surprise or excitement.",
+    explanation: "\"OMG\" (Oh My God/Gosh) expresses surprise or excitement. Example: \"OMG I can't believe it's finally here!\"",
   },
   {
     id: "sq28",
@@ -227,7 +229,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"LOL\" mean?",
     options: ["Lots Of Love", "Laughing Out Loud", "Look Over Left", "Live On Location"],
     correct_index: 1,
-    explanation: "\"LOL\" stands for \"Laughing Out Loud\", used to show something's funny.",
+    explanation: "\"LOL\" stands for \"Laughing Out Loud\", used to show something's funny. Example: \"LOL that's hilarious.\"",
   },
   {
     id: "sq29",
@@ -235,7 +237,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"IMO\" mean?",
     options: ["In My Opinion", "It's Mostly Over", "I Missed Out", "Is Meeting Open"],
     correct_index: 0,
-    explanation: "\"IMO\" stands for \"In My Opinion\", used to introduce a personal view.",
+    explanation: "\"IMO\" stands for \"In My Opinion\", used to introduce a personal view. Example: \"IMO, the book was better than the movie.\"",
   },
   {
     id: "sq30",
@@ -243,7 +245,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"DM\" mean in the context of social media?",
     options: ["Direct Message", "Daily Motivation", "Double Meaning", "Data Manager"],
     correct_index: 0,
-    explanation: "\"DM\" refers to a \"Direct Message\" — a private message sent on a platform.",
+    explanation: "\"DM\" refers to a \"Direct Message\" — a private message sent on a platform. Example: \"I'll DM you the details later.\"",
   },
   {
     id: "sq31",
@@ -251,7 +253,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"ICYMI\" mean?",
     options: ["In Case You Missed It", "I Can't Yell Much Inside", "It's Cool You're Mine", "Is Class Yet Meeting Inside"],
     correct_index: 0,
-    explanation: "\"ICYMI\" means \"In Case You Missed It\" — often used before sharing older news again.",
+    explanation: "\"ICYMI\" means \"In Case You Missed It\" — often used before sharing older news again. Example: \"ICYMI, the deadline got moved to Friday.\"",
   },
   {
     id: "sq32",
@@ -259,7 +261,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"NGL\" mean?",
     options: ["Not Gonna Lie", "New Game Level", "Never Get Lost", "No Good Luck"],
     correct_index: 0,
-    explanation: "\"NGL\" means \"Not Gonna Lie\" — used before sharing a candid opinion.",
+    explanation: "\"NGL\" means \"Not Gonna Lie\" — used before sharing a candid opinion. Example: \"NGL, that quiz was harder than I expected.\"",
   },
   {
     id: "sq33",
@@ -267,7 +269,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"SMH\" mean?",
     options: ["So Much Happiness", "Shaking My Head", "See Me Here", "Save My Homework"],
     correct_index: 1,
-    explanation: "\"SMH\" means \"Shaking My Head\", usually expressing disappointment or disbelief.",
+    explanation: "\"SMH\" means \"Shaking My Head\", usually expressing disappointment or disbelief. Example: \"He forgot his own birthday, smh.\"",
   },
   {
     id: "sq34",
@@ -275,7 +277,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "\"Highkey\" is basically the opposite of...",
     options: ["Lowkey", "Bet", "Cap", "Mid"],
     correct_index: 0,
-    explanation: "While \"lowkey\" softens a statement, \"highkey\" emphasizes it strongly.",
+    explanation: "While \"lowkey\" softens a statement, \"highkey\" emphasizes it strongly. Example: \"I'm highkey obsessed with this song.\"",
   },
   {
     id: "sq35",
@@ -283,7 +285,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "If someone is \"capping\", they are...",
     options: ["Wearing a hat", "Lying or exaggerating", "Being very honest", "Finishing a task"],
     correct_index: 1,
-    explanation: "\"Capping\" means lying or exaggerating the truth.",
+    explanation: "\"Capping\" means lying or exaggerating the truth. Example: \"Stop capping, you didn't really run a marathon.\"",
   },
   {
     id: "sq36",
@@ -291,7 +293,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "Being called \"chronically online\" suggests someone...",
     options: ["Has great time management", "Spends an unusually large amount of time on the internet", "Never uses social media", "Works in tech support"],
     correct_index: 1,
-    explanation: "\"Chronically online\" describes someone deeply immersed in internet culture and trends.",
+    explanation: "\"Chronically online\" describes someone deeply immersed in internet culture and trends. Example: \"Only someone chronically online would get that reference.\"",
   },
   {
     id: "sq37",
@@ -299,7 +301,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does it mean when content \"goes viral\"?",
     options: ["It gets deleted quickly", "It spreads rapidly and widely online", "It's reported for spam", "It's only shown to one person"],
     correct_index: 1,
-    explanation: "\"Going viral\" means content spreads extremely fast to a large audience, like a virus.",
+    explanation: "\"Going viral\" means content spreads extremely fast to a large audience, like a virus. Example: \"That dance clip went viral overnight.\"",
   },
   {
     id: "sq38",
@@ -307,7 +309,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What is a \"stan\" (as in, being a \"stan\" of someone)?",
     options: ["A casual fan", "An extremely dedicated, enthusiastic fan", "A critic", "Someone who dislikes a celebrity"],
     correct_index: 1,
-    explanation: "A \"stan\" is an intensely devoted fan, originally from an Eminem song of the same name.",
+    explanation: "A \"stan\" is an intensely devoted fan, originally from an Eminem song of the same name. Example: \"She's a huge stan of that singer — she's seen every concert.\"",
   },
   {
     id: "sq39",
@@ -315,7 +317,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "If something is described as having \"negative aura\", it likely means...",
     options: ["It was very embarrassing or uncool", "It was extremely impressive", "It's technically broken", "It's a compliment"],
     correct_index: 0,
-    explanation: "Losing \"aura points\" happens after an embarrassing or uncool moment.",
+    explanation: "Losing \"aura points\" happens after an embarrassing or uncool moment. Example: \"He slipped in the hallway in front of everyone — big negative aura.\"",
   },
   {
     id: "sq40",
@@ -323,7 +325,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "Which of these is an example of Gen Alpha internet slang mostly used just for fun, without a fixed literal meaning?",
     options: ["Skibidi", "IMO", "DM", "GG"],
     correct_index: 0,
-    explanation: "\"Skibidi\" is a nonsense word used loosely for emphasis or fun, unlike the other options which have clear meanings.",
+    explanation: "\"Skibidi\" is a nonsense word used loosely for emphasis or fun, unlike the other options which have clear meanings. Example: \"That's so skibidi\" doesn't literally translate to anything.",
   },
   {
     id: "sq41",
@@ -331,7 +333,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "\"That party was a whole vibe.\" What does \"vibe\" mean here?",
     options: ["A type of dance", "The overall mood or atmosphere", "A musical instrument", "A type of food"],
     correct_index: 1,
-    explanation: "\"Vibe\" refers to the general mood, feeling, or atmosphere of a place or moment.",
+    explanation: "\"Vibe\" refers to the general mood, feeling, or atmosphere of a place or moment. Example: \"This café has such a cozy vibe.\"",
   },
   {
     id: "sq42",
@@ -339,7 +341,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "Being told you're \"the main character\" (in a positive sense) usually means...",
     options: ["You're acting selfishly", "You're living confidently and in the spotlight of your own story", "You're ignoring everyone", "You're the villain"],
     correct_index: 1,
-    explanation: "\"Main character energy\" describes living boldly and confidently, as if you're the star of your own story.",
+    explanation: "\"Main character energy\" describes living boldly and confidently, as if you're the star of your own story. Example: \"Walking into class with headphones on and full confidence? Main character energy.\"",
   },
   {
     id: "sq43",
@@ -347,7 +349,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"iykyk\" mean?",
     options: ["I Know You Know", "If You Know You Know", "Is Your Kettle Yellow", "It's Your Kind Year"],
     correct_index: 1,
-    explanation: "\"IYKYK\" (\"if you know you know\") refers to inside jokes or references only some people will understand.",
+    explanation: "\"IYKYK\" (\"if you know you know\") refers to inside jokes or references only some people will understand. Example: posting a blurry photo captioned \"iykyk\" for friends who were there.",
   },
   {
     id: "sq44",
@@ -355,7 +357,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does it mean to \"touch grass\"?",
     options: ["To play a sport", "To take a break from screens and go outside", "To water a lawn", "To lose a game"],
     correct_index: 1,
-    explanation: "\"Touch grass\" is a joking way to tell someone to step away from their screen and get some fresh air.",
+    explanation: "\"Touch grass\" is a joking way to tell someone to step away from their screen and get some fresh air. Example: \"You've been gaming for 6 hours, go touch grass.\"",
   },
   {
     id: "sq45",
@@ -363,7 +365,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "If a friend says \"periodt\" after a statement, they mean...",
     options: ["That's the end of the discussion, no argument", "They're asking a question", "They're unsure", "They want to change the subject"],
     correct_index: 0,
-    explanation: "\"Periodt\" emphasizes finality — the statement is final, no further discussion needed.",
+    explanation: "\"Periodt\" emphasizes finality — the statement is final, no further discussion needed. Example: \"We're getting pizza tonight, periodt.\"",
   },
   {
     id: "sq46",
@@ -371,7 +373,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"OOTD\" stand for?",
     options: ["Out Of The Door", "Outfit Of The Day", "Only One Time Deal", "Over Or Total Down"],
     correct_index: 1,
-    explanation: "\"OOTD\" means \"Outfit Of The Day\", commonly used when sharing a photo of your outfit.",
+    explanation: "\"OOTD\" means \"Outfit Of The Day\", commonly used when sharing a photo of your outfit. Example: posting a mirror selfie captioned \"OOTD ✨\".",
   },
   {
     id: "sq47",
@@ -379,7 +381,7 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "What does \"TIL\" stand for?",
     options: ["Today I Learned", "Try It Later", "This Is Life", "Talk In Loud"],
     correct_index: 0,
-    explanation: "\"TIL\" means \"Today I Learned\", used before sharing a new fact.",
+    explanation: "\"TIL\" means \"Today I Learned\", used before sharing a new fact. Example: \"TIL octopuses have three hearts.\"",
   },
   {
     id: "sq48",
@@ -387,6 +389,6 @@ export const SLANG_QUIZ_QUESTIONS = [
     question_text: "Describing something as \"chef's kiss\" means it is...",
     options: ["Slightly bad", "Absolutely perfect", "Undercooked", "Too spicy"],
     correct_index: 1,
-    explanation: "\"Chef's kiss\" is a gesture and phrase used to say something is done perfectly.",
+    explanation: "\"Chef's kiss\" is a gesture and phrase used to say something is done perfectly. Example: \"That ending twist? Chef's kiss.\"",
   },
 ];

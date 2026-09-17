@@ -97,7 +97,8 @@ const CATEGORY_NAMES = {
   knowledge_contributor: { label: "Resource Sharer", statKey: "resources_contributed_count" },
   community_voice: { label: "Discussion Starter", statKey: "staffroom_posts_count" },
   peer_evaluator: { label: "Peer Reviewer", statKey: "ratings_provided_count" },
-  star_educator: { label: "Community Favorite", statKey: "total_likes_received" }
+  star_educator: { label: "Community Favorite", statKey: "total_likes_received" },
+  slang_master: { label: "Slang Master", statKey: "slang_quizzes_completed" }
 };
 
 const containerClass = "bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm";
@@ -137,7 +138,8 @@ const Profile = () => {
     resources_contributed_count: 0,
     staffroom_posts_count: 0,
     ratings_provided_count: 0,
-    total_likes_received: 0
+    total_likes_received: 0,
+    slang_quizzes_completed: 0
   });
 
   const [earnedBadges, setEarnedBadges] = useState([]);
@@ -246,7 +248,8 @@ const Profile = () => {
           resources_contributed_count: Math.max(0, raw.resources_contributed_count || 0),
           staffroom_posts_count: Math.max(0, raw.staffroom_posts_count || 0),
           ratings_provided_count: Math.max(0, raw.ratings_provided_count || 0),
-          total_likes_received: Math.max(0, raw.total_likes_received || 0)
+          total_likes_received: Math.max(0, raw.total_likes_received || 0),
+          slang_quizzes_completed: Math.max(0, raw.slang_quizzes_completed || 0)
         };
         setStats(sanitized);
 
