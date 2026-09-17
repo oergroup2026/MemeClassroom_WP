@@ -86,6 +86,20 @@ const Admin = () => {
   const [sqExplanation, setSqExplanation] = useState("");
   const [sqIsActive, setSqIsActive] = useState(true);
 
+  // Slang Decoder — manage/edit already-uploaded words & their meme images
+  const [slangAdminSubTab, setSlangAdminSubTab] = useState("quiz"); // "quiz" | "words"
+  const [stView, setStView] = useState("list"); // "list" | "form"
+  const [stEditId, setStEditId] = useState(null);
+  const [stSaving, setStSaving] = useState(false);
+  const [stTerm, setStTerm] = useState("");
+  const [stCategory, setStCategory] = useState("genz");
+  const [stDefinition, setStDefinition] = useState("");
+  const [stExampleUsage, setStExampleUsage] = useState("");
+  const [stLinks, setStLinks] = useState([{ title: "", url: "" }]);
+  const [stExistingMemeUrls, setStExistingMemeUrls] = useState([]);
+  const [stNewMemeFiles, setStNewMemeFiles] = useState([]);
+  const [stNewMemePreviews, setStNewMemePreviews] = useState([]);
+
   // ─── Hero Cards State ────────────────────────────────────────────────────────
   const [heroCardsList, setHeroCardsList] = useState([]);
   const [heroCardsLoading, setHeroCardsLoading] = useState(false);
@@ -1863,6 +1877,92 @@ const Admin = () => {
     setSqCorrectIdx(q.correct_index ?? 0); setSqExplanation(q.explanation || "");
     setSqIsActive(q.is_active !== false);
     setSqView("form");
+  };
+
+  // ─── Slang Decoder — edit an already-uploaded word & manage its memes ────
+  const stResetForm = () => {
+    setStEditId(null); setStTerm(""); setStCategory("genz");
+    setStDefinition(""); setStExampleUsage("");
+    setStLinks([{ title: "", url: "" }]);
+    setStExistingMemeUrls([]); setStNewMemeFiles([]); setStNewMemePreviews([]);
+  };
+
+  const handleStEditPrefill = (t) => {
+    setStEditId(t.id); setStTerm(t.term || ""); setStCategory(t.category || "genz");
+    setStDefinition(t.definition || ""); setStExampleUsage(t.example_usage || "");
+    setStLinks(Array.isArray(t.related_links) && t.related_links.length > 0 ? t.related_links : [{ title: "", url: "" }]);
+    setStExistingMemeUrls(Array.isArray(t.meme_image_urls) ? t.meme_image_urls : []);
+    setStNewMemeFiles([]); setStNewMemePreviews([]);
+    setStView("form");
+  };
+
+  const handleStAddNewMemeFiles = (fileList) => {
+    const files = Array.from(fileList || []).slice(0, 4);
+    setStNewMemeFiles(files);
+    setStNewMemePreviews(files.map(f => URL.createObjectURL(f)));
+  };
+
+  const handleStRemoveExistingMeme = (idx) => {
+    setStExistingMemeUrls(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleStSaveTerm = async () => {
+    if (!stTerm.trim() || !stDefinition.trim()) {
+      triggerAlert("Term and definition are required.", "error"); return;
+    }
+    setStSaving(true);
+    try {
+      const uploadedUrls = [];
+      for (let i = 0; i < stNewMemeFiles.length; i++) {
+        const memeRef = ref(storage, `slang_memes/admin_${stEditId || Date.now()}_${i}`);
+        const snap = await uploadBytes(memeRef, stNewMemeFiles[i]);
+        uploadedUrls.push(await getDownloadURL(snap.ref));
+      }
+      const relatedLinks = stLinks.map(l => ({ title: l.title.trim(), url: l.url.trim() })).filter(l => l.url);
+      const data = {
+        term: stTerm.trim(),
+        category: stCategory,
+        definition: stDefinition.trim(),
+        example_usage: stExampleUsage.trim(),
+        related_links: relatedLinks,
+        meme_image_urls: [...stExistingMemeUrls, ...uploadedUrls],
+        updated_at: serverTimestamp(),
+      };
+      if (stEditId) {
+        await updateDoc(doc(db, "slang_terms", stEditId), data);
+        triggerAlert("Word updated.");
+      } else {
+        await addDoc(collection(db, "slang_terms"), {
+          ...data,
+          status: "approved",
+          admin_approved: true,
+          contributor_id: user.uid,
+          contributor_name: "Admin",
+          likes_count: 0,
+          created_at: serverTimestamp(),
+        });
+        triggerAlert("Word added and published!");
+      }
+      stResetForm();
+      setStView("list");
+    } catch (e) { triggerAlert(e.message || "Save failed.", "error"); }
+    finally { setStSaving(false); }
+  };
+
+  const handleDeleteSlangTermAdmin = (termId, term) => {
+    openConfirm({
+      title: "Delete Slang Word?",
+      message: `Permanently delete "${term}"? This cannot be undone.`,
+      variant: "danger",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "slang_terms", termId));
+          triggerAlert("Slang word deleted.");
+        } catch (e) { triggerAlert(e.message || "Delete failed.", "error"); }
+      },
+    });
   };
 
   const handleSeedStarterTest = async () => {
@@ -4896,15 +4996,38 @@ const Admin = () => {
           <div className="space-y-5">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <h2 className="text-xl font-extrabold">🗣️ Slang Decoder Quiz</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{slangQuizQuestions.length} questions in the bank · quiz samples {Math.min(10, slangQuizQuestions.length || 10)} at random per attempt</p>
+                <h2 className="text-xl font-extrabold">🗣️ Slang Decoder</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {slangAdminSubTab === "quiz"
+                    ? `${slangQuizQuestions.length} questions in the bank · quiz samples ${Math.min(10, slangQuizQuestions.length || 10)} at random per attempt`
+                    : `${slangTerms.length} words in the dictionary · edit definitions, links & meme images`}
+                </p>
               </div>
-              {sqView === "list" && (
+              {slangAdminSubTab === "quiz" && sqView === "list" && (
                 <button onClick={() => { sqResetForm(); setSqView("form"); }} className={sqBtnPrimary}>+ Add Question</button>
+              )}
+              {slangAdminSubTab === "words" && stView === "list" && (
+                <button onClick={() => { stResetForm(); setStView("form"); }} className={sqBtnPrimary}>+ Add Word</button>
               )}
             </div>
 
-            {sqView === "list" && (
+            {/* Sub-tab toggle */}
+            <div className="flex gap-2 border-b border-gray-200 dark:border-zinc-800 pb-2">
+              <button
+                onClick={() => setSlangAdminSubTab("quiz")}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${slangAdminSubTab === "quiz" ? "bg-teal-600 text-white" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800"}`}
+              >
+                🧪 Quiz Questions
+              </button>
+              <button
+                onClick={() => setSlangAdminSubTab("words")}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${slangAdminSubTab === "words" ? "bg-teal-600 text-white" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800"}`}
+              >
+                📖 Manage Words
+              </button>
+            </div>
+
+            {slangAdminSubTab === "quiz" && sqView === "list" && (
               <div className={sqSectionClass}>
                 {slangQuizQuestions.length === 0 && (
                   <p className="text-sm text-gray-400 italic text-center py-6">
@@ -4935,7 +5058,7 @@ const Admin = () => {
               </div>
             )}
 
-            {sqView === "form" && (
+            {slangAdminSubTab === "quiz" && sqView === "form" && (
               <div className={sqSectionClass}>
                 <h3 className="font-extrabold text-sm">{sqEditId ? "Edit Question" : "Add Question"}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -4980,6 +5103,120 @@ const Admin = () => {
                     {sqSaving ? "Saving…" : sqEditId ? "Save Question" : "Add Question"}
                   </button>
                   <button onClick={() => { sqResetForm(); setSqView("list"); }} className={sqBtnGhost}>Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Manage Words sub-tab ── */}
+            {slangAdminSubTab === "words" && stView === "list" && (
+              <div className={sqSectionClass}>
+                {slangTerms.length === 0 && (
+                  <p className="text-sm text-gray-400 italic text-center py-6">No words yet — they'll appear here once contributed or seeded.</p>
+                )}
+                <div className="space-y-2">
+                  {slangTerms.map((t) => (
+                    <div key={t.id} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/50">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-extrabold text-sm text-gray-800 dark:text-zinc-100">{t.term}</span>
+                          <span className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full capitalize">{t.category}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${t.status === "approved" ? "bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400" : "bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400"}`}>
+                            {t.status === "approved" ? "Approved" : "Pending"}
+                          </span>
+                          {Array.isArray(t.meme_image_urls) && t.meme_image_urls.length > 0 && (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400">🖼️ {t.meme_image_urls.length}</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5 line-clamp-1">{t.definition}</p>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={() => handleStEditPrefill(t)} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition">✏️ Edit</button>
+                        <button onClick={() => handleDeleteSlangTermAdmin(t.id, t.term)} className={sqBtnDanger}>🗑️</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {slangAdminSubTab === "words" && stView === "form" && (
+              <div className={sqSectionClass}>
+                <h3 className="font-extrabold text-sm">{stEditId ? "Edit Word" : "Add Word"}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Term *</label>
+                    <input value={stTerm} onChange={e => setStTerm(e.target.value)} className={sqInputClass} placeholder="e.g. Rizz" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Category</label>
+                    <select value={stCategory} onChange={e => setStCategory(e.target.value)} className={sqInputClass}>
+                      <option value="genz">Gen Z</option>
+                      <option value="genalpha">Gen Alpha</option>
+                      <option value="internet">Internet Slang</option>
+                      <option value="abbreviation">Abbreviation</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Plain-Language Definition *</label>
+                    <textarea value={stDefinition} onChange={e => setStDefinition(e.target.value)} rows={3} className={sqInputClass} placeholder="Explain it simply…" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Example Usage</label>
+                    <input value={stExampleUsage} onChange={e => setStExampleUsage(e.target.value)} className={sqInputClass} placeholder='e.g. "That trick shot was so rizz."' />
+                  </div>
+
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="block text-xs font-bold text-gray-500">Related Links</label>
+                    {stLinks.map((link, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <input value={link.title} onChange={e => { const l = [...stLinks]; l[idx] = { ...l[idx], title: e.target.value }; setStLinks(l); }} className={sqInputClass} placeholder="Link title" />
+                        <input value={link.url} onChange={e => { const l = [...stLinks]; l[idx] = { ...l[idx], url: e.target.value }; setStLinks(l); }} className={sqInputClass} placeholder="https://..." />
+                        {stLinks.length > 1 && (
+                          <button type="button" onClick={() => setStLinks(stLinks.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500 transition flex-shrink-0">✕</button>
+                        )}
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setStLinks([...stLinks, { title: "", url: "" }])} className="text-[11px] font-bold text-teal-600 hover:text-teal-700 transition">+ Add another link</button>
+                  </div>
+
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="block text-xs font-bold text-gray-500">Meme Images</label>
+                    {stExistingMemeUrls.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {stExistingMemeUrls.map((url, idx) => (
+                          <div key={idx} className="relative">
+                            <img src={url} alt={`meme ${idx + 1}`} className="w-16 h-16 object-cover rounded-lg border border-gray-200 dark:border-zinc-700" />
+                            <button
+                              type="button"
+                              onClick={() => handleStRemoveExistingMeme(idx)}
+                              className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold shadow"
+                              title="Remove this image"
+                            >✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <label className="cursor-pointer flex items-center gap-3 bg-gray-100 dark:bg-zinc-800 hover:bg-teal-50 dark:hover:bg-teal-950/20 border border-gray-300 dark:border-zinc-700 rounded-xl px-4 py-3 transition">
+                      <span className="text-xs text-gray-500">
+                        {stNewMemeFiles.length > 0 ? `${stNewMemeFiles.length} new image(s) selected` : "Upload additional meme examples"}
+                      </span>
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={e => handleStAddNewMemeFiles(e.target.files)} />
+                    </label>
+                    {stNewMemePreviews.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {stNewMemePreviews.map((src, i) => (
+                          <img key={i} src={src} alt={`new meme ${i + 1}`} className="w-16 h-16 object-cover rounded-lg border border-gray-200 dark:border-zinc-700" />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={handleStSaveTerm} disabled={stSaving} className={sqBtnPrimary}>
+                    {stSaving ? "Saving…" : "Save Word"}
+                  </button>
+                  <button onClick={() => { stResetForm(); setStView("list"); }} className={sqBtnGhost}>Cancel</button>
                 </div>
               </div>
             )}

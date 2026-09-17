@@ -99,17 +99,16 @@ const SlangDecoderTabContent = ({ navigate }) => {
         <ContributeSlangModal onClose={() => setShowContributeModal(false)} />
       )}
 
-      {/* Featured Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white p-6 sm:p-8 shadow-lg shadow-purple-500/10">
-        <div className="relative z-10 max-w-2xl space-y-3">
-          <span className="inline-block bg-white/20 backdrop-blur-md text-purple-100 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
-            Gen Z · Gen Alpha · Internet Slang
-          </span>
+      {/* Featured Banner — styled as a "quiz ticket" (notched divider + badge
+          stub) so it reads as a distinct call-to-action, not a repeat of the
+          flashcard slideshow below it. */}
+      <div className="relative flex flex-col sm:flex-row overflow-hidden rounded-2xl bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white shadow-lg shadow-purple-500/10">
+        <div className="relative z-10 flex-1 p-6 sm:p-8 space-y-3">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Decode the Slang Your Students Are Using
           </h2>
-          <p className="text-sm text-purple-100/90 leading-relaxed">
-            Search any word for a plain-language definition, then put your knowledge to the test with a rotating quiz and earn the Slang Sensei badge.
+          <p className="text-sm text-purple-100/90 leading-relaxed max-w-lg">
+            Search any word for a plain-language definition, then put your knowledge to the test with a rotating quiz.
           </p>
           <div className="pt-2 flex flex-wrap gap-3">
             <button
@@ -120,8 +119,15 @@ const SlangDecoderTabContent = ({ navigate }) => {
             </button>
           </div>
         </div>
-        <div className="absolute right-4 bottom-4 text-7xl sm:text-8xl opacity-15 pointer-events-none select-none">
-          🗣️
+
+        {/* Ticket-stub badge preview panel */}
+        <div className="relative hidden sm:flex flex-col items-center justify-center gap-1.5 w-40 flex-shrink-0 border-l-2 border-dashed border-white/25 bg-black/10 px-4 py-6">
+          <span className="text-4xl">🏅</span>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-center leading-snug text-purple-100">
+            Earn the
+            <br />Slang Sensei
+            <br />badge
+          </p>
         </div>
       </div>
 

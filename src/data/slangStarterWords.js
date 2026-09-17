@@ -114,7 +114,7 @@ export const SLANG_STARTER_WORDS = [
     definition: "\"Cap\" means a lie; \"no cap\" means telling the truth or being serious.",
     example_usage: "\"That test was so easy, no cap.\"",
     related_links: [],
-    meme_image_urls: [],
+    meme_image_urls: ["https://imgflip.com/s/meme/Drake-Hotline-Bling.jpg"],
   },
   {
     id: "local-glowup",
