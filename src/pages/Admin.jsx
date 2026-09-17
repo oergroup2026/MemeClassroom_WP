@@ -29,6 +29,7 @@ import AdminAnalyticsDashboard from "../components/AdminAnalyticsDashboard";
 import { DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
 import { basicQuestions } from "../data/memeTestQuestionsBasic";
+import { SLANG_STARTER_WORDS } from "../data/slangStarterWords";
 
 const Admin = () => {
   const { user, profile } = useAuth();
@@ -1963,6 +1964,47 @@ const Admin = () => {
         } catch (e) { triggerAlert(e.message || "Delete failed.", "error"); }
       },
     });
+  };
+
+  // The bundled starter dictionary (~30 words shown by default in the
+  // Slang Decoder) ships as local JS data, not Firestore docs — so until
+  // seeded, there's nothing here for admins to edit or attach memes to.
+  // This imports them into `slang_terms` (same idea as Seed Starter Test
+  // for literacy questions), after which they behave like any other word.
+  const handleSeedStarterWords = async () => {
+    setStSaving(true);
+    try {
+      const existingTermsLower = new Set(slangTerms.map(t => (t.term || "").trim().toLowerCase()));
+      const toSeed = SLANG_STARTER_WORDS.filter(w => !existingTermsLower.has(w.term.trim().toLowerCase()));
+
+      if (toSeed.length === 0) {
+        triggerAlert("Starter words are already seeded — edit them from the list below.");
+        return;
+      }
+
+      await Promise.all(toSeed.map(w => addDoc(collection(db, "slang_terms"), {
+        term: w.term,
+        category: w.category,
+        definition: w.definition,
+        example_usage: w.example_usage || "",
+        related_links: w.related_links || [],
+        meme_image_urls: w.meme_image_urls || [],
+        status: "approved",
+        admin_approved: true,
+        contributor_id: user?.uid || "admin",
+        contributor_name: "Admin (Starter Set)",
+        is_starter_seed: true,
+        likes_count: 0,
+        created_at: serverTimestamp(),
+      })));
+
+      triggerAlert(`🌱 Imported ${toSeed.length} starter word(s) — you can now edit them or add meme images below.`);
+    } catch (e) {
+      console.error(e);
+      triggerAlert(e.message || "Failed to seed starter words.", "error");
+    } finally {
+      setStSaving(false);
+    }
   };
 
   const handleSeedStarterTest = async () => {
@@ -5007,7 +5049,17 @@ const Admin = () => {
                 <button onClick={() => { sqResetForm(); setSqView("form"); }} className={sqBtnPrimary}>+ Add Question</button>
               )}
               {slangAdminSubTab === "words" && stView === "list" && (
-                <button onClick={() => { stResetForm(); setStView("form"); }} className={sqBtnPrimary}>+ Add Word</button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSeedStarterWords}
+                    disabled={stSaving}
+                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold px-3.5 py-2 rounded-lg text-xs transition flex items-center gap-1.5 shadow-sm"
+                    title="Import the bundled starter words into the database so they can be edited and given meme images"
+                  >
+                    🌱 {stSaving ? "Importing..." : "Seed Starter Words"}
+                  </button>
+                  <button onClick={() => { stResetForm(); setStView("form"); }} className={sqBtnPrimary}>+ Add Word</button>
+                </div>
               )}
             </div>
 
@@ -5111,7 +5163,20 @@ const Admin = () => {
             {slangAdminSubTab === "words" && stView === "list" && (
               <div className={sqSectionClass}>
                 {slangTerms.length === 0 && (
-                  <p className="text-sm text-gray-400 italic text-center py-6">No words yet — they'll appear here once contributed or seeded.</p>
+                  <div className="p-6 rounded-2xl border-2 border-dashed border-teal-200 dark:border-teal-800/50 bg-teal-50/50 dark:bg-teal-950/20 text-center space-y-3">
+                    <span className="text-4xl block">🌱</span>
+                    <h3 className="font-extrabold text-base text-gray-800 dark:text-zinc-100">The public dictionary is running on bundled starter words</h3>
+                    <p className="text-xs text-gray-500 dark:text-zinc-400 max-w-md mx-auto">
+                      Those ~30 words (Rizz, Sigma, NPC, etc.) aren't in the database yet, so there's nothing here to edit or attach memes to. Import them once, then customize freely.
+                    </p>
+                    <button
+                      onClick={handleSeedStarterWords}
+                      disabled={stSaving}
+                      className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md transition inline-flex items-center gap-2"
+                    >
+                      🌱 {stSaving ? "Importing..." : "Import Starter Words to Database"}
+                    </button>
+                  </div>
                 )}
                 <div className="space-y-2">
                   {slangTerms.map((t) => (

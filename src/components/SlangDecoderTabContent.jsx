@@ -99,40 +99,37 @@ const SlangDecoderTabContent = ({ navigate }) => {
         <ContributeSlangModal onClose={() => setShowContributeModal(false)} />
       )}
 
-      {/* Featured Banner — styled as a "quiz ticket" (notched divider + badge
-          stub) so it reads as a distinct call-to-action, not a repeat of the
-          flashcard slideshow below it. */}
-      <div className="relative flex flex-col sm:flex-row overflow-hidden rounded-2xl bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white shadow-lg shadow-purple-500/10">
-        <div className="relative z-10 flex-1 p-6 sm:p-8 space-y-3">
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Decode the Slang Your Students Are Using
-          </h2>
-          <p className="text-sm text-purple-100/90 leading-relaxed max-w-lg">
-            Search any word for a plain-language definition, then put your knowledge to the test with a rotating quiz.
-          </p>
-          <div className="pt-2 flex flex-wrap gap-3">
+      {/* Quiz prompt (left) + live word slideshow (right) — a two-column
+          layout on larger screens so the two calls-to-action sit side by
+          side instead of stacked, sharing the app's white-card / ruby-accent
+          look rather than a one-off gradient banner. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+        <div className="relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200/80 dark:border-zinc-800 shadow-sm p-6 sm:p-7 space-y-4">
+          <div className="space-y-3">
+            <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">
+              Decode the Slang Your Students Are Using
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">
+              Search any word for a plain-language definition, then put your knowledge to the test with a rotating quiz.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             <button
               onClick={() => navigate("/slang-quiz")}
-              className="bg-white text-purple-700 font-extrabold px-5 py-2.5 rounded-xl text-xs hover:bg-purple-50 transition shadow-md flex items-center gap-2"
+              className="bg-[#E0115F] hover:bg-[#b00742] text-white font-extrabold px-5 py-2.5 rounded-xl text-xs transition shadow-md flex items-center gap-2"
             >
               🧪 Take the Slang Quiz
             </button>
+            <span className="inline-flex items-center gap-1.5 bg-[#fff1f5] dark:bg-[#3d0116] text-[#b00742] dark:text-[#fa99b7] text-[10px] font-extrabold uppercase tracking-wider px-3 py-1.5 rounded-full">
+              🏆 Earn the Slang Master badge
+            </span>
           </div>
         </div>
 
-        {/* Ticket-stub badge preview panel */}
-        <div className="relative hidden sm:flex flex-col items-center justify-center gap-1.5 w-40 flex-shrink-0 border-l-2 border-dashed border-white/25 bg-black/10 px-4 py-6">
-          <span className="text-4xl">🏆</span>
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-center leading-snug text-purple-100">
-            Earn the
-            <br />Slang Master
-            <br />badge
-          </p>
-        </div>
+        {/* Live, auto-updating slideshow */}
+        <SlangSlideshow onLearnMore={handleLearnMore} />
       </div>
-
-      {/* Live, auto-updating slideshow */}
-      <SlangSlideshow onLearnMore={handleLearnMore} />
 
       {/* Search + filter + contribute row */}
       <div ref={gridRef} className="flex flex-wrap items-center gap-2.5 scroll-mt-24">
