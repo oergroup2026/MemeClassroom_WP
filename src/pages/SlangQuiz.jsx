@@ -334,18 +334,28 @@ const SlangQuiz = () => {
             <p className="text-xs text-gray-400">Sign in next time to save your result and work toward the {BADGE_NAME} badge.</p>
           )}
 
+          {/* Prompt to keep going — the pool is large enough that another
+              round is genuinely a fresh set of questions, not a repeat. */}
+          <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 space-y-1">
+            <p className="font-extrabold text-purple-800 dark:text-purple-300 text-sm">🔥 Keep the streak going!</p>
+            <p className="text-xs text-purple-600 dark:text-purple-400">
+              There are {pool.length}+ words in the bank — round two will hit you with a fresh mix.
+            </p>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
               onClick={startQuiz}
-              className="flex-1 py-3 rounded-xl font-bold text-sm border-2 border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 hover:border-purple-300 transition"
+              autoFocus
+              className="flex-1 py-3.5 rounded-xl font-bold text-sm text-center bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md transition hover:-translate-y-0.5"
             >
-              🔁 Try Another 10
+              🔁 Take Another Round
             </button>
             <Link
               to="/resources?tab=slang"
-              className="flex-1 py-3 rounded-xl font-bold text-sm text-center bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md transition hover:-translate-y-0.5"
+              className="flex-1 py-3.5 rounded-xl font-bold text-sm text-center border-2 border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 hover:border-purple-300 transition"
             >
-              Back to Slang Decoder →
+              Back to Slang Decoder
             </Link>
           </div>
         </div>
