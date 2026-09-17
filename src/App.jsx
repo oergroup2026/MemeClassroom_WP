@@ -27,6 +27,7 @@ const Auth = lazy(() => import('./pages/Auth'));
 const About = lazy(() => import('./pages/About'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const MemeLiteracyTest = lazy(() => import('./pages/MemeLiteracyTest'));
+const SlangQuiz = lazy(() => import('./pages/SlangQuiz'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const IsBanned = lazy(() => import('./pages/IsBanned'));
@@ -108,6 +109,7 @@ function App() {
             <Route path="/staffroom" element={<Staffroom />} />
             <Route path="/meme-literacy-test" element={<MemeLiteracyTest />} />
             <Route path="/meme-literacy-test/:testId" element={<MemeLiteracyTest />} />
+            <Route path="/slang-quiz" element={<SlangQuiz />} />
             
             <Route path="/banned" element={<IsBanned />} />
 
