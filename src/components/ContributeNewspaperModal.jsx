@@ -11,7 +11,8 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { collection, doc, runTransaction, increment, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, storage, functions } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { X } from "lucide-react";
 import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
@@ -44,6 +45,36 @@ export default function ContributeNewspaperModal({ onClose, onSuccess }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fetchingThumbnail, setFetchingThumbnail] = useState(false);
+  const [thumbnailNotice, setThumbnailNotice] = useState("");
+
+  const handleFetchThumbnail = async () => {
+    setThumbnailNotice("");
+    if (!form.sourceUrl.trim()) { setThumbnailNotice("Paste a source link first."); return; }
+    try {
+      new URL(form.sourceUrl.trim());
+    } catch {
+      setThumbnailNotice("That source link doesn't look valid.");
+      return;
+    }
+
+    setFetchingThumbnail(true);
+    try {
+      const fetchArticleThumbnail = httpsCallable(functions, "fetchArticleThumbnail");
+      const { data } = await fetchArticleThumbnail({ url: form.sourceUrl.trim() });
+      if (data?.imageUrl) {
+        setForm((f) => ({ ...f, imageUrl: data.imageUrl, imageFile: null, imagePreview: data.imageUrl }));
+        setThumbnailNotice("");
+      } else {
+        setThumbnailNotice("No image found — upload one instead.");
+      }
+    } catch (err) {
+      console.error("fetchArticleThumbnail failed", err);
+      setThumbnailNotice("Couldn't fetch a thumbnail — upload one instead.");
+    } finally {
+      setFetchingThumbnail(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -156,14 +187,25 @@ export default function ContributeNewspaperModal({ onClose, onSuccess }) {
 
           <div>
             <label className={labelClass}>Source Link *</label>
-            <input
-              type="url"
-              value={form.sourceUrl}
-              onChange={(e) => setForm((f) => ({ ...f, sourceUrl: e.target.value }))}
-              placeholder="https://..."
-              className={inputBase}
-              required
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="url"
+                value={form.sourceUrl}
+                onChange={(e) => setForm((f) => ({ ...f, sourceUrl: e.target.value }))}
+                placeholder="https://..."
+                className={inputBase}
+                required
+              />
+              <button
+                type="button"
+                onClick={handleFetchThumbnail}
+                disabled={fetchingThumbnail}
+                className="flex-shrink-0 text-[10px] font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-zinc-800 hover:bg-rose-50 dark:hover:bg-rose-950/20 border border-gray-300 dark:border-zinc-700 px-2.5 py-2 rounded-xl transition whitespace-nowrap disabled:opacity-50"
+              >
+                {fetchingThumbnail ? "Fetching…" : "🔎 Fetch thumbnail"}
+              </button>
+            </div>
+            {thumbnailNotice && <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">{thumbnailNotice}</p>}
           </div>
 
           <div>

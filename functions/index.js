@@ -32,6 +32,7 @@
 
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const Parser = require("rss-parser");
 const { TRUSTED_NEWS_DOMAINS, DEFAULT_NEWSPAPER_SOURCES } = require("./newspaperConfig");
@@ -65,6 +66,61 @@ function extractThumbnail(entry) {
   const html = entry["content:encoded"] || entry.content || entry.summary || entry.contentSnippet || "";
   const match = /<img[^>]+src=["']([^"'>]+)["']/i.exec(html);
   return match ? match[1] : "";
+}
+
+/**
+ * Best-effort Open Graph / Twitter Card thumbnail scrape for an article
+ * URL, used when the RSS entry itself didn't carry an image. Fetches the
+ * page HTML directly (bounded by a short timeout) and regex-extracts
+ * <meta property="og:image" content="..."> first, then
+ * <meta name="twitter:image" content="...">. Returns "" on any failure —
+ * never throws, so callers can treat it like extractThumbnail().
+ */
+async function fetchOgImage(url) {
+  if (!url) return "";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "MemeClassroomNewspaperBot/1.0 (+https://memeclassroom-98d2b.web.app)" },
+    });
+    if (!res.ok) return "";
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("text/html")) return "";
+
+    // Only read the first chunk of the response — og/twitter meta tags live
+    // in <head>, so there's no need to download the entire page body.
+    const reader = res.body?.getReader();
+    let html = "";
+    if (reader) {
+      const decoder = new TextDecoder();
+      while (html.length < 100000) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        html += decoder.decode(value, { stream: true });
+      }
+      reader.cancel().catch(() => {});
+    } else {
+      html = await res.text();
+    }
+
+    const metaTag = (property) => {
+      const re = new RegExp(
+        `<meta[^>]+(?:property|name)=["']${property}["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${property}["']`,
+        "i"
+      );
+      const m = re.exec(html);
+      return m ? (m[1] || m[2] || "") : "";
+    };
+
+    return metaTag("og:image") || metaTag("twitter:image") || "";
+  } catch (e) {
+    console.error(`fetchOgImage failed for ${url}`, e.message);
+    return "";
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -374,6 +430,11 @@ exports.fetchNewspaperItems = onSchedule(
           const isTrusted = TRUSTED_NEWS_DOMAINS.includes(domain);
           const rawSummary = entry.contentSnippet || entry.content || "";
 
+          let imageUrl = extractThumbnail(entry);
+          if (!imageUrl) {
+            imageUrl = await fetchOgImage(link);
+          }
+
           await db.collection("newspaper_items").add({
             title: (entry.title || "Untitled").slice(0, 200),
             source_url: link,
@@ -381,7 +442,7 @@ exports.fetchNewspaperItems = onSchedule(
             summary_text: rawSummary.replace(/\s+/g, " ").trim().slice(0, 400),
             classroom_talking_point: "",
             category,
-            image_url: extractThumbnail(entry),
+            image_url: imageUrl,
             keywords: [],
             source_trust: isTrusted ? "trusted" : "unverified",
             admin_approved: isTrusted,
@@ -406,3 +467,20 @@ exports.fetchNewspaperItems = onSchedule(
     }
   }
 );
+
+// Callable from the Contribute/Admin newspaper forms so a user pasting a
+// source link can auto-suggest a thumbnail instead of always uploading one
+// manually. Reuses the same og:image scrape the auto-fetch function falls
+// back to.
+exports.fetchArticleThumbnail = onCall(async (request) => {
+  const url = (request.data?.url || "").trim();
+  if (!url) throw new HttpsError("invalid-argument", "A url is required.");
+  try {
+    new URL(url);
+  } catch {
+    throw new HttpsError("invalid-argument", "That doesn't look like a valid URL.");
+  }
+
+  const imageUrl = await fetchOgImage(url);
+  return { imageUrl };
+});

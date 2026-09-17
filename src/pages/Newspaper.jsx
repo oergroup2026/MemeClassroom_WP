@@ -411,7 +411,11 @@ export default function Newspaper() {
               </div>
             ) : item.image_url ? (
               <img src={item.image_url} alt={item.title} className="w-full max-h-64 object-cover" />
-            ) : null}
+            ) : (
+              <div className={`w-full h-40 flex items-center justify-center bg-gradient-to-br ${style.ph}`}>
+                <NewspaperIcon className="w-10 h-10" strokeWidth={1.25} />
+              </div>
+            )}
 
             <div className="px-5 py-4 space-y-3">
               <h2 className="font-extrabold text-lg text-gray-900 dark:text-white leading-snug">{item.title}</h2>
@@ -499,10 +503,11 @@ export default function Newspaper() {
           <h2 className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
             <TrendingUp className="w-3.5 h-3.5" /> This Week's Highlights
           </h2>
-          <div className="relative rounded-2xl overflow-hidden shadow-sm" style={{ height: 240 }}>
+          <div className="relative rounded-2xl overflow-hidden shadow-sm h-56 sm:h-72 md:h-80">
             {weeklyHighlights.map((item, i) => {
               const cat = categoryMeta(item.category);
               const style = CATEGORY_STYLES[cat.color] || CATEGORY_STYLES.gray;
+              const socialPlatform = getSocialPlatform(item.source_url);
               const openSlide = () => {
                 setDetailItem(item);
                 updateDoc(doc(db, "newspaper_items", item.id), { view_count: increment(1) }).catch(() => {});
@@ -513,8 +518,26 @@ export default function Newspaper() {
                   onClick={openSlide}
                   className={`absolute inset-0 cursor-pointer bg-gradient-to-br ${style.ph} transition-opacity duration-700 ${i === slideIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"}`}
                 >
-                  {item.image_url && (
-                    <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                  {item.image_url ? (
+                    <>
+                      {/* Blurred, scaled-up backdrop so the real image can be shown in full (object-contain)
+                          without leaving bare letterbox bars on the sides. */}
+                      <img
+                        src={item.image_url}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-60"
+                      />
+                      <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-contain" />
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {socialPlatform ? (
+                        <span className="text-sm font-bold opacity-60 capitalize">{socialPlatform} post</span>
+                      ) : (
+                        <NewspaperIcon className="w-12 h-12 opacity-60" strokeWidth={1.25} />
+                      )}
+                    </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/30" />
                   <span className="absolute top-3 left-3 text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-white/95 dark:bg-zinc-900/95 text-gray-800 dark:text-gray-100 shadow-sm">

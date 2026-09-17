@@ -18,7 +18,8 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { db, storage, auth } from "../firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, storage, auth, functions } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star, BadgeCheck, ShieldAlert, Newspaper as NewspaperIcon, Plus } from "lucide-react";
 import { useUdl } from "../context/UdlContext";
@@ -60,6 +61,7 @@ const Admin = () => {
     title: "", sourceUrl: "", summaryText: "", category: NEWSPAPER_CATEGORIES[0].value,
     classroomTalkingPoint: "", imageUrl: "", imageFile: null, imagePreview: "",
   });
+  const [fetchingNewspaperThumbnail, setFetchingNewspaperThumbnail] = useState(false);
   const [expertApps, setExpertApps] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [sponsoredAds, setSponsoredAds] = useState([]);
@@ -191,6 +193,7 @@ const Admin = () => {
   const [loadingAction, setLoadingAction] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
+  const [isClearingNewspaper, setIsClearingNewspaper] = useState(false);
 
   // Content Manager Tab State
   const [contentManagerTab, setContentManagerTab] = useState("memes"); // "memes" | "resources" | "posts" | "templates"
@@ -511,6 +514,32 @@ const Admin = () => {
       triggerAlert(newStatus === "admin_hidden" ? "Newspaper item hidden." : "Newspaper item restored.");
     } catch (e) {
       triggerAlert(e.message || "Action failed.", "error");
+    }
+  };
+
+  const handleFetchNewspaperThumbnail = async () => {
+    if (!newspaperForm.sourceUrl.trim()) { triggerAlert("Paste a source link first.", "error"); return; }
+    try {
+      new URL(newspaperForm.sourceUrl.trim());
+    } catch {
+      triggerAlert("That source link doesn't look valid.", "error");
+      return;
+    }
+
+    setFetchingNewspaperThumbnail(true);
+    try {
+      const fetchArticleThumbnail = httpsCallable(functions, "fetchArticleThumbnail");
+      const { data } = await fetchArticleThumbnail({ url: newspaperForm.sourceUrl.trim() });
+      if (data?.imageUrl) {
+        setNewspaperForm((f) => ({ ...f, imageUrl: data.imageUrl, imageFile: null, imagePreview: data.imageUrl }));
+      } else {
+        triggerAlert("No image found — upload one instead.", "error");
+      }
+    } catch (e) {
+      console.error("fetchArticleThumbnail failed", e);
+      triggerAlert("Couldn't fetch a thumbnail — upload one instead.", "error");
+    } finally {
+      setFetchingNewspaperThumbnail(false);
     }
   };
 
@@ -1578,6 +1607,32 @@ const Admin = () => {
     }
   };
 
+  // CLEAR ALL NEWSPAPER ITEMS ACTION
+  const handleClearAllNewspaperItems = () => {
+    if (profile.role !== "admin") return;
+    openConfirm({
+      title: "Clear All Newspaper Items?",
+      message: "Permanently delete every item in the Newspaper feed (auto-fetched, admin-added, and user-contributed). This cannot be undone.",
+      variant: "danger",
+      confirmLabel: "Delete All",
+      onConfirm: async () => {
+        closeConfirm();
+        setIsClearingNewspaper(true);
+        try {
+          const snap = await getDocs(collection(db, "newspaper_items"));
+          for (const d of snap.docs) {
+            await deleteDoc(d.ref);
+          }
+          triggerAlert(`Cleared ${snap.docs.length} newspaper item(s).`);
+        } catch (e) {
+          triggerAlert(e.message || "Failed to clear newspaper items.", "error");
+        } finally {
+          setIsClearingNewspaper(false);
+        }
+      },
+    });
+  };
+
   // UDL Styling classes
   const containerClass = highContrastMode
     ? "bg-zinc-900 border border-zinc-800 text-white shadow-sm rounded-xl"
@@ -2001,13 +2056,23 @@ const Admin = () => {
                 placeholder="Title"
                 className={inputClass}
               />
-              <input
-                type="url"
-                value={newspaperForm.sourceUrl}
-                onChange={e => setNewspaperForm(f => ({ ...f, sourceUrl: e.target.value }))}
-                placeholder="Source link (https://...)"
-                className={inputClass}
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="url"
+                  value={newspaperForm.sourceUrl}
+                  onChange={e => setNewspaperForm(f => ({ ...f, sourceUrl: e.target.value }))}
+                  placeholder="Source link (https://...)"
+                  className={`${inputClass} flex-1`}
+                />
+                <button
+                  type="button"
+                  onClick={handleFetchNewspaperThumbnail}
+                  disabled={fetchingNewspaperThumbnail}
+                  className="flex-shrink-0 text-[10px] font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-zinc-800 hover:bg-purple-50 dark:hover:bg-purple-950/20 border border-gray-300 dark:border-zinc-700 px-2.5 py-2 rounded-xl transition whitespace-nowrap disabled:opacity-50"
+                >
+                  {fetchingNewspaperThumbnail ? "Fetching…" : "🔎 Fetch thumbnail"}
+                </button>
+              </div>
               <select
                 value={newspaperForm.category}
                 onChange={e => setNewspaperForm(f => ({ ...f, category: e.target.value }))}
@@ -3662,6 +3727,13 @@ const Admin = () => {
                   className={btnClass("red") + " border border-red-650 bg-red-900/10 hover:bg-red-900/20 text-red-500"}
                 >
                   {isWiping ? "Wiping..." : "🗑️ Wipe Placeholder Data"}
+                </button>
+                <button
+                  onClick={handleClearAllNewspaperItems}
+                  disabled={isClearingNewspaper}
+                  className={btnClass("red") + " border border-red-650 bg-red-900/10 hover:bg-red-900/20 text-red-500"}
+                >
+                  {isClearingNewspaper ? "Clearing..." : "🗞️ Clear All Newspaper Items"}
                 </button>
               </div>
             </div>
