@@ -122,10 +122,10 @@ const SlangDecoderTabContent = ({ navigate }) => {
 
         {/* Ticket-stub badge preview panel */}
         <div className="relative hidden sm:flex flex-col items-center justify-center gap-1.5 w-40 flex-shrink-0 border-l-2 border-dashed border-white/25 bg-black/10 px-4 py-6">
-          <span className="text-4xl">🏅</span>
+          <span className="text-4xl">🏆</span>
           <p className="text-[10px] font-extrabold uppercase tracking-wider text-center leading-snug text-purple-100">
             Earn the
-            <br />Slang Sensei
+            <br />Slang Master
             <br />badge
           </p>
         </div>

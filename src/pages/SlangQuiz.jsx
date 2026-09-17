@@ -10,8 +10,8 @@ import { SLANG_QUIZ_QUESTIONS } from "../data/slangQuizQuestions";
 
 const QUESTIONS_PER_ATTEMPT = 10;
 const PASS_THRESHOLD = 70;
-const BADGE_NAME = "Slang Sensei";
-const BADGE_ICON = "🗣️";
+const BADGE_NAME = "Slang Master";
+const BADGE_ICON = "🏆";
 
 const shuffle = (arr) => {
   const a = [...arr];
