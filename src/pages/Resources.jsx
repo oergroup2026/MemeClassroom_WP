@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Clock, Search, BookOpen, Image, Heart, Eye, Share2, Bookmark, Flag as FlagIcon, MessageSquare, LayoutGrid, FileText, Layers, GraduationCap, ExternalLink, ClipboardCheck, Plus, ChevronLeft, Newspaper as NewspaperIcon } from "lucide-react";
+import { Clock, Search, BookOpen, Image, Heart, Eye, Share2, Bookmark, Flag as FlagIcon, MessageSquare, LayoutGrid, FileText, Layers, GraduationCap, ExternalLink, ClipboardCheck, Plus, ChevronLeft, Newspaper as NewspaperIcon, MessagesSquare } from "lucide-react";
 import {
   collection,
   query,
@@ -27,6 +27,7 @@ import RichTextArea from "../components/RichTextArea";
 import { SUBJECTS, GRADE_GROUPS, RESOURCE_TYPES, DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 import ActivityContributeModal from "../components/ActivityContributeModal";
 import ContributeResourceModal from "../components/ContributeResourceModal";
+import SlangDecoderTabContent from "../components/SlangDecoderTabContent";
 import FormattedText from "../components/FormattedText";
 import { trackCustomSubmission } from "../utils/taxonomyUtils";
 import { fuzzySearch } from "../utils/searchUtils";
@@ -1668,6 +1669,7 @@ const Resources = () => {
     { id: "stories", label: "Meme Stories", description: "Origins & classroom use of meme templates", Icon: BookOpen, accent: "text-amber-600 dark:text-amber-400", border: "hover:border-amber-400/40", bg: "group-hover:bg-amber-50 dark:group-hover:bg-amber-950/20" },
     { id: "additional", label: "Other Digital Tools", description: "Tools, links & open educational resources", Icon: ExternalLink, accent: "text-sky-600 dark:text-sky-400", border: "hover:border-sky-400/40", bg: "group-hover:bg-sky-50 dark:group-hover:bg-sky-950/20" },
     { id: "literacy_tests", label: "Literacy Tests", description: "Assess & develop your meme literacy skills", Icon: ClipboardCheck, accent: "text-violet-600 dark:text-violet-400", border: "hover:border-violet-400/40", bg: "group-hover:bg-violet-50 dark:group-hover:bg-violet-950/20" },
+    { id: "slang", label: "Slang Decoder", description: "Decode Gen Z, Gen Alpha & internet slang", Icon: MessagesSquare, accent: "text-teal-600 dark:text-teal-400", border: "hover:border-teal-400/40", bg: "group-hover:bg-teal-50 dark:group-hover:bg-teal-950/20" },
   ];
 
   // Count resources per category for tile badges
@@ -2133,6 +2135,8 @@ const Resources = () => {
           </div>
         ) : activeTab === "literacy_tests" ? (
           <LiteracyTestsTabContent navigate={navigate} />
+        ) : activeTab === "slang" ? (
+          <SlangDecoderTabContent navigate={navigate} />
         ) : activeTab !== null ? (
 
 

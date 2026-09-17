@@ -73,6 +73,19 @@ const Admin = () => {
   const [ltView, setLtView] = useState("list");
   const [ltSaving, setLtSaving] = useState(false);
 
+  // Slang Decoder — dictionary (for moderation queue) & quiz question bank
+  const [slangTerms, setSlangTerms] = useState([]);
+  const [slangQuizQuestions, setSlangQuizQuestions] = useState([]);
+  const [sqView, setSqView] = useState("list"); // "list" | "form"
+  const [sqEditId, setSqEditId] = useState(null); // null = new
+  const [sqSaving, setSqSaving] = useState(false);
+  const [sqText, setSqText] = useState("");
+  const [sqCategory, setSqCategory] = useState("genz");
+  const [sqOptions, setSqOptions] = useState(["", "", "", ""]);
+  const [sqCorrectIdx, setSqCorrectIdx] = useState(0);
+  const [sqExplanation, setSqExplanation] = useState("");
+  const [sqIsActive, setSqIsActive] = useState(true);
+
   // ─── Hero Cards State ────────────────────────────────────────────────────────
   const [heroCardsList, setHeroCardsList] = useState([]);
   const [heroCardsLoading, setHeroCardsLoading] = useState(false);
@@ -399,6 +412,19 @@ const Admin = () => {
       setUnbanRequests(list);
     });
 
+    // 18. Slang Decoder — dictionary entries (for the moderation queue)
+    const slangTermsUnsub = onSnapshot(collection(db, "slang_terms"), (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (a.created_at?.seconds || 0) - (b.created_at?.seconds || 0));
+      setSlangTerms(list);
+    });
+
+    // 19. Slang Decoder — quiz question bank
+    const slangQuestionsUnsub = onSnapshot(collection(db, "slang_quiz_questions"), (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setSlangQuizQuestions(list);
+    });
+
     // 17. Newspaper Items
     const newsUnsub = onSnapshot(collection(db, "newspaper_items"), (snap) => {
       const list = [];
@@ -425,6 +451,8 @@ const Admin = () => {
       ltTestsUnsub();
       ltQuestionsUnsub();
       unbanReqsUnsub();
+      slangTermsUnsub();
+      slangQuestionsUnsub();
     };
   }, []);
 
@@ -474,6 +502,34 @@ const Admin = () => {
     } catch (e) {
       triggerAlert(e.message || "Approval failed.", "error");
     }
+  };
+
+  // SLANG TERM APPROVAL ACTIONS
+  const handleApproveSlangTerm = async (termId) => {
+    try {
+      await updateDoc(doc(db, "slang_terms", termId), { status: "approved", admin_approved: true });
+      triggerAlert("Slang word approved — now visible in the Slang Decoder dictionary.");
+    } catch (e) {
+      triggerAlert(e.message || "Approval failed.", "error");
+    }
+  };
+
+  const handleRejectSlangTerm = (termId, term) => {
+    openConfirm({
+      title: "Reject Slang Word?",
+      message: `Permanently delete "${term}"? This cannot be undone.`,
+      variant: "danger",
+      confirmLabel: "Reject & Delete",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "slang_terms", termId));
+          triggerAlert("Slang word rejected and removed.");
+        } catch (e) {
+          triggerAlert(e.message || "Deletion failed.", "error");
+        }
+      },
+    });
   };
 
   // NEWSPAPER APPROVAL ACTIONS
@@ -1750,6 +1806,65 @@ const Admin = () => {
     setLtView("edit_question");
   };
 
+  // ─── Slang Decoder Quiz — Question Bank CRUD ──────────────────────────────
+  const sqResetForm = () => {
+    setSqEditId(null); setSqText(""); setSqCategory("genz");
+    setSqOptions(["", "", "", ""]); setSqCorrectIdx(0);
+    setSqExplanation(""); setSqIsActive(true);
+  };
+
+  const handleSqSaveQuestion = async () => {
+    if (!sqText.trim() || sqOptions.some(o => !o.trim())) {
+      triggerAlert("Question text and all 4 options are required.", "error"); return;
+    }
+    setSqSaving(true);
+    try {
+      const data = {
+        question_text: sqText.trim(),
+        category: sqCategory,
+        options: sqOptions.map(o => o.trim()),
+        correct_index: sqCorrectIdx,
+        explanation: sqExplanation.trim(),
+        is_active: sqIsActive,
+        updated_at: serverTimestamp(),
+      };
+      if (sqEditId) {
+        await updateDoc(doc(db, "slang_quiz_questions", sqEditId), data);
+        triggerAlert("Question updated.");
+      } else {
+        await addDoc(collection(db, "slang_quiz_questions"), { ...data, created_at: serverTimestamp() });
+        triggerAlert("Question added to the Slang Decoder quiz bank!");
+      }
+      sqResetForm();
+      setSqView("list");
+    } catch (e) { triggerAlert(e.message || "Save failed.", "error"); }
+    finally { setSqSaving(false); }
+  };
+
+  const handleSqDeleteQuestion = (qId) => {
+    openConfirm({
+      title: "Delete Question?",
+      message: "Permanently delete this question from the Slang Decoder quiz bank?",
+      variant: "danger", confirmLabel: "Delete",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "slang_quiz_questions", qId));
+          triggerAlert("Question deleted.");
+        } catch (e) { triggerAlert(e.message || "Delete failed.", "error"); }
+      }
+    });
+  };
+
+  const handleSqEditPrefill = (q) => {
+    setSqEditId(q.id); setSqText(q.question_text || "");
+    setSqCategory(q.category || "genz");
+    setSqOptions(q.options?.length === 4 ? q.options : ["", "", "", ""]);
+    setSqCorrectIdx(q.correct_index ?? 0); setSqExplanation(q.explanation || "");
+    setSqIsActive(q.is_active !== false);
+    setSqView("form");
+  };
+
   const handleSeedStarterTest = async () => {
     setLtSaving(true);
     try {
@@ -1886,6 +2001,7 @@ const Admin = () => {
           { id: "marketing", label: "Monetization & Ads", roles: ["admin"] },
           { id: "taxonomy", label: "System Taxonomy", roles: ["admin"] },
           { id: "literacy_tests", label: "🧪 Literacy Tests", roles: ["admin"] },
+          { id: "slang_quiz", label: "🗣️ Slang Quiz", roles: ["admin"] },
           { id: "hero_cards", label: "🏠 Hero Cards", roles: ["admin"] },
         ]
           .filter(tab => tab.roles.includes(profile?.role))
@@ -2207,6 +2323,62 @@ const Admin = () => {
               </div>
             );
           })()}
+
+          {/* Slang Decoder Words Pending Admin Approval */}
+          {(() => {
+            const pendingSlangTerms = slangTerms.filter(t => t.status === "pending");
+            return (
+              <div className={`p-6 ${containerClass}`}>
+                <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-450" /> Slang Words Pending Approval ({pendingSlangTerms.length})
+                </h3>
+                <p className="text-xs text-gray-400 mb-4">These contributed words are hidden from the public Slang Decoder dictionary until approved.</p>
+                {pendingSlangTerms.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr>
+                          <th className={headerCellClass}>Term</th>
+                          <th className={headerCellClass}>Category</th>
+                          <th className={headerCellClass}>Definition</th>
+                          <th className={headerCellClass}>Contributor</th>
+                          <th className={headerCellClass}>Date</th>
+                          <th className={headerCellClass}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingSlangTerms.map((t) => (
+                          <tr key={t.id}>
+                            <td className={rowCellClass}><span className="font-semibold">{t.term}</span></td>
+                            <td className={`${rowCellClass} capitalize`}>{t.category}</td>
+                            <td className={rowCellClass}>
+                              <span className="line-clamp-2">{t.definition}</span>
+                              {Array.isArray(t.meme_image_urls) && t.meme_image_urls.length > 0 && (
+                                <span className="block text-[9px] text-emerald-600 dark:text-emerald-400 mt-0.5">🖼️ {t.meme_image_urls.length} meme example(s)</span>
+                              )}
+                            </td>
+                            <td className={`${rowCellClass} font-mono text-[10px]`}>{t.contributor_name || t.contributor_id}</td>
+                            <td className={rowCellClass}>
+                              {t.created_at ? new Date(t.created_at.seconds * 1000).toLocaleDateString() : "—"}
+                            </td>
+                            <td className={rowCellClass}>
+                              <div className="flex space-x-2">
+                                <button onClick={() => handleApproveSlangTerm(t.id)} className={btnClass("green")}>✅ Approve</button>
+                                <button onClick={() => handleRejectSlangTerm(t.id, t.term)} className={btnClass("red")}>🗑️ Reject</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">All slang words have been reviewed. No pending approvals.</p>
+                )}
+              </div>
+            );
+          })()}
+
           <div className={`p-6 ${containerClass}`}>
             <h3 className="text-sm font-extrabold mb-4 border-b pb-2 uppercase text-gray-400">
               Flagged Items Feed ({flags.length})
@@ -4706,6 +4878,111 @@ const Admin = () => {
             {(ltView === "edit_test") && <TestForm editId={ltActiveTestId} />}
             {(ltView === "new_question") && <QuestionForm editId={null} />}
             {(ltView === "edit_question") && <QuestionForm editId={ltqEditId} />}
+          </div>
+        );
+      })()}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          TAB: SLANG DECODER QUIZ — grow the question bank without a deploy
+          ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "slang_quiz" && (() => {
+        const sqInputClass = `w-full px-3 py-2 rounded-lg border text-sm ${containerClass} border-gray-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-teal-500`;
+        const sqBtnPrimary = "bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition";
+        const sqBtnGhost = "border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 font-bold px-4 py-2 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-zinc-800 transition";
+        const sqBtnDanger = "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 font-bold px-3 py-1.5 rounded-lg text-xs hover:bg-red-100 dark:hover:bg-red-950/40 transition";
+        const sqSectionClass = `${containerClass} rounded-2xl p-5 space-y-4`;
+
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="text-xl font-extrabold">🗣️ Slang Decoder Quiz</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{slangQuizQuestions.length} questions in the bank · quiz samples {Math.min(10, slangQuizQuestions.length || 10)} at random per attempt</p>
+              </div>
+              {sqView === "list" && (
+                <button onClick={() => { sqResetForm(); setSqView("form"); }} className={sqBtnPrimary}>+ Add Question</button>
+              )}
+            </div>
+
+            {sqView === "list" && (
+              <div className={sqSectionClass}>
+                {slangQuizQuestions.length === 0 && (
+                  <p className="text-sm text-gray-400 italic text-center py-6">
+                    No admin-added questions yet — the quiz still works from a bundled 48-question starter bank. Add questions here to grow it further.
+                  </p>
+                )}
+                <div className="space-y-2">
+                  {slangQuizQuestions.map((q, idx) => (
+                    <div key={q.id} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/50">
+                      <span className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full bg-teal-100 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-xs font-extrabold">{idx + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 dark:text-zinc-100 leading-snug line-clamp-2">{q.question_text}</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <span className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full capitalize">{q.category}</span>
+                          <span className="text-[10px] text-gray-400">✓ {q.options?.[q.correct_index] || "?"}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${q.is_active !== false ? "bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400" : "bg-gray-200 dark:bg-zinc-800 text-gray-500"}`}>
+                            {q.is_active !== false ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={() => handleSqEditPrefill(q)} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition">✏️</button>
+                        <button onClick={() => handleSqDeleteQuestion(q.id)} className={sqBtnDanger}>🗑️</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {sqView === "form" && (
+              <div className={sqSectionClass}>
+                <h3 className="font-extrabold text-sm">{sqEditId ? "Edit Question" : "Add Question"}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Question Text *</label>
+                    <textarea value={sqText} onChange={e => setSqText(e.target.value)} rows={3} className={sqInputClass} placeholder="What does 'no cap' mean?" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Category</label>
+                    <select value={sqCategory} onChange={e => setSqCategory(e.target.value)} className={sqInputClass}>
+                      <option value="genz">Gen Z</option>
+                      <option value="genalpha">Gen Alpha</option>
+                      <option value="internet">Internet Slang</option>
+                      <option value="abbreviation">Abbreviation</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Active</label>
+                    <label className="flex items-center gap-2 h-[38px]">
+                      <input type="checkbox" checked={sqIsActive} onChange={e => setSqIsActive(e.target.checked)} className="w-4 h-4 accent-teal-600" />
+                      <span className="text-xs text-gray-500">Include in the live quiz pool</span>
+                    </label>
+                  </div>
+                  {[0, 1, 2, 3].map(i => (
+                    <div key={i}>
+                      <label className="block text-xs font-bold text-gray-500 mb-1 flex items-center gap-2">
+                        {["A", "B", "C", "D"][i]} Option *
+                        <input type="radio" name="sq-correct" checked={sqCorrectIdx === i} onChange={() => setSqCorrectIdx(i)} className="ml-auto accent-green-600" title="Mark as correct answer" />
+                        <span className="text-green-600 text-[10px]">Correct?</span>
+                      </label>
+                      <input value={sqOptions[i]} onChange={e => { const o = [...sqOptions]; o[i] = e.target.value; setSqOptions(o); }} className={sqInputClass} placeholder={`Option ${["A", "B", "C", "D"][i]}`} />
+                    </div>
+                  ))}
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Explanation (shown after answering)</label>
+                    <textarea value={sqExplanation} onChange={e => setSqExplanation(e.target.value)} rows={2} className={sqInputClass} placeholder="Explain what the term means and why the answer is correct…" />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={handleSqSaveQuestion} disabled={sqSaving} className={sqBtnPrimary}>
+                    {sqSaving ? "Saving…" : sqEditId ? "Save Question" : "Add Question"}
+                  </button>
+                  <button onClick={() => { sqResetForm(); setSqView("list"); }} className={sqBtnGhost}>Cancel</button>
+                </div>
+              </div>
+            )}
           </div>
         );
       })()}

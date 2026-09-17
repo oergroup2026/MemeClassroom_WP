@@ -268,6 +268,42 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // ─── Slang Terms (Slang Decoder dictionary) ───────────────────────────────
+    // Public read (anyone can browse approved entries; the client filters to
+    // status == "approved" for the public grid). Contributors can create their
+    // own pending entry but cannot self-approve; admins can approve/edit/delete any.
+    match /slang_terms/{termId} {
+      allow read: if true;
+      allow create: if isLoggedIn() && (
+        isAdmin() ||
+        (request.resource.data.contributor_id == request.auth.uid && request.resource.data.admin_approved == false)
+      );
+      allow update: if isLoggedIn() && (
+        isAdmin() ||
+        (
+          resource.data.contributor_id == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['admin_approved', 'status', 'contributor_id'])
+        )
+      );
+      allow delete: if isLoggedIn() && (resource.data.contributor_id == request.auth.uid || isAdmin());
+    }
+
+    // ─── Slang Quiz Questions ──────────────────────────────────────────────────
+    // Curated question bank for the Slang Decoder quiz; publicly readable
+    // (needed to run the quiz), only admins can write — same shape as literacy tests.
+    match /slang_quiz_questions/{questionId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── Slang Quiz Results ────────────────────────────────────────────────────
+    // Users can write only their own results; they can read their own results; admins see all.
+    match /slang_quiz_results/{resultId} {
+      allow read: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
     // ─── Notifications ────────────────────────────────────────────────────────
     // Users can read and mark-as-read their own notifications only.
     // Cloud Functions (service account) create/delete — not direct client writes.
