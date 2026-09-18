@@ -473,6 +473,9 @@ exports.fetchNewspaperItems = onSchedule(
 // manually. Reuses the same og:image scrape the auto-fetch function falls
 // back to.
 exports.fetchArticleThumbnail = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in to fetch a thumbnail.");
+  }
   const url = (request.data?.url || "").trim();
   if (!url) throw new HttpsError("invalid-argument", "A url is required.");
   try {

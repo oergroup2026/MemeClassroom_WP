@@ -140,6 +140,7 @@ export const AuthProvider = ({ children }) => {
     const userDocRef = doc(db, "users", uid);
     const statsDocRef = doc(db, "user_stats", uid);
     const verificationDocRef = doc(db, "users", uid, "private", "verification");
+    const contactDocRef = doc(db, "private_contacts", uid);
 
     // Sanitize role: support all requested registration roles
     const allowedRoles = ["student", "teacher", "research", "parent", "other"];
@@ -153,7 +154,6 @@ export const AuthProvider = ({ children }) => {
       transaction.set(userDocRef, {
         id: uid,
         name: profileData?.name || "Anonymous",
-        email: email,
         role: sanitizedRole,
         institution: profileData?.institution || "",
         place: profileData?.place || "",
@@ -171,6 +171,14 @@ export const AuthProvider = ({ children }) => {
           uploaded_at: serverTimestamp()
         });
       }
+
+      // Email is stored separately from /users/{uid} — that doc is readable by
+      // any signed-in user (needed so pages can show author names), so email
+      // lives in a doc only the owner/admin can read.
+      transaction.set(contactDocRef, {
+        email: email,
+        updated_at: serverTimestamp()
+      });
 
       transaction.set(statsDocRef, {
         memes_created_count: 0,
@@ -441,11 +449,14 @@ export const AuthProvider = ({ children }) => {
           await setDoc(userRef, {
             id: user.uid,
             name: profile?.name || user.displayName || "User",
-            email: user.email || "",
             role: profile?.role || "student",
             avatar_url: avatarUrl,
             created_at: serverTimestamp()
           }, { merge: true });
+          await setDoc(doc(db, "private_contacts", user.uid), {
+            email: user.email || "",
+            updated_at: serverTimestamp()
+          }, { merge: true }).catch(() => {});
         } catch (setErr) {
           console.warn("Firestore setDoc avatar merge warning:", setErr);
         }
