@@ -1,0 +1,38 @@
+name: Deploy Firestore Rules & Cloud Functions
+
+# Runs automatically whenever rules or functions code lands on main (i.e.
+# whenever a PR touching them is merged) — no manual `firebase deploy` needed.
+# Hosting (the built frontend) is deployed separately by
+# firebase-hosting-merge.yml; this workflow only touches Firestore rules and
+# Cloud Functions.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+      - 'functions/**'
+      - '.github/workflows/firebase-rules-functions-deploy.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Cloud Functions dependencies
+        run: npm ci
+        working-directory: functions
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.FIREBASE_DEPLOY_SERVICE_ACCOUNT }}'
+
+      - name: Deploy Firestore rules and Cloud Functions
+        run: npx -y firebase-tools deploy --only firestore:rules,functions --project memeclassroom-98d2b

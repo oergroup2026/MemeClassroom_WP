@@ -52,6 +52,9 @@ const Admin = () => {
 
   // Firestore collections state
   const [users, setUsers] = useState([]);
+  // Email addresses live in /private_contacts/{uid} (owner/admin only), keyed by
+  // uid here since /users no longer carries email — see firestore.rules.
+  const [contactEmailsById, setContactEmailsById] = useState({});
   const [pendingVerifications, setPendingVerifications] = useState([]);
   const [unbanRequests, setUnbanRequests] = useState([]);
   const [memes, setMemes] = useState([]);
@@ -270,6 +273,13 @@ const Admin = () => {
       setUsers(list);
     });
 
+    // 1a. Contact emails (admin-only collection, keyed by uid)
+    const cUnsub = onSnapshot(collection(db, "private_contacts"), (snap) => {
+      const map = {};
+      snap.forEach(d => { map[d.id] = d.data()?.email || ""; });
+      setContactEmailsById(map);
+    });
+
     // 1b. Users pending ID card verification
     const vUnsub = onSnapshot(
       query(collection(db, "users"), where("verification_status", "==", "id_submitted")),
@@ -452,6 +462,7 @@ const Admin = () => {
 
     return () => {
       uUnsub();
+      cUnsub();
       vUnsub();
       mUnsub();
       rUnsub();
@@ -900,12 +911,13 @@ const Admin = () => {
       const generatedId = `usr_${Math.random().toString(36).substring(2, 11)}`;
       const userRef = doc(db, "users", generatedId);
       const statsRef = doc(db, "user_stats", generatedId);
+      const contactRef = doc(db, "private_contacts", generatedId);
 
       await runTransaction(db, async (transaction) => {
+        transaction.set(contactRef, { email: newUserEmail, updated_at: serverTimestamp() });
         transaction.set(userRef, {
           id: generatedId,
           name: newUserName,
-          email: newUserEmail,
           role: newUserRole,
           institution: newUserInstitution,
           place: newUserPlace,
@@ -1742,7 +1754,7 @@ const Admin = () => {
   // Filter users list based on search/role
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.email?.toLowerCase().includes(userSearch.toLowerCase());
+      contactEmailsById[u.id]?.toLowerCase().includes(userSearch.toLowerCase());
     const matchesRole = userRoleFilter ? u.role === userRoleFilter : true;
     return matchesSearch && matchesRole;
   });
@@ -3396,7 +3408,7 @@ const Admin = () => {
                         <td className={rowCellClass}>
                           <span className="font-bold">{uv.name || "—"}</span>
                         </td>
-                        <td className={`${rowCellClass} font-mono text-[10px]`}>{uv.email || "—"}</td>
+                        <td className={`${rowCellClass} font-mono text-[10px]`}>{contactEmailsById[uv.id] || "—"}</td>
                         <td className={rowCellClass}>{uv.institution || "—"}</td>
                         <td className={rowCellClass}>{uv.institution_type || "—"}</td>
                         <td className={rowCellClass}>
@@ -3454,7 +3466,7 @@ const Admin = () => {
                             )}
                           </div>
                         </td>
-                        <td className={rowCellClass}>{uItem.email}</td>
+                        <td className={rowCellClass}>{contactEmailsById[uItem.id] || "—"}</td>
                         <td className={`${rowCellClass} capitalize font-bold`}>{uItem.role}</td>
                         <td className={rowCellClass}>{uItem.institution || "None"}</td>
                         <td className={rowCellClass}>
@@ -3471,7 +3483,7 @@ const Admin = () => {
                         <td className={rowCellClass}>
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => handleTriggerPasswordReset(uItem.email)}
+                              onClick={() => handleTriggerPasswordReset(contactEmailsById[uItem.id])}
                               disabled={isReadOnly}
                               className={btnClass("gray") + " disabled:opacity-50"}
                               title={isReadOnly ? "Actions limited to Admins" : "Trigger Reset Email"}

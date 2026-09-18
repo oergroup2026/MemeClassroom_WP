@@ -129,14 +129,14 @@ export const UserModalProvider = ({ children }) => {
 
                 {/* Privacy check email box */}
                 <div className="pt-4 border-t border-gray-150 dark:border-gray-700">
-                  {userData.is_contact_public ? (
+                  {userData.is_contact_public && userData.public_email ? (
                     <div>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Direct Contact</h4>
                       <a
-                        href={`mailto:${userData.email}`}
+                        href={`mailto:${userData.public_email}`}
                         className="text-xs text-indigo-650 hover:underline font-semibold"
                       >
-                        {userData.email}
+                        {userData.public_email}
                       </a>
                     </div>
                   ) : (

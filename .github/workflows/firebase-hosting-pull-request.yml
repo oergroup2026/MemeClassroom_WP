@@ -10,6 +10,17 @@ jobs:
   build_and_preview:
     if: '${{ github.event.pull_request.head.repo.full_name == github.repository }}'
     runs-on: ubuntu-latest
+    # The repo's default GITHUB_TOKEN is read-only, which made every run of
+    # this workflow fail with "Resource not accessible by integration" when
+    # action-hosting-deploy tries to create a "Deploy Preview" check run and
+    # comment on the PR — pre-existing on every PR going back well before
+    # this branch (see the workflow's run history). Grant just what that
+    # action needs.
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - run: npm ci && npm run build

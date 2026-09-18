@@ -13,6 +13,7 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
+    "@sentry/react": "^10.75.0",
     "firebase": "^12.15.0",
     "html2canvas": "^1.4.1",
     "lucide-react": "^1.25.0",

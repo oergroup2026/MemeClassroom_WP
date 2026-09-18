@@ -26,6 +26,14 @@ service cloud.firestore {
       );
     }
 
+    // Helper: check if the requesting user's own profile is banned.
+    // Used to block content creation server-side — the app only redirects
+    // banned users client-side (App.jsx), which a direct Firestore write bypasses.
+    function isBanned() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.banned == true;
+    }
+
     // ─── Users ──────────────────────────────────────────────────────────────
     // Profiles require authentication to read — prevents anonymous visitors from
     // scraping email addresses or other personal details.
@@ -51,6 +59,14 @@ service cloud.firestore {
       }
     }
 
+    // ─── Private Contacts (email addresses) ───────────────────────────────────
+    // Email lives here instead of on /users/{userId} so that the "any logged-in
+    // user can read /users" rule above doesn't hand every authenticated user
+    // everyone else's email address. Owner + admin only.
+    match /private_contacts/{userId} {
+      allow read, write: if isLoggedIn() && (isOwner(userId) || isAdmin());
+    }
+
     // ─── Memes ──────────────────────────────────────────────────────────────
     // Public memes are readable by all (including guests browsing the library).
     // Private/draft memes are only readable by their creator or admin.
@@ -61,7 +77,7 @@ service cloud.firestore {
           isAdmin()
         )
       );
-      allow create: if isLoggedIn() && request.resource.data.creator_id == request.auth.uid;
+      allow create: if isLoggedIn() && !isBanned() && request.resource.data.creator_id == request.auth.uid;
       allow update: if isLoggedIn() && (
         resource.data.creator_id == request.auth.uid ||
         isAdmin() ||
@@ -90,7 +106,7 @@ service cloud.firestore {
           isAdmin()
         )
       );
-      allow create: if isLoggedIn();
+      allow create: if isLoggedIn() && !isBanned();
       allow update, delete: if isAdmin();
     }
 
@@ -131,7 +147,7 @@ service cloud.firestore {
     // ─── Comments ───────────────────────────────────────────────────────────
     match /comments/{commentId} {
       allow read: if true;
-      allow create, update: if isLoggedIn() && (
+      allow create, update: if isLoggedIn() && !isBanned() && (
         !request.resource.data.keys().hasAll(['is_expert_comment']) ||
         request.resource.data.is_expert_comment != true ||
         isExpertOrAdmin()
@@ -143,7 +159,7 @@ service cloud.firestore {
     // ─── Staffroom Posts ─────────────────────────────────────────────────────
     match /staffroom_posts/{postId} {
       allow read: if isLoggedIn();
-      allow create: if isLoggedIn();
+      allow create: if isLoggedIn() && !isBanned();
       allow update: if isLoggedIn() && (
         resource.data.author_id == request.auth.uid ||
         isAdmin() ||
@@ -156,23 +172,40 @@ service cloud.firestore {
     // ─── Staffroom Replies ───────────────────────────────────────────────────
     match /staffroom_replies/{replyId} {
       allow read: if isLoggedIn();
-      allow create: if isLoggedIn();
+      allow create: if isLoggedIn() && !isBanned();
       allow update: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
       allow delete: if isLoggedIn() && resource.data.author_id == request.auth.uid;
       allow delete: if isAdmin() || isExpertOrAdmin();
     }
 
     // ─── Resources ───────────────────────────────────────────────────────────
+    // Author cannot self-approve on create, and cannot flip admin_approved to
+    // true on update — mirrors the /newspaper_items pattern below, closing the
+    // self-approval gap this file used to call out in a comment but not fix.
     match /resources/{resourceId} {
       allow read: if true;
-      allow create: if isLoggedIn();
-      allow update, delete: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn() && !isBanned() && (
+        isAdmin() ||
+        (request.resource.data.author_id == request.auth.uid && request.resource.data.admin_approved == false)
+      );
+      allow update: if isLoggedIn() && (
+        isAdmin() ||
+        (
+          resource.data.author_id == request.auth.uid &&
+          (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['admin_approved']) ||
+            request.resource.data.admin_approved == false
+          ) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'author_id'])
+        )
+      );
+      allow delete: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
     }
 
     // ─── External Links / Additional Tools ────────────────────────────────────
     match /external_links/{linkId} {
       allow read: if true;
-      allow create: if isLoggedIn();
+      allow create: if isLoggedIn() && !isBanned();
       allow update, delete: if isLoggedIn() && (resource.data.contributor_id == request.auth.uid || isAdmin());
     }
 
@@ -182,7 +215,7 @@ service cloud.firestore {
     // /resources today where an author can self-approve their own submission.
     match /newspaper_items/{itemId} {
       allow read: if true;
-      allow create: if isLoggedIn() && (
+      allow create: if isLoggedIn() && !isBanned() && (
         isAdmin() ||
         (request.resource.data.author_id == request.auth.uid && request.resource.data.admin_approved == false)
       );
@@ -274,7 +307,7 @@ service cloud.firestore {
     // own pending entry but cannot self-approve; admins can approve/edit/delete any.
     match /slang_terms/{termId} {
       allow read: if true;
-      allow create: if isLoggedIn() && (
+      allow create: if isLoggedIn() && !isBanned() && (
         isAdmin() ||
         (request.resource.data.contributor_id == request.auth.uid && request.resource.data.admin_approved == false)
       );

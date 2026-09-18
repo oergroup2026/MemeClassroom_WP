@@ -35,7 +35,14 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const Parser = require("rss-parser");
+const Sentry = require("@sentry/node");
 const { TRUSTED_NEWS_DOMAINS, DEFAULT_NEWSPAPER_SOURCES } = require("./newspaperConfig");
+
+// No-op until SENTRY_DSN is set (functions/.env, see functions/.env.example) —
+// captureException() below is safe to call either way.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN });
+}
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -117,6 +124,7 @@ async function fetchOgImage(url) {
     return metaTag("og:image") || metaTag("twitter:image") || "";
   } catch (e) {
     console.error(`fetchOgImage failed for ${url}`, e.message);
+    Sentry.captureException(e);
     return "";
   } finally {
     clearTimeout(timeout);
@@ -380,6 +388,7 @@ exports.fetchNewspaperItems = onSchedule(
       }
     } catch (e) {
       console.error("Failed to load configs/newspaper_sources, using defaults", e);
+      Sentry.captureException(e);
     }
 
     // Cap: at most one new auto-fetched item per category per 7-day window.
@@ -397,6 +406,7 @@ exports.fetchNewspaperItems = onSchedule(
       });
     } catch (e) {
       console.error("Failed to check this week's categories, proceeding without the cap", e.message);
+      Sentry.captureException(e);
     }
 
     for (const source of sources) {
@@ -408,6 +418,7 @@ exports.fetchNewspaperItems = onSchedule(
         feed = await rssParser.parseURL(source.url);
       } catch (e) {
         console.error(`Failed to fetch/parse Newspaper source ${source.id || source.url}`, e.message);
+        Sentry.captureException(e);
         continue;
       }
 
@@ -462,6 +473,7 @@ exports.fetchNewspaperItems = onSchedule(
           categoriesFilledThisWeek.add(category);
         } catch (e) {
           console.error(`Failed to store Newspaper item from ${source.id || source.url}`, e.message);
+          Sentry.captureException(e);
         }
       }
     }
@@ -473,6 +485,9 @@ exports.fetchNewspaperItems = onSchedule(
 // manually. Reuses the same og:image scrape the auto-fetch function falls
 // back to.
 exports.fetchArticleThumbnail = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in to fetch a thumbnail.");
+  }
   const url = (request.data?.url || "").trim();
   if (!url) throw new HttpsError("invalid-argument", "A url is required.");
   try {
