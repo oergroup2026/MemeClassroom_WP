@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { awardBadgeIfMissing } from "../utils/badges";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
@@ -453,18 +454,15 @@ const Profile = () => {
           );
 
           if (!hasBadge) {
-            try {
-              const badgeName = `${LEVEL_NAMES[currentLevel]} ${config.label}`;
-              await addDoc(collection(db, "badges"), {
-                user_id: user.uid,
-                category,
-                level: currentLevel,
-                badge_name: badgeName,
-                awarded_at: serverTimestamp()
-              });
-            } catch (err) {
-              console.error("Failed to log badge milestone", err);
-            }
+            const badgeName = `${LEVEL_NAMES[currentLevel]} ${config.label}`;
+            await awardBadgeIfMissing({
+              uid: user.uid,
+              badgeName,
+              category,
+              level: currentLevel,
+              existingBadges: earnedBadges,
+              announce: false,
+            });
           }
         }
       }
