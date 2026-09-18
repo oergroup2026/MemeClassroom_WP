@@ -137,4 +137,9 @@ functions/
 
 firestore.rules   Security rules — the real access-control layer (see above)
 storage.rules     Firebase Storage security rules
+
+docs/
+  Non-code reference material: the T4E submission doc, home-page copy
+  reference, framework documentation, and docs/archive/ for superseded
+  planning docs kept for history.
 ```

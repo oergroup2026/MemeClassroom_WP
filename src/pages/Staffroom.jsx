@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SmartSearchBar from "../components/SmartSearchBar";
+import { useLikeToggle } from "../hooks/useLikeToggle";
 import {
   collection,
   query,
@@ -159,8 +160,11 @@ const Staffroom = () => {
   const [currentMemeRatings, setCurrentMemeRatings] = useState([]);
   const [userSubmittedRating, setUserSubmittedRating] = useState(null);
   const [userLikesMap, setUserLikesMap] = useState({});
-  const [animatingHeartMemeId, setAnimatingHeartMemeId] = useState(null);
-  const [likePendingMap, setLikePendingMap] = useState({});
+  const { likePendingMap, animatingHeartMemeId, toggleLike: handleLikeToggle } = useLikeToggle({
+    user,
+    userLikesMap,
+    onSignedOut: () => toast("Please log in to like memes.", "warning"),
+  });
 
   // ── Compose modal states ─────────────────────────────────────────────────
   const [showComposeModal, setShowComposeModal] = useState(false);
@@ -952,37 +956,6 @@ const Staffroom = () => {
       toast("Verified review submitted!", "success");
     } catch (e) {
       console.error("Expert comment failed", e);
-    }
-  };
-
-  const handleLikeToggle = async (memeId, creatorId) => {
-    if (!user) { toast("Please log in to like memes.", "warning"); return; }
-    if (likePendingMap[memeId]) return;
-    setLikePendingMap((p) => ({ ...p, [memeId]: true }));
-    setAnimatingHeartMemeId(memeId);
-    setTimeout(() => setAnimatingHeartMemeId(null), 300);
-    const existingLikeId = userLikesMap[memeId];
-    const statsRef = doc(db, "user_stats", creatorId);
-    const memeRef = doc(db, "memes", memeId);
-    try {
-      if (existingLikeId) {
-        await deleteDoc(doc(db, "likes", existingLikeId)).catch(() => {});
-        await setDoc(statsRef, { total_likes_received: increment(-1) }, { merge: true }).catch(() => {});
-        await setDoc(memeRef, { likes_count: increment(-1) }, { merge: true });
-      } else {
-        const likeDocId = `${user.uid}_${memeId}`;
-        await setDoc(doc(db, "likes", likeDocId), {
-          user_id: user.uid,
-          meme_id: memeId,
-          created_at: serverTimestamp(),
-        }, { merge: true });
-        await setDoc(statsRef, { total_likes_received: increment(1) }, { merge: true }).catch(() => {});
-        await setDoc(memeRef, { likes_count: increment(1) }, { merge: true });
-      }
-    } catch (e) {
-      console.error("Like toggle failed", e);
-    } finally {
-      setLikePendingMap((p) => ({ ...p, [memeId]: false }));
     }
   };
 

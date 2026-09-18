@@ -15,6 +15,7 @@ import {
 import { basicQuestions } from "../data/memeTestQuestionsBasic";
 import { LOCAL_TESTS } from "../data/localTestCatalogue";
 import { explainQuizMistake } from "../services/geminiClient";
+import { awardBadgeIfMissing } from "../utils/badges";
 import AiQuotaModal from "../components/AiQuotaModal";
 import { useTour } from "../hooks/useTour";
 import TourOverlay from "../components/TourOverlay";
@@ -338,27 +339,15 @@ const MemeLiteracyTest = () => {
         });
 
         // Also sync into main `badges` collection so Staffroom & UserModalContext display the badge
-        try {
-          const badgeQ = query(
-            collection(db, "badges"),
-            where("user_id", "==", user.uid),
-            where("badge_name", "==", testMeta.badge_label)
-          );
-          const badgeSnap = await getDocs(badgeQ);
-          if (badgeSnap.empty) {
-            await addDoc(collection(db, "badges"), {
-              user_id: user.uid,
-              category: "literacy",
-              level: 1,
-              badge_name: testMeta.badge_label,
-              badge_icon: "award",
-              description: `Passed literacy assessment with ${overallPct}% score`,
-              awarded_at: serverTimestamp()
-            });
-          }
-        } catch (bErr) {
-          console.error("Failed syncing literacy badge to badges collection", bErr);
-        }
+        await awardBadgeIfMissing({
+          uid: user.uid,
+          badgeName: testMeta.badge_label,
+          category: "literacy",
+          level: 1,
+          badgeIcon: "award",
+          description: `Passed literacy assessment with ${overallPct}% score`,
+          announce: false,
+        });
       }
       setResultSaved(true);
     } catch (e) { console.error("Save result failed:", e); }

@@ -20,16 +20,11 @@ import {
 import {
   doc,
   getDoc,
-  getDocs,
   setDoc,
-  addDoc,
-  collection,
   updateDoc,
   serverTimestamp,
   runTransaction,
-  onSnapshot,
-  query,
-  where
+  onSnapshot
 } from "firebase/firestore";
 import {
   ref,
@@ -37,6 +32,7 @@ import {
   getDownloadURL
 } from "firebase/storage";
 import { auth, db, storage } from "../firebase";
+import { awardBadgeIfMissing } from "../utils/badges";
 
 // DEV_MODE bypasses authentication for local sandbox testing.
 // Set to false for production authentication.
@@ -44,83 +40,29 @@ const DEV_MODE = false;
 
 const AuthContext = createContext(null);
 
-// Helper function to award Contributor Badge to user (idempotent)
-export const awardLoginBadge = async (uid) => {
-  if (!uid || uid === "guest_dev") return;
-  let existing = false;
-  try {
-    const q = query(
-      collection(db, "badges"),
-      where("user_id", "==", uid)
-    );
-    const snap = await getDocs(q);
-    existing = snap.docs.some(d => d.data()?.badge_name === "Contributor");
-  } catch (err) {
-    console.warn("Could not verify existing contributor badge:", err);
-  }
+// Award Contributor Badge to user on registration (idempotent)
+export const awardLoginBadge = (uid) => awardBadgeIfMissing({
+  uid,
+  badgeName: "Contributor",
+  category: "account_setup",
+  level: 1,
+  badgeIcon: "award",
+  description: "Earned for completing registration & account setup!",
+});
 
-  if (existing) return; // Already awarded
-
-  const badgeDetails = {
-    title: "you earned a badge",
-    badgeName: "Contributor",
-    description: "Earned for completing registration & account setup!"
-  };
-  try {
-    await addDoc(collection(db, "badges"), {
-      user_id: uid,
-      category: "account_setup",
-      level: 1,
-      badge_name: "Contributor",
-      badge_icon: "award",
-      description: "Earned for completing registration & account setup!",
-      awarded_at: serverTimestamp()
-    });
-    sessionStorage.setItem("mc_pending_badge_popup", JSON.stringify(badgeDetails));
-    window.dispatchEvent(new CustomEvent("mc_badge_earned", { detail: badgeDetails }));
-  } catch (err) {
-    console.error("Failed to write login badge to firestore", err);
-  }
-};
-
-// Helper function to award Authorized Badge to user when profile reaches 100% (idempotent)
-export const awardAuthorisedUserBadge = async (uid) => {
-  if (!uid) return;
-  try {
-    const q = query(collection(db, "badges"), where("user_id", "==", uid));
-    const snap = await getDocs(q);
-    const existing = snap.docs.some(d => {
-      const bName = d.data()?.badge_name;
-      return bName === "Authorized" || bName === "Authorised User" || bName === "authorized";
-    });
-    if (existing) {
-      return; // Already awarded
-    }
-  } catch (err) {
-    console.error("Failed checking existing authorized badge", err);
-  }
-
-  const badgeDetails = {
-    title: "you earned a badge",
-    badgeName: "Authorized",
-    description: "Earned for completing 100% of your profile setup!"
-  };
-  try {
-    await addDoc(collection(db, "badges"), {
-      user_id: uid,
-      category: "account_setup",
-      level: 2,
-      badge_name: "Authorized",
-      badge_icon: "shield-check",
-      description: "Earned for completing 100% of your profile setup!",
-      awarded_at: serverTimestamp()
-    });
-    sessionStorage.setItem("mc_pending_badge_popup", JSON.stringify(badgeDetails));
-    window.dispatchEvent(new CustomEvent("mc_badge_earned", { detail: badgeDetails }));
-  } catch (err) {
-    console.error("Failed to write authorized user badge to firestore", err);
-  }
-};
+// Award Authorized Badge to user when profile reaches 100% (idempotent).
+// "Authorised User" / "authorized" are legacy spellings this badge was
+// previously written under — still checked so existing users don't get a
+// duplicate under the current name.
+export const awardAuthorisedUserBadge = (uid) => awardBadgeIfMissing({
+  uid,
+  badgeName: "Authorized",
+  matchNames: ["Authorized", "Authorised User", "authorized"],
+  category: "account_setup",
+  level: 2,
+  badgeIcon: "shield-check",
+  description: "Earned for completing 100% of your profile setup!",
+});
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
