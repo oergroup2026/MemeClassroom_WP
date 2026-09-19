@@ -154,13 +154,31 @@ service cloud.firestore {
     }
 
     // ─── Comments ───────────────────────────────────────────────────────────
+    // Only an expert/admin may mark a comment as an expert comment.
+    function expertFlagIsPermitted() {
+      return !request.resource.data.keys().hasAll(['is_expert_comment']) ||
+             request.resource.data.is_expert_comment != true ||
+             isExpertOrAdmin();
+    }
+
     match /comments/{commentId} {
       allow read: if true;
-      allow create, update: if isLoggedIn() && !isBanned() && (
-        !request.resource.data.keys().hasAll(['is_expert_comment']) ||
-        request.resource.data.is_expert_comment != true ||
-        isExpertOrAdmin()
-      );
+      allow create: if isLoggedIn() && !isBanned()
+        && request.resource.data.user_id == request.auth.uid
+        && expertFlagIsPermitted();
+      // Editing previously required only "signed in and not banned" — with no
+      // check that you wrote the comment, any user could rewrite anyone else's
+      // words while their name stayed on it. Restrict to the author (and
+      // admins, for moderation), and do not let an edit reassign authorship.
+      allow update: if isLoggedIn() && !isBanned()
+        && expertFlagIsPermitted()
+        && (
+          isAdmin() ||
+          (
+            resource.data.user_id == request.auth.uid &&
+            request.resource.data.user_id == resource.data.user_id
+          )
+        );
       allow delete: if isLoggedIn() && resource.data.user_id == request.auth.uid;
       allow delete: if isAdmin();
     }
