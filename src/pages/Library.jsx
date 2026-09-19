@@ -2729,7 +2729,7 @@ const Library = () => {
       {/* AI Quota & Ad-Gate Modal */}
       <AiQuotaModal
         isOpen={showAiQuotaModal}
-        onClose={() => setShowAiModal(false)}
+        onClose={() => setShowAiQuotaModal(false)}
       />
 
       {/* Interactive First-Time Tour */}
