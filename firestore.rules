@@ -26,6 +26,14 @@ service cloud.firestore {
       );
     }
 
+    // Roles a user may assign to their OWN profile at registration. Must stay in
+    // sync with REGISTER_ROLES in src/pages/Auth.jsx — the signup screen offers
+    // exactly these five. Privileged roles ('expert', 'admin', 'manager') are
+    // deliberately absent: they are granted by an admin only (see /expert_apps).
+    function isSelfAssignableRole(role) {
+      return role in ['student', 'teacher', 'research', 'parent', 'other'];
+    }
+
     // Helper: check if the requesting user's own profile is banned.
     // Used to block content creation server-side — the app only redirects
     // banned users client-side (App.jsx), which a direct Firestore write bypasses.
@@ -37,13 +45,14 @@ service cloud.firestore {
     // ─── Users ──────────────────────────────────────────────────────────────
     // Profiles require authentication to read — prevents anonymous visitors from
     // scraping email addresses or other personal details.
-    // Admins can read and write any profile. Non-admin users can only create/update their own
-    // profile with allowed roles (student/teacher) and cannot self-grant admin, expert, verified, or banned status.
+    // Admins can read and write any profile. Non-admin users can only create/update
+    // their own profile with a self-assignable role, and cannot self-grant admin,
+    // expert, verified, or banned status.
     match /users/{userId} {
       allow read: if isLoggedIn();
       allow create: if isLoggedIn() && (
         isAdmin() ||
-        (isOwner(userId) && request.resource.data.role in ['student', 'teacher'])
+        (isOwner(userId) && isSelfAssignableRole(request.resource.data.role))
       );
       allow update: if isLoggedIn() && (
         isAdmin() ||
@@ -79,15 +88,24 @@ service cloud.firestore {
       );
       allow create: if isLoggedIn() && !isBanned() && request.resource.data.creator_id == request.auth.uid;
       allow update: if isLoggedIn() && (
-        resource.data.creator_id == request.auth.uid ||
         isAdmin() ||
+        // The creator may edit their own meme, but not its moderation counter —
+        // otherwise anyone whose content was reported could simply zero their
+        // own flag_count and drop off the moderation queue.
+        (
+          resource.data.creator_id == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['flag_count'])
+        ) ||
         (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count']) &&
           (request.resource.data.likes_count == resource.data.likes_count + 1 || request.resource.data.likes_count == resource.data.likes_count - 1)
         ) ||
+        // Reporting is increment-only. Allowing -1 let anyone repeatedly
+        // decrement a reported item's counter and un-report it; the client only
+        // ever increments. Clearing a flag after review is an admin action.
         (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['flag_count']) &&
-          (request.resource.data.flag_count == resource.data.flag_count + 1 || request.resource.data.flag_count == resource.data.flag_count - 1)
+          request.resource.data.flag_count == resource.data.flag_count + 1
         )
       );
       allow delete: if isLoggedIn() && (
@@ -106,7 +124,18 @@ service cloud.firestore {
           isAdmin()
         )
       );
-      allow create: if isLoggedIn() && !isBanned();
+      // Creation previously required only being signed in, with no check on
+      // creator_id or status — so a user could submit a template already marked
+      // status: "approved" and publish it straight to the public library, which
+      // guests can read. Contributors must now claim their own submission and
+      // leave it unapproved; only admins can create an approved template.
+      allow create: if isLoggedIn() && !isBanned() && (
+        isAdmin() ||
+        (
+          request.resource.data.creator_id == request.auth.uid &&
+          request.resource.data.status != "approved"
+        )
+      );
       allow update, delete: if isAdmin();
     }
 
@@ -145,13 +174,31 @@ service cloud.firestore {
     }
 
     // ─── Comments ───────────────────────────────────────────────────────────
+    // Only an expert/admin may mark a comment as an expert comment.
+    function expertFlagIsPermitted() {
+      return !request.resource.data.keys().hasAll(['is_expert_comment']) ||
+             request.resource.data.is_expert_comment != true ||
+             isExpertOrAdmin();
+    }
+
     match /comments/{commentId} {
       allow read: if true;
-      allow create, update: if isLoggedIn() && !isBanned() && (
-        !request.resource.data.keys().hasAll(['is_expert_comment']) ||
-        request.resource.data.is_expert_comment != true ||
-        isExpertOrAdmin()
-      );
+      allow create: if isLoggedIn() && !isBanned()
+        && request.resource.data.user_id == request.auth.uid
+        && expertFlagIsPermitted();
+      // Editing previously required only "signed in and not banned" — with no
+      // check that you wrote the comment, any user could rewrite anyone else's
+      // words while their name stayed on it. Restrict to the author (and
+      // admins, for moderation), and do not let an edit reassign authorship.
+      allow update: if isLoggedIn() && !isBanned()
+        && expertFlagIsPermitted()
+        && (
+          isAdmin() ||
+          (
+            resource.data.user_id == request.auth.uid &&
+            request.resource.data.user_id == resource.data.user_id
+          )
+        );
       allow delete: if isLoggedIn() && resource.data.user_id == request.auth.uid;
       allow delete: if isAdmin();
     }
@@ -196,17 +243,48 @@ service cloud.firestore {
             !request.resource.data.diff(resource.data).affectedKeys().hasAny(['admin_approved']) ||
             request.resource.data.admin_approved == false
           ) &&
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'author_id'])
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'author_id', 'flag_count'])
+        ) ||
+        // Reporting a resource (ActivityDetail, MemeStoryDetail, Resources) is
+        // an increment by a user who is NOT the author, which the author-only
+        // clause above rejected — so flagging a resource silently failed for
+        // everyone it was meant for. Increment-only, like /memes.
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['flag_count']) &&
+          request.resource.data.flag_count == resource.data.flag_count + 1
+        ) ||
+        // Comment counter maintained by activity commenters, likewise not the author.
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments_count']) &&
+          (request.resource.data.comments_count == resource.data.comments_count + 1 ||
+           request.resource.data.comments_count == resource.data.comments_count - 1)
         )
       );
       allow delete: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
     }
 
     // ─── External Links / Additional Tools ────────────────────────────────────
+    // Publicly readable, so an unapproved entry is a link shown to students.
+    // Creation previously required only being signed in, with no check on
+    // contributor_id and no approval gate. Contributors must now claim their own
+    // submission, leave it unapproved, and cannot self-approve on update.
     match /external_links/{linkId} {
       allow read: if true;
-      allow create: if isLoggedIn() && !isBanned();
-      allow update, delete: if isLoggedIn() && (resource.data.contributor_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn() && !isBanned() && (
+        isAdmin() ||
+        (
+          request.resource.data.contributor_id == request.auth.uid &&
+          request.resource.data.admin_approved == false
+        )
+      );
+      allow update: if isLoggedIn() && (
+        isAdmin() ||
+        (
+          resource.data.contributor_id == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['admin_approved', 'contributor_id'])
+        )
+      );
+      allow delete: if isLoggedIn() && (resource.data.contributor_id == request.auth.uid || isAdmin());
     }
 
     // ─── Newspaper Items ───────────────────────────────────────────────────────
@@ -352,6 +430,60 @@ service cloud.firestore {
       allow read: if isLoggedIn();
       allow create, update: if isLoggedIn() && (request.auth.uid == reqId || request.resource.data.user_id == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
+    }
+
+    // ─── Badges ──────────────────────────────────────────────────────────────
+    // Awarded by awardBadgeIfMissing() in src/utils/badges.js, which first
+    // queries this collection for the signed-in user's existing badges and then
+    // creates one. With no rule here the whole gamification system failed
+    // silently — every read and write was denied by default and the helper
+    // swallowed the error, so no badge was ever awarded to anyone.
+    // Readable by signed-in users (profiles display other users' badges);
+    // a user may only create badges for themselves. Edits/removals are admin-only
+    // so a user cannot retroactively rewrite their own achievements.
+    match /badges/{badgeId} {
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── Activity Comments ────────────────────────────────────────────────────
+    // Comments on an activity resource (ActivityDetail.jsx). Activities are
+    // publicly readable, so comments are too. Authors may delete their own;
+    // admins may moderate any. Note this collection uses author_id, unlike
+    // /comments which uses user_id.
+    match /activity_comments/{commentId} {
+      allow read: if true;
+      allow create: if isLoggedIn() && !isBanned() && request.resource.data.author_id == request.auth.uid;
+      allow update: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
+      allow delete: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
+    }
+
+    // ─── Legacy Threads (global search index only) ────────────────────────────
+    // Navbar.jsx reads this inside a Promise.all alongside memes and resources.
+    // Without a rule the denial rejected the whole batch, so the global search
+    // box indexed nothing at all — not even memes. Read-only for clients.
+    match /threads/{threadId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Homepage Hero Cards, Sponsored Ads, Testimonials ─────────────────────
+    // All three are published from the Admin panel and displayed publicly on the
+    // homepage, so: public read, admin-only write.
+    match /heroCards/{cardId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sponsored_ads/{adId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // ─── Admin Notifications ──────────────────────────────────────────────────

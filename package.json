@@ -8,9 +8,11 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "npm run build && npx -y firebase-tools deploy --only hosting"
+    "deploy": "npm run build && npx -y firebase-tools deploy --only hosting",
+    "lint:critical": "node scripts/check-critical-lint.mjs"
   },
   "dependencies": {
+    "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@sentry/react": "^10.75.0",

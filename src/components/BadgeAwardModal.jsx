@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useAuth } from "../context/AuthContext";
 
 /**
  * Clean Badge Award Modal Popup
@@ -7,6 +8,7 @@ import { createPortal } from "react-dom";
  * profile completion progress bar (55%), and "Finish Setup Now" / "I'll Do Later" actions.
  */
 const BadgeAwardModal = () => {
+  const { profile } = useAuth();
   const [badgeData, setBadgeData] = useState(null);
 
   useEffect(() => {

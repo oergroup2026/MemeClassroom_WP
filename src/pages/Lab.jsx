@@ -48,6 +48,7 @@ import {
   onSnapshot
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { checkUpload } from "../utils/uploadLimits";
 import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
@@ -984,6 +985,18 @@ const Lab = () => {
     setAlertMessage("");
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Size gate before anything else: this file is handed to ffmpeg.wasm, which
+    // runs single-threaded in the browser and will exhaust memory on a phone
+    // long before Firebase would reject the upload.
+    const problem = checkUpload(file, { allow: ["video"] });
+    if (problem) {
+      setAlertMessage(problem);
+      e.target.value = "";
+      setVideoUrl("");
+      setVideoFile(null);
+      return;
+    }
 
     // Create virtual video element to inspect duration metadata
     const videoElement = document.createElement("video");

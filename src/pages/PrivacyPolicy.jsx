@@ -128,13 +128,16 @@ const PrivacyPolicy = () => {
 
         <ul className="list-disc pl-5 space-y-2 text-xs">
           <li>
+            <strong>Entirely Optional:</strong> Uploading an ID card is never required to use MemeClassroom. Students, parents, researchers and teachers can register, browse, create memes and contribute without submitting any identity document. It is requested only if you choose to apply for verified <em>Expert</em> status. All content on the platform is governed by community flagging and administrator moderation rather than identity checks.
+          </li>
+          <li>
             <strong>Purpose Limitation:</strong> Institutional ID cards are used <em>exclusively</em> to confirm that an applicant is a legitimate educator affiliated with a recognized school, college, or academic institution.
           </li>
           <li>
-            <strong>Isolated & Restricted Storage:</strong> ID card files are uploaded directly to private, access-restricted Firebase Cloud Storage (<code className="bg-gray-100 dark:bg-zinc-800 px-1 py-0.5 rounded">id_cards/{'{userId}'}_id</code>). Backend security rules block all public and client-side read requests.
+            <strong>Isolated & Restricted Storage:</strong> ID card files are uploaded to a private, access-restricted area of Firebase Cloud Storage (<code className="bg-gray-100 dark:bg-zinc-800 px-1 py-0.5 rounded">id_cards/{'{userId}'}/</code>). Backend security rules restrict access to you and to platform administrators; no other user, and no unauthenticated visitor, can list or open the file.
           </li>
           <li>
-            <strong>Strict Access Control:</strong> Only appointed platform administrators with verified security clearance can inspect ID documents during the verification review. Other users, teachers, students, or visitors can never view your ID card.
+            <strong>Strict Access Control:</strong> Only appointed platform administrators can inspect ID documents during the verification review. Other users, teachers, students, or visitors can never view your ID card. Please note that, as with most cloud storage, an administrator reviewing your document generates a private access link; anyone given that link could open the file, so we never circulate such links and we delete documents once a verification decision has been made.
           </li>
           <li>
             <strong>No Indexing or Sharing:</strong> ID cards are never indexed by web crawlers, never shared with third parties or advertisers, and never used for automated algorithmic profiling.

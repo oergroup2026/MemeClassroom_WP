@@ -192,9 +192,9 @@ const TermsOfService = () => {
           <li><strong>School & Institutional Information:</strong> When registering, users provide their school, college, university, or educational organization name and role (Student, Teacher, or Subject Expert). This ensures curriculum-aligned filtering and academic relevance.</li>
           <li><strong>Teacher & Expert ID Card Verification:</strong>
             <ul className="list-disc pl-5 mt-1 space-y-1 text-xs">
-              <li>Educators applying for verified "Teacher" or "Expert" status may optionally submit an institutional ID card or official faculty proof.</li>
+              <li>Educators applying for verified "Teacher" or "Expert" status may optionally submit an institutional ID card or official faculty proof. This is never required to register or to use any feature of the platform — content is governed by community flagging and administrator moderation, not identity verification.</li>
               <li><strong>Strict Purpose Limitation:</strong> ID cards are collected <em>solely</em> to verify educator credentials and protect students from unauthorized adult interactions.</li>
-              <li><strong>Security & Isolation:</strong> Uploaded ID cards are stored in private, access-restricted Firebase Storage. Client reads are blocked by backend security rules. ID cards are never published, shared with other users, indexed by search engines, or made public.</li>
+              <li><strong>Security & Isolation:</strong> Uploaded ID cards are stored in private, access-restricted Firebase Storage. Backend security rules limit access to the uploading user and platform administrators. ID cards are never published, shared with other users, indexed by search engines, or made public, and are deleted once a verification decision has been made.</li>
               <li><strong>Deletion on Request:</strong> Once verification is complete, or at any time upon request, you may request permanent deletion of your ID document by emailing {CONTACT_EMAIL}.</li>
             </ul>
           </li>

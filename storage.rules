@@ -9,6 +9,15 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // True only when the signed-in user's Firestore profile has role == 'admin'.
+    // Storage rules can read Firestore via firestore.get(), which lets the
+    // admin-only upload paths below be enforced server-side instead of relying
+    // on the Admin UI being hidden.
+    function isAdmin() {
+      return request.auth != null &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // True only when the request comes from files that start with one of
     // the allowed MIME types (e.g. "image/jpeg", "image/png")
     function isImageType() {
@@ -36,90 +45,198 @@ service firebase.storage {
       return n * 1024 * 1024;
     }
 
-    // ── ID Card uploads ──────────────────────────────────────────────────────
-    // Only the owning user may upload their own ID card.
-    // Reads are fully blocked from the client — only Cloud Functions /
-    // Admin SDK (which bypass these rules) may read ID cards.
-    // This prevents any client, including admins in the browser, from
-    // directly downloading a raw ID card file.
-    match /id_cards/{fileName} {
-      allow read: if false;  // Admin access is via Firebase Admin SDK, not client SDK
-      allow write: if isLoggedIn()
-        && isImageType()
-        && request.resource.size <= maxMB(5)
-        && fileName.matches(request.auth.uid + '_id');  // user can only upload their own
+    // Every non-admin upload embeds the uploader's uid in the object name
+    // (e.g. memes/{uid}_meme_{timestamp}.png, resources/thumb_{uid}_{ts}).
+    // Without this check any signed-in user could overwrite another user's
+    // file, because the names are predictable — the meme would keep its
+    // original title and author while the image itself was replaced.
+    // Admin-seeded objects are named seed_*/admin_* and are covered by isAdmin().
+    function ownsPath(path) {
+      return isLoggedIn() && path.matches('.*' + request.auth.uid + '.*');
+    }
+
+    // ── ID Card uploads (optional; used for Verified Educator / Expert) ──────
+    // Uploading an ID card is entirely optional. Ordinary students, teachers,
+    // parents and researchers never need one — content is governed by flagging
+    // and moderation instead. It is only required when a user applies for
+    // verified Expert status, which an admin grants via /expert_apps.
+    //
+    // Path is id_cards/{userId}/{fileName}, matching what the app writes. The
+    // previous single-segment rule matched nothing the app actually uploaded,
+    // so every ID card upload was denied.
+    //
+    // Only the owning user may write their own. Reads are limited to the owner
+    // and admins — admins must be able to see the document in order to review a
+    // verification request from the Admin panel. Images and PDFs are both
+    // accepted, because the file picker offers "image/*,.pdf".
+    match /id_cards/{userId}/{fileName} {
+      allow read: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
+      allow create, update: if isLoggedIn()
+        && request.auth.uid == userId
+        && (isImageType() || isDocumentType())
+        && request.resource.size <= maxMB(5);
+      allow delete: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
     }
 
     // ── User avatar / profile photo ──────────────────────────────────────────
     match /users/{userId}/avatar/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if isLoggedIn()
         && request.auth.uid == userId
+        && isImageType()
         && request.resource.size <= maxMB(5);
+      allow delete: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
     }
 
     match /avatars/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
+        && isImageType()
         && request.resource.size <= maxMB(5);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Meme media (images, GIFs, video clips, audio audiograms) ────────────
+    // Per-type caps rather than a flat 100MB. A 100MB allowance with no rate
+    // limiting is the main uncontrolled cost exposure on the project, and a file
+    // that large also kills the browser tab when the Lab feeds it through
+    // ffmpeg.wasm. Kept in sync with src/utils/uploadLimits.js.
     match /memes/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
-        && (isImageType() || isVideoType() || isAudioType())
-        && request.resource.size <= maxMB(100);
+      allow create, update: if (ownsPath(allPaths) || isAdmin()) && (
+        (isImageType() && request.resource.size <= maxMB(10)) ||
+        (isVideoType() && request.resource.size <= maxMB(50)) ||
+        (isAudioType() && request.resource.size <= maxMB(20))
+      );
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Meme templates ──────────────────────────────────────────────────────
     match /templates/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
         && (isImageType() || isVideoType())
         && request.resource.size <= maxMB(20);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Resource thumbnails & attachments ───────────────────────────────────
     match /resources/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
         && (isImageType() || isVideoType() || isAudioType() || isDocumentType())
         && request.resource.size <= maxMB(50);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Newspaper thumbnails ─────────────────────────────────────────────────
     match /newspaper/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
         && isImageType()
         && request.resource.size <= maxMB(10);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Staffroom post attachments ───────────────────────────────────────────
     // Documents (PDF, Word, PowerPoint), images only — no executables
     match /staffroom/{allPaths=**} {
       allow read: if isLoggedIn();
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
         && (isImageType() || isDocumentType())
         && request.resource.size <= maxMB(20);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Admin uploads (sponsored ads, marketing assets, etc.) ───────────────
     match /admin/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if isAdmin()
         && (isImageType() || isVideoType() || isAudioType())
         && request.resource.size <= maxMB(100);
+      allow delete: if isAdmin();
     }
 
     // ── Lab / canvas exports ─────────────────────────────────────────────────
     // Images exported from the meme canvas editor
     match /lab_exports/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
         && isImageType()
         && request.resource.size <= maxMB(10);
+      allow delete: if ownsPath(allPaths) || isAdmin();
+    }
+
+    // ── Staffroom post attachments ───────────────────────────────────────────
+    // The app writes to staffroom_attachments/ (Staffroom.jsx), not staffroom/.
+    // Documents (PDF, Word, PowerPoint) and images only — no executables.
+    // Admins prune/remove attachments for moderation, so delete is allowed for
+    // the uploading user and for admins.
+    match /staffroom_attachments/{fileName} {
+      allow read: if isLoggedIn();
+      allow create, update: if isLoggedIn()
+        && (isImageType() || isDocumentType())
+        && request.resource.size <= maxMB(20);
+      allow delete: if isLoggedIn() &&
+        (fileName.matches(request.auth.uid + '_.*') || isAdmin());
+    }
+
+    // ── Activity submissions (PDF worksheet + cover image) ───────────────────
+    match /activities/{fileName} {
+      allow read: if true;
+      allow create, update: if isLoggedIn()
+        && (isImageType() || isDocumentType())
+        && request.resource.size <= maxMB(25);
+      allow delete: if isLoggedIn() &&
+        (fileName.matches('.*_' + request.auth.uid + '_.*') || isAdmin());
+    }
+
+    // ── Slang Decoder example memes ──────────────────────────────────────────
+    match /slang_memes/{fileName} {
+      allow read: if true;
+      allow create, update: if isLoggedIn()
+        && isImageType()
+        && request.resource.size <= maxMB(10);
+      allow delete: if isAdmin();
+    }
+
+    // ── External tool/link thumbnails ────────────────────────────────────────
+    match /external_thumbnails/{fileName} {
+      allow read: if true;
+      allow create, update: if isLoggedIn()
+        && isImageType()
+        && request.resource.size <= maxMB(5);
+      allow delete: if isAdmin();
+    }
+
+    // ── Admin-curated content ────────────────────────────────────────────────
+    // Homepage hero cards, sponsored ad creatives, testimonial photos and
+    // literacy-test question images are all published from the Admin panel, so
+    // writes here require an actual admin role — not merely being signed in.
+    match /heroCards/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && (isImageType() || isVideoType())
+        && request.resource.size <= maxMB(50);
+      allow delete: if isAdmin();
+    }
+
+    match /sponsored_ads/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isImageType() && request.resource.size <= maxMB(10);
+      allow delete: if isAdmin();
+    }
+
+    match /testimonials/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isImageType() && request.resource.size <= maxMB(5);
+      allow delete: if isAdmin();
+    }
+
+    match /literacy_test_memes/{testId}/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isImageType() && request.resource.size <= maxMB(10);
+      allow delete: if isAdmin();
     }
 
     // ── Fallback: deny all other paths ───────────────────────────────────────

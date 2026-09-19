@@ -5,7 +5,7 @@
  * with a automatic fallback to Option 1 (HTML5 Canvas + MediaRecorder stream capture).
  */
 
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import { createLoadedFFmpeg } from "./ffmpegLoader";
 
 // Text layer x/y/maxWidth are percentages of the output frame (matching the Lab.jsx
 // image/GIF editor's coordinate system); fontSize/strokeWidth are "reference px"
@@ -286,14 +286,10 @@ export async function compileVideoMeme({
   try {
     if (onProgress) onProgress(5); // Started Loading WASM
 
-    // Dynamic import of FFmpeg core packages
-    const { FFmpeg } = await import("@ffmpeg/ffmpeg");
-    const ffmpeg = new FFmpeg();
-    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm";
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-    });
+    // Loaded from our own origin with a timeout — see utils/ffmpegLoader.js.
+    // On failure this throws and the catch below falls back to the Canvas
+    // engine, so a blocked or slow network degrades instead of hanging.
+    const ffmpeg = await createLoadedFFmpeg();
 
     if (onProgress) onProgress(20); // Loaded WASM, preparing layers
 

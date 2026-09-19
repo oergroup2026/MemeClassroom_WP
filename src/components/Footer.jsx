@@ -105,6 +105,36 @@ const Footer = () => {
           </div>
         </div>
 
+        {/* Educational-use & content withdrawal notice.
+            Deliberately in plain language and at a readable size: the small
+            print below carries the same meaning in legal terms, but students,
+            parents and teachers need to be able to actually read and act on
+            this. Shown site-wide. */}
+        <div className="mt-8 rounded-2xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-950/25 p-4 sm:p-5">
+          <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200 mb-1.5">
+            About the content on this site
+          </h3>
+          <p className="text-xs leading-relaxed text-amber-900/85 dark:text-amber-100/80">
+            MemeClassroom is a <strong>non-commercial educational project</strong>. Memes and
+            other material are shared here for teaching, learning and commentary only.
+            Some posts may include well-known images or clips, used for educational
+            purposes under fair dealing / fair use.
+          </p>
+          <p className="mt-2.5 text-xs leading-relaxed text-amber-900/85 dark:text-amber-100/80">
+            <strong>If you own the rights to something here and would like it removed,
+            or if you have posted something and want it taken down, just ask.</strong>{" "}
+            Email{" "}
+            <a
+              href="mailto:memeclassroom@gmail.com?subject=Content%20withdrawal%20request"
+              className="font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-200"
+            >
+              memeclassroom@gmail.com
+            </a>{" "}
+            and we will withdraw it promptly. No explanation needed, and no account is
+            required to make a request.
+          </p>
+        </div>
+
         {/* Bottom bar */}
         <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="text-[10px] text-gray-400">

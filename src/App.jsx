@@ -114,7 +114,7 @@ function App() {
             <Route path="/banned" element={<IsBanned />} />
 
             <Route path="/profile" element={
-              <ProtectedRoute allowedRoles={['student', 'teacher', 'expert', 'admin']}>
+              <ProtectedRoute allowedRoles={['student', 'teacher', 'research', 'parent', 'other', 'expert', 'admin', 'manager']}>
                 <Profile />
               </ProtectedRoute>
             } />

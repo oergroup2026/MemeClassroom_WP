@@ -21,6 +21,7 @@ import {
   runTransaction
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { checkUpload } from "../utils/uploadLimits";
 import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
@@ -2360,17 +2361,33 @@ const Library = () => {
                       {uploadFile ? uploadFile.name : "Click to select a file"}
                     </span>
                     <span className="text-[10px] text-gray-450 dark:text-gray-500 font-normal">
-                      PNG, JPG, GIF, MP4, or MP3 (Max 100MB)
+                      PNG or JPG up to 10MB, MP4 up to 50MB, MP3 up to 20MB
                     </span>
                   </div>
                   <input
                     type="file"
-                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      const problem = f && checkUpload(f, { allow: ["image", "video", "audio"] });
+                      if (problem) { setUploadError(problem); e.target.value = ""; setUploadFile(null); return; }
+                      setUploadError("");
+                      setUploadFile(f);
+                    }}
                     className="hidden"
                     required
                   />
                 </label>
               </div>
+
+              {/* The Lab and Library are where content is published, and the Lab
+                  hides the site footer — so the educational-use and withdrawal
+                  notice is repeated here, at the point of posting. */}
+              <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300/90 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/40 rounded-xl p-3">
+                Post only for <strong>educational purposes</strong>. Anything you upload can be
+                withdrawn at any time — delete it yourself, or email{" "}
+                <a href="mailto:memeclassroom@gmail.com?subject=Content%20withdrawal%20request" className="underline underline-offset-2 font-semibold">memeclassroom@gmail.com</a>{" "}
+                and we will remove it.
+              </p>
 
               <div className="flex justify-end space-x-2 pt-4 border-t border-gray-100 dark:border-zinc-800/80">
                 <button
@@ -2729,7 +2746,7 @@ const Library = () => {
       {/* AI Quota & Ad-Gate Modal */}
       <AiQuotaModal
         isOpen={showAiQuotaModal}
-        onClose={() => setShowAiModal(false)}
+        onClose={() => setShowAiQuotaModal(false)}
       />
 
       {/* Interactive First-Time Tour */}

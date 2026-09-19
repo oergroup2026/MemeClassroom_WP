@@ -76,7 +76,10 @@ const TRANSLITERATION_MAP = {
   "bhugolam": "geography",
   "adhyapakan": "teacher",
   "adhyapika": "teacher",
-  "pariksha": "exam",
+  // "pariksha" is shared with the Hindi transliteration section above and is
+  // already mapped there; repeating it here was a duplicate object key, so this
+  // entry silently overwrote the other. Both mapped to "exam", so no behaviour
+  // changes by dropping it.
   "padanam": "study",
   "vidyabhyasam": "education",
 
