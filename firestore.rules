@@ -26,6 +26,14 @@ service cloud.firestore {
       );
     }
 
+    // Roles a user may assign to their OWN profile at registration. Must stay in
+    // sync with REGISTER_ROLES in src/pages/Auth.jsx — the signup screen offers
+    // exactly these five. Privileged roles ('expert', 'admin', 'manager') are
+    // deliberately absent: they are granted by an admin only (see /expert_apps).
+    function isSelfAssignableRole(role) {
+      return role in ['student', 'teacher', 'research', 'parent', 'other'];
+    }
+
     // Helper: check if the requesting user's own profile is banned.
     // Used to block content creation server-side — the app only redirects
     // banned users client-side (App.jsx), which a direct Firestore write bypasses.
@@ -37,13 +45,14 @@ service cloud.firestore {
     // ─── Users ──────────────────────────────────────────────────────────────
     // Profiles require authentication to read — prevents anonymous visitors from
     // scraping email addresses or other personal details.
-    // Admins can read and write any profile. Non-admin users can only create/update their own
-    // profile with allowed roles (student/teacher) and cannot self-grant admin, expert, verified, or banned status.
+    // Admins can read and write any profile. Non-admin users can only create/update
+    // their own profile with a self-assignable role, and cannot self-grant admin,
+    // expert, verified, or banned status.
     match /users/{userId} {
       allow read: if isLoggedIn();
       allow create: if isLoggedIn() && (
         isAdmin() ||
-        (isOwner(userId) && request.resource.data.role in ['student', 'teacher'])
+        (isOwner(userId) && isSelfAssignableRole(request.resource.data.role))
       );
       allow update: if isLoggedIn() && (
         isAdmin() ||
