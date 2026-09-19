@@ -1,10 +1,16 @@
-name: Deploy Firestore Rules & Cloud Functions
+name: Deploy Firestore & Storage Rules and Cloud Functions
 
 # Runs automatically whenever rules or functions code lands on main (i.e.
 # whenever a PR touching them is merged) — no manual `firebase deploy` needed.
 # Hosting (the built frontend) is deployed separately by
-# firebase-hosting-merge.yml; this workflow only touches Firestore rules and
-# Cloud Functions.
+# firebase-hosting-merge.yml; this workflow covers Firestore rules, Firestore
+# indexes, Storage rules and Cloud Functions.
+#
+# storage.rules used to be deployable ONLY by running deploy.bat by hand on a
+# Windows machine, so the locked-down rules in the repo could silently differ
+# from what was live. Likewise firestore.indexes.json was never deployed, so
+# composite indexes existed only if someone created them in the Console.
+# Both are now part of this workflow.
 on:
   push:
     branches:
@@ -12,6 +18,7 @@ on:
     paths:
       - 'firestore.rules'
       - 'firestore.indexes.json'
+      - 'storage.rules'
       - 'functions/**'
       - '.github/workflows/firebase-rules-functions-deploy.yml'
 
@@ -34,5 +41,5 @@ jobs:
         with:
           credentials_json: '${{ secrets.FIREBASE_DEPLOY_SERVICE_ACCOUNT }}'
 
-      - name: Deploy Firestore rules and Cloud Functions
-        run: npx -y firebase-tools deploy --only firestore:rules,functions --project memeclassroom-98d2b
+      - name: Deploy Firestore rules, indexes, Storage rules and Cloud Functions
+        run: npx -y firebase-tools deploy --only firestore:rules,firestore:indexes,storage,functions --project memeclassroom-98d2b

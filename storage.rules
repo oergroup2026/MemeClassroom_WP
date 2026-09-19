@@ -9,6 +9,15 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // True only when the signed-in user's Firestore profile has role == 'admin'.
+    // Storage rules can read Firestore via firestore.get(), which lets the
+    // admin-only upload paths below be enforced server-side instead of relying
+    // on the Admin UI being hidden.
+    function isAdmin() {
+      return request.auth != null &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // True only when the request comes from files that start with one of
     // the allowed MIME types (e.g. "image/jpeg", "image/png")
     function isImageType() {
@@ -120,6 +129,78 @@ service firebase.storage {
       allow write: if isLoggedIn()
         && isImageType()
         && request.resource.size <= maxMB(10);
+    }
+
+    // ── Staffroom post attachments ───────────────────────────────────────────
+    // The app writes to staffroom_attachments/ (Staffroom.jsx), not staffroom/.
+    // Documents (PDF, Word, PowerPoint) and images only — no executables.
+    // Admins prune/remove attachments for moderation, so delete is allowed for
+    // the uploading user and for admins.
+    match /staffroom_attachments/{fileName} {
+      allow read: if isLoggedIn();
+      allow create, update: if isLoggedIn()
+        && (isImageType() || isDocumentType())
+        && request.resource.size <= maxMB(20);
+      allow delete: if isLoggedIn() &&
+        (fileName.matches(request.auth.uid + '_.*') || isAdmin());
+    }
+
+    // ── Activity submissions (PDF worksheet + cover image) ───────────────────
+    match /activities/{fileName} {
+      allow read: if true;
+      allow create, update: if isLoggedIn()
+        && (isImageType() || isDocumentType())
+        && request.resource.size <= maxMB(25);
+      allow delete: if isLoggedIn() &&
+        (fileName.matches('.*_' + request.auth.uid + '_.*') || isAdmin());
+    }
+
+    // ── Slang Decoder example memes ──────────────────────────────────────────
+    match /slang_memes/{fileName} {
+      allow read: if true;
+      allow create, update: if isLoggedIn()
+        && isImageType()
+        && request.resource.size <= maxMB(10);
+      allow delete: if isAdmin();
+    }
+
+    // ── External tool/link thumbnails ────────────────────────────────────────
+    match /external_thumbnails/{fileName} {
+      allow read: if true;
+      allow create, update: if isLoggedIn()
+        && isImageType()
+        && request.resource.size <= maxMB(5);
+      allow delete: if isAdmin();
+    }
+
+    // ── Admin-curated content ────────────────────────────────────────────────
+    // Homepage hero cards, sponsored ad creatives, testimonial photos and
+    // literacy-test question images are all published from the Admin panel, so
+    // writes here require an actual admin role — not merely being signed in.
+    match /heroCards/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && (isImageType() || isVideoType())
+        && request.resource.size <= maxMB(50);
+      allow delete: if isAdmin();
+    }
+
+    match /sponsored_ads/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isImageType() && request.resource.size <= maxMB(10);
+      allow delete: if isAdmin();
+    }
+
+    match /testimonials/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isImageType() && request.resource.size <= maxMB(5);
+      allow delete: if isAdmin();
+    }
+
+    match /literacy_test_memes/{testId}/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isImageType() && request.resource.size <= maxMB(10);
+      allow delete: if isAdmin();
     }
 
     // ── Fallback: deny all other paths ───────────────────────────────────────
