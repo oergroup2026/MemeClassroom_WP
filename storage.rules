@@ -97,11 +97,17 @@ service firebase.storage {
     }
 
     // ── Meme media (images, GIFs, video clips, audio audiograms) ────────────
+    // Per-type caps rather than a flat 100MB. A 100MB allowance with no rate
+    // limiting is the main uncontrolled cost exposure on the project, and a file
+    // that large also kills the browser tab when the Lab feeds it through
+    // ffmpeg.wasm. Kept in sync with src/utils/uploadLimits.js.
     match /memes/{allPaths=**} {
       allow read: if true;
-      allow create, update: if (ownsPath(allPaths) || isAdmin())
-        && (isImageType() || isVideoType() || isAudioType())
-        && request.resource.size <= maxMB(100);
+      allow create, update: if (ownsPath(allPaths) || isAdmin()) && (
+        (isImageType() && request.resource.size <= maxMB(10)) ||
+        (isVideoType() && request.resource.size <= maxMB(50)) ||
+        (isAudioType() && request.resource.size <= maxMB(20))
+      );
       allow delete: if ownsPath(allPaths) || isAdmin();
     }
 

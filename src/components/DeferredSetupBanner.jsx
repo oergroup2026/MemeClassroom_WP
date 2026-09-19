@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { checkUpload } from "../utils/uploadLimits";
 import { db, storage } from "../firebase";
 
 // Institution type options
@@ -94,6 +95,7 @@ const DeferredSetupBanner = () => {
   const [idCardConsent, setIdCardConsent] = useState(false);
   const [institutionEmail, setInstitutionEmail] = useState(profile?.institution_email || "");
   const [emailError, setEmailError] = useState("");
+  const [idCardError, setIdCardError] = useState("");
   const [step2Loading, setStep2Loading] = useState(false);
   const [step2Done, setStep2Done] = useState(false);
   const [verifySuccess, setVerifySuccess] = useState("");
@@ -526,9 +528,19 @@ const DeferredSetupBanner = () => {
                           className="hidden"
                           onChange={e => {
                             const file = e.target.files?.[0];
-                            if (file && file.size <= 5 * 1024 * 1024) setIdCardFile(file);
+                            if (!file) return;
+                            // Previously an oversized file was silently ignored:
+                            // no error, and the user believed it had attached.
+                            const problem = checkUpload(file, { as: "idCard" });
+                            if (problem) { setIdCardError(problem); e.target.value = ""; setIdCardFile(null); return; }
+                            setIdCardError("");
+                            setIdCardFile(file);
                           }}
                         />
+
+                        {idCardError && (
+                          <p className="text-[10px] text-red-500 font-semibold" role="alert">{idCardError}</p>
+                        )}
 
                         {/* Consent checkbox */}
                         <label className="flex items-start gap-2.5 cursor-pointer group">

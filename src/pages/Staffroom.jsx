@@ -22,6 +22,7 @@ import {
   arrayRemove,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { checkUpload } from "../utils/uploadLimits";
 import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
@@ -2096,7 +2097,12 @@ const Staffroom = () => {
                     accept="image/*,application/pdf,.doc,.docx,.ppt,.pptx"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) { setAttachmentFile(f); setAttachmentName(f.name); }
+                      if (!f) return;
+                      const problem = checkUpload(f, { allow: ["image", "document"] });
+                      if (problem) { setComposeError(problem); e.target.value = ""; setAttachmentFile(null); setAttachmentName(""); return; }
+                      setComposeError("");
+                      setAttachmentFile(f);
+                      setAttachmentName(f.name);
                     }}
                     className="block w-full text-[10px] mt-1"
                   />

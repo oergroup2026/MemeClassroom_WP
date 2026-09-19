@@ -21,6 +21,7 @@ import {
   runTransaction
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { checkUpload } from "../utils/uploadLimits";
 import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
@@ -2360,12 +2361,18 @@ const Library = () => {
                       {uploadFile ? uploadFile.name : "Click to select a file"}
                     </span>
                     <span className="text-[10px] text-gray-450 dark:text-gray-500 font-normal">
-                      PNG, JPG, GIF, MP4, or MP3 (Max 100MB)
+                      PNG or JPG up to 10MB, MP4 up to 50MB, MP3 up to 20MB
                     </span>
                   </div>
                   <input
                     type="file"
-                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      const problem = f && checkUpload(f, { allow: ["image", "video", "audio"] });
+                      if (problem) { setUploadError(problem); e.target.value = ""; setUploadFile(null); return; }
+                      setUploadError("");
+                      setUploadFile(f);
+                    }}
                     className="hidden"
                     required
                   />
