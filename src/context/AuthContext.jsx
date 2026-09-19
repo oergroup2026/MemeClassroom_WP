@@ -15,7 +15,8 @@ import {
   browserLocalPersistence,
   browserSessionPersistence,
   setPersistence,
-  updateProfile
+  updateProfile,
+  sendEmailVerification
 } from "firebase/auth";
 import {
   doc,
@@ -172,6 +173,17 @@ export const AuthProvider = ({ children }) => {
       setProfile(userProfile);
       setUser(userCredential.user);
       await awardLoginBadge(uid);
+      // Real, server-side email verification. Firebase sends and validates this
+      // itself; the app never sees or compares the token. This replaces the
+      // former 4-digit code, which was generated in the browser, held in React
+      // state and compared in the browser — and which, with no EmailJS keys in
+      // the production build, was never actually delivered to anyone.
+      // Non-fatal: a failure here must not cost the user their new account.
+      try {
+        await sendEmailVerification(userCredential.user);
+      } catch (verifyErr) {
+        console.error("Could not send verification email", verifyErr);
+      }
       setLoading(false);
       return userCredential.user;
     } catch (error) {

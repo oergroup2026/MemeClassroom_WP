@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
-import { sendOtpEmail } from "../utils/emailService";
 
 const EyeIcon = ({ open }) =>
   open ? (
@@ -127,11 +126,6 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [magicLinkPendingUrl, setMagicLinkPendingUrl] = useState(null);
 
-  // OTP Verification state
-  const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
-  const [generatedOtp, setGeneratedOtp] = useState("");
-  const [otpTimer, setOtpTimer] = useState(0);
-  const [otpNotice, setOtpNotice] = useState("");
 
   const isMounted = React.useRef(true);
   useEffect(() => {
@@ -142,14 +136,6 @@ const Auth = () => {
   const safeSetLoading = (val) => {
     if (isMounted.current) setLoading(val);
   };
-
-  useEffect(() => {
-    if (otpTimer <= 0) return;
-    const timer = setInterval(() => {
-      setOtpTimer(prev => prev - 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [otpTimer]);
 
   useEffect(() => {
     if (isMagicLinkUrl && isMagicLinkUrl(window.location.href)) {
@@ -177,7 +163,7 @@ const Auth = () => {
   useEffect(() => { if (user && !onboardingUser) navigate("/profile"); }, [user, onboardingUser, navigate]);
 
   const goTo = (newMode, dir = "right") => { setAnimDir(dir); setAnimKey(k => k + 1); setError(""); setSuccessMsg(""); setMode(newMode); setStep(1); };
-  const maxSteps = mode === "register" ? 5 : mode === "onboarding" ? 2 : 3;
+  const maxSteps = mode === "register" ? 4 : mode === "onboarding" ? 2 : 3;
   const nextStep = () => { setAnimDir("right"); setAnimKey(k => k + 1); setStep(s => Math.min(s + 1, maxSteps)); };
   const prevStep = () => { setAnimDir("left"); setAnimKey(k => k + 1); setStep(s => Math.max(s - 1, 1)); };
 
@@ -210,75 +196,6 @@ const Auth = () => {
     } finally {
       safeSetLoading(false);
     }
-  };
-
-  const handleSendOtp = async (e) => {
-    if (e) e.preventDefault();
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      setError("Please enter your email address first.");
-      return;
-    }
-    setError("");
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
-    setGeneratedOtp(code);
-    setOtpDigits(["", "", "", ""]);
-    setOtpTimer(60);
-    setOtpNotice(`Verification code sent to ${trimmedEmail}.`);
-    nextStep();
-    await sendOtpEmail(trimmedEmail, code);
-  };
-
-  const handleResendOtp = async () => {
-    if (otpTimer > 0) return;
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
-    setGeneratedOtp(code);
-    setOtpDigits(["", "", "", ""]);
-    setOtpTimer(60);
-    setOtpNotice(`New verification code sent to ${email}.`);
-    await sendOtpEmail(email, code);
-  };
-
-  const handleOtpDigitChange = (index, value) => {
-    const val = value.replace(/\D/g, "");
-    if (val.length > 1) {
-      const digits = val.slice(0, 4).split("");
-      const newDigits = [...otpDigits];
-      digits.forEach((d, i) => { if (i < 4) newDigits[i] = d; });
-      setOtpDigits(newDigits);
-      const nextInput = document.getElementById(`otp-input-${Math.min(digits.length, 3)}`);
-      if (nextInput) nextInput.focus();
-      return;
-    }
-    const newDigits = [...otpDigits];
-    newDigits[index] = val;
-    setOtpDigits(newDigits);
-    if (val && index < 3) {
-      const nextInput = document.getElementById(`otp-input-${index + 1}`);
-      if (nextInput) nextInput.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
-      const prevInput = document.getElementById(`otp-input-${index - 1}`);
-      if (prevInput) prevInput.focus();
-    }
-  };
-
-  const handleVerifyOtp = (e) => {
-    if (e) e.preventDefault();
-    const entered = otpDigits.join("");
-    if (entered.length < 4) {
-      setError("Please enter all 4 digits.");
-      return;
-    }
-    if (entered !== generatedOtp) {
-      setError("Incorrect code. Please check your verification code and try again.");
-      return;
-    }
-    setError("");
-    nextStep();
   };
 
   const handleRegister = async (e) => {
@@ -556,9 +473,9 @@ const Auth = () => {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <button id="register-back-btn" onClick={() => step === 1 ? goTo("hub", "left") : prevStep()} className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-zinc-500 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">← {step === 1 ? "Back" : "Previous"}</button>
-                  <span className="text-xs text-gray-400 dark:text-zinc-500 font-medium">Step {step} of 5</span>
+                  <span className="text-xs text-gray-400 dark:text-zinc-500 font-medium">Step {step} of 4</span>
                 </div>
-                <StepDots current={step} total={5} />
+                <StepDots current={step} total={4} />
 
                 {/* Step 1: Google or Email */}
                 {step === 1 && (
@@ -603,7 +520,7 @@ const Auth = () => {
 
                 {/* Step 2: Full Name */}
                 {step === 2 && (
-                  <form onSubmit={handleSendOtp} className="space-y-4">
+                  <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) nextStep(); }} className="space-y-4">
                     <div className="mb-4">
                       <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight">What should we call you?</h2>
                       <p className="mt-1 text-gray-500 dark:text-zinc-400 text-sm">Enter your full name to set up your identity.</p>
@@ -626,74 +543,13 @@ const Auth = () => {
                       disabled={!name.trim() || loading}
                       className={`${pb} mt-2`}
                     >
-                      <span>Send Verification Code</span><span aria-hidden>→</span>
+                      <span>Continue</span><span aria-hidden>→</span>
                     </button>
                   </form>
                 )}
 
-                {/* Step 3: 4-Digit OTP Code Verification */}
+                {/* Step 3: Password Setup */}
                 {step === 3 && (
-                  <form onSubmit={handleVerifyOtp} className="space-y-5 text-center">
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight">Check your inbox!</h2>
-                      <p className="mt-1.5 text-gray-500 dark:text-zinc-400 text-sm">We sent a 4-digit verification code to:</p>
-                      <p className="font-semibold text-purple-700 dark:text-purple-300 text-sm mt-0.5 break-all">{email}</p>
-                      <p className="mt-2.5 text-xs text-amber-600 dark:text-amber-400/90 bg-amber-50 dark:bg-amber-950/40 py-1.5 px-3 rounded-lg border border-amber-200/60 dark:border-amber-800/40 inline-block font-medium">
-                        Can't find the email? Please check your spam folder as the OTP may be delivered there in some cases.
-                      </p>
-                    </div>
-
-                    {otpNotice && (
-                      <div className="p-3 text-xs rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200 font-medium">
-                        {otpNotice}
-                      </div>
-                    )}
-
-                    <div className="flex justify-center gap-3 py-2">
-                      {otpDigits.map((digit, index) => (
-                        <input
-                          key={index}
-                          id={`otp-input-${index}`}
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={1}
-                          value={digit}
-                          onChange={e => handleOtpDigitChange(index, e.target.value)}
-                          onKeyDown={e => handleOtpKeyDown(index, e)}
-                          className="w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:border-purple-600 focus:ring-2 focus:ring-purple-500/20 focus:outline-none transition-all"
-                          autoFocus={index === 0}
-                          aria-label={`Digit ${index + 1}`}
-                        />
-                      ))}
-                    </div>
-
-                    <button
-                      id="otp-verify-btn"
-                      type="submit"
-                      disabled={otpDigits.join("").length < 4 || loading}
-                      className={pb}
-                    >
-                      <span>Verify Code →</span>
-                    </button>
-
-                    <div className="pt-2 text-xs">
-                      {otpTimer > 0 ? (
-                        <p className="text-gray-400 dark:text-zinc-500">Resend code in <span className="font-semibold text-gray-600 dark:text-zinc-300">{otpTimer}s</span></p>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleResendOtp}
-                          className="text-purple-600 dark:text-purple-400 font-semibold hover:underline"
-                        >
-                          Didn't get a code? Resend Code
-                        </button>
-                      )}
-                    </div>
-                  </form>
-                )}
-
-                {/* Step 4: Password Setup */}
-                {step === 4 && (
                   <form onSubmit={(e) => { e.preventDefault(); if (password.length >= 6) nextStep(); }} className="space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight mb-1">Choose a password</h2>
@@ -740,8 +596,8 @@ const Auth = () => {
                   </form>
                 )}
 
-                {/* Step 5: Role Selection & Final Submit */}
-                {step === 5 && (
+                {/* Step 4: Role Selection & Final Submit */}
+                {step === 4 && (
                   <form id="register-form" onSubmit={handleRegister} className="space-y-4">
                     <div className="mb-2">
                       <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50 tracking-tight">Select your role</h2>
