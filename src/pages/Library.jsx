@@ -2379,6 +2379,16 @@ const Library = () => {
                 </label>
               </div>
 
+              {/* The Lab and Library are where content is published, and the Lab
+                  hides the site footer — so the educational-use and withdrawal
+                  notice is repeated here, at the point of posting. */}
+              <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300/90 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/40 rounded-xl p-3">
+                Post only for <strong>educational purposes</strong>. Anything you upload can be
+                withdrawn at any time — delete it yourself, or email{" "}
+                <a href="mailto:memeclassroom@gmail.com?subject=Content%20withdrawal%20request" className="underline underline-offset-2 font-semibold">memeclassroom@gmail.com</a>{" "}
+                and we will remove it.
+              </p>
+
               <div className="flex justify-end space-x-2 pt-4 border-t border-gray-100 dark:border-zinc-800/80">
                 <button
                   type="button"
