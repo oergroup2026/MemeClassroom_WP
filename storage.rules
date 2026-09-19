@@ -45,18 +45,27 @@ service firebase.storage {
       return n * 1024 * 1024;
     }
 
-    // ── ID Card uploads ──────────────────────────────────────────────────────
-    // Only the owning user may upload their own ID card.
-    // Reads are fully blocked from the client — only Cloud Functions /
-    // Admin SDK (which bypass these rules) may read ID cards.
-    // This prevents any client, including admins in the browser, from
-    // directly downloading a raw ID card file.
-    match /id_cards/{fileName} {
-      allow read: if false;  // Admin access is via Firebase Admin SDK, not client SDK
-      allow write: if isLoggedIn()
-        && isImageType()
-        && request.resource.size <= maxMB(5)
-        && fileName.matches(request.auth.uid + '_id');  // user can only upload their own
+    // ── ID Card uploads (optional; used for Verified Educator / Expert) ──────
+    // Uploading an ID card is entirely optional. Ordinary students, teachers,
+    // parents and researchers never need one — content is governed by flagging
+    // and moderation instead. It is only required when a user applies for
+    // verified Expert status, which an admin grants via /expert_apps.
+    //
+    // Path is id_cards/{userId}/{fileName}, matching what the app writes. The
+    // previous single-segment rule matched nothing the app actually uploaded,
+    // so every ID card upload was denied.
+    //
+    // Only the owning user may write their own. Reads are limited to the owner
+    // and admins — admins must be able to see the document in order to review a
+    // verification request from the Admin panel. Images and PDFs are both
+    // accepted, because the file picker offers "image/*,.pdf".
+    match /id_cards/{userId}/{fileName} {
+      allow read: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
+      allow create, update: if isLoggedIn()
+        && request.auth.uid == userId
+        && (isImageType() || isDocumentType())
+        && request.resource.size <= maxMB(5);
+      allow delete: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
     }
 
     // ── User avatar / profile photo ──────────────────────────────────────────

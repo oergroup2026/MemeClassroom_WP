@@ -74,9 +74,20 @@ export const AuthProvider = ({ children }) => {
   const createUserProfile = async (uid, email, profileData, idCardFile) => {
     let id_card_url = null;
     if (idCardFile) {
-      const storageRef = ref(storage, `id_cards/${uid}/${Date.now()}_${idCardFile.name}`);
-      await uploadBytes(storageRef, idCardFile);
-      id_card_url = await getDownloadURL(storageRef);
+      // The ID card is OPTIONAL — it only matters for Verified Educator /
+      // Expert status, which an admin grants separately. So a failure here must
+      // never abort registration: signUpWithEmail's error path deletes the
+      // just-created Auth account, which previously meant a rejected ID upload
+      // silently destroyed the whole signup. Log it and carry on; the user can
+      // retry later from the optional verification banner.
+      try {
+        const storageRef = ref(storage, `id_cards/${uid}/${Date.now()}_${idCardFile.name}`);
+        await uploadBytes(storageRef, idCardFile);
+        id_card_url = await getDownloadURL(storageRef);
+      } catch (idErr) {
+        console.error("Optional ID card upload failed; continuing registration without it", idErr);
+        id_card_url = null;
+      }
     }
 
     const userDocRef = doc(db, "users", uid);
