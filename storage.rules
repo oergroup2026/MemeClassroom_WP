@@ -51,8 +51,18 @@ service firebase.storage {
     // file, because the names are predictable — the meme would keep its
     // original title and author while the image itself was replaced.
     // Admin-seeded objects are named seed_*/admin_* and are covered by isAdmin().
-    function ownsPath(path) {
-      return isLoggedIn() && path.matches('.*' + request.auth.uid + '.*');
+    //
+    // These read the object name off request.resource / resource rather than off
+    // a {allPaths=**} wildcard. A multi-segment wildcard binds a Path, not a
+    // String, so calling .matches() on it raises an error and the rule denies —
+    // which silently blocked EVERY non-admin upload. Caught by
+    // tests/rules/storage.test.js; see the "uploads are owned by" cases.
+    function ownsIncomingObject() {
+      return isLoggedIn() && request.resource.name.matches('.*' + request.auth.uid + '.*');
+    }
+
+    function ownsExistingObject() {
+      return isLoggedIn() && resource.name.matches('.*' + request.auth.uid + '.*');
     }
 
     // ── ID Card uploads (optional; used for Verified Educator / Expert) ──────
@@ -90,10 +100,10 @@ service firebase.storage {
 
     match /avatars/{allPaths=**} {
       allow read: if true;
-      allow create, update: if (ownsPath(allPaths) || isAdmin())
+      allow create, update: if (ownsIncomingObject() || isAdmin())
         && isImageType()
         && request.resource.size <= maxMB(5);
-      allow delete: if ownsPath(allPaths) || isAdmin();
+      allow delete: if ownsExistingObject() || isAdmin();
     }
 
     // ── Meme media (images, GIFs, video clips, audio audiograms) ────────────
@@ -103,49 +113,49 @@ service firebase.storage {
     // ffmpeg.wasm. Kept in sync with src/utils/uploadLimits.js.
     match /memes/{allPaths=**} {
       allow read: if true;
-      allow create, update: if (ownsPath(allPaths) || isAdmin()) && (
+      allow create, update: if (ownsIncomingObject() || isAdmin()) && (
         (isImageType() && request.resource.size <= maxMB(10)) ||
         (isVideoType() && request.resource.size <= maxMB(50)) ||
         (isAudioType() && request.resource.size <= maxMB(20))
       );
-      allow delete: if ownsPath(allPaths) || isAdmin();
+      allow delete: if ownsExistingObject() || isAdmin();
     }
 
     // ── Meme templates ──────────────────────────────────────────────────────
     match /templates/{allPaths=**} {
       allow read: if true;
-      allow create, update: if (ownsPath(allPaths) || isAdmin())
+      allow create, update: if (ownsIncomingObject() || isAdmin())
         && (isImageType() || isVideoType())
         && request.resource.size <= maxMB(20);
-      allow delete: if ownsPath(allPaths) || isAdmin();
+      allow delete: if ownsExistingObject() || isAdmin();
     }
 
     // ── Resource thumbnails & attachments ───────────────────────────────────
     match /resources/{allPaths=**} {
       allow read: if true;
-      allow create, update: if (ownsPath(allPaths) || isAdmin())
+      allow create, update: if (ownsIncomingObject() || isAdmin())
         && (isImageType() || isVideoType() || isAudioType() || isDocumentType())
         && request.resource.size <= maxMB(50);
-      allow delete: if ownsPath(allPaths) || isAdmin();
+      allow delete: if ownsExistingObject() || isAdmin();
     }
 
     // ── Newspaper thumbnails ─────────────────────────────────────────────────
     match /newspaper/{allPaths=**} {
       allow read: if true;
-      allow create, update: if (ownsPath(allPaths) || isAdmin())
+      allow create, update: if (ownsIncomingObject() || isAdmin())
         && isImageType()
         && request.resource.size <= maxMB(10);
-      allow delete: if ownsPath(allPaths) || isAdmin();
+      allow delete: if ownsExistingObject() || isAdmin();
     }
 
     // ── Staffroom post attachments ───────────────────────────────────────────
     // Documents (PDF, Word, PowerPoint), images only — no executables
     match /staffroom/{allPaths=**} {
       allow read: if true;
-      allow create, update: if (ownsPath(allPaths) || isAdmin())
+      allow create, update: if (ownsIncomingObject() || isAdmin())
         && (isImageType() || isDocumentType())
         && request.resource.size <= maxMB(20);
-      allow delete: if ownsPath(allPaths) || isAdmin();
+      allow delete: if ownsExistingObject() || isAdmin();
     }
 
     // ── Admin uploads (sponsored ads, marketing assets, etc.) ───────────────
@@ -161,10 +171,10 @@ service firebase.storage {
     // Images exported from the meme canvas editor
     match /lab_exports/{allPaths=**} {
       allow read: if true;
-      allow create, update: if (ownsPath(allPaths) || isAdmin())
+      allow create, update: if (ownsIncomingObject() || isAdmin())
         && isImageType()
         && request.resource.size <= maxMB(10);
-      allow delete: if ownsPath(allPaths) || isAdmin();
+      allow delete: if ownsExistingObject() || isAdmin();
     }
 
     // ── Staffroom post attachments ───────────────────────────────────────────

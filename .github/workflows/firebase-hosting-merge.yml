@@ -16,6 +16,23 @@ jobs:
       - name: Block on crash-causing lint errors
         run: npm run lint:critical
 
+      - name: Unit tests
+        run: npm test
+
+      # The Firebase emulator runs on the JVM, and firebase-tools requires
+      # Java 21+. The runner's default JDK is older, which failed the rules
+      # tests with "firebase-tools no longer supports Java version before 21".
+      - name: Set up Java for the Firebase emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Security rules tests
+        run: npx -y firebase-tools emulators:exec --only firestore,storage --project memeclassroom-rules-test "npx vitest run tests/rules"
+        env:
+          JAVA_TOOL_OPTIONS: ""
+
       - run: npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
