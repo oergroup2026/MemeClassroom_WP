@@ -445,7 +445,7 @@ const Staffroom = () => {
       await Promise.all(
         idsToFetch.map(async (userId) => {
           try {
-            const snap = await getDoc(doc(db, "users", userId));
+            const snap = await getDoc(doc(db, "user_cards", userId));
             if (snap.exists()) {
               const d = snap.data();
               updates[userId] = {

@@ -346,7 +346,7 @@ const Profile = () => {
               if (cId === "admin") {
                 setCreatorCache(prev => ({ ...prev, admin: "Admin" }));
               } else if (!creatorCache[cId]) {
-                const cDoc = await getDoc(doc(db, "users", cId));
+                const cDoc = await getDoc(doc(db, "user_cards", cId));
                 if (cDoc.exists()) {
                   setCreatorCache(prev => ({ ...prev, [cId]: cDoc.data().name }));
                 }

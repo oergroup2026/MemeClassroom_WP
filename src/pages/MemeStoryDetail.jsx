@@ -172,7 +172,7 @@ export default function MemeStoryDetail() {
 
         // Resolve author name
         if (data.author_id && data.author_id !== "admin") {
-          const userSnap = await getDoc(doc(db, "users", data.author_id));
+          const userSnap = await getDoc(doc(db, "user_cards", data.author_id));
           if (userSnap.exists()) setAuthorName(userSnap.data().name || "Contributor");
         } else if (data.author_id === "admin") {
           setAuthorName("Admin");

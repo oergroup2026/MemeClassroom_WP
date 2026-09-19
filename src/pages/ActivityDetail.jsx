@@ -177,7 +177,7 @@ export default function ActivityDetail() {
         // Author name
         if (data.author_id && data.author_id !== "admin") {
           try {
-            const uSnap = await getDoc(doc(db, "users", data.author_id));
+            const uSnap = await getDoc(doc(db, "user_cards", data.author_id));
             if (uSnap.exists()) setAuthorName(uSnap.data().name || "Contributor");
           } catch (_) {}
         } else if (data.author_id === "admin") {

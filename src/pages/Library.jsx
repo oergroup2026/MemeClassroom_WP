@@ -401,7 +401,7 @@ const Library = () => {
         const newCacheUpdates = {};
         await Promise.all(idsToFetch.map(async (userId) => {
           try {
-            const userDoc = await getDoc(doc(db, "users", userId));
+            const userDoc = await getDoc(doc(db, "user_cards", userId));
             if (userDoc.exists()) {
               const userData = userDoc.data();
               resolvedCreatorsRef.current[userId] = "fetched";

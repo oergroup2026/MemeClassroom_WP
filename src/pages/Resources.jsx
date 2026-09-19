@@ -964,7 +964,7 @@ const Resources = () => {
         await Promise.all(
           toFetch.map(async (authorId) => {
             try {
-              const userDoc = await getDoc(doc(db, "users", authorId));
+              const userDoc = await getDoc(doc(db, "user_cards", authorId));
               if (userDoc.exists()) {
                 fetched[authorId] = userDoc.data().name;
               }
