@@ -9,30 +9,27 @@
  */
 
 import { useRef, useCallback } from "react";
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import { fetchFile } from "@ffmpeg/util";
+import { createLoadedFFmpeg } from "../utils/ffmpegLoader";
 
 export function useVideoTrim() {
   const ffmpegRef = useRef(null);
   const loadedRef = useRef(false);
+  const loadingRef = useRef(null);
 
   /** Lazily load ffmpeg.wasm (only once per page session). */
   const ensureLoaded = useCallback(async () => {
     if (loadedRef.current) return;
-
-    // Dynamic import keeps the 25 MB WASM bundle out of the initial JS bundle.
-    const { FFmpeg } = await import("@ffmpeg/ffmpeg");
-    const ffmpeg = new FFmpeg();
-
-    ffmpegRef.current = ffmpeg;
-
-    // Load single-threaded core from CDN to bypass COOP/COEP requirement
-    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm";
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-    });
-
-    loadedRef.current = true;
+    // Two overlapping calls previously each started their own load.
+    if (loadingRef.current) return loadingRef.current;
+    loadingRef.current = (async () => {
+      // Served from our own origin, with a timeout — see utils/ffmpegLoader.js.
+      // Nothing is downloaded until a user actually opens a video tool.
+      const ffmpeg = await createLoadedFFmpeg();
+      ffmpegRef.current = ffmpeg;
+      loadedRef.current = true;
+    })().finally(() => { loadingRef.current = null; });
+    return loadingRef.current;
   }, []);
 
   /**
