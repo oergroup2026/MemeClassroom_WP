@@ -23,7 +23,12 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v4
-      - run: npm ci && npm run build
+      - run: npm ci
+
+      - name: Block on crash-causing lint errors
+        run: npm run lint:critical
+
+      - run: npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
