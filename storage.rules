@@ -45,6 +45,16 @@ service firebase.storage {
       return n * 1024 * 1024;
     }
 
+    // Every non-admin upload embeds the uploader's uid in the object name
+    // (e.g. memes/{uid}_meme_{timestamp}.png, resources/thumb_{uid}_{ts}).
+    // Without this check any signed-in user could overwrite another user's
+    // file, because the names are predictable — the meme would keep its
+    // original title and author while the image itself was replaced.
+    // Admin-seeded objects are named seed_*/admin_* and are covered by isAdmin().
+    function ownsPath(path) {
+      return isLoggedIn() && path.matches('.*' + request.auth.uid + '.*');
+    }
+
     // ── ID Card uploads (optional; used for Verified Educator / Expert) ──────
     // Uploading an ID card is entirely optional. Ordinary students, teachers,
     // parents and researchers never need one — content is governed by flagging
@@ -71,73 +81,84 @@ service firebase.storage {
     // ── User avatar / profile photo ──────────────────────────────────────────
     match /users/{userId}/avatar/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if isLoggedIn()
         && request.auth.uid == userId
+        && isImageType()
         && request.resource.size <= maxMB(5);
+      allow delete: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
     }
 
     match /avatars/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
+        && isImageType()
         && request.resource.size <= maxMB(5);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Meme media (images, GIFs, video clips, audio audiograms) ────────────
     match /memes/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
         && (isImageType() || isVideoType() || isAudioType())
         && request.resource.size <= maxMB(100);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Meme templates ──────────────────────────────────────────────────────
     match /templates/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
         && (isImageType() || isVideoType())
         && request.resource.size <= maxMB(20);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Resource thumbnails & attachments ───────────────────────────────────
     match /resources/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
         && (isImageType() || isVideoType() || isAudioType() || isDocumentType())
         && request.resource.size <= maxMB(50);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Newspaper thumbnails ─────────────────────────────────────────────────
     match /newspaper/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
         && isImageType()
         && request.resource.size <= maxMB(10);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Staffroom post attachments ───────────────────────────────────────────
     // Documents (PDF, Word, PowerPoint), images only — no executables
     match /staffroom/{allPaths=**} {
       allow read: if isLoggedIn();
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
         && (isImageType() || isDocumentType())
         && request.resource.size <= maxMB(20);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Admin uploads (sponsored ads, marketing assets, etc.) ───────────────
     match /admin/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if isAdmin()
         && (isImageType() || isVideoType() || isAudioType())
         && request.resource.size <= maxMB(100);
+      allow delete: if isAdmin();
     }
 
     // ── Lab / canvas exports ─────────────────────────────────────────────────
     // Images exported from the meme canvas editor
     match /lab_exports/{allPaths=**} {
       allow read: if true;
-      allow write: if isLoggedIn()
+      allow create, update: if (ownsPath(allPaths) || isAdmin())
         && isImageType()
         && request.resource.size <= maxMB(10);
+      allow delete: if ownsPath(allPaths) || isAdmin();
     }
 
     // ── Staffroom post attachments ───────────────────────────────────────────
