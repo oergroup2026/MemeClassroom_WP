@@ -86,13 +86,20 @@ const Toast = ({ message, type = "info", onDismiss }) => {
 
 // ─── Resource Detail Modal ─────────────────────────────────────────────────────
 const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, activeTemplate, onLike, onBookmark, onClose, onViewLink }) => {
-  if (!res) return null;
+  // Hooks must run on every render, in the same order — so they come before
+  // any early return. Bailing out above them changed the hook count between
+  // "no resource selected" and "resource selected", which made React throw
+  // ("Rendered more hooks than during the previous render") the moment a
+  // resource was opened.
   const navigate = useNavigate();
-  const typeLabel = res.type ? res.type.replace(/_/g, " ") : "Resource";
-  const isStory = res.type === "stories";
 
   // Local state for expand — lives in the modal instance
   const [storyExpanded, setStoryExpanded] = React.useState(false);
+
+  if (!res) return null;
+
+  const typeLabel = res.type ? res.type.replace(/_/g, " ") : "Resource";
+  const isStory = res.type === "stories";
 
   return (
     <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4" onClick={onClose}>
