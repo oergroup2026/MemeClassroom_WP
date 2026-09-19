@@ -28,6 +28,14 @@ jobs:
       - name: Block on crash-causing lint errors
         run: npm run lint:critical
 
+      - name: Unit tests
+        run: npm test
+
+      - name: Security rules tests
+        run: npx -y firebase-tools emulators:exec --only firestore,storage --project memeclassroom-rules-test "npx vitest run tests/rules"
+        env:
+          JAVA_TOOL_OPTIONS: ""
+
       - run: npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:

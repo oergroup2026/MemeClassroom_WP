@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy": "npm run build && npx -y firebase-tools deploy --only hosting",
-    "lint:critical": "node scripts/check-critical-lint.mjs"
+    "lint:critical": "node scripts/check-critical-lint.mjs",
+    "test": "vitest run tests/unit",
+    "test:rules": "JAVA_TOOL_OPTIONS= firebase emulators:exec --only firestore,storage --project memeclassroom-rules-test \"vitest run tests/rules\"",
+    "test:all": "npm run test && npm run test:rules"
   },
   "dependencies": {
     "@ffmpeg/core": "^0.12.10",
@@ -27,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
@@ -37,6 +41,7 @@
     "globals": "^17.6.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.19",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vitest": "^3.2.7"
   }
 }
