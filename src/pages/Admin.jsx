@@ -1608,6 +1608,7 @@ const Admin = () => {
           destination_url: "https://www.oercommons.org/hubs/physics",
           image_url: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80",
           contributor_id: user.uid,
+          admin_approved: true,
           is_placeholder: true,
           created_at: serverTimestamp()
         },
@@ -1617,6 +1618,7 @@ const Admin = () => {
           destination_url: "https://www.merlot.org/merlot/index.htm",
           image_url: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=600&q=80",
           contributor_id: user.uid,
+          admin_approved: true,
           is_placeholder: true,
           created_at: serverTimestamp()
         },
@@ -1626,6 +1628,7 @@ const Admin = () => {
           destination_url: "https://phet.colorado.edu/",
           image_url: "https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?auto=format&fit=crop&w=600&q=80",
           contributor_id: user.uid,
+          admin_approved: true,
           is_placeholder: true,
           created_at: serverTimestamp()
         }

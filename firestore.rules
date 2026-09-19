@@ -115,7 +115,18 @@ service cloud.firestore {
           isAdmin()
         )
       );
-      allow create: if isLoggedIn() && !isBanned();
+      // Creation previously required only being signed in, with no check on
+      // creator_id or status — so a user could submit a template already marked
+      // status: "approved" and publish it straight to the public library, which
+      // guests can read. Contributors must now claim their own submission and
+      // leave it unapproved; only admins can create an approved template.
+      allow create: if isLoggedIn() && !isBanned() && (
+        isAdmin() ||
+        (
+          request.resource.data.creator_id == request.auth.uid &&
+          request.resource.data.status != "approved"
+        )
+      );
       allow update, delete: if isAdmin();
     }
 
@@ -230,10 +241,27 @@ service cloud.firestore {
     }
 
     // ─── External Links / Additional Tools ────────────────────────────────────
+    // Publicly readable, so an unapproved entry is a link shown to students.
+    // Creation previously required only being signed in, with no check on
+    // contributor_id and no approval gate. Contributors must now claim their own
+    // submission, leave it unapproved, and cannot self-approve on update.
     match /external_links/{linkId} {
       allow read: if true;
-      allow create: if isLoggedIn() && !isBanned();
-      allow update, delete: if isLoggedIn() && (resource.data.contributor_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn() && !isBanned() && (
+        isAdmin() ||
+        (
+          request.resource.data.contributor_id == request.auth.uid &&
+          request.resource.data.admin_approved == false
+        )
+      );
+      allow update: if isLoggedIn() && (
+        isAdmin() ||
+        (
+          resource.data.contributor_id == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['admin_approved', 'contributor_id'])
+        )
+      );
+      allow delete: if isLoggedIn() && (resource.data.contributor_id == request.auth.uid || isAdmin());
     }
 
     // ─── Newspaper Items ───────────────────────────────────────────────────────

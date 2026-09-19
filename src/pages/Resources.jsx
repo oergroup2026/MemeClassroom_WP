@@ -1028,11 +1028,18 @@ const Resources = () => {
     const unsubscribe = onSnapshot(collRef, (snapshot) => {
       const results = [];
       snapshot.forEach((d) => results.push({ id: d.id, ...d.data() }));
-      results.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
-      setExternalLinks(results);
+      // Show only admin-approved links. This listener previously rendered every
+      // document, so a link was live to every visitor — including students — the
+      // instant anyone submitted it, with no review. Contributors still see
+      // their own pending submission so it does not appear to have vanished.
+      const visible = results.filter(
+        (l) => l.admin_approved === true || (user && l.contributor_id === user.uid)
+      );
+      visible.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
+      setExternalLinks(visible);
     });
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   // ── 6. Real-time likes listener (user-specific)
   useEffect(() => {
