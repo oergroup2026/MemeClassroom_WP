@@ -331,7 +331,9 @@ const Home = () => {
       }
 
       try {
-        const usersSnap = await getCountFromServer(collection(db, "users"));
+        // /user_cards, not /users: the latter is owner-and-admin only now, and
+        // this stat is on the public homepage where most viewers are guests.
+        const usersSnap = await getCountFromServer(collection(db, "user_cards"));
         usersCount = usersSnap.data().count;
       } catch (e) {
         console.warn("Users count note:", e.message);

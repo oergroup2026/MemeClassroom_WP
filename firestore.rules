@@ -43,13 +43,20 @@ service cloud.firestore {
     }
 
     // ─── Users ──────────────────────────────────────────────────────────────
-    // Profiles require authentication to read — prevents anonymous visitors from
-    // scraping email addresses or other personal details.
+    // This document holds the user's school/institution, town, state and
+    // country. It was readable by ANY signed-in user, so since registration is
+    // open to the public, anyone could enumerate the name, school and location
+    // of every student on the platform.
+    //
+    // Reads are now limited to the owner and admins. Pages that just need to
+    // show an author's name and avatar read /user_cards/{uid} instead, which a
+    // Cloud Function mirrors from this document (see functions/index.js).
+    //
     // Admins can read and write any profile. Non-admin users can only create/update
     // their own profile with a self-assignable role, and cannot self-grant admin,
     // expert, verified, or banned status.
     match /users/{userId} {
-      allow read: if isLoggedIn();
+      allow read: if isLoggedIn() && (isOwner(userId) || isAdmin());
       allow create: if isLoggedIn() && (
         isAdmin() ||
         (isOwner(userId) && isSelfAssignableRole(request.resource.data.role))
@@ -66,6 +73,23 @@ service cloud.firestore {
       match /private/{docId} {
         allow read, write: if isLoggedIn() && (isOwner(userId) || isAdmin());
       }
+    }
+
+    // ─── Public Profile Cards ─────────────────────────────────────────────────
+    // The display-only projection of /users/{uid}: name, role, is_verified,
+    // avatar_url, tagline. Nothing here identifies where a user studies or
+    // lives. Written ONLY by the mirrorUserCard Cloud Function, which runs with
+    // the Admin SDK and bypasses these rules — clients are denied all writes, so
+    // a user cannot forge or alter another user's card.
+    //
+    // Public read, per the project's access policy: all content is browsable
+    // without an account and only contributing requires one. Memes, resources
+    // and comments are already public, so their author attribution must be too
+    // — the old rule required a login, which left every guest looking at
+    // "Unknown User" on otherwise public pages.
+    match /user_cards/{userId} {
+      allow read: if true;
+      allow write: if false;
     }
 
     // ─── Private Contacts (email addresses) ───────────────────────────────────

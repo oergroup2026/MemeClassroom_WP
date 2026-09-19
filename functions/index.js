@@ -30,7 +30,7 @@
 
 "use strict";
 
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
@@ -499,3 +499,110 @@ exports.fetchArticleThumbnail = onCall(async (request) => {
   const imageUrl = await fetchOgImage(url);
   return { imageUrl };
 });
+
+
+// ─── Public profile cards ───────────────────────────────────────────────────
+//
+// /users/{uid} holds a user's school, town, state and country. It used to be
+// readable by any signed-in user so that pages could show an author's name
+// next to their meme or post — which meant anyone who registered could read
+// the name, school and location of every student on the platform.
+//
+// The display fields are now mirrored into /user_cards/{uid}, which is all a
+// page needs to render an author. /users/{uid} is restricted to its owner and
+// admins. This mirror is the only writer of /user_cards; clients cannot write
+// it (see firestore.rules), so a user cannot spoof another user's card.
+
+const CARD_FIELDS = ["name", "role", "is_verified", "avatar_url", "tagline"];
+
+/** The public-card projection of a user document. */
+function toCard(data) {
+  return {
+    name: data.name || "Unknown User",
+    role: data.role || "student",
+    is_verified: data.is_verified === true,
+    avatar_url: data.avatar_url || "",
+    tagline: data.tagline || "",
+  };
+}
+
+/** True when none of the mirrored fields differ. */
+function cardMatches(card, data) {
+  if (!card) return false;
+  const next = toCard(data);
+  return CARD_FIELDS.every((f) => card[f] === next[f]);
+}
+
+// Keep /user_cards/{uid} in step with /users/{uid}.
+exports.mirrorUserCard = onDocumentWritten("users/{uid}", async (event) => {
+  const uid = event.params.uid;
+  const after = event.data?.after;
+  const cardRef = db.collection("user_cards").doc(uid);
+
+  try {
+    if (!after?.exists) {
+      await cardRef.delete().catch(() => {});
+      return;
+    }
+    const data = after.data() || {};
+    const before = event.data?.before?.exists ? event.data.before.data() : null;
+    // Skip the write when no mirrored field changed — most /users writes are
+    // unrelated (setup flags, verification status) and would otherwise cost a
+    // needless write on every one.
+    if (before && cardMatches(toCard(before), data)) return;
+
+    await cardRef.set(toCard(data), { merge: true });
+  } catch (e) {
+    console.error(`Failed to mirror user card for ${uid}`, e);
+    Sentry.captureException(e);
+  }
+});
+
+// Backfill for users who existed before the mirror, and a safety net for any
+// mirror write that failed. Idempotent: it only writes cards that are missing
+// or stale, so a run with nothing to do costs reads and no writes.
+exports.backfillUserCards = onSchedule(
+  { schedule: "30 3 * * *", timeZone: "Etc/UTC" },
+  async () => {
+    let written = 0;
+    let scanned = 0;
+    try {
+      const [users, cards] = await Promise.all([
+        db.collection("users").get(),
+        db.collection("user_cards").get(),
+      ]);
+      const existing = new Map(cards.docs.map((d) => [d.id, d.data()]));
+
+      let batch = db.batch();
+      let pending = 0;
+      for (const doc of users.docs) {
+        scanned += 1;
+        const data = doc.data() || {};
+        if (cardMatches(existing.get(doc.id), data)) continue;
+
+        batch.set(db.collection("user_cards").doc(doc.id), toCard(data), { merge: true });
+        written += 1;
+        pending += 1;
+        // Firestore caps a batch at 500 writes.
+        if (pending === 450) {
+          await batch.commit();
+          batch = db.batch();
+          pending = 0;
+        }
+      }
+      if (pending > 0) await batch.commit();
+
+      // Remove cards whose user is gone.
+      const userIds = new Set(users.docs.map((d) => d.id));
+      const orphans = cards.docs.filter((d) => !userIds.has(d.id));
+      for (const orphan of orphans) {
+        await orphan.ref.delete().catch(() => {});
+      }
+
+      console.log(`backfillUserCards: scanned ${scanned}, wrote ${written}, removed ${orphans.length}`);
+    } catch (e) {
+      console.error("backfillUserCards failed", e);
+      Sentry.captureException(e);
+    }
+  }
+);
