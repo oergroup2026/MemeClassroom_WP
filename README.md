@@ -100,10 +100,19 @@ Copy `.env.example` to `.env.local` (git-ignored) and fill in what you need. Not
 |---|---|---|
 | `VITE_EMAILJS_SERVICE_ID` / `_TEMPLATE_ID` / `_PUBLIC_KEY` | Sends real OTP verification emails | Only for that flow |
 | `VITE_GIPHY_API_KEY` | GIF search tab in the Meme Lab | Only for GIF search |
-| `VITE_GEMINI_API_KEY` | AI features (users can also supply their own key in-app) | No — not recommended to set globally, see comment in `.env.example` |
 | `VITE_SENTRY_DSN` | Frontend error tracking | No — no-op until set |
 
-Cloud Functions have their own template at `functions/.env.example` (copy to `functions/.env`) — currently just `SENTRY_DSN` for backend error tracking.
+Cloud Functions have their own template at `functions/.env.example` (copy to `functions/.env`) — `SENTRY_DSN` for backend error tracking, and `GEMINI_API_KEY` for the Meme Lab's AI features (captions, image explanations, quiz feedback). The Gemini key lives only on the server; without it, those features fall back to canned responses instead of failing.
+
+### Storage CORS (required for Meme Lab export)
+
+The Meme Lab draws template images onto a canvas to export them, which the browser only allows if the Storage bucket sends CORS headers. Apply `cors.json` once per bucket (needs the Google Cloud SDK and access to the project), and again if you add a custom domain (add it to `cors.json` first):
+
+```
+gsutil cors set cors.json gs://memeclassroom-98d2b.firebasestorage.app
+```
+
+Without it, exports that use a Firebase-hosted template fail with "Couldn't load … image(s) for export".
 
 The Firebase project config in `src/firebase.js` is **not a secret** — Firebase web API keys identify the project only; access is controlled entirely by `firestore.rules` and `storage.rules`, not by keeping that config private.
 

@@ -399,8 +399,15 @@ export async function compileVideoMeme({
     if (onProgress) onProgress(50); // Starting encode execution
 
     // D. Build filter complex string
-    let filterComplex = "";
-    let currentOutput = "[0:v]";
+    // The text/caption overlay PNGs are drawn at width x height, so the source
+    // must be scaled and letterboxed into that same frame first; otherwise the
+    // overlays get cropped to the source's native size and the chosen aspect
+    // ratio is ignored.
+    const padColor = /^#[0-9a-f]{6}$/i.test(canvasBg) ? `0x${canvasBg.slice(1)}` : "black";
+    let filterComplex =
+      `[0:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,` +
+      `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=${padColor},setsar=1[v_base];`;
+    let currentOutput = "[v_base]";
     let nextInputIndex = 1;
 
     if (hasTextLayers) {
@@ -419,9 +426,7 @@ export async function compileVideoMeme({
       nextInputIndex++;
     });
 
-    if (filterComplex) {
-      filterComplex = filterComplex.slice(0, -1); // remove trailing semicolon
-    }
+    filterComplex = filterComplex.slice(0, -1); // remove trailing semicolon
 
     // E. Assemble CLI Arguments
     const duration = videoTrimEnd - videoTrimStart;
@@ -447,31 +452,18 @@ export async function compileVideoMeme({
       }
     });
 
-    if (filterComplex) {
-      const lastLabel = captionsListWithDurations.length > 0 
-        ? `[v_cap_${captionsListWithDurations.length - 1}]` 
-        : "[v_txt]";
-      args.push(
-        "-filter_complex", filterComplex,
-        "-map", lastLabel,
-        "-map", "0:a?",
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-crf", "28",
-        "-c:a", "aac",
-        "-b:a", "128k",
-        "output.mp4"
-      );
-    } else {
-      args.push(
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-crf", "28",
-        "-c:a", "aac",
-        "-b:a", "128k",
-        "output.mp4"
-      );
-    }
+    args.push(
+      "-filter_complex", filterComplex,
+      "-map", currentOutput,
+      "-map", "0:a?",
+      "-c:v", "libx264",
+      "-pix_fmt", "yuv420p",
+      "-preset", "ultrafast",
+      "-crf", "28",
+      "-c:a", "aac",
+      "-b:a", "128k",
+      "output.mp4"
+    );
 
     await ffmpeg.exec(args);
 

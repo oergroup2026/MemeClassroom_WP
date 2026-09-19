@@ -1,29 +1,26 @@
 /**
  * src/components/AiQuotaModal.jsx
- * 
- * Interactive modal that displays daily AI credit status, allows users to
- * watch a rewarded video advertisement simulation (+3 free credits),
- * or configure their own Gemini API key.
+ *
+ * Interactive modal that displays daily AI credit status and lets users
+ * watch a rewarded video advertisement simulation (+3 free credits, capped
+ * server-side per day).
  */
 
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Sparkles, Play, Key, CheckCircle2, AlertTriangle, X, ShieldCheck } from "lucide-react";
-import { getAiQuota, addBonusAiCredits } from "../services/geminiClient";
+import { Sparkles, Play, X } from "lucide-react";
+import { getAiQuota, refreshAiQuota, addBonusAiCredits } from "../services/geminiClient";
 
 export default function AiQuotaModal({ isOpen, onClose, onCreditsUpdated }) {
   const [quota, setQuota] = useState(getAiQuota());
   const [adPlaying, setAdPlaying] = useState(false);
   const [adCountdown, setAdCountdown] = useState(5);
-  const [apiKeyInput, setApiKeyInput] = useState(localStorage.getItem("memeclassroom_gemini_key") || "");
-  const [keySaved, setKeySaved] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setQuota(getAiQuota());
       setAdPlaying(false);
       setAdCountdown(5);
-      setKeySaved(false);
+      refreshAiQuota().then(setQuota);
     }
   }, [isOpen]);
 
@@ -33,9 +30,10 @@ export default function AiQuotaModal({ isOpen, onClose, onCreditsUpdated }) {
       timer = setTimeout(() => setAdCountdown(c => c - 1), 1000);
     } else if (adPlaying && adCountdown === 0) {
       setAdPlaying(false);
-      const remaining = addBonusAiCredits(3);
-      setQuota(getAiQuota());
-      if (onCreditsUpdated) onCreditsUpdated(remaining);
+      addBonusAiCredits(3).then((remaining) => {
+        setQuota(getAiQuota());
+        if (onCreditsUpdated) onCreditsUpdated(remaining);
+      });
     }
     return () => clearTimeout(timer);
   }, [adPlaying, adCountdown, onCreditsUpdated]);
@@ -49,17 +47,6 @@ export default function AiQuotaModal({ isOpen, onClose, onCreditsUpdated }) {
   const handleStartAd = () => {
     setAdPlaying(true);
     setAdCountdown(5);
-  };
-
-  const handleSaveKey = (e) => {
-    e.preventDefault();
-    if (apiKeyInput.trim()) {
-      localStorage.setItem("memeclassroom_gemini_key", apiKeyInput.trim());
-    } else {
-      localStorage.removeItem("memeclassroom_gemini_key");
-    }
-    setKeySaved(true);
-    setTimeout(() => setKeySaved(false), 2500);
   };
 
   return createPortal(
@@ -142,34 +129,6 @@ export default function AiQuotaModal({ isOpen, onClose, onCreditsUpdated }) {
             </button>
           )}
         </div>
-
-        {/* Custom API Key Form */}
-        <form onSubmit={handleSaveKey} className="space-y-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
-          <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700 dark:text-gray-300">
-            <Key className="w-3.5 h-3.5 text-gray-400" />
-            <span>Custom Gemini API Key (Optional)</span>
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="password"
-              placeholder="AIzaSy..."
-              value={apiKeyInput}
-              onChange={e => setApiKeyInput(e.target.value)}
-              className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-            <button
-              type="submit"
-              className="px-3 py-1.5 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl transition"
-            >
-              Save
-            </button>
-          </div>
-          {keySaved && (
-            <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" /> Key saved successfully!
-            </span>
-          )}
-        </form>
       </div>
     </div>,
     document.body

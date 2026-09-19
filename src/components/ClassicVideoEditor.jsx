@@ -284,7 +284,7 @@ export default function ClassicVideoEditor({
                 <span>Subtitle Manager</span>
               </span>
               <span className="text-[10px] font-mono text-slate-600 dark:text-zinc-400 bg-white dark:bg-[#0e131f] px-2 py-0.5 rounded border border-slate-200 dark:border-[#1e273a]">
-                {parsedCaptions.length} Clips
+                {parsedCaptions.length} {parsedCaptions.length === 1 ? "Clip" : "Clips"}
               </span>
             </h4>
 

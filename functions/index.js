@@ -501,6 +501,162 @@ exports.fetchArticleThumbnail = onCall(async (request) => {
 });
 
 
+// ─── Meme Lab AI (Gemini) ────────────────────────────────────────────────────
+//
+// The Gemini API key used to be called directly from the browser
+// (src/services/geminiClient.js), which put the key in every page load and
+// left the "5 free credits/day" quota enforced only in localStorage — either
+// one cleared the browser's storage for unlimited free calls. Both the key
+// and the quota now live here: the key never reaches the client, and the
+// per-user daily count is the source of truth in /ai_quota/{uid}.
+
+const GEMINI_DAILY_FREE_CREDITS = 5;
+const GEMINI_BONUS_CREDITS_PER_CLAIM = 3;
+const GEMINI_MAX_BONUS_CLAIMS_PER_DAY = 3; // caps the "watch a sponsor clip" bonus at +9/day
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Loads a user's AI quota doc, resetting it if the stored date isn't today. */
+async function loadOrResetAiQuota(uid) {
+  const ref = db.collection("ai_quota").doc(uid);
+  const snap = await ref.get();
+  const today = todayKey();
+  if (!snap.exists || snap.data().date !== today) {
+    const fresh = {
+      date: today,
+      creditsUsed: 0,
+      bonusCredits: 0,
+      bonusClaims: 0,
+      totalLimit: GEMINI_DAILY_FREE_CREDITS,
+    };
+    await ref.set(fresh);
+    return { ref, quota: fresh };
+  }
+  return { ref, quota: snap.data() };
+}
+
+/** Strips internal bookkeeping (bonusClaims) before returning quota to a client. */
+function aiQuotaPublicView(quota) {
+  return {
+    date: quota.date,
+    creditsUsed: quota.creditsUsed || 0,
+    bonusCredits: quota.bonusCredits || 0,
+    totalLimit: quota.totalLimit || GEMINI_DAILY_FREE_CREDITS,
+  };
+}
+
+/** Same canned responses the old client-side fallback used when no API key was configured. */
+function simulateGeminiFallback(prompt) {
+  if (prompt.includes("punchlines") || prompt.includes("captions")) {
+    return `1. "When the teacher says the test is open-book, but the answers aren't in the book either."\n2. "Mitochondria calculating how to be the powerhouse of the cell for the 10,000th time today."\n3. "Me explaining to my homework why we can't be together tonight."`;
+  }
+  if (prompt.includes("Analyze this educational meme")) {
+    return `**Alt-Text:** A stylized educational template featuring contrasting character panels highlighting scientific concepts.\n\n**Academic Punchline:** Juxtaposes intuitive misconceptions with scientifically validated empirical facts to trigger memorable recall.\n\n**Classroom Discussion:** What assumption is this meme challenging, and how does visual exaggeration reinforce the key lesson?`;
+  }
+  return `Great effort! While your choice had elements of truth, the correct answer is the standard pedagogical principle here. Look closely at the visual rhetoric and context clues when evaluating similar media.`;
+}
+
+// Returns the caller's current AI quota (creating/resetting it for today if needed).
+exports.getAiQuota = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+  const { quota } = await loadOrResetAiQuota(request.auth.uid);
+  return aiQuotaPublicView(quota);
+});
+
+// Grants the "watch a sponsor clip" bonus credits, capped per day server-side
+// so repeated calls can't hand out unlimited credits.
+exports.addAiBonusCredits = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+  const { ref, quota } = await loadOrResetAiQuota(request.auth.uid);
+  const claims = quota.bonusClaims || 0;
+  if (claims >= GEMINI_MAX_BONUS_CLAIMS_PER_DAY) {
+    return aiQuotaPublicView(quota);
+  }
+  const updated = {
+    ...quota,
+    bonusCredits: (quota.bonusCredits || 0) + GEMINI_BONUS_CREDITS_PER_CLAIM,
+    bonusClaims: claims + 1,
+  };
+  await ref.set(updated);
+  return aiQuotaPublicView(updated);
+});
+
+// Generates AI text (meme captions, image explanations, quiz feedback) for the
+// Meme Lab, Library, and Meme Literacy Test pages. Enforces the daily quota
+// and holds the Gemini key server-side; falls back to canned responses when
+// GEMINI_API_KEY isn't configured (functions/.env), matching the old
+// zero-config dev experience without exposing a key.
+exports.generateAiContent = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in to use AI features.");
+  }
+  const { prompt, systemInstruction = "", imageBase64 = null } = request.data || {};
+  if (!prompt || typeof prompt !== "string") {
+    throw new HttpsError("invalid-argument", "A prompt is required.");
+  }
+
+  const { ref, quota } = await loadOrResetAiQuota(request.auth.uid);
+  const available = (quota.totalLimit + (quota.bonusCredits || 0)) - (quota.creditsUsed || 0);
+  if (available <= 0) {
+    throw new HttpsError("resource-exhausted", "QUOTA_EXCEEDED");
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  let text;
+  if (!apiKey) {
+    text = simulateGeminiFallback(prompt);
+  } else {
+    const parts = [];
+    if (imageBase64) {
+      const cleanBase64 = String(imageBase64).replace(/^data:image\/[a-zA-Z]+;base64,/, "");
+      parts.push({ inline_data: { mime_type: "image/jpeg", data: cleanBase64 } });
+    }
+    parts.push({ text: prompt });
+
+    const payload = {
+      contents: [{ parts }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 600 },
+    };
+    if (systemInstruction) {
+      payload.systemInstruction = { parts: [{ text: systemInstruction }] };
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    let response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) {
+      console.error("Gemini API request failed", e.message);
+      Sentry.captureException(e);
+      throw new HttpsError("unavailable", "The AI service is temporarily unavailable. Please try again.");
+    }
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Gemini API call failed", response.status, errorData);
+      Sentry.captureException(new Error(errorData.error?.message || `Gemini API call failed (${response.status})`));
+      throw new HttpsError("internal", "The AI service is temporarily unavailable. Please try again.");
+    }
+    const data = await response.json();
+    text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  }
+
+  const updatedQuota = { ...quota, creditsUsed: (quota.creditsUsed || 0) + 1 };
+  await ref.set(updatedQuota);
+
+  return { text, quota: aiQuotaPublicView(updatedQuota) };
+});
+
+
 // ─── Public profile cards ───────────────────────────────────────────────────
 //
 // /users/{uid} holds a user's school, town, state and country. It used to be

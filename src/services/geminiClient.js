@@ -1,152 +1,96 @@
 /**
  * src/services/geminiClient.js
- * 
- * Client-side Gemini AI integration service with strict rate-limiting,
- * local quota tracking, and fallback simulation when API keys are not yet configured.
+ *
+ * Client for the Meme Lab's AI features. The actual Gemini API key and the
+ * daily quota enforcement live server-side in Cloud Functions
+ * (functions/index.js: generateAiContent / getAiQuota / addAiBonusCredits) —
+ * this file never talks to Google directly, and never sees the key. The
+ * localStorage cache here is a display-only mirror of the server's quota so
+ * the UI can render instantly; the server is always the source of truth.
  */
 
-const STORAGE_KEY = "memeclassroom_ai_quota";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../firebase";
+
+const CACHE_KEY = "memeclassroom_ai_quota_cache";
 export const DAILY_FREE_CREDITS = 5;
 
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function defaultQuota() {
+  return { date: todayKey(), creditsUsed: 0, bonusCredits: 0, totalLimit: DAILY_FREE_CREDITS };
+}
+
 /**
- * Retrieves the current quota state for today
+ * Returns the last known quota (from cache), for instant UI render. Not
+ * authoritative — call refreshAiQuota() to sync with the server.
  */
 export function getAiQuota() {
-  const today = new Date().toISOString().slice(0, 10);
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(CACHE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed.date === today) {
-        return parsed;
-      }
+      if (parsed.date === todayKey()) return parsed;
     }
   } catch (e) {
-    console.warn("Failed to parse AI quota from storage", e);
+    console.warn("Failed to parse cached AI quota", e);
   }
-
-  // Reset for a new day
-  const freshQuota = {
-    date: today,
-    creditsUsed: 0,
-    bonusCredits: 0,
-    totalLimit: DAILY_FREE_CREDITS,
-  };
-  saveAiQuota(freshQuota);
-  return freshQuota;
+  return defaultQuota();
 }
 
-/**
- * Saves quota back to localStorage
- */
-function saveAiQuota(quota) {
+function cacheAiQuota(quota) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(quota));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(quota));
   } catch (e) {
-    console.warn("Failed to save AI quota", e);
+    console.warn("Failed to cache AI quota", e);
   }
 }
 
-/**
- * Checks if user has available AI credits
- */
 export function hasAvailableAiCredits() {
   const q = getAiQuota();
-  const available = (q.totalLimit + (q.bonusCredits || 0)) - q.creditsUsed;
-  return available > 0;
+  return (q.totalLimit + (q.bonusCredits || 0)) - q.creditsUsed > 0;
+}
+
+/** Syncs the cached quota with the server's authoritative count. */
+export async function refreshAiQuota() {
+  try {
+    const fn = httpsCallable(functions, "getAiQuota");
+    const res = await fn();
+    cacheAiQuota(res.data);
+    return res.data;
+  } catch (e) {
+    console.warn("Failed to refresh AI quota from server", e);
+    return getAiQuota();
+  }
+}
+
+/** Grants the "watch a sponsor clip" bonus credits (server caps claims/day). */
+export async function addBonusAiCredits(amount = 3) {
+  const fn = httpsCallable(functions, "addAiBonusCredits");
+  const res = await fn({ amount });
+  cacheAiQuota(res.data);
+  return (res.data.totalLimit + (res.data.bonusCredits || 0)) - res.data.creditsUsed;
 }
 
 /**
- * Deducts 1 AI credit upon successful API call
- */
-export function consumeAiCredit() {
-  const q = getAiQuota();
-  q.creditsUsed = (q.creditsUsed || 0) + 1;
-  saveAiQuota(q);
-  return (q.totalLimit + (q.bonusCredits || 0)) - q.creditsUsed;
-}
-
-/**
- * Grants bonus credits (e.g. from simulated ad view)
- */
-export function addBonusAiCredits(amount = 3) {
-  const q = getAiQuota();
-  q.bonusCredits = (q.bonusCredits || 0) + amount;
-  saveAiQuota(q);
-  return (q.totalLimit + q.bonusCredits) - q.creditsUsed;
-}
-
-/**
- * Fetches configured Gemini API Key from environment or localStorage
- */
-function getApiKey() {
-  return import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem("memeclassroom_gemini_key") || "";
-}
-
-/**
- * Call Gemini 1.5 Flash (free tier compatible)
+ * Calls the generateAiContent Cloud Function. Throws Error("QUOTA_EXCEEDED")
+ * when the server's daily quota is used up, matching the error contract
+ * callers (Lab.jsx, Library.jsx, MemeLiteracyTest.jsx) already check for.
  */
 export async function generateGeminiContent({ prompt, systemInstruction = "", imageBase64 = null }) {
-  if (!hasAvailableAiCredits()) {
-    throw new Error("QUOTA_EXCEEDED");
-  }
-
-  const apiKey = getApiKey();
-
-  // If no Gemini API key is provided, provide smart educational fallback responses so the UI works seamlessly
-  if (!apiKey) {
-    consumeAiCredit();
-    return simulateFallbackResponse(prompt, systemInstruction);
-  }
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-  const contents = [];
-  const parts = [];
-
-  if (imageBase64) {
-    // Strip header prefix if present
-    const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z]+;base64,/, "");
-    parts.push({
-      inline_data: {
-        mime_type: "image/jpeg",
-        data: cleanBase64
-      }
-    });
-  }
-
-  parts.push({ text: prompt });
-  contents.push({ parts });
-
-  const payload = {
-    contents,
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 600,
+  const fn = httpsCallable(functions, "generateAiContent");
+  try {
+    const res = await fn({ prompt, systemInstruction, imageBase64 });
+    if (res.data?.quota) cacheAiQuota(res.data.quota);
+    return res.data?.text || "";
+  } catch (err) {
+    if (err.code === "functions/resource-exhausted" || err.message === "QUOTA_EXCEEDED") {
+      throw new Error("QUOTA_EXCEEDED", { cause: err });
     }
-  };
-
-  if (systemInstruction) {
-    payload.systemInstruction = {
-      parts: [{ text: systemInstruction }]
-    };
+    throw new Error(err.message || "The AI service is temporarily unavailable. Please try again.", { cause: err });
   }
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error?.message || `Gemini API call failed (${response.status})`);
-  }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  consumeAiCredit();
-  return text;
 }
 
 /**
@@ -159,8 +103,8 @@ Topic/Concept: ${topic || "General subject knowledge"}
 Tone: ${tone}
 
 Format each on a new line starting with:
-1. 
-2. 
+1.
+2.
 3. `;
 
   const systemInstruction = "You are an award-winning high school teacher and meme creator who makes learning viral, fun, and memorable for students without offensive content.";
@@ -195,17 +139,4 @@ Provide a friendly 2-3 sentence encouraging explanation clarifying why "${correc
 
   const systemInstruction = "You are an encouraging digital media literacy educator.";
   return generateGeminiContent({ prompt, systemInstruction });
-}
-
-/**
- * Smart educational simulation for zero-config / offline testing
- */
-function simulateFallbackResponse(prompt, systemInstruction) {
-  if (prompt.includes("punchlines") || prompt.includes("captions")) {
-    return `1. "When the teacher says the test is open-book, but the answers aren't in the book either."\n2. "Mitochondria calculating how to be the powerhouse of the cell for the 10,000th time today."\n3. "Me explaining to my homework why we can't be together tonight."`;
-  }
-  if (prompt.includes("Analyze this educational meme")) {
-    return `**Alt-Text:** A stylized educational template featuring contrasting character panels highlighting scientific concepts.\n\n**Academic Punchline:** Juxtaposes intuitive misconceptions with scientifically validated empirical facts to trigger memorable recall.\n\n**Classroom Discussion:** What assumption is this meme challenging, and how does visual exaggeration reinforce the key lesson?`;
-  }
-  return `Great effort! While your choice had elements of truth, the correct answer is the standard pedagogical principle here. Look closely at the visual rhetoric and context clues when evaluating similar media.`;
 }

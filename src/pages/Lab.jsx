@@ -27,10 +27,8 @@ import {
   Search,
   Trash2,
   Copy,
-  Wand2,
   Share2,
-  Plus,
-  BookOpen
+  Plus
 } from "lucide-react";
 import {
   collection,
@@ -131,7 +129,7 @@ class LabErrorBoundary extends React.Component {
 
 const Lab = () => {
   const audioPlayerRef = useRef(null);
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { highContrastMode, fontSizeAdjustment } = useUdl();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -197,6 +195,7 @@ const Lab = () => {
       setAvailableTemplates(list);
     }, (error) => {
       console.warn("Templates subscription failed:", error);
+      setAlertMessage("Couldn't load templates right now. Try refreshing the page.");
     });
 
     // 2. Public Memes from database (usable in Lab)
@@ -223,6 +222,7 @@ const Lab = () => {
       setDbMemes(list);
     }, (error) => {
       console.warn("Memes subscription failed:", error);
+      setAlertMessage("Couldn't load community memes right now. Try refreshing the page.");
     });
 
     return () => {
@@ -272,6 +272,7 @@ const Lab = () => {
       }
     }, (error) => {
       console.error("Taxonomy configs subscription failed:", error);
+      setAlertMessage("Couldn't load subject/grade options right now. Try refreshing the page.");
     });
     return () => unsub();
   }, []);
@@ -279,13 +280,17 @@ const Lab = () => {
   // Preload draft parameters to resume editing
   useEffect(() => {
     const draftId = searchParams.get("draftId");
-    if (!draftId) return;
+    if (!draftId || authLoading) return;
 
     const loadDraft = async () => {
       try {
         const draftDoc = await getDoc(doc(db, "memes", draftId));
         if (draftDoc.exists()) {
           const data = draftDoc.data();
+          if (data.creator_id !== user?.uid) {
+            setAlertMessage("You don't have permission to open this draft.");
+            return;
+          }
           setTitle(data.title || "");
           const loadedSubject = data.subject || "Biology";
           if (SUBJECTS.includes(loadedSubject)) {
@@ -355,7 +360,7 @@ const Lab = () => {
     };
 
     loadDraft();
-  }, [searchParams]);
+  }, [searchParams, authLoading, user]);
 
   // --- Image Tab State ---
   const [images, setImages] = useState([]); // Array of base64/object URLs
@@ -388,6 +393,11 @@ const Lab = () => {
     // Reset layout to columns if less than 4 images
     if (images.length < 4 && collageLayout === "grid") {
       setCollageLayout("columns");
+    }
+    // "Single" only ever shows the first image, so adding another one would
+    // look like the upload silently failed — switch to a real collage layout.
+    if (images.length > 1 && collageLayout === "single") {
+      setCollageLayout("rows");
     }
   }, [images.length]);
 
@@ -773,7 +783,7 @@ const Lab = () => {
       if (tpl.images && tpl.images.length > 0) {
         setImages(tpl.images);
         if (tpl.collage) setCollageLayout(tpl.collage);
-        else setCollageLayout("single");
+        else setCollageLayout(tpl.images.length > 1 ? "rows" : "single");
       } else if (imgUrl) {
         setImages([imgUrl]);
         setCollageLayout("single");
@@ -932,9 +942,19 @@ const Lab = () => {
           setAlertMessage("You can select up to 4 images for the collage.");
           return;
         }
-        const newUrls = fileArray.map(file => createObjectURLSafe(file));
+        const validFiles = [];
+        for (const file of fileArray) {
+          const problem = checkUpload(file, { allow: ["image"] });
+          if (problem) {
+            setAlertMessage(problem);
+            continue;
+          }
+          validFiles.push(file);
+        }
+        if (validFiles.length === 0) return;
+        const newUrls = validFiles.map(file => createObjectURLSafe(file));
         setImages(prev => [...prev, ...newUrls]);
-        setImageFiles(prev => [...prev, ...fileArray]);
+        setImageFiles(prev => [...prev, ...validFiles]);
       } else if (activeTab === "video") {
         const videoFile = files[0];
         if (videoFile && videoFile.type.startsWith("video/")) {
@@ -1018,6 +1038,21 @@ const Lab = () => {
     };
   };
 
+  // The sidebar "Choose File" input accepts image, video and audio, so a video
+  // picked there must go to the video editor instead of the image collage.
+  // (GIF/Audio tabs keep their existing behaviour.)
+  const handleSidebarFileChange = (e) => {
+    const picked = Array.from(e.target.files || []);
+    const pickedVideo = picked.find((f) => f.type.startsWith("video/"));
+    if ((activeTab === "image" || activeTab === "video") && pickedVideo) {
+      setActiveTab("video");
+      handleVideoUpload({ target: { files: [pickedVideo], value: "" } });
+      e.target.value = "";
+      return;
+    }
+    handleImageUpload(e);
+  };
+
   // Image Upload support (max 4 collage images)
   const handleImageUpload = (e) => {
     setAlertMessage("");
@@ -1027,9 +1062,23 @@ const Lab = () => {
       return;
     }
 
-    const newUrls = files.map(file => createObjectURLSafe(file));
+    const validFiles = [];
+    for (const file of files) {
+      const problem = checkUpload(file, { allow: ["image"] });
+      if (problem) {
+        setAlertMessage(problem);
+        continue;
+      }
+      validFiles.push(file);
+    }
+    if (validFiles.length === 0) {
+      e.target.value = "";
+      return;
+    }
+
+    const newUrls = validFiles.map(file => createObjectURLSafe(file));
     setImages(prev => [...prev, ...newUrls]);
-    setImageFiles(prev => [...prev, ...files]);
+    setImageFiles(prev => [...prev, ...validFiles]);
   };
 
   // Handle media templates selections from constants mapping
@@ -1759,6 +1808,7 @@ const Lab = () => {
     if (activeTab === "image" && images.length > 0) {
       const numImages = images.length;
       const loadedImages = [];
+      let failedCount = 0;
       for (let i = 0; i < numImages; i++) {
         try {
           const img = await loadImage(images[i]);
@@ -1766,7 +1816,17 @@ const Lab = () => {
         } catch (err) {
           console.error("Failed to load image", images[i], err);
           loadedImages.push(null);
+          failedCount += 1;
         }
+      }
+      if (failedCount > 0) {
+        // Abort rather than export/publish a meme that's silently missing an image.
+        const loadErr = new Error(
+          `Couldn't load ${failedCount} of ${numImages} image${numImages > 1 ? "s" : ""} for export, ` +
+          "so nothing was exported. Try re-uploading the image, or pick a different template."
+        );
+        loadErr.userFacing = true;
+        throw loadErr;
       }
 
       const drawImageContain = (img, dx, dy, dw, dh) => {
@@ -1948,7 +2008,9 @@ const Lab = () => {
             const sourceUrl = videoFile ? URL.createObjectURL(videoFile) : videoUrl;
             const compiledBlob = await compileVideoMeme({
               videoUrl: sourceUrl,
-              textLayers: textLayers,
+              // The Video Studio has no text-layer editor (only captions), so the
+              // image editor's shared text layers must not leak into the export.
+              textLayers: [],
               videoCaptions: videoCaptions,
               videoTrimStart: videoTrimStart,
               videoTrimEnd: videoTrimEnd,
@@ -2011,7 +2073,8 @@ const Lab = () => {
         setShowSaveModal(false);
       } catch (err) {
         console.error(err);
-        setAlertMessage("Failed to download local file.");
+        setAlertMessage(err.userFacing ? err.message : "Failed to download local file.");
+        if (err.userFacing) setShowSaveModal(false);
       } finally {
         setLoading(false);
       }
@@ -2074,7 +2137,7 @@ const Lab = () => {
           const sourceUrl = videoFile ? URL.createObjectURL(videoFile) : videoUrl;
           videoBlob = await compileVideoMeme({
             videoUrl: sourceUrl,
-            textLayers: textLayers,
+            textLayers: [],
             videoCaptions: videoCaptions,
             videoTrimStart: videoTrimStart,
             videoTrimEnd: videoTrimEnd,
@@ -2250,7 +2313,12 @@ const Lab = () => {
       navigate("/library");
     } catch (err) {
       console.error(err);
-      setAlertMessage(`Failed to save and publish the creation: ${err.code || err.message || "Unknown error"}`);
+      setAlertMessage(
+        err.userFacing
+          ? err.message
+          : `Failed to save and publish the creation: ${err.code || err.message || "Unknown error"}`
+      );
+      if (err.userFacing) setShowSaveModal(false);
     } finally {
       setLoading(false);
     }
@@ -2732,7 +2800,7 @@ const Lab = () => {
                   {activeTab === "image" && (
                     <div className="w-full h-full flex flex-col">
                       {images.length > 0 ? (
-                        images.length === 1 ? (
+                        images.length === 1 || collageLayout === "single" ? (
                           <div className="w-full h-full" style={{ userSelect: "none" }}>
                             <img
                               src={images[0]}
@@ -3071,7 +3139,7 @@ const Lab = () => {
           </div>
 
           {/* 2. BOTTOM CONTROLS CARD */}
-          <div className="bg-white dark:bg-[#0e131f] border border-slate-200/80 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm dark:shadow-xl flex flex-col gap-3 text-slate-800 dark:text-white transition-colors duration-200">
+          <div className={`${activeTab === "video" ? "hidden " : ""}bg-white dark:bg-[#0e131f] border border-slate-200/80 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm dark:shadow-xl flex flex-col gap-3 text-slate-800 dark:text-white transition-colors duration-200`}>
             {/* Controls Tabs Navigation */}
             <div className="flex items-center gap-2 border-b border-slate-100 dark:border-[#1b2336] pb-3">
               {[
@@ -3551,12 +3619,24 @@ const Lab = () => {
                   }`}
                   title={tpl.title}
                 >
-                  <img
-                    src={tpl.thumbnail}
-                    alt={tpl.title}
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                    loading="lazy"
-                  />
+                  {tpl.format === "video" ? (
+                    // A video's own URL can't be an <img> source; show its first frame instead.
+                    <video
+                      src={`${tpl.thumbnail}#t=0.1`}
+                      aria-label={tpl.title}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                      preload="metadata"
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={tpl.thumbnail}
+                      alt={tpl.title}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                      loading="lazy"
+                    />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent pointer-events-none" />
 
                   {/* Format Pill */}
@@ -3606,7 +3686,7 @@ const Lab = () => {
                   type="file"
                   multiple
                   accept="image/*,video/*,audio/*"
-                  onChange={handleImageUpload}
+                  onChange={handleSidebarFileChange}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
                 <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-[#1b2336] flex items-center justify-center text-[#e11d48] dark:text-[#f43f5e]">
