@@ -41,5 +41,16 @@ jobs:
         with:
           credentials_json: '${{ secrets.FIREBASE_DEPLOY_SERVICE_ACCOUNT }}'
 
+      # --force sets up the Cloud Run image cleanup policy without prompting.
+      # Without it the deploy does all its work, then exits 1 with "Functions
+      # successfully deployed but could not set up cleanup policy in location
+      # <region>" the first time functions land in a region that has no policy
+      # yet — which is how this job went red while rules, indexes and every
+      # function had in fact deployed. The policy also stops old container
+      # images accumulating and quietly adding to the bill.
+      #
+      # Note: --force also means functions removed from functions/index.js are
+      # deleted without a confirmation prompt. That is what we want from CI,
+      # where the source is the single source of truth.
       - name: Deploy Firestore rules, indexes, Storage rules and Cloud Functions
-        run: npx -y firebase-tools deploy --only firestore:rules,firestore:indexes,storage,functions --project memeclassroom-98d2b
+        run: npx -y firebase-tools deploy --only firestore:rules,firestore:indexes,storage,functions --project memeclassroom-98d2b --force
