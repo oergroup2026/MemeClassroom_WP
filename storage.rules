@@ -141,7 +141,7 @@ service firebase.storage {
     // ── Staffroom post attachments ───────────────────────────────────────────
     // Documents (PDF, Word, PowerPoint), images only — no executables
     match /staffroom/{allPaths=**} {
-      allow read: if isLoggedIn();
+      allow read: if true;
       allow create, update: if (ownsPath(allPaths) || isAdmin())
         && (isImageType() || isDocumentType())
         && request.resource.size <= maxMB(20);
@@ -172,8 +172,10 @@ service firebase.storage {
     // Documents (PDF, Word, PowerPoint) and images only — no executables.
     // Admins prune/remove attachments for moderation, so delete is allowed for
     // the uploading user and for admins.
+    // Public read: an attachment is part of the post it belongs to, and posts
+    // are publicly readable. Uploading still requires a signed-in user.
     match /staffroom_attachments/{fileName} {
-      allow read: if isLoggedIn();
+      allow read: if true;
       allow create, update: if isLoggedIn()
         && (isImageType() || isDocumentType())
         && request.resource.size <= maxMB(20);

@@ -228,8 +228,11 @@ service cloud.firestore {
     }
 
     // ─── Staffroom Posts ─────────────────────────────────────────────────────
+    // Public read, per the project's access policy: all content is browsable
+    // without an account and only contributing requires one. Posting, replying,
+    // voting and reacting all still require a signed-in, non-banned user below.
     match /staffroom_posts/{postId} {
-      allow read: if isLoggedIn();
+      allow read: if true;
       allow create: if isLoggedIn() && !isBanned();
       allow update: if isLoggedIn() && (
         resource.data.author_id == request.auth.uid ||
@@ -241,8 +244,9 @@ service cloud.firestore {
     }
 
     // ─── Staffroom Replies ───────────────────────────────────────────────────
+    // Public read, same policy as the posts they belong to.
     match /staffroom_replies/{replyId} {
-      allow read: if isLoggedIn();
+      allow read: if true;
       allow create: if isLoggedIn() && !isBanned();
       allow update: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
       allow delete: if isLoggedIn() && resource.data.author_id == request.auth.uid;
