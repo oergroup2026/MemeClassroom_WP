@@ -363,6 +363,60 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ─── Badges ──────────────────────────────────────────────────────────────
+    // Awarded by awardBadgeIfMissing() in src/utils/badges.js, which first
+    // queries this collection for the signed-in user's existing badges and then
+    // creates one. With no rule here the whole gamification system failed
+    // silently — every read and write was denied by default and the helper
+    // swallowed the error, so no badge was ever awarded to anyone.
+    // Readable by signed-in users (profiles display other users' badges);
+    // a user may only create badges for themselves. Edits/removals are admin-only
+    // so a user cannot retroactively rewrite their own achievements.
+    match /badges/{badgeId} {
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── Activity Comments ────────────────────────────────────────────────────
+    // Comments on an activity resource (ActivityDetail.jsx). Activities are
+    // publicly readable, so comments are too. Authors may delete their own;
+    // admins may moderate any. Note this collection uses author_id, unlike
+    // /comments which uses user_id.
+    match /activity_comments/{commentId} {
+      allow read: if true;
+      allow create: if isLoggedIn() && !isBanned() && request.resource.data.author_id == request.auth.uid;
+      allow update: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
+      allow delete: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
+    }
+
+    // ─── Legacy Threads (global search index only) ────────────────────────────
+    // Navbar.jsx reads this inside a Promise.all alongside memes and resources.
+    // Without a rule the denial rejected the whole batch, so the global search
+    // box indexed nothing at all — not even memes. Read-only for clients.
+    match /threads/{threadId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Homepage Hero Cards, Sponsored Ads, Testimonials ─────────────────────
+    // All three are published from the Admin panel and displayed publicly on the
+    // homepage, so: public read, admin-only write.
+    match /heroCards/{cardId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sponsored_ads/{adId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ─── Admin Notifications ──────────────────────────────────────────────────
     match /admin_notifications/{notifId} {
       allow read, update, delete: if isAdmin();

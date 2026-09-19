@@ -75,7 +75,11 @@ const Navbar = () => {
     let isMounted = true;
     const fetchGlobalItems = async () => {
       try {
-        const [memesSnap, resourcesSnap, threadsSnap] = await Promise.all([
+        // allSettled, not all: one source failing (a permission error, a missing
+        // index) must not wipe out the entire search index. Promise.all used to
+        // reject the whole batch, so a single denied query left the global
+        // search box with nothing in it at all.
+        const [memesSnap, resourcesSnap, threadsSnap] = await Promise.allSettled([
           getDocs(query(collection(db, "memes"), where("visibility", "==", "public"), limit(30))),
           getDocs(query(collection(db, "resources"), limit(30))),
           getDocs(query(collection(db, "threads"), limit(30)))
@@ -83,10 +87,11 @@ const Navbar = () => {
 
         if (!isMounted) return;
 
+        const docsOf = (settled) => (settled.status === "fulfilled" ? settled.value.docs : []);
         const combined = [
-          ...memesSnap.docs.map((d) => ({ id: d.id, ...d.data(), _type: "meme" })),
-          ...resourcesSnap.docs.map((d) => ({ id: d.id, ...d.data(), _type: d.data().type || "resource" })),
-          ...threadsSnap.docs.map((d) => ({ id: d.id, ...d.data(), _type: d.data().post_type || "thread" }))
+          ...docsOf(memesSnap).map((d) => ({ id: d.id, ...d.data(), _type: "meme" })),
+          ...docsOf(resourcesSnap).map((d) => ({ id: d.id, ...d.data(), _type: d.data().type || "resource" })),
+          ...docsOf(threadsSnap).map((d) => ({ id: d.id, ...d.data(), _type: d.data().post_type || "thread" }))
         ];
         setGlobalIndex(combined);
       } catch (e) {
