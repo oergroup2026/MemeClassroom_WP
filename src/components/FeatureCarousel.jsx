@@ -191,196 +191,185 @@ const FeatureCarousel = () => {
   return (
     <section
       className="relative w-full select-none"
-      style={{ minHeight: "clamp(600px, 85vw, 680px)" }}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       aria-label="Feature discovery carousel"
     >
-      {/* ── Background image layers (cross-fade) ─────────────────────────── */}
-      {SLIDES.map((s, idx) => (
-        <div
-          key={s.id}
-          className="absolute inset-0"
-          style={{
-            opacity: idx === activeIdx ? 1 : 0,
-            transform: idx === activeIdx ? "scale(1.0)" : "scale(1.04)",
-            transition:
-              "opacity 0.6s cubic-bezier(0.4,0,0.2,1), transform 0.8s cubic-bezier(0.4,0,0.2,1)",
-            willChange: "opacity, transform",
-          }}
-          aria-hidden={idx !== activeIdx}
-        >
-          <img
-            src={s.image}
-            alt={s.imageAlt}
-            className="absolute inset-0 w-full h-full object-cover"
-            draggable={false}
-            loading={idx === 0 ? "eager" : "lazy"}
-          />
-          {/* Per-slide gradient overlay */}
-          <div
-            className="absolute inset-0"
-            style={{ background: s.overlayGradient }}
-          />
-        </div>
-      ))}
-
-      {/* ── Top-down scrim ────────────────────────────────────────────────
-          Independent of each slide's own bottom-heavy overlayGradient
-          (which is lightest right at the top) — guarantees the floating
-          Navbar icons and the brand block below stay legible regardless
-          of which slide/image is showing. */}
-      <div
-        className="absolute inset-x-0 top-0 z-[5] pointer-events-none h-[220px] sm:h-[280px]"
-        style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 55%, rgba(0,0,0,0) 100%)" }}
-      />
-
-      {/* ── Hero branding block (Badge + Title + Tagline) ────────────────── */}
-      <div className="absolute inset-x-0 top-0 z-10 flex flex-col items-center justify-center pt-16 sm:pt-24 px-4 text-center pointer-events-none">
+      {/* ── Brand block (Badge + Title + Tagline) ─────────────────────────────
+          Sits above the image on a solid theme-matching background so the
+          title stays readable in both light and dark mode. The top padding
+          leaves room for the floating Navbar icons. */}
+      <div className="relative z-10 flex flex-col items-center justify-center pt-16 sm:pt-24 pb-8 sm:pb-10 px-4 text-center bg-[#FAFAF9] dark:bg-[#18181b]">
         {/* Badge */}
-        <div className="inline-flex items-center px-4 sm:px-5 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/30 text-white text-[10px] sm:text-sm font-black uppercase tracking-[0.2em] mb-4 sm:mb-6">
+        <div className="inline-flex items-center px-4 sm:px-5 py-1.5 rounded-full bg-slate-900/5 dark:bg-white/10 backdrop-blur-sm border border-slate-300 dark:border-white/30 text-slate-700 dark:text-white text-[10px] sm:text-sm font-black uppercase tracking-[0.2em] mb-4 sm:mb-6">
           Open Pedagogical Resources for Memes
         </div>
 
         {/* Main title */}
-        <h1
-          className="text-[clamp(2.25rem,8vw,6rem)] font-black tracking-[-0.03em] text-white leading-[1.02]"
-          style={{
-            textShadow:
-              "0 2px 0 rgba(0,0,0,0.35), 0 8px 32px rgba(0,0,0,0.85), 0 0 64px rgba(0,0,0,0.55)",
-          }}
-        >
+        <h1 className="text-[clamp(2.25rem,8vw,6rem)] font-black tracking-[-0.03em] text-slate-900 dark:text-white leading-[1.02]">
           Meme
           <span className="text-ruby-600">Classroom</span>
         </h1>
 
         {/* Tagline */}
-        <p
-          className="mt-4 sm:mt-5 text-sm sm:text-base lg:text-lg font-semibold text-white/90 max-w-[300px] sm:max-w-lg lg:max-w-xl leading-relaxed"
-          style={{ textShadow: "0 2px 16px rgba(0,0,0,0.9), 0 0 32px rgba(0,0,0,0.5)" }}
-        >
+        <p className="mt-4 sm:mt-5 text-sm sm:text-base lg:text-lg font-semibold text-slate-600 dark:text-white/85 max-w-[300px] sm:max-w-lg lg:max-w-xl leading-relaxed">
           MemeClassroom isn't a content silo — it's your space to learn, teach, and think critically with memes.
         </p>
       </div>
 
-      {/* ── Slide content (badge + title + description + CTA) ─────────────── */}
+      {/* ── Hero image area: the background image lives only inside this box ── */}
       <div
-        className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end px-5 sm:px-10 md:px-16 pb-12 sm:pb-16"
-        style={{
-          opacity: textVisible ? 1 : 0,
-          transform: textVisible
-            ? "translateY(0)"
-            : direction === "right"
-            ? "translateY(14px)"
-            : "translateY(-14px)",
-          transition:
-            "opacity 0.32s cubic-bezier(0.4,0,0.2,1), transform 0.32s cubic-bezier(0.4,0,0.2,1)",
-        }}
+        className="relative w-full overflow-hidden"
+        style={{ height: "clamp(400px, 34vw, 480px)" }}
       >
-        {/* Slide badge */}
-        <div className="flex items-center gap-2 mb-3">
-          <span
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-sm ${slide.badgeBg}`}
-          >
-            <SlideIcon className="w-3 h-3" />
-            {slide.category}
-          </span>
-        </div>
-
-        {/* Slide title */}
-        <h2
-          className="text-2xl sm:text-4xl lg:text-[2.6rem] font-black text-white leading-[1.1] tracking-tight mb-3 whitespace-pre-line"
-          style={{ textShadow: "0 2px 16px rgba(0,0,0,0.7)" }}
-        >
-          {slide.title}
-        </h2>
-
-        {/* Slide description */}
-        <p
-          className="text-sm sm:text-base text-white/80 font-medium leading-snug mb-5 max-w-md"
-          style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}
-        >
-          {slide.description}
-        </p>
-
-        {/* CTA button + optional secondary link — stacks vertically on mobile */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <Link
-            to={slide.ctaLink}
-            className={`inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl text-sm font-black transition-all duration-200 hover:-translate-y-0.5 active:scale-95 ${slide.ctaBg}`}
-          >
-            {slide.cta}
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          {slide.secondaryCta && slide.secondaryLink && (
-            <Link
-              to={slide.secondaryLink}
-              className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-white/85 hover:text-white underline underline-offset-4 decoration-white/40 hover:decoration-white transition-colors"
-            >
-              {slide.secondaryCta}
-            </Link>
-          )}
-        </div>
-      </div>
-
-      {/* ── Prev / Next arrows (inside the image) ────────────────────────── */}
-      <button
-        onClick={goPrev}
-        className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 backdrop-blur-md border border-white/15 text-white hover:bg-black/50 hover:scale-110 transition-all duration-200 active:scale-95"
-        aria-label="Previous slide"
-      >
-        <ChevronLeft className="w-5 h-5" />
-      </button>
-      <button
-        onClick={goNext}
-        className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 backdrop-blur-md border border-white/15 text-white hover:bg-black/50 hover:scale-110 transition-all duration-200 active:scale-95"
-        aria-label="Next slide"
-      >
-        <ChevronRight className="w-5 h-5" />
-      </button>
-
-      {/* ── Dot indicators (bottom-center, above CTA area) ────────────────── */}
-      <div
-        className="absolute bottom-4 sm:bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2"
-        role="tablist"
-        aria-label="Carousel slides"
-      >
+        {/* ── Background image layers (cross-fade) ─────────────────────────── */}
         {SLIDES.map((s, idx) => (
-          <button
+          <div
             key={s.id}
-            role="tab"
-            aria-selected={idx === activeIdx}
-            aria-label={`Go to ${s.category}`}
-            onClick={() =>
-              navigateTo(idx, idx > activeIdx ? "right" : "left")
-            }
-            className="focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 transition-all duration-300"
+            className="absolute inset-0"
             style={{
-              width: idx === activeIdx ? "24px" : "8px",
-              height: "8px",
-              borderRadius: "4px",
-              background:
-                idx === activeIdx
-                  ? slide.accentHex
-                  : idx < activeIdx
-                  ? "rgba(255,255,255,0.55)"
-                  : "rgba(255,255,255,0.25)",
-              boxShadow:
-                idx === activeIdx
-                  ? `0 0 8px ${slide.accentHex}88`
-                  : "none",
+              opacity: idx === activeIdx ? 1 : 0,
+              transform: idx === activeIdx ? "scale(1.0)" : "scale(1.04)",
+              transition:
+                "opacity 0.6s cubic-bezier(0.4,0,0.2,1), transform 0.8s cubic-bezier(0.4,0,0.2,1)",
+              willChange: "opacity, transform",
             }}
-          />
+            aria-hidden={idx !== activeIdx}
+          >
+            <img
+              src={s.image}
+              alt={s.imageAlt}
+              className="absolute inset-0 w-full h-full object-cover"
+              draggable={false}
+              loading={idx === 0 ? "eager" : "lazy"}
+            />
+            {/* Per-slide gradient overlay */}
+            <div
+              className="absolute inset-0"
+              style={{ background: s.overlayGradient }}
+            />
+          </div>
         ))}
-      </div>
 
-      {/* ── Subtle inner border vignette ─────────────────────────────────── */}
-      <div
-        className="absolute inset-0 pointer-events-none z-10"
-        style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)" }}
-      />
+        {/* ── Slide content (badge + title + description + CTA) ─────────────── */}
+        <div
+          className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end px-5 sm:px-10 md:px-16 pb-12 sm:pb-16"
+          style={{
+            opacity: textVisible ? 1 : 0,
+            transform: textVisible
+              ? "translateY(0)"
+              : direction === "right"
+              ? "translateY(14px)"
+              : "translateY(-14px)",
+            transition:
+              "opacity 0.32s cubic-bezier(0.4,0,0.2,1), transform 0.32s cubic-bezier(0.4,0,0.2,1)",
+          }}
+        >
+          {/* Slide badge */}
+          <div className="flex items-center gap-2 mb-3">
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-sm ${slide.badgeBg}`}
+            >
+              <SlideIcon className="w-3 h-3" />
+              {slide.category}
+            </span>
+          </div>
+
+          {/* Slide title */}
+          <h2
+            className="text-2xl sm:text-4xl lg:text-[2.6rem] font-black text-white leading-[1.1] tracking-tight mb-3 whitespace-pre-line"
+            style={{ textShadow: "0 2px 16px rgba(0,0,0,0.7)" }}
+          >
+            {slide.title}
+          </h2>
+
+          {/* Slide description */}
+          <p
+            className="text-sm sm:text-base text-white/80 font-medium leading-snug mb-5 max-w-md"
+            style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}
+          >
+            {slide.description}
+          </p>
+
+          {/* CTA button + optional secondary link — stacks vertically on mobile */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <Link
+              to={slide.ctaLink}
+              className={`inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl text-sm font-black transition-all duration-200 hover:-translate-y-0.5 active:scale-95 ${slide.ctaBg}`}
+            >
+              {slide.cta}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            {slide.secondaryCta && slide.secondaryLink && (
+              <Link
+                to={slide.secondaryLink}
+                className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-white/85 hover:text-white underline underline-offset-4 decoration-white/40 hover:decoration-white transition-colors"
+              >
+                {slide.secondaryCta}
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* ── Prev / Next arrows (inside the image) ────────────────────────── */}
+        <button
+          onClick={goPrev}
+          className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 backdrop-blur-md border border-white/15 text-white hover:bg-black/50 hover:scale-110 transition-all duration-200 active:scale-95"
+          aria-label="Previous slide"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <button
+          onClick={goNext}
+          className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 backdrop-blur-md border border-white/15 text-white hover:bg-black/50 hover:scale-110 transition-all duration-200 active:scale-95"
+          aria-label="Next slide"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+
+        {/* ── Dot indicators (bottom-center, above CTA area) ────────────────── */}
+        <div
+          className="absolute bottom-4 sm:bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2"
+          role="tablist"
+          aria-label="Carousel slides"
+        >
+          {SLIDES.map((s, idx) => (
+            <button
+              key={s.id}
+              role="tab"
+              aria-selected={idx === activeIdx}
+              aria-label={`Go to ${s.category}`}
+              onClick={() =>
+                navigateTo(idx, idx > activeIdx ? "right" : "left")
+              }
+              className="focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 transition-all duration-300"
+              style={{
+                width: idx === activeIdx ? "24px" : "8px",
+                height: "8px",
+                borderRadius: "4px",
+                background:
+                  idx === activeIdx
+                    ? slide.accentHex
+                    : idx < activeIdx
+                    ? "rgba(255,255,255,0.55)"
+                    : "rgba(255,255,255,0.25)",
+                boxShadow:
+                  idx === activeIdx
+                    ? `0 0 8px ${slide.accentHex}88`
+                    : "none",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* ── Subtle inner border vignette ─────────────────────────────────── */}
+        <div
+          className="absolute inset-0 pointer-events-none z-10"
+          style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)" }}
+        />
+      </div>
 
       <style>{`
         @keyframes featureCarouselFill {

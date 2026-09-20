@@ -247,7 +247,7 @@ const Navbar = () => {
       <header
         className={
           isFloatingHeader
-            ? "fixed top-0 inset-x-0 z-30 bg-transparent border-b border-transparent text-white transition-all duration-300"
+            ? "fixed top-0 inset-x-0 z-30 bg-transparent border-b border-transparent text-gray-900 dark:text-white transition-all duration-300"
             : isHome
               // Solid state on Home stays `fixed` too (never `sticky`) — switching
               // position type mid-scroll breaks sticky's "stuck to viewport"
@@ -267,12 +267,12 @@ const Navbar = () => {
                 onClick={() => setDrawerOpen(true)}
                 className={
                   isFloatingHeader
-                    ? "inline-flex items-center justify-center p-2 rounded-xl bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition border border-white/20"
+                    ? "inline-flex items-center justify-center p-2 rounded-xl bg-gray-900/5 dark:bg-white/10 backdrop-blur-sm text-gray-900 dark:text-white hover:bg-gray-900/10 dark:hover:bg-white/20 transition border border-gray-300 dark:border-white/20"
                     : "inline-flex items-center justify-center p-2 rounded-xl bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 hover:bg-ruby-50 hover:text-ruby-600 dark:hover:bg-ruby-950/40 dark:hover:text-ruby-400 transition border border-gray-200 dark:border-zinc-700 shadow-xs"
                 }
                 aria-label="Open menu drawer"
               >
-                <Menu className={isFloatingHeader ? "w-5 h-5 text-white" : "w-5 h-5 text-ruby-600 dark:text-ruby-400"} />
+                <Menu className={isFloatingHeader ? "w-5 h-5 text-gray-900 dark:text-white" : "w-5 h-5 text-ruby-600 dark:text-ruby-400"} />
               </button>
             </div>
 
@@ -298,7 +298,7 @@ const Navbar = () => {
                 onClick={toggleHighContrast}
                 className={
                   isFloatingHeader
-                    ? "p-2 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition"
+                    ? "p-2 rounded-full border border-gray-300 dark:border-white/20 bg-gray-900/5 dark:bg-white/10 backdrop-blur-sm text-gray-900 dark:text-white hover:bg-gray-900/10 dark:hover:bg-white/20 transition"
                     : `p-2 rounded-full border transition ${highContrastMode
                       ? "border-ruby-500 bg-ruby-600/10 text-ruby-400 hover:bg-ruby-600/20"
                       : "border-gray-200 dark:border-zinc-700 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
@@ -323,7 +323,7 @@ const Navbar = () => {
                   }}
                   className={
                     isFloatingHeader
-                      ? "p-2 rounded-full text-white relative focus:outline-none transition border border-white/20 bg-white/10 backdrop-blur-sm hover:bg-white/20"
+                      ? "p-2 rounded-full text-gray-900 dark:text-white relative focus:outline-none transition border border-gray-300 dark:border-white/20 bg-gray-900/5 dark:bg-white/10 backdrop-blur-sm hover:bg-gray-900/10 dark:hover:bg-white/20"
                       : "p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-ruby-600 dark:hover:text-ruby-400 relative focus:outline-none transition border border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800"
                   }
                   aria-label="View notifications"
