@@ -238,16 +238,19 @@ const FeatureCarousel = () => {
       />
 
       {/* ── Hero branding block (Badge + Title + Tagline) ────────────────── */}
-      <div className="absolute inset-x-0 top-0 z-10 flex flex-col items-center justify-center pt-14 sm:pt-20 px-4 text-center pointer-events-none">
+      <div className="absolute inset-x-0 top-0 z-10 flex flex-col items-center justify-center pt-16 sm:pt-24 px-4 text-center pointer-events-none">
         {/* Badge */}
-        <div className="inline-flex items-center px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/25 text-white/90 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-3 sm:mb-4">
+        <div className="inline-flex items-center px-4 sm:px-5 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/30 text-white text-[10px] sm:text-sm font-black uppercase tracking-[0.2em] mb-4 sm:mb-6">
           Open Pedagogical Resources for Memes
         </div>
 
         {/* Main title */}
         <h1
-          className="text-2xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.12]"
-          style={{ textShadow: "0 4px 28px rgba(0,0,0,0.9)" }}
+          className="text-[clamp(2.25rem,8vw,6rem)] font-black tracking-[-0.03em] text-white leading-[1.02]"
+          style={{
+            textShadow:
+              "0 2px 0 rgba(0,0,0,0.35), 0 8px 32px rgba(0,0,0,0.85), 0 0 64px rgba(0,0,0,0.55)",
+          }}
         >
           Meme
           <span className="text-ruby-600">Classroom</span>
@@ -255,8 +258,8 @@ const FeatureCarousel = () => {
 
         {/* Tagline */}
         <p
-          className="mt-2 sm:mt-3 text-xs sm:text-base font-semibold text-white/80 max-w-[280px] sm:max-w-lg leading-snug"
-          style={{ textShadow: "0 2px 14px rgba(0,0,0,0.8)" }}
+          className="mt-4 sm:mt-5 text-sm sm:text-base lg:text-lg font-semibold text-white/90 max-w-[300px] sm:max-w-lg lg:max-w-xl leading-relaxed"
+          style={{ textShadow: "0 2px 16px rgba(0,0,0,0.9), 0 0 32px rgba(0,0,0,0.5)" }}
         >
           MemeClassroom isn't a content silo — it's your space to learn, teach, and think critically with memes.
         </p>
