@@ -130,6 +130,13 @@ service cloud.firestore {
         (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['flag_count']) &&
           request.resource.data.flag_count == resource.data.flag_count + 1
+        ) ||
+        // View counting (Library "Most Viewed" sort) happens when any viewer
+        // opens a meme's detail overlay, not just the creator — increment-only,
+        // same shape as likes_count/flag_count above.
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['view_count']) &&
+          request.resource.data.view_count == resource.data.get('view_count', 0) + 1
         )
       );
       allow delete: if isLoggedIn() && (

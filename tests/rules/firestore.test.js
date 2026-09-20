@@ -176,6 +176,32 @@ describe("content reporting cannot be tampered with", () => {
   });
 });
 
+describe("meme views are counted for any viewer, increment-only", () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc("memes/m1").set({
+        creator_id: ALICE, visibility: "public", title: "m", view_count: 3, likes_count: 0,
+      });
+    });
+  });
+
+  it("lets a signed-in viewer who isn't the creator add a view", async () => {
+    await assertSucceeds(updateDoc(doc(bob, "memes/m1"), { view_count: 4 }));
+  });
+
+  it("stops skipping ahead by more than one view at a time", async () => {
+    await assertFails(updateDoc(doc(bob, "memes/m1"), { view_count: 6 }));
+  });
+
+  it("stops decrementing the view count", async () => {
+    await assertFails(updateDoc(doc(bob, "memes/m1"), { view_count: 2 }));
+  });
+
+  it("still lets the creator edit their own meme without touching view_count", async () => {
+    await assertSucceeds(updateDoc(doc(alice, "memes/m1"), { title: "new title" }));
+  });
+});
+
 describe("all content is readable without an account", () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
