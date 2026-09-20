@@ -460,6 +460,8 @@ const Lab = () => {
 
   // Reference canvas width that layer.fontSize/strokeWidth values are authored against.
   const TEXT_LAYER_REF_WIDTH = 640;
+  // Line height (× font size) of text layers, in both the preview and the export.
+  const TEXT_LAYER_LINE_HEIGHT = 1.2;
 
   const {
     state: textLayers,
@@ -1860,43 +1862,108 @@ const Lab = () => {
       ctx.fillRect(0, height - borderH, width, borderH);
     }
 
-    // Draw text overlays — supports align, opacity, rotation, maxWidth, bold, italic, allCaps
-    // layer.x/y/maxWidth are percentages of the canvas; fontSize/strokeWidth are
-    // "reference px" against TEXT_LAYER_REF_WIDTH — matches the live DOM preview's
-    // %/cqw units exactly so the export always looks like what was on screen.
+    // Draw text overlays. This mirrors the live DOM preview's box model exactly,
+    // so text lands where it was placed in the Lab:
+    //   - layer.x/y are the top-left of a box with px-2 py-1 padding (8px / 4px);
+    //   - the box shrink-wraps the text, capped at maxWidth% and at the space left
+    //     of x, and wraps onto extra lines when it hits that cap (nowrap otherwise);
+    //   - textAlign positions each line inside the box, not around x;
+    //   - rotation pivots on the box's top-left corner;
+    //   - the stroke is centred on the glyph outline and painted over the fill.
+    // fontSize/strokeWidth are "reference px" against TEXT_LAYER_REF_WIDTH, matching
+    // the preview's scaling.
     const textRefScale = width / TEXT_LAYER_REF_WIDTH;
+    const TEXT_BOX_PAD_X = 8;
+    const TEXT_BOX_PAD_Y = 4;
     textLayers.forEach(layer => {
       ctx.save();
       ctx.globalAlpha = layer.opacity ?? 1;
 
-      const scaledX = (layer.x / 100) * width;
-      const scaledY = (layer.y / 100) * height;
+      const boxLeft = (layer.x / 100) * width;
+      const boxTop = (layer.y / 100) * height;
       const scaledFontSize = layer.fontSize * textRefScale;
 
-      // Rotate around the text origin point
+      // Rotate around the box's top-left corner (the preview's transform-origin)
       if (layer.rotation) {
-        ctx.translate(scaledX, scaledY);
+        ctx.translate(boxLeft, boxTop);
         ctx.rotate((layer.rotation * Math.PI) / 180);
-        ctx.translate(-scaledX, -scaledY);
+        ctx.translate(-boxLeft, -boxTop);
       }
 
-      const isBold = layer.isBold || layer.fontFamily === "Impact";
-      const fontStyle = layer.isItalic ? "italic " : "";
-      const fontWeight = isBold ? "bold " : "";
-      ctx.font = `${fontStyle}${fontWeight}${scaledFontSize}px ${layer.fontFamily || 'Impact'}`;
-      ctx.fillStyle = layer.color || '#FFFFFF';
-      ctx.strokeStyle = layer.strokeColor || '#000000';
-      ctx.lineWidth = (layer.strokeWidth || 0) * 2 * textRefScale;
-      ctx.textBaseline = 'top';
-      ctx.textAlign = layer.textAlign || 'left';
+      const fontStyle = (layer.fontStyle === "italic" || layer.isItalic) ? "italic " : "";
+      const fontWeight = layer.fontWeight || "bold";
+      ctx.font = `${fontStyle}${fontWeight} ${scaledFontSize}px ${layer.fontFamily || "Impact"}`;
+      ctx.textBaseline = "alphabetic";
+      ctx.letterSpacing = "0px";
 
-      const maxW = layer.maxWidth ? (layer.maxWidth / 100) * width : undefined;
-      const renderText = layer.isAllCaps ? (layer.text || "").toUpperCase() : (layer.text || "");
+      // HTML collapses whitespace, so the preview never shows hard line breaks
+      const rawText = layer.isAllCaps ? (layer.text || "").toUpperCase() : (layer.text || "");
+      const renderText = rawText.replace(/\s+/g, " ").trim();
 
-      if (layer.strokeWidth > 0) {
-        ctx.strokeText(renderText, scaledX, scaledY, maxW);
+      // Box width, as the preview's shrink-to-fit + max-width resolve it
+      const fullWidth = ctx.measureText(renderText).width;
+      let boxWidth = fullWidth + TEXT_BOX_PAD_X * 2;
+      let lines = [renderText];
+      if (layer.maxWidth) {
+        boxWidth = Math.min(boxWidth, width - boxLeft, (layer.maxWidth / 100) * width);
+        const contentWidth = Math.max(boxWidth - TEXT_BOX_PAD_X * 2, 0);
+        lines = [];
+        let current = "";
+        renderText.split(" ").forEach(word => {
+          const attempt = current ? `${current} ${word}` : word;
+          if (current && ctx.measureText(attempt).width > contentWidth) {
+            lines.push(current);
+            current = word;
+          } else {
+            current = attempt;
+          }
+        });
+        lines.push(current);
       }
-      ctx.fillText(renderText, scaledX, scaledY, maxW);
+
+      const contentWidth = Math.max(boxWidth - TEXT_BOX_PAD_X * 2, 0);
+      const align = layer.textAlign || "center";
+      const contentLeft = boxLeft + TEXT_BOX_PAD_X;
+      const lineX = align === "left" ? contentLeft
+        : align === "right" ? contentLeft + contentWidth
+        : contentLeft + contentWidth / 2;
+      ctx.textAlign = align === "left" || align === "right" ? align : "center";
+
+      // The preview sets line-height explicitly; a line's glyphs sit centred in it
+      const metrics = ctx.measureText("Mg");
+      const ascent = metrics.fontBoundingBoxAscent ?? scaledFontSize * 0.95;
+      const descent = metrics.fontBoundingBoxDescent ?? scaledFontSize * 0.25;
+      const lineHeight = scaledFontSize * TEXT_LAYER_LINE_HEIGHT;
+      const baselineOffset = (lineHeight - (ascent + descent)) / 2 + ascent;
+
+      const strokeWidth = (layer.strokeWidth ?? 2) * textRefScale;
+      ctx.fillStyle = layer.color || "#FFFFFF";
+      ctx.strokeStyle = layer.strokeColor ?? "#000000";
+      ctx.lineWidth = strokeWidth;
+
+      lines.forEach((line, i) => {
+        const baselineY = boxTop + TEXT_BOX_PAD_Y + i * lineHeight + baselineOffset;
+
+        ctx.save();
+        if (textEffectShadow) {
+          ctx.shadowColor = "rgba(0,0,0,0.9)";
+          ctx.shadowOffsetX = 2;
+          ctx.shadowOffsetY = 2;
+          ctx.shadowBlur = 8;
+        }
+        ctx.fillText(line, lineX, baselineY);
+        ctx.restore();
+
+        if (strokeWidth > 0) {
+          ctx.strokeText(line, lineX, baselineY);
+        }
+
+        if (layer.textDecoration === "underline") {
+          const lineW = ctx.measureText(line).width;
+          const ulLeft = align === "left" ? lineX : align === "right" ? lineX - lineW : lineX - lineW / 2;
+          ctx.fillRect(ulLeft, baselineY + scaledFontSize * 0.1, lineW, Math.max(1, scaledFontSize / 15));
+        }
+      });
       ctx.restore();
     });
 
@@ -2695,6 +2762,10 @@ const Lab = () => {
                           top: `${layer.y}%`,
                           fontFamily: layer.fontFamily,
                           fontSize: `${scaledFontSizePx}px`,
+                          // Pinned so the text doesn't pick up the page's global
+                          // line-height/letter-spacing; the export uses the same values.
+                          lineHeight: TEXT_LAYER_LINE_HEIGHT,
+                          letterSpacing: "normal",
                           fontWeight: layer.fontWeight || "bold",
                           fontStyle: layer.fontStyle || "normal",
                           textDecoration: layer.textDecoration || "none",
