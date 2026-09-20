@@ -496,7 +496,7 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
                 )}
               </div>
               <div>
-                <label className={labelClass}>Grade Group *</label>
+                <label className={labelClass}>Grade Level *</label>
                 <select value={gradeGroup} onChange={e => setGradeGroup(e.target.value)} className={inputClass}>
                   {gradeGroups.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>

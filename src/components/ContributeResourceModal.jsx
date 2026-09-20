@@ -221,7 +221,7 @@ const ArticleForm = ({ form, setForm, subjects, gradeGroups }) => (
           )}
         </div>
         <div>
-          <label className={labelClass}>Grade Group *</label>
+          <label className={labelClass}>Grade Level *</label>
           <select value={form.gradeGroup} onChange={e => setForm(f => ({ ...f, gradeGroup: e.target.value }))} className={inputBase}>
             {gradeGroups.map(g => <option key={g} value={g}>{g}</option>)}
           </select>
@@ -323,7 +323,7 @@ const CourseForm = ({ form, setForm, subjects, gradeGroups }) => (
           )}
         </div>
         <div>
-          <label className={labelClass}>Grade Group *</label>
+          <label className={labelClass}>Grade Level *</label>
           <select value={form.gradeGroup} onChange={e => setForm(f => ({ ...f, gradeGroup: e.target.value }))} className={inputBase}>
             {gradeGroups.map(g => <option key={g} value={g}>{g}</option>)}
           </select>
@@ -469,7 +469,7 @@ const OtherForm = ({ form, setForm, subjects, gradeGroups }) => (
           </select>
         </div>
         <div>
-          <label className={labelClass}>Grade Group</label>
+          <label className={labelClass}>Grade Level</label>
           <select value={form.gradeGroup} onChange={e => setForm(f => ({ ...f, gradeGroup: e.target.value }))} className={inputBase}>
             {gradeGroups.map(g => <option key={g} value={g}>{g}</option>)}
           </select>

@@ -2197,7 +2197,7 @@ const Resources = () => {
                 onChange={(e) => setGradeFilter(e.target.value)}
                 className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 transition cursor-pointer"
               >
-                <option value="">Grade: All</option>
+                <option value="">Grade Level: All</option>
                 {gradeGroups.map((g) => (
                   <option key={g} value={g}>{g}</option>
                 ))}
