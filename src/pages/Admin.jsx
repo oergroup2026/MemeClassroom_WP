@@ -3016,7 +3016,7 @@ const Admin = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Age Group *</label>
+                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Grade Level *</label>
                   <select
                     value={memeGrade}
                     onChange={e => setMemeGrade(e.target.value)}

@@ -1249,7 +1249,7 @@ const Library = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Grade</label>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Grade Level</label>
                   <select
                     value={gradeFilter}
                     onChange={(e) => setGradeFilter(e.target.value)}
@@ -2335,7 +2335,7 @@ const Library = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Grade</label>
+                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Grade Level</label>
                   <select
                     value={uploadGrade}
                     onChange={(e) => setUploadGrade(e.target.value)}
@@ -2525,7 +2525,7 @@ const Library = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Grade</label>
+                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Grade Level</label>
                   <select
                     value={editGrade}
                     onChange={e => setEditGrade(e.target.value)}
