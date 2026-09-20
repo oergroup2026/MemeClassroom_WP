@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
@@ -45,6 +45,9 @@ const BellIcon = () => (
   </svg>
 );
 
+const TASKBAR_PAGE_SHOW_MS  = 45_000; // visible for 45 s after page load / navigation
+const TASKBAR_HOVER_LEAVE_MS = 1_500;  // hide 1.5 s after mouse leaves the taskbar area
+
 const Navbar = () => {
   const { user, profile, signOut } = useAuth();
   const { highContrastMode, toggleHighContrast, a11yMenuOpen, toggleA11yMenu } = useUdl();
@@ -54,6 +57,10 @@ const Navbar = () => {
   const [notifications, setNotifications] = useState([]);
   const [globalIndex, setGlobalIndex] = useState([]);
   const [searchExpanded, setSearchExpanded] = useState(false);
+  // Taskbar auto-hide: visible on page load; hides after 45 s or 1.5 s post-hover
+  const [taskbarVisible, setTaskbarVisible] = useState(true);
+  const hideTimerRef      = useRef(null);
+  const isHoveringRef     = useRef(false); // true while mouse is inside taskbar / hover zone
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === "/";
@@ -173,6 +180,56 @@ const Navbar = () => {
     }
   };
 
+  // ── Taskbar auto-hide helpers ─────────────────────────────────────────────
+  // Schedule a hide after `delay` ms — but only if the mouse isn't inside.
+  const scheduleHide = useCallback((delay) => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      if (!isHoveringRef.current) setTaskbarVisible(false);
+    }, delay);
+  }, []);
+
+  // Show taskbar and start the 45 s page-visibility countdown.
+  const showTaskbar = useCallback((delay = TASKBAR_PAGE_SHOW_MS) => {
+    setTaskbarVisible(true);
+    scheduleHide(delay);
+  }, [scheduleHide]);
+
+  // On every page navigation: show taskbar and (re)start the 45 s timer.
+  useEffect(() => {
+    isHoveringRef.current = false;
+    showTaskbar(TASKBAR_PAGE_SHOW_MS);
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  // Mouse enters taskbar or hover zone → show immediately, cancel hide timer.
+  const handleTaskbarEnter = useCallback(() => {
+    isHoveringRef.current = true;
+    setTaskbarVisible(true);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+  }, []);
+
+  // Mouse leaves taskbar → hide after a short grace period.
+  const handleTaskbarLeave = useCallback(() => {
+    isHoveringRef.current = false;
+    scheduleHide(TASKBAR_HOVER_LEAVE_MS);
+  }, [scheduleHide]);
+
+  // Arrow toggle: click to pin open (45 s timer) or force-close.
+  const toggleTaskbar = useCallback(() => {
+    if (taskbarVisible) {
+      isHoveringRef.current = false;
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      setTaskbarVisible(false);
+    } else {
+      showTaskbar(TASKBAR_PAGE_SHOW_MS);
+    }
+  }, [taskbarVisible, showTaskbar]);
+  // ──────────────────────────────────────────────────────────────────────────
+
   const bottomNavItems = [
     { to: "/", label: "Home", Icon: Home, end: true },
     { to: "/resources", label: "Resources", Icon: BookOpenCheck },
@@ -229,7 +286,7 @@ const Navbar = () => {
                 >
                   <span style={{ fontFamily: "'Pacifico', cursive" }} className="text-ruby-600 dark:text-ruby-400">Meme</span>
                   <span className="font-extrabold tracking-tight">Classroom</span>
-                  <span className="w-2 h-2 rounded-full bg-ruby-600 dark:bg-ruby-400 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-ruby-600 dark:bg-ruby-400" />
                 </Link>
               )}
             </div>
@@ -392,10 +449,65 @@ const Navbar = () => {
 
       {/* ──────────────────────────────────────────────────────────────────────────
           2. WINDOWS-STYLE TASKBAR (Fixed Full-Width Viewport Docked Taskbar)
+          • Shows for 45 s on every page load / navigation, then slides down.
+          • Hovering the bottom edge (hover zone) instantly slides it back up.
+          • Mouse leaving the taskbar area hides it after 1.5 s grace period.
+          • Arrow toggle pins it open (45 s) or force-closes it.
           ────────────────────────────────────────────────────────────────────────── */}
+
+      {/*
+        Invisible hover zone — always rendered at the very bottom of the viewport.
+        When the taskbar is hidden (translated off-screen) this thin strip is the
+        only thing the user's cursor touches, triggering the slide-up reveal.
+        z-index is between the taskbar (z-40) and page content so it never blocks
+        any interactive elements above it.
+      */}
+      <div
+        aria-hidden="true"
+        onMouseEnter={handleTaskbarEnter}
+        onMouseLeave={handleTaskbarLeave}
+        className="fixed bottom-0 left-0 right-0 z-[39] h-5"
+      />
+
+      {/* Left-side arrow toggle — always visible, sticks to bottom-left corner */}
+      <button
+        id="taskbar-toggle-btn"
+        onClick={toggleTaskbar}
+        onMouseEnter={handleTaskbarEnter}
+        onMouseLeave={handleTaskbarLeave}
+        aria-label={taskbarVisible ? "Hide taskbar" : "Show taskbar"}
+        aria-expanded={taskbarVisible}
+        title={taskbarVisible ? "Hide taskbar (T)" : "Show taskbar (T)"}
+        className={`fixed bottom-4 left-0 z-50 flex items-center justify-center w-5 h-10 rounded-r-xl transition-all duration-300 shadow-md border border-l-0 ${
+          highContrastMode
+            ? "bg-zinc-800 border-zinc-600 text-ruby-400 hover:bg-zinc-700 hover:text-ruby-300"
+            : "bg-white/95 dark:bg-zinc-900/95 border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:text-ruby-600 dark:hover:text-ruby-400 hover:border-ruby-300 dark:hover:border-ruby-600"
+        } backdrop-blur-md`}
+      >
+        {/* Chevron rotates to indicate direction */}
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          className={`transition-transform duration-300 ${taskbarVisible ? "rotate-90" : "-rotate-90"}`}
+        >
+          <polyline points="2,8 5,5 8,8" />
+        </svg>
+      </button>
+
       <nav
         aria-label="Windows Taskbar Navigation"
-        className="fixed bottom-0 left-0 right-0 z-40 w-full bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border-t border-gray-200/90 dark:border-zinc-800/90 shadow-[0_-4px_25px_rgba(0,0,0,0.06)] dark:shadow-[0_-6px_30px_rgba(0,0,0,0.5)] transition-all duration-200"
+        onMouseEnter={handleTaskbarEnter}
+        onMouseLeave={handleTaskbarLeave}
+        className={`fixed bottom-0 left-0 right-0 z-40 w-full bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border-t border-gray-200/90 dark:border-zinc-800/90 shadow-[0_-4px_25px_rgba(0,0,0,0.06)] dark:shadow-[0_-6px_30px_rgba(0,0,0,0.5)] transition-transform duration-300 ease-in-out ${
+          taskbarVisible ? "translate-y-0 pointer-events-auto" : "translate-y-full pointer-events-none"
+        }`}
       >
         <div className="relative max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
 

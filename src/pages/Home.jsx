@@ -564,7 +564,7 @@ const Home = () => {
         </div>
 
         {/* Attached Core Spaces columns (matches Journey section styling) */}
-        <div className="max-w-6xl mx-auto rounded-3xl bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-gray-200 dark:border-zinc-800 shadow-lg overflow-hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 divide-y divide-x divide-gray-200 dark:divide-zinc-800">
+        <div className="max-w-6xl mx-auto rounded-3xl bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-gray-200 dark:border-zinc-800 shadow-lg overflow-hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y divide-gray-200 dark:divide-zinc-800 [&>*:not(:nth-child(3n+1))]:border-l [&>*:not(:nth-child(3n+1))]:border-gray-200 [&>*:not(:nth-child(3n+1))]:dark:border-zinc-800">
           {[
             {
               badge: "Getting Started",

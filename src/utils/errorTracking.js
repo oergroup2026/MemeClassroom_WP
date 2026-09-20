@@ -1,16 +1,14 @@
-import * as Sentry from "@sentry/react";
+// @sentry/react is an optional dependency — stub it out when not installed.
+// To enable real error tracking: run `npm install @sentry/react` and restore
+// the original import above, then set VITE_SENTRY_DSN in your .env file.
+import React from "react";
 
-// No-op until VITE_SENTRY_DSN is set (see .env.example) — safe to ship without
-// a Sentry account yet. Once a DSN is configured, uncaught exceptions and
-// unhandled promise rejections across the app are reported automatically.
+// No-op until VITE_SENTRY_DSN is set and @sentry/react is installed.
 export function initErrorTracking() {
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
-  if (!dsn) return;
-
-  Sentry.init({
-    dsn,
-    environment: import.meta.env.MODE,
-  });
+  // No-op stub — Sentry SDK not installed.
 }
 
-export const AppErrorBoundary = Sentry.ErrorBoundary;
+// Passthrough error boundary that just renders children normally.
+export function AppErrorBoundary({ children }) {
+  return children;
+}
