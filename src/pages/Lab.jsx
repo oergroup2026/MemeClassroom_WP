@@ -28,7 +28,8 @@ import {
   Trash2,
   Copy,
   Share2,
-  Plus
+  Plus,
+  LayoutGrid
 } from "lucide-react";
 import {
   collection,
@@ -520,6 +521,12 @@ const Lab = () => {
       setActiveControlTab("filters");
     }
   }, [activeTab, activeControlTab]);
+
+  // Workspace side panel: the image-editor controls and the template browser
+  // are separate tabs so only one is on screen at a time. The Video Studio has
+  // no editor controls, so it always shows the templates panel.
+  const [sidePanelTab, setSidePanelTab] = useState("templates"); // "editor" | "templates"
+  const panelTab = activeTab === "video" ? "templates" : sidePanelTab;
   const [zoomLevel, setZoomLevel] = useState(100);
   const [selectedCategory, setSelectedCategory] = useState("popular");
   const [topTextInput, setTopTextInput] = useState("");
@@ -1103,6 +1110,7 @@ const Lab = () => {
   const handleTextPointerDown = (e, textId) => {
     e.preventDefault();
     setSelectedTextId(textId);
+    setSidePanelTab("editor");
 
     const layer = textLayers.find(l => l.id === textId);
     if (!layer) return;
@@ -2564,15 +2572,18 @@ const Lab = () => {
       )}
 
       {/* ── TWO-COLUMN SAAS WORKSTATION LAYOUT ── */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-4 w-full min-h-[calc(100vh-140px)]">
+      {/* On lg+ this is a two-column grid: the canvas on the left and a single
+          tabbed side panel (Editor / Templates) on the right. Below lg everything
+          stacks: canvas, tab bar, then whichever panel is active. */}
+      <div className="flex-1 flex flex-col gap-4 w-full min-h-[calc(100vh-140px)] lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_auto] lg:content-start lg:gap-x-4 lg:gap-y-3">
 
         {/* ── LEFT COLUMN: COMPACT CANVAS BOX + BOTTOM CONTROLS CARD ── */}
-        <div className="flex-1 flex flex-col gap-4 min-w-0">
+        <div className="flex-1 flex flex-col gap-4 min-w-0 lg:contents">
 
           {/* 1. COMPACT CANVAS AREA BOX (Reduced height & size for optimal viewport fit) */}
           <div
             id="lab-canvas-area"
-            className="bg-slate-100/90 dark:bg-[#0b0e14] border border-slate-200 dark:border-[#1b2336] rounded-2xl shadow-sm relative flex items-center justify-center p-2.5 sm:p-3 min-h-[260px] lg:min-h-[280px] overflow-hidden select-none"
+            className="lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:self-start bg-slate-100/90 dark:bg-[#0b0e14] border border-slate-200 dark:border-[#1b2336] rounded-2xl shadow-sm relative flex items-center justify-center p-2.5 sm:p-3 min-h-[260px] lg:min-h-[280px] overflow-hidden select-none"
             style={{
               backgroundImage: highContrastMode
                 ? "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)"
@@ -3138,10 +3149,52 @@ const Lab = () => {
             </div>
           </div>
 
-          {/* 2. BOTTOM CONTROLS CARD */}
-          <div className={`${activeTab === "video" ? "hidden " : ""}bg-white dark:bg-[#0e131f] border border-slate-200/80 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm dark:shadow-xl flex flex-col gap-3 text-slate-800 dark:text-white transition-colors duration-200`}>
+          {/* WORKSPACE PANEL TABS: Editor | Templates (one panel visible at a time) */}
+          {activeTab !== "video" && (
+            <div
+              role="tablist"
+              aria-label="Workspace panel"
+              className="lg:col-start-2 lg:row-start-1 grid grid-cols-2 gap-1 p-1 rounded-2xl bg-slate-100 dark:bg-[#0b0e14] border border-slate-200/80 dark:border-[#1b2336]"
+            >
+              {[
+                { id: "editor", label: "Editor", icon: <Sliders className="w-3.5 h-3.5" /> },
+                { id: "templates", label: "Templates", icon: <LayoutGrid className="w-3.5 h-3.5" /> }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`lab-panel-tab-${tab.id}`}
+                  aria-selected={panelTab === tab.id}
+                  aria-controls={`lab-panel-${tab.id}`}
+                  onClick={() => setSidePanelTab(tab.id)}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#e11d48]/60 ${
+                    panelTab === tab.id
+                      ? "bg-white dark:bg-[#1b2336] text-[#e11d48] dark:text-white shadow-sm ring-1 ring-[#e11d48]/40"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-[#111624]"
+                  }`}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+              <style>{`
+                @keyframes labPanelIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+                .lab-panel-in { animation: labPanelIn 0.22s ease-out; }
+                @media (prefers-reduced-motion: reduce) { .lab-panel-in { animation: none; } }
+              `}</style>
+            </div>
+          )}
+
+          {/* 2. BOTTOM CONTROLS CARD (the "Editor" tab panel) */}
+          <div
+            role="tabpanel"
+            id="lab-panel-editor"
+            aria-labelledby="lab-panel-tab-editor"
+            className={`${panelTab !== "editor" ? "hidden " : "lab-panel-in "}lg:col-start-2 lg:row-start-2 lg:self-start bg-white dark:bg-[#0e131f] border border-slate-200/80 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm dark:shadow-xl flex flex-col gap-3 text-slate-800 dark:text-white transition-colors duration-200`}
+          >
             {/* Controls Tabs Navigation */}
-            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-[#1b2336] pb-3">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 lg:gap-1 border-b border-slate-100 dark:border-[#1b2336] pb-3">
               {[
                 { id: "text", label: "Text", icon: <Type className="w-3.5 h-3.5" /> },
                 { id: "image", label: "Image", icon: <ImageIcon className="w-3.5 h-3.5" /> },
@@ -3152,7 +3205,7 @@ const Lab = () => {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveControlTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-1 px-1.5 flex-1 justify-center sm:gap-1.5 sm:px-4 sm:flex-none sm:justify-start lg:gap-1 lg:px-1.5 lg:flex-1 lg:justify-center py-2 rounded-xl text-xs font-bold transition-all ${
                     activeControlTab === tab.id
                       ? "bg-[#e11d48] text-white shadow-md shadow-[#e11d48]/25 font-bold"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#111624]"
@@ -3168,7 +3221,7 @@ const Lab = () => {
             {activeControlTab === "text" && activeTab === "image" && (
               <div className="flex flex-col gap-3">
                 {/* Row 1: Top Text & Bottom Text Inputs with Clear/Delete buttons */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
                       <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -3282,7 +3335,7 @@ const Lab = () => {
                     </select>
                   </div>
 
-                  <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block" />
+                  <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block lg:hidden" />
 
                   {/* Color Circular Swatches */}
                   <div className="flex items-center gap-1.5">
@@ -3323,7 +3376,7 @@ const Lab = () => {
                     </div>
                   </div>
 
-                  <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block" />
+                  <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block lg:hidden" />
 
                   {/* Style Toggle Buttons: [B] [I] [U] [↻] */}
                   <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a]">
@@ -3555,7 +3608,15 @@ const Lab = () => {
         </div>
 
         {/* ── RIGHT COLUMN: SECTION-SPECIFIC TEMPLATES & UPLOAD SIDEBAR ── */}
-        <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-3.5">
+        {/* Also the "Templates" tab panel: hidden while the Editor tab is active. */}
+        <div
+          role="tabpanel"
+          id="lab-panel-templates"
+          aria-labelledby="lab-panel-tab-templates"
+          className={`${panelTab !== "templates" ? "hidden " : "lab-panel-in "}w-full min-w-0 flex flex-col gap-3.5 lg:col-start-2 lg:self-start ${
+            activeTab === "video" ? "lg:row-start-1 lg:row-span-2" : "lg:row-start-2"
+          }`}
+        >
           <div className="bg-white dark:bg-[#0e131f] border border-slate-200/80 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm dark:shadow-xl flex flex-col gap-3.5 text-slate-800 dark:text-white transition-colors duration-200">
 
             {/* Search Templates Bar */}
