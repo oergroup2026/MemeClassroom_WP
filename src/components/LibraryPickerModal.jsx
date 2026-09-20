@@ -3,15 +3,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { SUBJECTS } from "../constants/taxonomy";
 import { fuzzySearch } from "../utils/searchUtils";
-
-const FALLBACK_PRESETS = [
-  { id: "fb-leo", title: "Leonardo DiCaprio Gatsby Toast", media_url: "/templates/leonardo-toast.jpg", subject: "Literature", format: "image" },
-  { id: "fb-distracted", title: "Distracted Boyfriend", media_url: "/templates/distracted-boyfriend.jpg", subject: "Psychology", format: "image" },
-  { id: "fb-drake", title: "Drake Hotline Bling", media_url: "/templates/drake.jpg", subject: "English", format: "image" },
-  { id: "fb-wolverine", title: "Batman Slapping Robin", media_url: "/templates/wolverine.jpg", subject: "History", format: "image" },
-  { id: "fb-cat", title: "Woman Yelling at Cat", media_url: "/templates/woman-cat.jpg", subject: "Science", format: "image" },
-  { id: "fb-sponge", title: "Imagination Spongebob", media_url: "/templates/spongebob.jpg", subject: "Philosophy", format: "image" }
-];
+import { fetchStoryTemplateIds } from "../utils/storyTemplates";
 
 const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => {
   const [memes, setMemes] = useState([]);
@@ -27,44 +19,22 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => 
       setLoading(true);
       try {
         const fetched = [];
-        
-        // 1. Fetch public memes from memes collection (filter client-side to avoid composite index requirement)
-        try {
-          const qMemes = query(
-            collection(db, "memes"),
-            where("visibility", "==", "public")
-          );
-          const snapMemes = await getDocs(qMemes);
-          snapMemes.forEach((doc) => {
-            const data = doc.data();
-            if (!format || data.format === format || (!data.format && format === "image")) {
-              fetched.push({ id: doc.id, ...data });
-            }
-          });
-        } catch (e) {
-          console.warn("Could not fetch public memes:", e);
-        }
 
-        // 2. Fetch approved templates from templates collection
+        // Only approved templates that have a meme story are offered
         try {
-          const qTemplates = query(
-            collection(db, "templates"),
-            where("status", "==", "approved")
+          const storyIds = await fetchStoryTemplateIds();
+          const snapTemplates = await getDocs(
+            query(collection(db, "templates"), where("status", "==", "approved"))
           );
-          const snapTemplates = await getDocs(qTemplates);
           snapTemplates.forEach((doc) => {
             const data = doc.data();
+            if (!storyIds.has(doc.id)) return;
             if (!format || data.format === format || (!data.format && format === "image")) {
               fetched.push({ id: doc.id, ...data, isTemplate: true });
             }
           });
         } catch (e) {
           console.warn("Could not fetch templates:", e);
-        }
-
-        // If no results, provide fallback presets so the modal is never broken/empty
-        if (fetched.length === 0) {
-          fetched.push(...FALLBACK_PRESETS.filter(p => !format || p.format === format));
         }
 
         // Sort by created_at desc if available
@@ -77,7 +47,7 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => 
         if (isMounted) setMemes(fetched);
       } catch (err) {
         console.error("Error fetching library memes:", err);
-        if (isMounted) setMemes(FALLBACK_PRESETS.filter(p => !format || p.format === format));
+        if (isMounted) setMemes([]);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -113,7 +83,7 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => 
           <div className="flex items-center gap-2">
             <span className="text-lg">📖</span>
             <h2 className="text-sm font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-              Browse Community Templates & Memes
+              Browse Meme Story Templates
             </h2>
           </div>
           <button 
@@ -156,7 +126,7 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-14 text-rose-500">
             <div className="w-8 h-8 border-3 border-rose-200 border-t-rose-600 rounded-full animate-spin mb-2" />
-            <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400">Loading library templates...</span>
+            <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400">Loading meme templates...</span>
           </div>
         ) : filteredMemes.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

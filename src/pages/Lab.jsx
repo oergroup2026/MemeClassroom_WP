@@ -43,7 +43,6 @@ import {
   increment,
   query,
   where,
-  limit,
   onSnapshot
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -58,6 +57,7 @@ import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useVideoTrim } from "../hooks/useVideoTrim";
 import { compileVideoMeme } from "../utils/videoCompiler";
 import LibraryPickerModal from "../components/LibraryPickerModal";
+import { subscribeStoryTemplateIds } from "../utils/storyTemplates";
 import RichTextArea from "../components/RichTextArea";
 import GiphySearch from "../components/GiphySearch";
 import AudiogramCanvas from "../components/AudiogramCanvas";
@@ -184,7 +184,7 @@ const Lab = () => {
     }
   }, [searchParams]);
 
-  // Fetch approved templates and public database memes from Firestore
+  // Fetch approved templates that have a meme story from Firestore
   useEffect(() => {
     // 1. Templates collection
     const qTemplates = query(
@@ -199,36 +199,15 @@ const Lab = () => {
       setAlertMessage("Couldn't load templates right now. Try refreshing the page.");
     });
 
-    // 2. Public Memes from database (usable in Lab)
-    const qMemes = query(
-      collection(db, "memes"),
-      where("visibility", "==", "public"),
-      limit(60)
-    );
-    const unsubMemes = onSnapshot(qMemes, (snap) => {
-      const list = snap.docs.map(doc => {
-        const d = doc.data();
-        return {
-          id: doc.id,
-          title: d.title || "Community Meme",
-          media_url: d.media_url || d.image_url,
-          thumbnail: d.media_url || d.image_url,
-          format: d.format || "image",
-          subject: d.subject || "General",
-          grade_group: d.grade_group,
-          isDatabase: true,
-          ...d
-        };
-      }).filter(m => m.media_url);
-      setDbMemes(list);
-    }, (error) => {
-      console.warn("Memes subscription failed:", error);
-      setAlertMessage("Couldn't load community memes right now. Try refreshing the page.");
+    // 2. Ids of templates that have a meme story; only those are offered in the Lab
+    const unsubStories = subscribeStoryTemplateIds(setStoryTemplateIds, (error) => {
+      console.warn("Meme stories subscription failed:", error);
+      setAlertMessage("Couldn't load meme templates right now. Try refreshing the page.");
     });
 
     return () => {
       unsubTemplates();
-      unsubMemes();
+      unsubStories();
     };
   }, []);
 
@@ -554,12 +533,12 @@ const Lab = () => {
   const [autoSaveToast, setAutoSaveToast] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Helper to get active section templates (combines Firestore database templates and database memes)
+  // Helper to get active section templates: approved templates that have a meme story
   const getActiveFormatTemplates = () => {
+    const storyTemplates = availableTemplates.filter(t => storyTemplateIds.has(t.id));
     let list = [];
     if (activeTab === "image") {
-      // 1. Approved database templates
-      const dbTemplates = availableTemplates
+      list = storyTemplates
         .filter(t => !t.format || t.format === "image")
         .map(t => ({
           id: t.id,
@@ -571,44 +550,14 @@ const Lab = () => {
           subject: t.subject || "",
           isDatabase: true
         }));
-
-      // 2. Public memes from database
-      const dbMemeList = dbMemes
-        .filter(m => !m.format || m.format === "image")
-        .map(m => ({
-          id: m.id,
-          title: m.title || "Community Meme",
-          thumbnail: m.media_url || m.image_url,
-          images: [m.media_url || m.image_url],
-          format: "image",
-          category: m.subject === "Biology" || m.subject === "Chemistry" || m.subject === "Physics" || m.subject === "Math" || m.subject === "History" ? "academic" : "popular",
-          subject: m.subject || "",
-          isDatabase: true
-        }));
-
-      // Combine database items only — no hardcoded fallback presets
-      list = [...dbTemplates, ...dbMemeList];
-    } else if (activeTab === "video") {
-      const dbVideos = availableTemplates.filter(t => t.format === "video");
-      const dbVideoMemes = dbMemes.filter(m => m.format === "video");
-      list = [
-        ...dbVideos.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url, url: t.media_url, format: "video", isDatabase: true })),
-        ...dbVideoMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "video", isDatabase: true }))
-      ];
-    } else if (activeTab === "gif") {
-      const dbGifs = availableTemplates.filter(t => t.format === "gif");
-      const dbGifMemes = dbMemes.filter(m => m.format === "gif");
-      list = [
-        ...dbGifs.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url, url: t.media_url, format: "gif", isDatabase: true })),
-        ...dbGifMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url, url: m.media_url, format: "gif", isDatabase: true }))
-      ];
+    } else if (activeTab === "video" || activeTab === "gif") {
+      list = storyTemplates
+        .filter(t => t.format === activeTab)
+        .map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url, url: t.media_url, format: activeTab, isDatabase: true }));
     } else if (activeTab === "audio") {
-      const dbAudio = availableTemplates.filter(t => t.format === "audio");
-      const dbAudioMemes = dbMemes.filter(m => m.format === "audio");
-      list = [
-        ...dbAudio.map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url || "/templates/leonardo-toast.jpg", url: t.media_url, format: "audio", isDatabase: true })),
-        ...dbAudioMemes.map(m => ({ id: m.id, title: m.title, thumbnail: m.media_url || "/templates/leonardo-toast.jpg", url: m.media_url, format: "audio", isDatabase: true }))
-      ];
+      list = storyTemplates
+        .filter(t => t.format === "audio")
+        .map(t => ({ id: t.id, title: t.title, thumbnail: t.media_url || "/templates/leonardo-toast.jpg", url: t.media_url, format: "audio", isDatabase: true }));
     }
 
     // Filter by search query
@@ -874,7 +823,7 @@ const Lab = () => {
   const [templateLoading, setTemplateLoading] = useState(false);
   const [templateSuccess, setTemplateSuccess] = useState("");
   const [availableTemplates, setAvailableTemplates] = useState([]);
-  const [dbMemes, setDbMemes] = useState([]);
+  const [storyTemplateIds, setStoryTemplateIds] = useState(() => new Set());
   const [showContributeModal, setShowContributeModal] = useState(false);
   const [templateSearchQuery, setTemplateSearchQuery] = useState("");
 
@@ -3722,7 +3671,7 @@ const Lab = () => {
               type="button"
               onClick={() => setShowLibraryPickerModal(true)}
               className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-[#1e273a] bg-slate-50 dark:bg-[#111624] hover:bg-slate-100 dark:hover:bg-[#1b2336] hover:border-[#e11d48] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-xs active:scale-95 cursor-pointer"
-              title="Browse all community templates and database memes"
+              title="Browse every template that has a meme story"
             >
               <span>+</span>
               <span>Browse More Templates</span>
