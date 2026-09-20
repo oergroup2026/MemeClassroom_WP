@@ -63,7 +63,10 @@ import {
   Shuffle,
   SlidersHorizontal,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Eye,
+  Filter,
+  Check
 } from "lucide-react";
 
 const Library = () => {
@@ -121,6 +124,8 @@ const Library = () => {
   const [allRatings, setAllRatings] = useState([]);
   const [sortBy, setSortBy] = useState("newest");
   const [showFilters, setShowFilters] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const filterPanelRef = useRef(null);
 
   // Modals & Details Overlay
   const [activeMeme, setActiveMeme] = useState(null);
@@ -304,6 +309,20 @@ const Library = () => {
 
   const resolvedCreatorsRef = useRef({});
 
+  // Tracks which meme IDs already had a view counted this session, so re-opening
+  // the same card's details repeatedly doesn't inflate view_count.
+  const viewedMemesRef = useRef(new Set());
+
+  const openMemeDetails = (meme) => {
+    setActiveMeme(meme);
+    // View counting requires an authenticated request (see firestore.rules);
+    // guests can still browse, they just don't add to the tally.
+    if (user && meme?.id && !viewedMemesRef.current.has(meme.id)) {
+      viewedMemesRef.current.add(meme.id);
+      updateDoc(doc(db, "memes", meme.id), { view_count: increment(1) }).catch(() => {});
+    }
+  };
+
   // 1. Real-time Curation Feed Listener (Database-Side Sorting)
   useEffect(() => {
     const memesCol = collection(db, "memes");
@@ -361,25 +380,34 @@ const Library = () => {
     return active.length > 0 ? active.reduce((sum, x) => sum + x, 0) / active.length : 0;
   };
 
-  const getSubjectTagClass = (subj) => {
-    switch (String(subj).toLowerCase()) {
-      case 'maths':
-      case 'math':
-      case 'mathematics':
-        return 'tag-subject-maths';
-      case 'biology':
-        return 'tag-subject-biology';
-      case 'physics':
-        return 'tag-subject-physics';
-      case 'chemistry':
-        return 'tag-subject-chemistry';
-      case 'history':
-        return 'tag-subject-history';
-      case 'geography':
-        return 'tag-subject-geography';
-      default:
-        return 'tag-subject-default';
-    }
+  // Distinct accent color per subject — used for the card's top accent line and
+  // soft ambient glow instead of a text tag pill.
+  const SUBJECT_COLOR_MAP = {
+    'maths': '#ec4899', 'math': '#ec4899', 'mathematics': '#ec4899',
+    'biology': '#10b981',
+    'physics': '#3b82f6',
+    'chemistry': '#f59e0b',
+    'history': '#8b5cf6',
+    'geography': '#14b8a6',
+    'english': '#ef4444',
+    'computer science': '#06b6d4',
+    'environmental science': '#84cc16',
+    'economics': '#f97316',
+    'political science': '#6366f1',
+    'philosophy': '#a855f7',
+    'art & design': '#d946ef',
+    'physical education': '#22c55e',
+    'music': '#eab308'
+  };
+  const SUBJECT_COLOR_FALLBACK_PALETTE = ['#a855f7', '#0ea5e9', '#f43f5e', '#65a30d', '#c026d3', '#0891b2'];
+
+  const getSubjectColor = (subj) => {
+    const key = String(subj || '').trim().toLowerCase();
+    if (SUBJECT_COLOR_MAP[key]) return SUBJECT_COLOR_MAP[key];
+    // Deterministic fallback for custom/unlisted subjects (stable per subject name)
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+    return SUBJECT_COLOR_FALLBACK_PALETTE[hash % SUBJECT_COLOR_FALLBACK_PALETTE.length];
   };
 
   // Dedicated User profile (name and role) resolution listener
@@ -502,6 +530,17 @@ const Library = () => {
     return () => document.removeEventListener('click', handleClose);
   }, [showCardMenuId]);
 
+  // Close the search-bar Filters dropdown when clicking outside it
+  useEffect(() => {
+    if (!showFilterPanel) return;
+    const handleClose = (e) => {
+      if (filterPanelRef.current && filterPanelRef.current.contains(e.target)) return;
+      setShowFilterPanel(false);
+    };
+    document.addEventListener('click', handleClose);
+    return () => document.removeEventListener('click', handleClose);
+  }, [showFilterPanel]);
+
   // 2. Multi-Variable Sidebar Filtering Logic
   useEffect(() => {
     let result = memes;
@@ -545,6 +584,8 @@ const Library = () => {
       });
     } else if (sortBy === "likes") {
       result = [...result].sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0));
+    } else if (sortBy === "views") {
+      result = [...result].sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
     } else if (sortBy === "rating") {
       result = [...result].sort((a, b) => {
         const getOverall = (memeId) => {
@@ -678,6 +719,7 @@ const Library = () => {
         media_url: fileUrl,
         template_id: "", // Direct uploads do not have a remix templates reference
         text_layers_json: "[]", // Schema alignment fix
+        view_count: 0,
         created_at: serverTimestamp()
       });
 
@@ -1114,40 +1156,12 @@ const Library = () => {
           animation: heartPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
         }
 
-        .tag-subject-maths {
-          background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%) !important;
-          color: white !important;
-          border: none !important;
+        .meme-card-shell {
+          position: relative;
+          transition: box-shadow 0.35s ease, transform 0.3s ease;
         }
-        .tag-subject-biology {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-          color: white !important;
-          border: none !important;
-        }
-        .tag-subject-physics {
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-          color: white !important;
-          border: none !important;
-        }
-        .tag-subject-chemistry {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-          color: white !important;
-          border: none !important;
-        }
-        .tag-subject-history {
-          background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
-          color: white !important;
-          border: none !important;
-        }
-        .tag-subject-geography {
-          background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%) !important;
-          color: white !important;
-          border: none !important;
-        }
-        .tag-subject-default {
-          background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%) !important;
-          color: white !important;
-          border: none !important;
+        .meme-card-shell:hover {
+          transform: translateY(-2px);
         }
       `}</style>
 
@@ -1158,29 +1172,151 @@ const Library = () => {
           <p className="text-xs text-gray-500 mt-1">Discover, evaluate and curate educational memes and classroom assets.</p>
         </div>
 
-        {/* Smart Predictive Search Bar */}
-        <div id="library-search-bar" className="flex-grow max-w-md">
-          <SmartSearchBar
-            items={enrichedMemes}
-            fieldWeights={[
-              { field: "title", weight: 3 },
-              { field: "subject", weight: 2 },
-              { field: "keywords", weight: 2 },
-              { field: "language", weight: 1 },
-              { field: "_authorName", weight: 1.5 },
-              { field: "age_group", weight: 1 }
-            ]}
-            placeholder="Search memes, topics or keywords..."
-            value={searchQuery}
-            onChange={(val) => {
-              setSearchQuery(val);
-              if (!val.trim()) {
-                setAppliedSearchQuery("");
-              }
-            }}
-            onSearch={(val) => setAppliedSearchQuery(val)}
-            voiceEnabled={true}
-          />
+        {/* Smart Predictive Search Bar + Filters */}
+        <div className="flex items-start gap-2 flex-grow max-w-xl">
+          <div id="library-search-bar" className="flex-grow">
+            <SmartSearchBar
+              items={enrichedMemes}
+              fieldWeights={[
+                { field: "title", weight: 3 },
+                { field: "subject", weight: 2 },
+                { field: "keywords", weight: 2 },
+                { field: "language", weight: 1 },
+                { field: "_authorName", weight: 1.5 },
+                { field: "age_group", weight: 1 }
+              ]}
+              placeholder="Search memes, topics or keywords..."
+              value={searchQuery}
+              onChange={(val) => {
+                setSearchQuery(val);
+                if (!val.trim()) {
+                  setAppliedSearchQuery("");
+                }
+              }}
+              onSearch={(val) => setAppliedSearchQuery(val)}
+              voiceEnabled={true}
+            />
+          </div>
+
+          {/* Filters Dropdown — Grade, Subject, Language, Type, Most Liked, Most Viewed */}
+          <div className="relative shrink-0" ref={filterPanelRef}>
+            <button
+              type="button"
+              onClick={() => setShowFilterPanel(v => !v)}
+              className={`flex items-center gap-1.5 h-full px-3.5 py-1.5 rounded-full border text-xs font-bold transition shadow-sm ${
+                (subjectFilter || gradeFilter || languageFilter || formatFilter || sortBy !== "newest")
+                  ? "bg-purple-600 border-purple-600 text-white"
+                  : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-300 hover:border-purple-300 dark:hover:border-purple-700"
+              }`}
+              title="Filter & sort"
+            >
+              <Filter className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Filters</span>
+              {[subjectFilter, gradeFilter, languageFilter, formatFilter, sortBy !== "newest" ? "sort" : ""].filter(Boolean).length > 0 && (
+                <span className={`text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center ${
+                  (subjectFilter || gradeFilter || languageFilter || formatFilter || sortBy !== "newest") ? "bg-white/25" : "bg-purple-100 text-purple-700"
+                }`}>
+                  {[subjectFilter, gradeFilter, languageFilter, formatFilter, sortBy !== "newest" ? "sort" : ""].filter(Boolean).length}
+                </span>
+              )}
+              <ChevronDown className={`w-3 h-3 transition-transform ${showFilterPanel ? "rotate-180" : ""}`} />
+            </button>
+
+            {showFilterPanel && (
+              <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl z-40 p-4 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-extrabold text-gray-900 dark:text-white">Filter & Sort</h4>
+                  {(subjectFilter || gradeFilter || languageFilter || formatFilter || sortBy !== "newest") && (
+                    <button
+                      onClick={() => { setSubjectFilter(""); setGradeFilter(""); setLanguageFilter(""); setFormatFilter(""); setSortBy("newest"); }}
+                      className="text-[10px] font-bold text-red-500 hover:underline"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Subject</label>
+                  <select
+                    value={subjectFilter}
+                    onChange={(e) => setSubjectFilter(e.target.value)}
+                    className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                  >
+                    <option value="">All Subjects</option>
+                    {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Grade Level</label>
+                  <select
+                    value={gradeFilter}
+                    onChange={(e) => setGradeFilter(e.target.value)}
+                    className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                  >
+                    <option value="">All Grades</option>
+                    {gradeGroups.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Language</label>
+                  <select
+                    value={languageFilter}
+                    onChange={(e) => setLanguageFilter(e.target.value)}
+                    className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                  >
+                    <option value="">All Languages</option>
+                    {languages.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">Type</label>
+                  <select
+                    value={formatFilter}
+                    onChange={(e) => setFormatFilter(e.target.value)}
+                    className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                  >
+                    <option value="">All Types</option>
+                    <option value="image">🖼️ Image</option>
+                    <option value="video">🎥 Video</option>
+                    <option value="gif">🎞️ GIF</option>
+                    <option value="audio">🎵 Audio</option>
+                  </select>
+                </div>
+
+                <hr className="border-gray-100 dark:border-zinc-800" />
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1.5">Sort By</label>
+                  <div className="space-y-1">
+                    {[
+                      { id: "newest", label: "🆕 Newest" },
+                      { id: "likes", label: "❤️ Most Liked" },
+                      { id: "views", label: "👁️ Most Viewed" },
+                      { id: "rating", label: "⭐ Highest Rated" }
+                    ].map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setSortBy(opt.id)}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                          sortBy === opt.id
+                            ? "bg-purple-100 dark:bg-purple-950/50 text-purple-750 dark:text-purple-300 font-bold"
+                            : "text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800/50"
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        {sortBy === opt.id && <Check className="w-3.5 h-3.5" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1255,116 +1391,19 @@ const Library = () => {
             </div>
           </div>
 
-          <hr className="border-gray-200/50 dark:border-zinc-800/40" />
-
-          {/* 2. Sort Options Sidebar (Sort as a sidebar) */}
-          <div>
-            <h4 className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2 px-1 flex items-center justify-between">
-              <span>Sort By</span>
-              <SlidersHorizontal className="w-3 h-3" />
-            </h4>
-            <div className="space-y-1">
-              {[
-                { id: "newest", label: "🆕 Newest First" },
-                { id: "likes", label: "🔥 Most Popular" },
-                { id: "rating", label: "⭐ Highest Rated" }
-              ].map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={() => setSortBy(opt.id)}
-                  className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    sortBy === opt.id
-                      ? "bg-purple-100 dark:bg-purple-950/50 text-purple-750 dark:text-purple-300 font-bold border border-purple-200/60 dark:border-purple-800/60"
-                      : "text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800/50"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <hr className="border-gray-200/50 dark:border-zinc-800/40" />
-
-          {/* 3. Subject Tag Pills Cloud (Subject into tags) */}
-          <div>
-            <h4 className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2 px-1">
-              🏷️ Subject Tags
-            </h4>
-            <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-1 scrollbar-none">
+          {(subjectFilter || gradeFilter || languageFilter || formatFilter || appliedSearchQuery || sortBy !== "newest") && (
+            <>
+              <hr className="border-gray-200/50 dark:border-zinc-800/40" />
               <button
-                onClick={() => setSubjectFilter("")}
-                className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition ${
-                  !subjectFilter
-                    ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                    : "bg-gray-50 dark:bg-zinc-800/60 text-gray-600 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:bg-purple-50 dark:hover:bg-purple-950/30"
-                }`}
-              >
-                #All
-              </button>
-              {subjects.filter(s => s !== "Other").map(s => {
-                const isSelected = subjectFilter === s;
-                return (
-                  <button
-                    key={s}
-                    onClick={() => setSubjectFilter(isSelected ? "" : s)}
-                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition ${
-                      isSelected
-                        ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                        : "bg-gray-50 dark:bg-zinc-800/60 text-gray-600 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:bg-purple-50 dark:hover:bg-purple-950/30"
-                    }`}
-                  >
-                    #{s}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <hr className="border-gray-200/50 dark:border-zinc-800/40" />
-
-          {/* 4. Grade & Format Selectors */}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">
-                Grade / Age Group
-              </label>
-              <select
-                value={gradeFilter}
-                onChange={(e) => setGradeFilter(e.target.value)}
-                className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-              >
-                <option value="">All Grades</option>
-                {gradeGroups.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">
-                Media Format
-              </label>
-              <select
-                value={formatFilter}
-                onChange={(e) => setFormatFilter(e.target.value)}
-                className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-              >
-                <option value="">All Formats</option>
-                <option value="image">🖼️ Image</option>
-                <option value="video">🎥 Video</option>
-                <option value="gif">🎞️ GIF</option>
-                <option value="audio">🎵 Audio</option>
-              </select>
-            </div>
-
-            {(subjectFilter || gradeFilter || languageFilter || formatFilter || appliedSearchQuery) && (
-              <button
-                onClick={() => { setSubjectFilter(""); setGradeFilter(""); setLanguageFilter(""); setFormatFilter(""); setSearchQuery(""); setAppliedSearchQuery(""); setActiveFeed("all"); }}
+                onClick={() => { setSubjectFilter(""); setGradeFilter(""); setLanguageFilter(""); setFormatFilter(""); setSearchQuery(""); setAppliedSearchQuery(""); setActiveFeed("all"); setSortBy("newest"); }}
                 className="w-full text-[11px] font-bold py-1.5 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 border border-red-200 dark:border-red-900/40 transition text-center"
               >
                 Reset All Filters
               </button>
-            )}
-          </div>
+            </>
+          )}
+
+          <hr className="border-gray-200/50 dark:border-zinc-800/40" />
 
           {/* Upload Meme CTA */}
           {user && (
@@ -1469,24 +1508,40 @@ const Library = () => {
                 const isSaved = !!userSavesMap[meme.id];
                 const creatorName = meme.creator_id === "admin" ? "Admin" : (userCache[meme.creator_id]?.name || "Creator");
                 const timeAgo = meme.created_at ? "2h ago" : "Just now";
+                const accentColor = getSubjectColor(meme.subject);
 
                 return (
-                  <div key={meme.id} className="flex flex-col h-full bg-white/45 dark:bg-zinc-900/45 backdrop-blur-sm border border-gray-200/50 dark:border-zinc-800/40 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden">
-                    
+                  <div
+                    key={meme.id}
+                    className="meme-card-shell flex flex-col h-full bg-white/45 dark:bg-zinc-900/45 backdrop-blur-sm border border-gray-200/50 dark:border-zinc-800/40 rounded-2xl shadow-md hover:shadow-xl overflow-hidden"
+                    style={{ boxShadow: `0 0 0 1px rgba(0,0,0,0.02), 0 12px 28px -14px ${accentColor}55` }}
+                  >
+                    {/* Subject accent line — replaces the text subject tag */}
+                    <div className="h-[3px] w-full shrink-0" style={{ background: accentColor }} title={meme.subject || "General"} />
+
                     {/* Card Header: Avatar, Name & 3-Dots Menu (Item 5) */}
-                    <div className="flex items-center justify-between p-4 border-b border-gray-100/50 dark:border-zinc-800/40">
+                    <div className="flex items-center justify-between px-4 pt-3.5 pb-3 border-b border-gray-100/50 dark:border-zinc-800/40">
                       <div
                         onClick={(e) => { e.stopPropagation(); openUserModal(meme.creator_id); }}
-                        className="flex items-center gap-3 cursor-pointer group"
+                        className="flex items-center gap-3 cursor-pointer group min-w-0"
                       >
                         <img
                           src={userCache[meme.creator_id]?.avatar_url || "/avatar1.png"}
                           alt={creatorName}
-                          className="w-8 h-8 rounded-full object-cover border border-purple-100"
+                          className="w-8 h-8 rounded-full object-cover border border-purple-100 shrink-0"
                         />
-                        <div>
-                          <h5 className="text-[11px] font-extrabold text-gray-900 dark:text-white group-hover:text-purple-650 transition truncate max-w-[120px]">{creatorName}</h5>
-                          <span className="text-[9px] text-gray-400 block">{timeAgo}</span>
+                        <div className="min-w-0">
+                          <h5 className="text-[11px] font-extrabold text-gray-900 dark:text-white group-hover:text-purple-650 transition truncate max-w-[150px]">{creatorName}</h5>
+                          {/* Secondary metadata: timestamp + education level (moved off the card face) */}
+                          <span className="text-[9px] text-gray-400 flex items-center gap-1 truncate">
+                            {timeAgo}
+                            {meme.age_group && (
+                              <>
+                                <span className="opacity-50">·</span>
+                                <span className="truncate">{meme.age_group}</span>
+                              </>
+                            )}
+                          </span>
                         </div>
                       </div>
 
@@ -1601,22 +1656,25 @@ const Library = () => {
                     </div>
 
                     {/* Card Body: Caption text & Media container */}
-                    <div className="p-4 flex-grow flex flex-col justify-between">
+                    <div className="px-4 pt-3.5 pb-4 flex-grow flex flex-col justify-between">
                       {meme.title && (
-                        <p className="text-xs font-semibold text-gray-800 dark:text-zinc-200 mb-3 leading-relaxed">
+                        <p className="text-[13px] font-semibold text-gray-800 dark:text-zinc-200 mb-3 leading-snug">
                           {meme.title}
                         </p>
                       )}
 
                       {/* Media Image/Video Box */}
-                      <div className="relative w-full bg-zinc-950 rounded-xl border border-gray-200/10 shadow-inner group overflow-hidden" style={{ minHeight: '140px' }}>
+                      <div
+                        className="relative w-full bg-zinc-950 rounded-xl group overflow-hidden"
+                        style={{ minHeight: '140px', boxShadow: `inset 0 0 0 1px ${accentColor}22` }}
+                      >
                         {/* Hover View Details Overlay */}
                         <div
-                          onClick={() => setActiveMeme(meme)}
-                          className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer z-10"
+                          onClick={() => openMemeDetails(meme)}
+                          className="absolute inset-0 bg-black/35 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer z-10"
                         >
                           <span className="bg-white/90 dark:bg-zinc-900/90 text-gray-900 dark:text-white px-3.5 py-1.5 rounded-full text-[10px] font-bold shadow-md hover:scale-105 transition-transform flex items-center gap-1">
-                            👁️ View Details
+                            <Eye className="w-3 h-3" /> View Details
                           </span>
                         </div>
 
@@ -1639,26 +1697,16 @@ const Library = () => {
                         )}
                       </div>
 
-                      {/* Subject Tag Pill (Item 4: Subject into tags) */}
-                      <div className="flex items-start justify-between gap-1.5 mt-3.5">
-                        <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
-                          {meme.subject && (
-                            <button
-                              onClick={() => { setSubjectFilter(meme.subject); setActiveFeed("all"); }}
-                              className={`text-[9px] px-2.5 py-0.5 rounded-full font-bold shadow-xs transition hover:scale-105 ${getSubjectTagClass(meme.subject)}`}
-                              title={`Filter by #${meme.subject}`}
-                            >
-                              #{meme.subject}
-                            </button>
-                          )}
-                          <span className="bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 text-[8px] px-2 py-0.5 rounded-full font-bold">
-                            {meme.age_group}
-                          </span>
-                        </div>
+                      {/* Secondary metadata row: view count + rating (no text tags — subject is conveyed by the accent line/glow) */}
+                      <div className="flex items-center justify-between gap-1.5 mt-3">
+                        <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-400 dark:text-zinc-500 tabular-nums">
+                          <Eye className="w-3 h-3" strokeWidth={1.5} />
+                          {meme.view_count || 0}
+                        </span>
 
                         {/* Rating pill */}
                         <button
-                          onClick={() => setActiveMeme(meme)}
+                          onClick={() => openMemeDetails(meme)}
                           className="shrink-0 flex items-center gap-1 text-yellow-500 hover:text-yellow-600 hover:scale-110 active:scale-95 transition-all bg-yellow-50/50 dark:bg-yellow-950/20 px-1.5 py-0.5 rounded-full border border-yellow-200/50 dark:border-yellow-800/40"
                           title={getOverallAverageRating(meme.id) > 0
                             ? `Rating: ${getOverallAverageRating(meme.id).toFixed(1)}/5 — click to rate`
@@ -1694,7 +1742,7 @@ const Library = () => {
 
                         {/* 2. Comment */}
                         <button
-                          onClick={() => setActiveMeme(meme)}
+                          onClick={() => openMemeDetails(meme)}
                           className="flex items-center gap-1 hover:text-purple-600 hover:scale-110 active:scale-95 transition-all"
                           title="Comments"
                         >
@@ -1704,7 +1752,7 @@ const Library = () => {
 
                         {/* 3. View Details */}
                         <button
-                          onClick={() => setActiveMeme(meme)}
+                          onClick={() => openMemeDetails(meme)}
                           className="text-[10px] font-extrabold text-purple-600 dark:text-purple-400 hover:underline"
                         >
                           Details →
@@ -1901,6 +1949,8 @@ const Library = () => {
                   </button>
                   <span>•</span>
                   <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-red-500 fill-current" /> {activeMeme.likes_count || 0} Likes</span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" strokeWidth={1.5} /> {activeMeme.view_count || 0} Views</span>
                 </div>
                 {user && (activeMeme.creator_id === user.uid || profile?.role === "admin") && (
                   <div className="flex items-center gap-2">
@@ -2285,7 +2335,7 @@ const Library = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Grade</label>
+                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Grade Level</label>
                   <select
                     value={uploadGrade}
                     onChange={(e) => setUploadGrade(e.target.value)}
@@ -2475,7 +2525,7 @@ const Library = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Grade</label>
+                  <label className="block text-gray-600 dark:text-gray-400 font-bold mb-1.5 text-xs">Grade Level</label>
                   <select
                     value={editGrade}
                     onChange={e => setEditGrade(e.target.value)}

@@ -3016,7 +3016,7 @@ const Admin = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Age Group *</label>
+                  <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Grade Level *</label>
                   <select
                     value={memeGrade}
                     onChange={e => setMemeGrade(e.target.value)}
@@ -3117,7 +3117,7 @@ const Admin = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Age Group *</label>
+                      <label className="block text-[10px] font-bold uppercase text-gray-400 mb-1">Grade Level *</label>
                       <select
                         value={resGrade}
                         onChange={e => setResGrade(e.target.value)}
@@ -3864,7 +3864,7 @@ const Admin = () => {
             {/* Grades configuration list */}
             <div className={`p-6 ${containerClass} space-y-4`}>
               <h3 className="text-sm font-extrabold mb-2 border-b pb-2 uppercase text-gray-400">
-                Grade Groups Config
+                Grade Levels Config
               </h3>
 
               <form onSubmit={handleAddGrade} className="flex space-x-2">
