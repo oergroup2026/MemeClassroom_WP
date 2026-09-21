@@ -752,6 +752,14 @@ const Admin = () => {
   // everything (including swap in a different thumbnail) before saving.
   const handleQuickHighlight = (contentType, item) => {
     const meta = highlightContentTypeMeta(contentType);
+    // A highlighted item needs to actually be visible on the site, so
+    // highlighting also approves it — otherwise a pick made from the
+    // Pending Approval queue would resolve to nothing on the public page
+    // until someone separately clicked Approve too.
+    if (item.admin_approved === false) {
+      const approveCollection = contentType === "newspaper_item" ? "newspaper_items" : "resources";
+      updateDoc(doc(db, approveCollection, item.id), { admin_approved: true }).catch(() => {});
+    }
     setHlEditId(null);
     setHlfContentType(contentType);
     setHlfContentId(item.id);

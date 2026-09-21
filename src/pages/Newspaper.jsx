@@ -200,11 +200,26 @@ export default function Newspaper() {
   const weeklyHighlights = useMemo(() => {
     if (curatedHighlightDocs.length > 0) {
       // Resolve each pick back to its live newspaper_items doc so the hero
-      // always shows current title/image/likes rather than a stale snapshot;
-      // picks whose source item was since deleted/hidden are silently dropped.
-      return curatedHighlightDocs
-        .map((pick) => items.find((i) => i.id === pick.content_id))
-        .filter(Boolean);
+      // shows current title/image/likes. If the live item can't be found
+      // (e.g. still pending approval, or was hidden after being picked),
+      // fall back to the snapshot saved on the pick itself rather than
+      // silently dropping it — a curated pick should never just vanish.
+      return curatedHighlightDocs.map((pick) => {
+        const live = items.find((i) => i.id === pick.content_id);
+        if (live) return live;
+        return {
+          id: pick.content_id || pick.id,
+          title: pick.title,
+          image_url: pick.image_url,
+          category: "general",
+          summary_text: pick.summary || "",
+          source_url: pick.link || "",
+          source_domain: "",
+          likes_count: 0,
+          view_count: 0,
+          admin_approved: true,
+        };
+      });
     }
 
     const sevenDaysAgoSec = Date.now() / 1000 - 7 * 24 * 60 * 60;
