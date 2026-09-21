@@ -580,17 +580,11 @@ export default function Newspaper() {
                   className={`absolute inset-0 cursor-pointer bg-gradient-to-br ${style.ph} transition-opacity duration-700 ${i === slideIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"}`}
                 >
                   {item.image_url ? (
-                    <>
-                      {/* Blurred, scaled-up backdrop so the real image can be shown in full (object-contain)
-                          without leaving bare letterbox bars on the sides. */}
-                      <img
-                        src={item.image_url}
-                        alt=""
-                        aria-hidden="true"
-                        className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-60"
-                      />
-                      <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-contain" />
-                    </>
+                    // Full-bleed cover crop — fills the whole frame with no
+                    // letterbox bars, cropping the image rather than shrinking
+                    // it to fit (matches how the compact card grid and detail
+                    // modal already show images elsewhere on this page).
+                    <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
                       {socialPlatform ? (
@@ -600,14 +594,19 @@ export default function Newspaper() {
                       )}
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/30" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/5" />
                   <span className="absolute top-3 left-3 text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-white/95 dark:bg-zinc-900/95 text-gray-800 dark:text-gray-100 shadow-sm">
                     {cat.label}
                   </span>
-                  <div className="absolute bottom-0 left-0 right-0 p-4 pr-12">
-                    <h3 className="text-white font-extrabold text-base sm:text-lg leading-snug line-clamp-2 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+                  <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 pr-12 space-y-1">
+                    <h3 className="text-white font-extrabold text-base sm:text-xl leading-snug line-clamp-2 [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]">
                       {item.title}
                     </h3>
+                    {item.source_domain && (
+                      <p className="text-white/70 text-[11px] font-semibold [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]">
+                        {item.source_domain}
+                      </p>
+                    )}
                   </div>
                 </div>
               );

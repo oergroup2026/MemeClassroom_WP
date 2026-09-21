@@ -55,30 +55,23 @@ export default function HighlightsCarousel({ placement, title = "Highlights", cl
               className={`absolute inset-0 cursor-pointer bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-950/30 dark:to-purple-950/10 transition-opacity duration-700 ${i === slideIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"}`}
             >
               {displayImage ? (
-                <>
-                  {/* Blurred, scaled-up backdrop so the real image can be shown in full (object-contain)
-                      without leaving bare letterbox bars on the sides. */}
-                  <img
-                    src={displayImage}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-60"
-                  />
-                  <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-contain" />
-                </>
+                // Full-bleed cover crop — fills the whole frame with no
+                // letterbox bars, cropping the image rather than shrinking
+                // it to fit.
+                <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <Sparkles className="w-12 h-12 opacity-60 text-purple-400" strokeWidth={1.25} />
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/30" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/5" />
               {label && (
                 <span className="absolute top-3 left-3 text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-white/95 dark:bg-zinc-900/95 text-gray-800 dark:text-gray-100 shadow-sm">
                   {label}
                 </span>
               )}
-              <div className="absolute bottom-0 left-0 right-0 p-4 pr-12">
-                <h3 className="text-white font-extrabold text-base sm:text-lg leading-snug line-clamp-2 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+              <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 pr-12">
+                <h3 className="text-white font-extrabold text-base sm:text-xl leading-snug line-clamp-2 [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]">
                   {h.title}
                 </h3>
               </div>
