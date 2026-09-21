@@ -251,6 +251,13 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // Highlight thumbnails uploaded from the Admin > Highlights curation form.
+    match /content_highlights/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isImageType() && request.resource.size <= maxMB(10);
+      allow delete: if isAdmin();
+    }
+
     // ── Fallback: deny all other paths ───────────────────────────────────────
     // Any path not explicitly matched above is denied by default.
     // This makes the rules "allowlist" style — new paths must be deliberately added.
