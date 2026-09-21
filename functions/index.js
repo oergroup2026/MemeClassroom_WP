@@ -551,7 +551,7 @@ exports.forceFetchNewspaperItems = onCall({ timeoutSeconds: 300 }, async (reques
     throw new HttpsError("permission-denied", "Admins only.");
   }
 
-  return runNewspaperFetch({ maxPerCategory: 5, respectWeeklyCap: false });
+  return runNewspaperFetch({ maxPerCategory: 2, respectWeeklyCap: false });
 });
 
 // Callable from the Contribute/Admin newspaper forms so a user pasting a

@@ -2448,7 +2448,7 @@ const Admin = () => {
                   <NewspaperIcon className="w-4 h-4" /> Force Fetch RSS Feeds
                 </h3>
                 <p className="text-xs text-gray-400 mt-1">
-                  The scheduled fetch adds at most 1 new item per category per week. Force fetch pulls up to 5 items per category right now, from the same sources.
+                  The scheduled fetch adds at most 1 new item per category per week. Force fetch pulls up to 2 items per category right now, from the same sources.
                 </p>
               </div>
               <button
@@ -2456,7 +2456,7 @@ const Admin = () => {
                 disabled={isForceFetchingNewspaper}
                 className={btnClass("indigo")}
               >
-                {isForceFetchingNewspaper ? "Fetching…" : "⚡ Force Fetch Now (5 per category)"}
+                {isForceFetchingNewspaper ? "Fetching…" : "⚡ Force Fetch Now (2 per category)"}
               </button>
             </div>
           </div>
