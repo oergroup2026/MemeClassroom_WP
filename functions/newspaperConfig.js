@@ -48,6 +48,16 @@ const DEFAULT_NEWSPAPER_SOURCES = [
     url: "https://news.google.com/rss/search?q=internet+slang+new+word&hl=en-US&gl=US&ceid=US:en",
     default_category: "new_slang_meme",
   },
+  {
+    id: "gnews_science",
+    url: "https://news.google.com/rss/search?q=meme+science+technology&hl=en-US&gl=US&ceid=US:en",
+    default_category: "science",
+  },
+  {
+    id: "gnews_general",
+    url: "https://news.google.com/rss/search?q=%22internet+meme%22+trend&hl=en-US&gl=US&ceid=US:en",
+    default_category: "general",
+  },
   // Classroom/education-specific searches, added per user request — mirrors
   // vocabulary already used across the app (see homepage_content.md:
   // "meme pedagogy", "memes in the classroom", "meme literacy").

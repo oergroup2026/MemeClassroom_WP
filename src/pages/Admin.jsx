@@ -66,6 +66,7 @@ const Admin = () => {
     classroomTalkingPoint: "", imageUrl: "", imageFile: null, imagePreview: "",
   });
   const [fetchingNewspaperThumbnail, setFetchingNewspaperThumbnail] = useState(false);
+  const [isForceFetchingNewspaper, setIsForceFetchingNewspaper] = useState(false);
   const [expertApps, setExpertApps] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [sponsoredAds, setSponsoredAds] = useState([]);
@@ -622,6 +623,28 @@ const Admin = () => {
       triggerAlert("Couldn't fetch a thumbnail — upload one instead.", "error");
     } finally {
       setFetchingNewspaperThumbnail(false);
+    }
+  };
+
+  const handleForceFetchNewspaperItems = async () => {
+    setIsForceFetchingNewspaper(true);
+    try {
+      const forceFetchNewspaperItems = httpsCallable(functions, "forceFetchNewspaperItems");
+      const { data } = await forceFetchNewspaperItems();
+      const total = data?.totalAdded || 0;
+      if (total > 0) {
+        const perCategory = Object.entries(data.addedPerCategory || {})
+          .map(([cat, count]) => `${cat.replace(/_/g, " ")}: ${count}`)
+          .join(", ");
+        triggerAlert(`Force-fetched ${total} new item(s). ${perCategory}`);
+      } else {
+        triggerAlert("No new items found — sources may be exhausted or already fetched.");
+      }
+    } catch (e) {
+      console.error("forceFetchNewspaperItems failed", e);
+      triggerAlert(e.message || "Force fetch failed.", "error");
+    } finally {
+      setIsForceFetchingNewspaper(false);
     }
   };
 
@@ -2244,6 +2267,27 @@ const Admin = () => {
       {/* TAB CONTENT B: MODERATION & APPROVAL QUEUES */}
       {activeTab === "newspaper" && (
         <div className="space-y-8">
+
+          {/* Force Fetch — immediately pulls up to 5 real RSS items per category instead of waiting on the weekly schedule */}
+          <div className={`p-6 ${containerClass}`}>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h3 className="text-sm font-extrabold uppercase text-gray-400 flex items-center gap-1.5">
+                  <NewspaperIcon className="w-4 h-4" /> Force Fetch RSS Feeds
+                </h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  The scheduled fetch adds at most 1 new item per category per week. Force fetch pulls up to 5 items per category right now, from the same sources.
+                </p>
+              </div>
+              <button
+                onClick={handleForceFetchNewspaperItems}
+                disabled={isForceFetchingNewspaper}
+                className={btnClass("indigo")}
+              >
+                {isForceFetchingNewspaper ? "Fetching…" : "⚡ Force Fetch Now (5 per category)"}
+              </button>
+            </div>
+          </div>
 
           {/* Newspaper Items Pending Admin Approval */}
           {(() => {
