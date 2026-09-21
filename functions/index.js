@@ -75,64 +75,96 @@ function extractThumbnail(entry) {
   return match ? match[1] : "";
 }
 
+function extractMetaTag(html, property) {
+  const re = new RegExp(
+    `<meta[^>]+(?:property|name)=["']${property}["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${property}["']`,
+    "i"
+  );
+  const m = re.exec(html);
+  return m ? (m[1] || m[2] || "") : "";
+}
+
+// Google News RSS <link> entries point at a news.google.com "redirect" page
+// rather than the publisher, and that page's redirect is sometimes done with
+// JS (a meta-refresh or window.location) rather than a plain HTTP 302 that
+// fetch() can follow on its own — so we can land on Google's own page, which
+// carries no article image. If the page's HTML embeds the real destination
+// via one of the common redirect patterns, this pulls it out for a retry.
+function extractHtmlRedirectTarget(html) {
+  const patterns = [
+    /<meta[^>]+http-equiv=["']refresh["'][^>]+content=["'][^"']*url=([^"'>]+)["']/i,
+    /window\.location\.replace\(["']([^"']+)["']\)/i,
+    /window\.location\.href\s*=\s*["']([^"']+)["']/i,
+  ];
+  for (const re of patterns) {
+    const m = re.exec(html);
+    if (m && m[1]) return m[1];
+  }
+  return "";
+}
+
+async function fetchPageHtml(url, signal) {
+  const res = await fetch(url, {
+    signal,
+    redirect: "follow",
+    headers: {
+      "User-Agent": "MemeClassroomNewspaperBot/1.0 (+https://memeclassroom-98d2b.web.app)",
+      "Accept": "text/html,application/xhtml+xml",
+    },
+  });
+  const resolvedUrl = res.url || url;
+  if (!res.ok) return { html: "", resolvedUrl };
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("text/html")) return { html: "", resolvedUrl };
+
+  // Only read the first chunk of the response — og/twitter meta tags (and
+  // any redirect markup) live in <head>, so there's no need to download the
+  // entire page body.
+  const reader = res.body?.getReader();
+  let html = "";
+  if (reader) {
+    const decoder = new TextDecoder();
+    while (html.length < 200000) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      html += decoder.decode(value, { stream: true });
+    }
+    reader.cancel().catch(() => {});
+  } else {
+    html = await res.text();
+  }
+  return { html, resolvedUrl };
+}
+
 /**
- * Best-effort Open Graph / Twitter Card thumbnail scrape for an article
- * URL, used when the RSS entry itself didn't carry an image. Fetches the
- * page HTML directly (bounded by a timeout) and regex-extracts
- * <meta property="og:image"> first, then og:image:secure_url, then
- * twitter:image / twitter:image:src.
- *
- * Many of our RSS sources (Google News search results) link through a
- * news.google.com redirect rather than straight to the publisher, and
- * `fetch()` follows that redirect — so `res.url` after the fetch is the
- * *real* article URL, which is also more useful to store as source_url /
- * source_domain than the redirect link. Returns { imageUrl, resolvedUrl }
- * — both "" / the original url on failure — never throws.
+ * Best-effort Open Graph / Twitter Card thumbnail scrape for an article URL,
+ * used when the RSS entry itself didn't carry an image. Returns
+ * { imageUrl, resolvedUrl } — both "" / the original url on failure — never
+ * throws. See extractHtmlRedirectTarget() for why this can take two hops.
  */
 async function fetchOgImage(url) {
   if (!url) return { imageUrl: "", resolvedUrl: url };
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      redirect: "follow",
-      headers: {
-        "User-Agent": "MemeClassroomNewspaperBot/1.0 (+https://memeclassroom-98d2b.web.app)",
-        "Accept": "text/html,application/xhtml+xml",
-      },
-    });
-    const resolvedUrl = res.url || url;
-    if (!res.ok) return { imageUrl: "", resolvedUrl };
-    const contentType = res.headers.get("content-type") || "";
-    if (!contentType.includes("text/html")) return { imageUrl: "", resolvedUrl };
+    let { html, resolvedUrl } = await fetchPageHtml(url, controller.signal);
 
-    // Only read the first chunk of the response — og/twitter meta tags live
-    // in <head>, so there's no need to download the entire page body.
-    const reader = res.body?.getReader();
-    let html = "";
-    if (reader) {
-      const decoder = new TextDecoder();
-      while (html.length < 200000) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        html += decoder.decode(value, { stream: true });
+    let imageUrl = html ? (extractMetaTag(html, "og:image") || extractMetaTag(html, "og:image:secure_url") || extractMetaTag(html, "twitter:image") || extractMetaTag(html, "twitter:image:src")) : "";
+
+    // Still stuck on Google's own redirect page with no image? Try to pull
+    // the real destination out of the page and fetch that instead.
+    if (!imageUrl && html && /(^|\.)news\.google\.com$/.test(new URL(resolvedUrl).hostname)) {
+      const target = extractHtmlRedirectTarget(html);
+      if (target) {
+        const hop = await fetchPageHtml(target, controller.signal);
+        if (hop.html) {
+          html = hop.html;
+          resolvedUrl = hop.resolvedUrl;
+          imageUrl = extractMetaTag(html, "og:image") || extractMetaTag(html, "og:image:secure_url") || extractMetaTag(html, "twitter:image") || extractMetaTag(html, "twitter:image:src") || "";
+        }
       }
-      reader.cancel().catch(() => {});
-    } else {
-      html = await res.text();
     }
 
-    const metaTag = (property) => {
-      const re = new RegExp(
-        `<meta[^>]+(?:property|name)=["']${property}["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${property}["']`,
-        "i"
-      );
-      const m = re.exec(html);
-      return m ? (m[1] || m[2] || "") : "";
-    };
-
-    let imageUrl = metaTag("og:image") || metaTag("og:image:secure_url") || metaTag("twitter:image") || metaTag("twitter:image:src") || "";
     // Meta image URLs are occasionally site-relative ("/img/hero.jpg") —
     // resolve against the final (post-redirect) article URL.
     if (imageUrl && !/^https?:\/\//i.test(imageUrl)) {

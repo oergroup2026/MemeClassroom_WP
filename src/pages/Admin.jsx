@@ -619,6 +619,24 @@ const Admin = () => {
     }
   };
 
+  // Manual thumbnail fix — auto-fetch's og:image scrape often fails (many
+  // publishers block server-side scrapers, and Google News search results
+  // link through a redirect page that sometimes needs a browser to resolve),
+  // so this is the reliable fallback: upload a real photo directly, no need
+  // to also mark the item as a Highlight to get an image onto it.
+  const handleQuickSetNewspaperImage = async (itemId, file) => {
+    if (!file) return;
+    try {
+      const storageRef = ref(storage, `newspaper/${itemId}_${Date.now()}_${file.name}`);
+      const snap = await uploadBytes(storageRef, file);
+      const imageUrl = await getDownloadURL(snap.ref);
+      await updateDoc(doc(db, "newspaper_items", itemId), { image_url: imageUrl });
+      triggerAlert("Thumbnail updated.");
+    } catch (e) {
+      triggerAlert(e.message || "Thumbnail upload failed.", "error");
+    }
+  };
+
   const handleDeleteNewspaperItem = (itemId) => {
     openConfirm({
       title: "Delete Newspaper Item?",
@@ -2641,7 +2659,25 @@ const Admin = () => {
                           {pageItems.map((item) => (
                             <tr key={item.id}>
                               <td className={rowCellClass}>
-                                <span className="font-semibold">{item.title}</span>
+                                <div className="flex items-center gap-2">
+                                  {item.image_url ? (
+                                    <img src={item.image_url} alt="" className="w-10 h-8 object-cover rounded border border-gray-200 dark:border-zinc-700 flex-shrink-0" />
+                                  ) : (
+                                    <label
+                                      className="w-10 h-8 flex-shrink-0 rounded border border-dashed border-gray-300 dark:border-zinc-600 flex items-center justify-center text-[9px] text-gray-400 cursor-pointer hover:border-purple-400 hover:text-purple-500"
+                                      title="Auto-fetch found no image — upload one"
+                                    >
+                                      📷
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={e => { const f = e.target.files?.[0]; if (f) handleQuickSetNewspaperImage(item.id, f); }}
+                                      />
+                                    </label>
+                                  )}
+                                  <span className="font-semibold">{item.title}</span>
+                                </div>
                               </td>
                               <td className={rowCellClass}>
                                 <select
