@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Search, Heart, Eye, Share2, Bookmark, Flag as FlagIcon, Clock,
+  Search, Heart, Eye, Share2, Bookmark, Flag as FlagIcon,
   ExternalLink, Plus, Newspaper as NewspaperIcon, TrendingUp, X,
   ChevronLeft, ChevronRight, LayoutGrid
 } from "lucide-react";
@@ -97,12 +97,18 @@ export default function Newspaper() {
   const [flagsMap, setFlagsMap] = useState({});
   const [likePendingMap, setLikePendingMap] = useState({});
 
-  // ── 1. Real-time item feed (excludes admin-hidden, keeps pending visible)
+  // ── 1. Real-time item feed — admin_approved only (unapproved items are no
+  // longer shown publicly); admin_hidden filtered client-side to avoid a
+  // second Firestore inequality filter needing a composite index.
   useEffect(() => {
-    const q = query(collection(db, "newspaper_items"), where("status", "!=", "admin_hidden"));
+    const q = query(collection(db, "newspaper_items"), where("admin_approved", "==", true));
     const unsubscribe = onSnapshot(q, (snap) => {
       const list = [];
-      snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+      snap.forEach((d) => {
+        const data = d.data();
+        if (data.status === "admin_hidden") return;
+        list.push({ id: d.id, ...data });
+      });
       list.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
       setItems(list);
       setLoading(false);
@@ -360,8 +366,8 @@ export default function Newspaper() {
   const NewsCard = ({ item }) => {
     const cat = categoryMeta(item.category);
     const style = CATEGORY_STYLES[cat.color] || CATEGORY_STYLES.gray;
-    const isPending = !item.admin_approved;
     const socialPlatform = getSocialPlatform(item.source_url);
+    const displayImage = item.image_url || (!socialPlatform ? highlightContentTypeMeta("newspaper_item")?.fallbackImage : "");
 
     const openDetail = () => {
       setDetailItem(item);
@@ -376,27 +382,21 @@ export default function Newspaper() {
           className={`relative w-full bg-gradient-to-br ${style.ph} flex items-center justify-center overflow-hidden cursor-pointer flex-shrink-0`}
           style={{ height: 180 }}
         >
-          {item.image_url ? (
-            <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          {displayImage ? (
+            <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
           ) : socialPlatform ? (
             <span className="text-sm font-bold opacity-60 capitalize">{socialPlatform} post</span>
           ) : (
             <NewspaperIcon className="w-10 h-10" strokeWidth={1.25} />
           )}
 
-          {/* Scrim so badges/title stay readable over any image */}
+          {/* Scrim so the category badge/title stay readable over any image */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/5 to-black/35" />
 
-          {/* Category + pending badges */}
           <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2">
             <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-white/95 dark:bg-zinc-900/95 text-gray-800 dark:text-gray-100 truncate shadow-sm">
               {cat.label}
             </span>
-            {isPending && (
-              <span className="flex items-center gap-1 text-[9px] font-bold text-white bg-amber-500/95 px-2 py-0.5 rounded-full flex-shrink-0 shadow-sm">
-                <Clock className="w-2.5 h-2.5" /> Pending
-              </span>
-            )}
           </div>
 
           {/* Title overlaid at the bottom, readable via the scrim above */}
@@ -422,11 +422,11 @@ export default function Newspaper() {
   const NewsItemDetailModal = ({ item, onClose }) => {
     const cat = categoryMeta(item.category);
     const style = CATEGORY_STYLES[cat.color] || CATEGORY_STYLES.gray;
-    const isPending = !item.admin_approved;
     const isLiked = !!likesMap[item.id];
     const isBookmarked = !!savesMap[item.id];
     const alreadyFlagged = !!flagsMap[item.id];
     const socialPlatform = getSocialPlatform(item.source_url);
+    const displayImage = item.image_url || (!socialPlatform ? highlightContentTypeMeta("newspaper_item")?.fallbackImage : "");
 
     return createPortal(
       <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={onClose}>
@@ -440,11 +440,6 @@ export default function Newspaper() {
               <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border ${style.pill}`}>
                 {cat.label}
               </span>
-              {isPending && (
-                <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
-                  <Clock className="w-2.5 h-2.5" /> Pending
-                </span>
-              )}
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition p-1 flex-shrink-0">
               <X className="w-5 h-5" />
@@ -457,8 +452,8 @@ export default function Newspaper() {
               <div className="w-full bg-gray-50 dark:bg-zinc-950 border-b border-gray-100 dark:border-zinc-800 py-3">
                 <SocialEmbed url={item.source_url} />
               </div>
-            ) : item.image_url ? (
-              <img src={item.image_url} alt={item.title} className="w-full max-h-64 object-cover" />
+            ) : displayImage ? (
+              <img src={displayImage} alt={item.title} className="w-full max-h-64 object-cover" />
             ) : (
               <div className={`w-full h-40 flex items-center justify-center bg-gradient-to-br ${style.ph}`}>
                 <NewspaperIcon className="w-10 h-10" strokeWidth={1.25} />
