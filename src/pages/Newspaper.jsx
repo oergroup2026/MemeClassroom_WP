@@ -14,7 +14,6 @@ import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/ToastNotification";
 import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
-import { highlightContentTypeMeta } from "../constants/contentHighlights";
 import { fuzzySearch } from "../utils/searchUtils";
 import ContributeNewspaperModal from "../components/ContributeNewspaperModal";
 import SocialEmbed, { getSocialPlatform } from "../components/SocialEmbed";
@@ -367,7 +366,6 @@ export default function Newspaper() {
     const cat = categoryMeta(item.category);
     const style = CATEGORY_STYLES[cat.color] || CATEGORY_STYLES.gray;
     const socialPlatform = getSocialPlatform(item.source_url);
-    const displayImage = item.image_url || (!socialPlatform ? highlightContentTypeMeta("newspaper_item")?.fallbackImage : "");
 
     const openDetail = () => {
       setDetailItem(item);
@@ -376,14 +374,14 @@ export default function Newspaper() {
 
     return (
       <div className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
-        {/* Thumbnail — image (or gradient placeholder) with title readable on top of it */}
+        {/* Thumbnail — image (or category-colored gradient placeholder) with title readable on top of it */}
         <div
           onClick={openDetail}
           className={`relative w-full bg-gradient-to-br ${style.ph} flex items-center justify-center overflow-hidden cursor-pointer flex-shrink-0`}
           style={{ height: 180 }}
         >
-          {displayImage ? (
-            <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          {item.image_url ? (
+            <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
           ) : socialPlatform ? (
             <span className="text-sm font-bold opacity-60 capitalize">{socialPlatform} post</span>
           ) : (
@@ -426,7 +424,6 @@ export default function Newspaper() {
     const isBookmarked = !!savesMap[item.id];
     const alreadyFlagged = !!flagsMap[item.id];
     const socialPlatform = getSocialPlatform(item.source_url);
-    const displayImage = item.image_url || (!socialPlatform ? highlightContentTypeMeta("newspaper_item")?.fallbackImage : "");
 
     return createPortal(
       <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={onClose}>
@@ -452,8 +449,8 @@ export default function Newspaper() {
               <div className="w-full bg-gray-50 dark:bg-zinc-950 border-b border-gray-100 dark:border-zinc-800 py-3">
                 <SocialEmbed url={item.source_url} />
               </div>
-            ) : displayImage ? (
-              <img src={displayImage} alt={item.title} className="w-full max-h-64 object-cover" />
+            ) : item.image_url ? (
+              <img src={item.image_url} alt={item.title} className="w-full max-h-64 object-cover" />
             ) : (
               <div className={`w-full h-40 flex items-center justify-center bg-gradient-to-br ${style.ph}`}>
                 <NewspaperIcon className="w-10 h-10" strokeWidth={1.25} />
@@ -551,11 +548,6 @@ export default function Newspaper() {
               const cat = categoryMeta(item.category);
               const style = CATEGORY_STYLES[cat.color] || CATEGORY_STYLES.gray;
               const socialPlatform = getSocialPlatform(item.source_url);
-              // Real RSS-sourced items often come back with no scraped image
-              // (og:image scrape failed, or the feed just didn't have one) —
-              // fall back to the Newspaper section's branded hero photo
-              // instead of a bare icon-on-gradient card.
-              const displayImage = item.image_url || (!socialPlatform ? highlightContentTypeMeta("newspaper_item")?.fallbackImage : "");
               const openSlide = () => {
                 setDetailItem(item);
                 updateDoc(doc(db, "newspaper_items", item.id), { view_count: increment(1) }).catch(() => {});
@@ -566,17 +558,17 @@ export default function Newspaper() {
                   onClick={openSlide}
                   className={`absolute inset-0 cursor-pointer bg-gradient-to-br ${style.ph} transition-opacity duration-700 ${i === slideIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"}`}
                 >
-                  {displayImage ? (
+                  {item.image_url ? (
                     <>
                       {/* Blurred, scaled-up backdrop so the real image can be shown in full (object-contain)
                           without leaving bare letterbox bars on the sides. */}
                       <img
-                        src={displayImage}
+                        src={item.image_url}
                         alt=""
                         aria-hidden="true"
                         className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-60"
                       />
-                      <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-contain" />
+                      <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-contain" />
                     </>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">

@@ -599,6 +599,17 @@ const Admin = () => {
     }
   };
 
+  // Auto-fetched items are auto-categorized from which RSS search found them,
+  // which is often wrong (e.g. a "misinformation" search can surface an
+  // article that isn't really about misinformation) — let admin correct it.
+  const handleChangeNewspaperCategory = async (itemId, category) => {
+    try {
+      await updateDoc(doc(db, "newspaper_items", itemId), { category });
+    } catch (e) {
+      triggerAlert(e.message || "Failed to update category.", "error");
+    }
+  };
+
   const handleDeleteNewspaperItem = (itemId) => {
     openConfirm({
       title: "Delete Newspaper Item?",
@@ -2479,7 +2490,16 @@ const Admin = () => {
                             <td className={rowCellClass}>
                               <span className="font-semibold">{item.title}</span>
                             </td>
-                            <td className={`${rowCellClass} capitalize`}>{item.category?.replace(/_/g, " ")}</td>
+                            <td className={rowCellClass}>
+                              <select
+                                value={item.category || ""}
+                                onChange={e => handleChangeNewspaperCategory(item.id, e.target.value)}
+                                className={inputClass}
+                                title="Fix the category if the auto-fetch guessed wrong"
+                              >
+                                {NEWSPAPER_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                              </select>
+                            </td>
                             <td className={rowCellClass}>
                               <a href={item.source_url} target="_blank" rel="noreferrer" className="text-indigo-600 text-[10px] hover:underline">{item.source_domain || "link"} ↗</a>
                             </td>
@@ -2494,6 +2514,13 @@ const Admin = () => {
                             </td>
                             <td className={rowCellClass}>
                               <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleQuickHighlight("newspaper_item", item)}
+                                  className={btnClass("purple")}
+                                  title="Feature this item in the Newspaper hero and/or homepage highlights"
+                                >
+                                  ⭐ Highlight
+                                </button>
                                 <button
                                   onClick={() => handleApproveNewspaperItem(item.id)}
                                   className={btnClass("green")}
@@ -2648,7 +2675,15 @@ const Admin = () => {
                     {newspaperItems.map((item) => (
                       <tr key={item.id}>
                         <td className={rowCellClass}>{item.title}</td>
-                        <td className={`${rowCellClass} capitalize`}>{item.category?.replace(/_/g, " ")}</td>
+                        <td className={rowCellClass}>
+                          <select
+                            value={item.category || ""}
+                            onChange={e => handleChangeNewspaperCategory(item.id, e.target.value)}
+                            className={inputClass}
+                          >
+                            {NEWSPAPER_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                          </select>
+                        </td>
                         <td className={rowCellClass}>
                           {item.status === "admin_hidden" ? (
                             <span className="text-gray-400">Hidden</span>
@@ -2741,6 +2776,16 @@ const Admin = () => {
                             </td>
                             <td className={rowCellClass}>
                               <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleQuickHighlight(
+                                    res.type === "activity" ? "activity" : (res.type === "stories" || res.type === "story") ? "meme_story" : "resource",
+                                    res
+                                  )}
+                                  className={btnClass("purple")}
+                                  title="Feature this in the homepage highlights"
+                                >
+                                  ⭐ Highlight
+                                </button>
                                 <button
                                   onClick={() => handleApproveResource(res.id)}
                                   className={btnClass("green")}

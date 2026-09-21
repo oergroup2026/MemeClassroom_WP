@@ -78,23 +78,34 @@ function extractThumbnail(entry) {
 /**
  * Best-effort Open Graph / Twitter Card thumbnail scrape for an article
  * URL, used when the RSS entry itself didn't carry an image. Fetches the
- * page HTML directly (bounded by a short timeout) and regex-extracts
- * <meta property="og:image" content="..."> first, then
- * <meta name="twitter:image" content="...">. Returns "" on any failure —
- * never throws, so callers can treat it like extractThumbnail().
+ * page HTML directly (bounded by a timeout) and regex-extracts
+ * <meta property="og:image"> first, then og:image:secure_url, then
+ * twitter:image / twitter:image:src.
+ *
+ * Many of our RSS sources (Google News search results) link through a
+ * news.google.com redirect rather than straight to the publisher, and
+ * `fetch()` follows that redirect — so `res.url` after the fetch is the
+ * *real* article URL, which is also more useful to store as source_url /
+ * source_domain than the redirect link. Returns { imageUrl, resolvedUrl }
+ * — both "" / the original url on failure — never throws.
  */
 async function fetchOgImage(url) {
-  if (!url) return "";
+  if (!url) return { imageUrl: "", resolvedUrl: url };
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: { "User-Agent": "MemeClassroomNewspaperBot/1.0 (+https://memeclassroom-98d2b.web.app)" },
+      redirect: "follow",
+      headers: {
+        "User-Agent": "MemeClassroomNewspaperBot/1.0 (+https://memeclassroom-98d2b.web.app)",
+        "Accept": "text/html,application/xhtml+xml",
+      },
     });
-    if (!res.ok) return "";
+    const resolvedUrl = res.url || url;
+    if (!res.ok) return { imageUrl: "", resolvedUrl };
     const contentType = res.headers.get("content-type") || "";
-    if (!contentType.includes("text/html")) return "";
+    if (!contentType.includes("text/html")) return { imageUrl: "", resolvedUrl };
 
     // Only read the first chunk of the response — og/twitter meta tags live
     // in <head>, so there's no need to download the entire page body.
@@ -102,7 +113,7 @@ async function fetchOgImage(url) {
     let html = "";
     if (reader) {
       const decoder = new TextDecoder();
-      while (html.length < 100000) {
+      while (html.length < 200000) {
         const { done, value } = await reader.read();
         if (done) break;
         html += decoder.decode(value, { stream: true });
@@ -121,11 +132,22 @@ async function fetchOgImage(url) {
       return m ? (m[1] || m[2] || "") : "";
     };
 
-    return metaTag("og:image") || metaTag("twitter:image") || "";
+    let imageUrl = metaTag("og:image") || metaTag("og:image:secure_url") || metaTag("twitter:image") || metaTag("twitter:image:src") || "";
+    // Meta image URLs are occasionally site-relative ("/img/hero.jpg") —
+    // resolve against the final (post-redirect) article URL.
+    if (imageUrl && !/^https?:\/\//i.test(imageUrl)) {
+      try {
+        imageUrl = new URL(imageUrl, resolvedUrl).href;
+      } catch {
+        imageUrl = "";
+      }
+    }
+
+    return { imageUrl, resolvedUrl };
   } catch (e) {
     console.error(`fetchOgImage failed for ${url}`, e.message);
     Sentry.captureException(e);
-    return "";
+    return { imageUrl: "", resolvedUrl: url };
   } finally {
     clearTimeout(timeout);
   }
@@ -451,18 +473,27 @@ async function runNewspaperFetch({ maxPerCategory, respectWeeklyCap }) {
           .get();
         if (!existing.empty) continue;
 
-        const domain = extractDomain(link);
-        const isTrusted = TRUSTED_NEWS_DOMAINS.includes(domain);
         const rawSummary = entry.contentSnippet || entry.content || "";
 
         let imageUrl = extractThumbnail(entry);
+        // source_url/source_domain default to the RSS entry's own link, but
+        // several of our sources (Google News searches) link through a
+        // redirect page rather than the publisher — when we have to scrape
+        // the page anyway for a thumbnail, use the resolved final URL
+        // (fetch() follows the redirect) so "Read at <source>" and the
+        // domain shown actually point at the real article.
+        let finalLink = link;
         if (!imageUrl) {
-          imageUrl = await fetchOgImage(link);
+          const scraped = await fetchOgImage(link);
+          imageUrl = scraped.imageUrl;
+          if (scraped.resolvedUrl) finalLink = scraped.resolvedUrl;
         }
+        const domain = extractDomain(finalLink) || extractDomain(link);
+        const isTrusted = TRUSTED_NEWS_DOMAINS.includes(domain);
 
         await db.collection("newspaper_items").add({
           title: (entry.title || "Untitled").slice(0, 200),
-          source_url: link,
+          source_url: finalLink,
           source_domain: domain,
           summary_text: rawSummary.replace(/\s+/g, " ").trim().slice(0, 400),
           classroom_talking_point: "",
@@ -539,7 +570,7 @@ exports.fetchArticleThumbnail = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "That doesn't look like a valid URL.");
   }
 
-  const imageUrl = await fetchOgImage(url);
+  const { imageUrl } = await fetchOgImage(url);
   return { imageUrl };
 });
 
