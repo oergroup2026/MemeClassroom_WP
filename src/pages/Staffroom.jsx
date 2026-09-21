@@ -200,7 +200,8 @@ const Staffroom = () => {
   const [userBadges, setUserBadges] = useState([]);
 
   // ── Filters & search ─────────────────────────────────────────────────────
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [scrollHighlightId, setScrollHighlightId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
   const [gradeFilter, setGradeFilter] = useState("");
@@ -215,6 +216,28 @@ const Staffroom = () => {
       setSearchQuery(q);
     }
   }, [searchParams]);
+
+  // Deep link: ?highlight=<postId> scrolls to and briefly rings that post.
+  // Staffroom has no per-post detail view — posts live inline in this feed —
+  // so unlike Newspaper/Resources/Library there's no modal to auto-open.
+  const highlightHandledRef = useRef(false);
+  useEffect(() => {
+    if (highlightHandledRef.current) return;
+    const highlightId = searchParams.get("highlight");
+    if (!highlightId || threads.length === 0) return;
+    if (!threads.some((t) => t.id === highlightId)) return;
+    highlightHandledRef.current = true;
+    setScrollHighlightId(highlightId);
+    requestAnimationFrame(() => {
+      document.getElementById(`staffroom-post-${highlightId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("highlight");
+      return next;
+    }, { replace: true });
+    setTimeout(() => setScrollHighlightId(null), 3000);
+  }, [threads, searchParams, setSearchParams]);
 
   // Enriched threads for search suggestions
   const enrichedThreads = useMemo(() => {
@@ -1505,7 +1528,8 @@ const Staffroom = () => {
                 return (
                   <div
                     key={thread.id}
-                    className={`p-5 transition rounded-xl border ${isAnnouncement ? "border-amber-400 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/20 text-gray-800 dark:text-zinc-100 shadow-sm" : isSolved ? "border-emerald-400 dark:border-emerald-900/50 bg-emerald-50/10 dark:bg-emerald-950/20 text-gray-800 dark:text-zinc-100 shadow-sm" : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-800 dark:text-zinc-100 shadow-sm"
+                    id={`staffroom-post-${thread.id}`}
+                    className={`p-5 transition rounded-xl border ${scrollHighlightId === thread.id ? "ring-4 ring-rose-400 dark:ring-rose-500" : ""} ${isAnnouncement ? "border-amber-400 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/20 text-gray-800 dark:text-zinc-100 shadow-sm" : isSolved ? "border-emerald-400 dark:border-emerald-900/50 bg-emerald-50/10 dark:bg-emerald-950/20 text-gray-800 dark:text-zinc-100 shadow-sm" : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-800 dark:text-zinc-100 shadow-sm"
                       }`}
                   >
                     {/* Tags row */}

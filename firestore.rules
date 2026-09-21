@@ -521,6 +521,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ─── Content Highlights ────────────────────────────────────────────────────
+    // Admin-curated picks shown in the homepage highlights carousel and the
+    // Newspaper page's hero. Each doc is a denormalized snapshot pointing at a
+    // piece of content elsewhere (newspaper_items, resources, memes,
+    // staffroom_posts) — public read, admin-only write, same as the other
+    // curated-for-the-public collections above.
+    match /content_highlights/{highlightId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ─── Admin Notifications ──────────────────────────────────────────────────
     match /admin_notifications/{notifId} {
       allow read, update, delete: if isAdmin();

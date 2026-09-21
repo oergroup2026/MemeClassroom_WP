@@ -983,6 +983,28 @@ const Resources = () => {
     return () => unsubscribe();
   }, []);
 
+  // ── 4.05 Deep link: ?highlight=<resourceId> auto-opens that resource's
+  // detail modal once (only for plain resources — activities/stories already
+  // have their own /resources/activity/:id and /resources/story/:id routes
+  // and are linked to directly instead of via this query param).
+  const highlightHandledRef = useRef(false);
+  useEffect(() => {
+    if (highlightHandledRef.current) return;
+    const highlightId = searchParams.get("highlight");
+    if (!highlightId || resources.length === 0) return;
+    const target = resources.find((r) => r.id === highlightId);
+    if (target) {
+      setDetailResource(target);
+      updateDoc(doc(db, "resources", target.id), { view_count: increment(1) }).catch(() => {});
+    }
+    highlightHandledRef.current = true;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("highlight");
+      return next;
+    }, { replace: true });
+  }, [resources, searchParams, setSearchParams]);
+
   // ── 4.1 Real-time templates listener
   useEffect(() => {
     const collRef = collection(db, "templates");

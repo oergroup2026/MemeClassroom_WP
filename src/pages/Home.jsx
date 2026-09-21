@@ -13,6 +13,7 @@ import {
 import { db } from "../firebase";
 import MemeLiteracyBanner from "../components/MemeLiteracyBanner";
 import FeatureCarousel from "../components/FeatureCarousel";
+import HighlightsCarousel from "../components/HighlightsCarousel";
 import {
   FlaskConical,
   BookOpen,
@@ -643,6 +644,14 @@ const Home = () => {
           ────────────────────────────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto w-full px-4">
         <MemeLiteracyBanner />
+      </section>
+
+      {/* ──────────────────────────────────────────────────────────────────────────
+          SECTION 5: SITE HIGHLIGHTS — admin-curated picks from any Core Space,
+          managed from Admin > Highlights. Renders nothing when there are none.
+          ────────────────────────────────────────────────────────────────────────── */}
+      <section className="max-w-5xl mx-auto w-full px-4">
+        <HighlightsCarousel placement="home" title="Highlights" />
       </section>
 
     </div>

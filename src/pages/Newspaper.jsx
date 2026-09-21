@@ -1,19 +1,20 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search, Heart, Eye, Share2, Bookmark, Flag as FlagIcon, Clock,
   ExternalLink, Plus, Newspaper as NewspaperIcon, TrendingUp, X,
   ChevronLeft, ChevronRight, LayoutGrid
 } from "lucide-react";
 import {
-  collection, query, where, onSnapshot, doc, setDoc, deleteDoc,
+  collection, query, where, orderBy, onSnapshot, doc, setDoc, deleteDoc,
   addDoc, updateDoc, serverTimestamp, increment
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/ToastNotification";
 import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
+import { highlightContentTypeMeta } from "../constants/contentHighlights";
 import { fuzzySearch } from "../utils/searchUtils";
 import ContributeNewspaperModal from "../components/ContributeNewspaperModal";
 import SocialEmbed, { getSocialPlatform } from "../components/SocialEmbed";
@@ -78,6 +79,7 @@ export default function Newspaper() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +109,27 @@ export default function Newspaper() {
     });
     return () => unsubscribe();
   }, []);
+
+  // ── 1b. Deep link: ?highlight=<itemId> auto-opens that item's detail modal
+  // once, so a link shared from the homepage highlights carousel (or anywhere
+  // else) lands on the specific article instead of just the Newspaper list.
+  const highlightHandledRef = useRef(false);
+  useEffect(() => {
+    if (highlightHandledRef.current) return;
+    const highlightId = searchParams.get("highlight");
+    if (!highlightId || items.length === 0) return;
+    const target = items.find((i) => i.id === highlightId);
+    if (target) {
+      setDetailItem(target);
+      updateDoc(doc(db, "newspaper_items", target.id), { view_count: increment(1) }).catch(() => {});
+    }
+    highlightHandledRef.current = true;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("highlight");
+      return next;
+    }, { replace: true });
+  }, [items, searchParams, setSearchParams]);
 
   // ── 2. Real-time likes listener (user-specific)
   useEffect(() => {
@@ -152,8 +175,33 @@ export default function Newspaper() {
     return () => unsubscribe();
   }, [user]);
 
-  // ─── Weekly highlights: one item per category from the last 7 days ─────────
+  // ─── 5. Admin-curated hero picks (content_highlights, placement=="newspaper")
+  const [curatedHighlightDocs, setCuratedHighlightDocs] = useState([]);
+  useEffect(() => {
+    const q = query(
+      collection(db, "content_highlights"),
+      where("placement", "==", "newspaper"),
+      where("active", "==", true),
+      orderBy("order", "asc")
+    );
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setCuratedHighlightDocs(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    }, () => setCuratedHighlightDocs([]));
+    return () => unsubscribe();
+  }, []);
+
+  // ─── Weekly highlights: admin picks when there are any, otherwise fall back
+  // to one item per category from the last 7 days (the original behavior). ──
   const weeklyHighlights = useMemo(() => {
+    if (curatedHighlightDocs.length > 0) {
+      // Resolve each pick back to its live newspaper_items doc so the hero
+      // always shows current title/image/likes rather than a stale snapshot;
+      // picks whose source item was since deleted/hidden are silently dropped.
+      return curatedHighlightDocs
+        .map((pick) => items.find((i) => i.id === pick.content_id))
+        .filter(Boolean);
+    }
+
     const sevenDaysAgoSec = Date.now() / 1000 - 7 * 24 * 60 * 60;
     const seenCategories = new Set();
     const result = [];
@@ -165,7 +213,7 @@ export default function Newspaper() {
       result.push(item);
     }
     return result;
-  }, [items]);
+  }, [items, curatedHighlightDocs]);
 
   useEffect(() => { setSlideIndex(0); }, [weeklyHighlights.length]);
 
@@ -508,6 +556,11 @@ export default function Newspaper() {
               const cat = categoryMeta(item.category);
               const style = CATEGORY_STYLES[cat.color] || CATEGORY_STYLES.gray;
               const socialPlatform = getSocialPlatform(item.source_url);
+              // Real RSS-sourced items often come back with no scraped image
+              // (og:image scrape failed, or the feed just didn't have one) —
+              // fall back to the Newspaper section's branded hero photo
+              // instead of a bare icon-on-gradient card.
+              const displayImage = item.image_url || (!socialPlatform ? highlightContentTypeMeta("newspaper_item")?.fallbackImage : "");
               const openSlide = () => {
                 setDetailItem(item);
                 updateDoc(doc(db, "newspaper_items", item.id), { view_count: increment(1) }).catch(() => {});
@@ -518,17 +571,17 @@ export default function Newspaper() {
                   onClick={openSlide}
                   className={`absolute inset-0 cursor-pointer bg-gradient-to-br ${style.ph} transition-opacity duration-700 ${i === slideIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"}`}
                 >
-                  {item.image_url ? (
+                  {displayImage ? (
                     <>
                       {/* Blurred, scaled-up backdrop so the real image can be shown in full (object-contain)
                           without leaving bare letterbox bars on the sides. */}
                       <img
-                        src={item.image_url}
+                        src={displayImage}
                         alt=""
                         aria-hidden="true"
                         className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-60"
                       />
-                      <img src={item.image_url} alt="" className="absolute inset-0 w-full h-full object-contain" />
+                      <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-contain" />
                     </>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
