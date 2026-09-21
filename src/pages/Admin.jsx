@@ -25,6 +25,7 @@ import { Clock, Search, CheckCircle2, AlertCircle, EyeOff, Star, BadgeCheck, Shi
 import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
 import ConfirmDialog from "../components/ConfirmDialog";
+import AdminPagination from "../components/AdminPagination";
 import RichTextArea from "../components/RichTextArea";
 import AdminAnalyticsDashboard from "../components/AdminAnalyticsDashboard";
 import { DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
@@ -68,6 +69,14 @@ const Admin = () => {
   });
   const [fetchingNewspaperThumbnail, setFetchingNewspaperThumbnail] = useState(false);
   const [isForceFetchingNewspaper, setIsForceFetchingNewspaper] = useState(false);
+  const [newspaperStatusFilter, setNewspaperStatusFilter] = useState("pending"); // "pending" | "approved" | "all"
+  const [newspaperPage, setNewspaperPage] = useState(1);
+  const [resourcesPendingPage, setResourcesPendingPage] = useState(1);
+  const [slangPendingPage, setSlangPendingPage] = useState(1);
+  const [cmMemesPage, setCmMemesPage] = useState(1);
+  const [cmResourcesPage, setCmResourcesPage] = useState(1);
+  const [cmPostsPage, setCmPostsPage] = useState(1);
+  const [cmTemplatesPage, setCmTemplatesPage] = useState(1);
 
   // ── Content Highlights (homepage + Newspaper hero curation) ──────────────
   const [highlightDocs, setHighlightDocs] = useState([]);
@@ -2469,92 +2478,6 @@ const Admin = () => {
             </div>
           </div>
 
-          {/* Newspaper Items Pending Admin Approval */}
-          {(() => {
-            const pendingNews = newspaperItems.filter(n => !n.admin_approved);
-            return (
-              <div className={`p-6 ${containerClass}`}>
-                <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-450" /> Newspaper Items Pending Approval ({pendingNews.length})
-                </h3>
-                <p className="text-xs text-gray-400 mb-4">These items are live on the Newspaper page but need your review. Approve to remove the 'Pending Admin Approval' badge, or delete if inappropriate.</p>
-                {pendingNews.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr>
-                          <th className={headerCellClass}>Title</th>
-                          <th className={headerCellClass}>Category</th>
-                          <th className={headerCellClass}>Source</th>
-                          <th className={headerCellClass}>Author ID</th>
-                          <th className={headerCellClass}>Date</th>
-                          <th className={headerCellClass}>Flags</th>
-                          <th className={headerCellClass}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pendingNews.map((item) => (
-                          <tr key={item.id}>
-                            <td className={rowCellClass}>
-                              <span className="font-semibold">{item.title}</span>
-                            </td>
-                            <td className={rowCellClass}>
-                              <select
-                                value={item.category || ""}
-                                onChange={e => handleChangeNewspaperCategory(item.id, e.target.value)}
-                                className={inputClass}
-                                title="Fix the category if the auto-fetch guessed wrong"
-                              >
-                                {NEWSPAPER_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                              </select>
-                            </td>
-                            <td className={rowCellClass}>
-                              <a href={item.source_url} target="_blank" rel="noreferrer" className="text-indigo-600 text-[10px] hover:underline">{item.source_domain || "link"} ↗</a>
-                            </td>
-                            <td className={`${rowCellClass} font-mono text-[10px]`}>{item.author_id}</td>
-                            <td className={rowCellClass}>
-                              {item.created_at ? new Date(item.created_at.seconds * 1000).toLocaleDateString() : "—"}
-                            </td>
-                            <td className={rowCellClass}>
-                              {(item.flag_count || 0) > 0 ? (
-                                <span className="text-red-500 font-bold">🏳️ {item.flag_count}</span>
-                              ) : "—"}
-                            </td>
-                            <td className={rowCellClass}>
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => handleQuickHighlight("newspaper_item", item)}
-                                  className={btnClass("purple")}
-                                  title="Feature this item in the Newspaper hero and/or homepage highlights"
-                                >
-                                  ⭐ Highlight
-                                </button>
-                                <button
-                                  onClick={() => handleApproveNewspaperItem(item.id)}
-                                  className={btnClass("green")}
-                                >
-                                  ✅ Approve
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteNewspaperItem(item.id)}
-                                  className={btnClass("red")}
-                                >
-                                  🗑️ Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-400 italic">All newspaper items have been reviewed. No pending approvals.</p>
-                )}
-              </div>
-            );
-          })()}
-
           {/* Add Newspaper Item (admin-authored, always approved) */}
           <div className={`p-6 ${containerClass}`}>
             <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-gray-400 flex items-center gap-1.5">
@@ -2654,85 +2577,150 @@ const Admin = () => {
             </button>
           </div>
 
-          {/* All Newspaper Items — management list */}
-          <div className={`p-6 ${containerClass}`}>
-            <div className="flex items-center justify-between border-b pb-2 mb-4">
-              <h3 className="text-sm font-extrabold uppercase text-gray-400">
-                All Newspaper Items ({newspaperItems.length})
-              </h3>
-              <button
-                onClick={handleClearAllNewspaperItems}
-                disabled={isClearingNewspaper}
-                className={btnClass("red") + " border border-red-650 bg-red-900/10 hover:bg-red-900/20 text-red-500"}
-              >
-                {isClearingNewspaper ? "Clearing..." : "🗑️ Clear All Newspaper Items"}
-              </button>
-            </div>
-            {newspaperItems.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr>
-                      <th className={headerCellClass}>Title</th>
-                      <th className={headerCellClass}>Category</th>
-                      <th className={headerCellClass}>Status</th>
-                      <th className={headerCellClass}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {newspaperItems.map((item) => (
-                      <tr key={item.id}>
-                        <td className={rowCellClass}>{item.title}</td>
-                        <td className={rowCellClass}>
-                          <select
-                            value={item.category || ""}
-                            onChange={e => handleChangeNewspaperCategory(item.id, e.target.value)}
-                            className={inputClass}
-                          >
-                            {NEWSPAPER_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                          </select>
-                        </td>
-                        <td className={rowCellClass}>
-                          {item.status === "admin_hidden" ? (
-                            <span className="text-gray-400">Hidden</span>
-                          ) : !item.admin_approved ? (
-                            <span className="text-yellow-600">Pending</span>
-                          ) : (
-                            <span className="text-green-600">Live</span>
-                          )}
-                        </td>
-                        <td className={rowCellClass}>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleQuickHighlight("newspaper_item", item)}
-                              className={btnClass("purple")}
-                              title="Feature this item in the Newspaper hero and/or homepage highlights"
-                            >
-                              ⭐ Highlight
-                            </button>
-                            <button
-                              onClick={() => handleToggleNewspaperVisibility(item.id, item.status)}
-                              className={btnClass("gray")}
-                            >
-                              {item.status === "admin_hidden" ? "Restore" : "Hide"}
-                            </button>
-                            <button
-                              onClick={() => handleDeleteNewspaperItem(item.id)}
-                              className={btnClass("red")}
-                            >
-                              🗑️ Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+          {/* Newspaper Items — one filterable, paginated list instead of separate
+              Pending/All tables, so the tab doesn't run on forever. */}
+          {(() => {
+            const pendingCount = newspaperItems.filter(n => !n.admin_approved).length;
+            const approvedCount = newspaperItems.filter(n => n.admin_approved && n.status !== "admin_hidden").length;
+            const filtered = newspaperItems.filter(item => {
+              if (newspaperStatusFilter === "pending") return !item.admin_approved;
+              if (newspaperStatusFilter === "approved") return item.admin_approved && item.status !== "admin_hidden";
+              return true;
+            });
+            const pageItems = filtered.slice((newspaperPage - 1) * 10, newspaperPage * 10);
+
+            return (
+              <div className={`p-6 ${containerClass}`}>
+                <div className="flex items-center justify-between border-b pb-3 mb-4 flex-wrap gap-3">
+                  <h3 className="text-sm font-extrabold uppercase text-gray-400">
+                    Newspaper Items ({filtered.length})
+                  </h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {[
+                      { key: "pending", label: `Pending (${pendingCount})` },
+                      { key: "approved", label: `Approved (${approvedCount})` },
+                      { key: "all", label: `All (${newspaperItems.length})` },
+                    ].map(f => (
+                      <button
+                        key={f.key}
+                        onClick={() => { setNewspaperStatusFilter(f.key); setNewspaperPage(1); }}
+                        className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition ${
+                          newspaperStatusFilter === f.key
+                            ? "bg-purple-650 text-white border-purple-650"
+                            : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-zinc-700"
+                        }`}
+                      >
+                        {f.label}
+                      </button>
                     ))}
-                  </tbody>
-                </table>
+                    <button
+                      onClick={handleClearAllNewspaperItems}
+                      disabled={isClearingNewspaper}
+                      className={btnClass("red") + " border border-red-650 bg-red-900/10 hover:bg-red-900/20 text-red-500"}
+                    >
+                      {isClearingNewspaper ? "Clearing..." : "🗑️ Clear All"}
+                    </button>
+                  </div>
+                </div>
+                {filtered.length > 0 ? (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr>
+                            <th className={headerCellClass}>Title</th>
+                            <th className={headerCellClass}>Category</th>
+                            <th className={headerCellClass}>Status</th>
+                            <th className={headerCellClass}>Source</th>
+                            <th className={headerCellClass}>Date</th>
+                            <th className={headerCellClass}>Flags</th>
+                            <th className={headerCellClass}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pageItems.map((item) => (
+                            <tr key={item.id}>
+                              <td className={rowCellClass}>
+                                <span className="font-semibold">{item.title}</span>
+                              </td>
+                              <td className={rowCellClass}>
+                                <select
+                                  value={item.category || ""}
+                                  onChange={e => handleChangeNewspaperCategory(item.id, e.target.value)}
+                                  className={inputClass}
+                                  title="Fix the category if the auto-fetch guessed wrong"
+                                >
+                                  {NEWSPAPER_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                                </select>
+                              </td>
+                              <td className={rowCellClass}>
+                                {item.status === "admin_hidden" ? (
+                                  <span className="text-gray-400">Hidden</span>
+                                ) : !item.admin_approved ? (
+                                  <span className="text-yellow-600">Pending</span>
+                                ) : (
+                                  <span className="text-green-600">Live</span>
+                                )}
+                              </td>
+                              <td className={rowCellClass}>
+                                <a href={item.source_url} target="_blank" rel="noreferrer" className="text-indigo-600 text-[10px] hover:underline">{item.source_domain || "link"} ↗</a>
+                              </td>
+                              <td className={rowCellClass}>
+                                {item.created_at ? new Date(item.created_at.seconds * 1000).toLocaleDateString() : "—"}
+                              </td>
+                              <td className={rowCellClass}>
+                                {(item.flag_count || 0) > 0 ? (
+                                  <span className="text-red-500 font-bold">🏳️ {item.flag_count}</span>
+                                ) : "—"}
+                              </td>
+                              <td className={rowCellClass}>
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => handleQuickHighlight("newspaper_item", item)}
+                                    className={btnClass("purple")}
+                                    title="Feature this item in the Newspaper hero and/or homepage highlights"
+                                  >
+                                    ⭐ Highlight
+                                  </button>
+                                  {!item.admin_approved && (
+                                    <button
+                                      onClick={() => handleApproveNewspaperItem(item.id)}
+                                      className={btnClass("green")}
+                                    >
+                                      ✅ Approve
+                                    </button>
+                                  )}
+                                  {item.admin_approved && (
+                                    <button
+                                      onClick={() => handleToggleNewspaperVisibility(item.id, item.status)}
+                                      className={btnClass("gray")}
+                                    >
+                                      {item.status === "admin_hidden" ? "Restore" : "Hide"}
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleDeleteNewspaperItem(item.id)}
+                                    className={btnClass("red")}
+                                  >
+                                    🗑️ Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <AdminPagination page={newspaperPage} setPage={setNewspaperPage} total={filtered.length} pageSize={10} />
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">
+                    {newspaperStatusFilter === "pending" ? "All newspaper items have been reviewed. No pending approvals." : "No newspaper items here."}
+                  </p>
+                )}
               </div>
-            ) : (
-              <p className="text-xs text-gray-400 italic">No newspaper items yet.</p>
-            )}
-          </div>
+            );
+          })()}
         </div>
       )}
 
@@ -2742,6 +2730,7 @@ const Admin = () => {
           {/* Resources Pending Admin Approval */}
           {(() => {
             const pendingResources = resources.filter(r => !r.admin_approved);
+            const pageItems = pendingResources.slice((resourcesPendingPage - 1) * 10, resourcesPendingPage * 10);
             return (
               <div className={`p-6 ${containerClass}`}>
                 <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5">
@@ -2749,6 +2738,7 @@ const Admin = () => {
                 </h3>
                 <p className="text-xs text-gray-400 mb-4">These resources are live on the platform but need your review. Approve to remove the 'Pending Admin Approval' badge, or delete if inappropriate.</p>
                 {pendingResources.length > 0 ? (
+                  <>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
@@ -2763,7 +2753,7 @@ const Admin = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {pendingResources.map((res) => (
+                        {pageItems.map((res) => (
                           <tr key={res.id}>
                             <td className={rowCellClass}>
                               <span className="font-semibold">{res.title}</span>
@@ -2813,6 +2803,8 @@ const Admin = () => {
                       </tbody>
                     </table>
                   </div>
+                  <AdminPagination page={resourcesPendingPage} setPage={setResourcesPendingPage} total={pendingResources.length} pageSize={10} />
+                  </>
                 ) : (
                   <p className="text-xs text-gray-400 italic">All resources have been reviewed. No pending approvals.</p>
                 )}
@@ -2823,6 +2815,7 @@ const Admin = () => {
           {/* Slang Decoder Words Pending Admin Approval */}
           {(() => {
             const pendingSlangTerms = slangTerms.filter(t => t.status === "pending");
+            const pageItems = pendingSlangTerms.slice((slangPendingPage - 1) * 10, slangPendingPage * 10);
             return (
               <div className={`p-6 ${containerClass}`}>
                 <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5">
@@ -2830,6 +2823,7 @@ const Admin = () => {
                 </h3>
                 <p className="text-xs text-gray-400 mb-4">These contributed words are hidden from the public Slang Decoder dictionary until approved.</p>
                 {pendingSlangTerms.length > 0 ? (
+                  <>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
@@ -2843,7 +2837,7 @@ const Admin = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {pendingSlangTerms.map((t) => (
+                        {pageItems.map((t) => (
                           <tr key={t.id}>
                             <td className={rowCellClass}><span className="font-semibold">{t.term}</span></td>
                             <td className={`${rowCellClass} capitalize`}>{t.category}</td>
@@ -2868,6 +2862,8 @@ const Admin = () => {
                       </tbody>
                     </table>
                   </div>
+                  <AdminPagination page={slangPendingPage} setPage={setSlangPendingPage} total={pendingSlangTerms.length} pageSize={10} />
+                  </>
                 ) : (
                   <p className="text-xs text-gray-400 italic">All slang words have been reviewed. No pending approvals.</p>
                 )}
@@ -4417,6 +4413,9 @@ const Admin = () => {
               if (isAllMemesSelected) setCmMemeSelected(prev => { const n = new Set(prev); filtered.forEach(m => n.delete(m.id)); return n; });
               else setCmMemeSelected(prev => { const n = new Set(prev); filtered.forEach(m => n.add(m.id)); return n; });
             };
+            const memesTotalPages = Math.max(1, Math.ceil(filtered.length / 10));
+            const memesPage = Math.min(cmMemesPage, memesTotalPages);
+            const pageItems = filtered.slice((memesPage - 1) * 10, memesPage * 10);
             return (
               <div className={`p-6 ${containerClass}`}>
                 <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-indigo-600 dark:text-indigo-400">
@@ -4494,7 +4493,7 @@ const Admin = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map(meme => (
+                      {pageItems.map(meme => (
                         <tr key={meme.id} className={cmMemeSelected.has(meme.id) ? "bg-indigo-50/50 dark:bg-indigo-950/20" : ""}>
                           <td className={rowCellClass}>
                             <input
@@ -4571,6 +4570,7 @@ const Admin = () => {
                   {filtered.length === 0 && (
                     <p className="text-xs text-gray-400 italic text-center py-6">No memes match your search query.</p>
                   )}
+                  <AdminPagination page={memesPage} setPage={setCmMemesPage} total={filtered.length} pageSize={10} />
                 </div>
               </div>
             );
@@ -4608,6 +4608,9 @@ const Admin = () => {
               if (isAllResSelected) setCmResSelected(prev => { const n = new Set(prev); filtered.forEach(r => n.delete(r.id)); return n; });
               else setCmResSelected(prev => { const n = new Set(prev); filtered.forEach(r => n.add(r.id)); return n; });
             };
+            const resTotalPages = Math.max(1, Math.ceil(filtered.length / 10));
+            const resPage = Math.min(cmResourcesPage, resTotalPages);
+            const pageItems = filtered.slice((resPage - 1) * 10, resPage * 10);
             return (
               <div className={`p-6 ${containerClass}`}>
                 <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-indigo-600 dark:text-indigo-400">
@@ -4686,7 +4689,7 @@ const Admin = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map(res => (
+                      {pageItems.map(res => (
                         <tr key={res.id} className={cmResSelected.has(res.id) ? "bg-indigo-50/50 dark:bg-indigo-950/20" : ""}>
                           <td className={rowCellClass}>
                             <input
@@ -4762,6 +4765,7 @@ const Admin = () => {
                   {filtered.length === 0 && (
                     <p className="text-xs text-gray-400 italic text-center py-6">No resources match your search query.</p>
                   )}
+                  <AdminPagination page={resPage} setPage={setCmResourcesPage} total={filtered.length} pageSize={10} />
                 </div>
               </div>
             );
@@ -4793,6 +4797,9 @@ const Admin = () => {
               if (isAllPostsSelected) setCmPostSelected(prev => { const n = new Set(prev); filtered.forEach(p => n.delete(p.id)); return n; });
               else setCmPostSelected(prev => { const n = new Set(prev); filtered.forEach(p => n.add(p.id)); return n; });
             };
+            const postsTotalPages = Math.max(1, Math.ceil(filtered.length / 10));
+            const postsPage = Math.min(cmPostsPage, postsTotalPages);
+            const pageItems = filtered.slice((postsPage - 1) * 10, postsPage * 10);
             return (
               <div className={`p-6 ${containerClass}`}>
                 <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-indigo-600 dark:text-indigo-400">
@@ -4869,7 +4876,7 @@ const Admin = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map(post => {
+                      {pageItems.map(post => {
                         const postReplies = staffroomAllReplies.filter(r => r.post_id === post.id);
                         const postLabel = post.title || post.body?.slice(0, 50) || "Untitled";
                         return (
@@ -4966,6 +4973,7 @@ const Admin = () => {
                   {filtered.length === 0 && (
                     <p className="text-xs text-gray-400 italic text-center py-6">No posts match your search query.</p>
                   )}
+                  <AdminPagination page={postsPage} setPage={setCmPostsPage} total={filtered.length} pageSize={10} />
                 </div>
               </div>
             );
@@ -4996,6 +5004,9 @@ const Admin = () => {
               if (isAllTplSelected) setCmTplSelected(prev => { const n = new Set(prev); filtered.forEach(t => n.delete(t.id)); return n; });
               else setCmTplSelected(prev => { const n = new Set(prev); filtered.forEach(t => n.add(t.id)); return n; });
             };
+            const tplTotalPages = Math.max(1, Math.ceil(filtered.length / 10));
+            const tplPage = Math.min(cmTemplatesPage, tplTotalPages);
+            const pageItems = filtered.slice((tplPage - 1) * 10, tplPage * 10);
             return (
               <div className={`p-6 ${containerClass}`}>
                 <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-indigo-600 dark:text-indigo-400">
@@ -5073,7 +5084,7 @@ const Admin = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map(temp => (
+                      {pageItems.map(temp => (
                         <tr key={temp.id} className={cmTplSelected.has(temp.id) ? "bg-indigo-50/50 dark:bg-indigo-950/20" : ""}>
                           <td className={rowCellClass}>
                             <input
@@ -5145,6 +5156,7 @@ const Admin = () => {
                   {filtered.length === 0 && (
                     <p className="text-xs text-gray-400 italic text-center py-6">No templates match your search query.</p>
                   )}
+                  <AdminPagination page={tplPage} setPage={setCmTemplatesPage} total={filtered.length} pageSize={10} />
                 </div>
               </div>
             );
