@@ -376,25 +376,32 @@ function extractDomain(url) {
   }
 }
 
-exports.fetchNewspaperItems = onSchedule(
-  { schedule: "every 168 hours", timeoutSeconds: 300 },
-  async () => {
-    let sources = DEFAULT_NEWSPAPER_SOURCES;
-    try {
-      const sourcesSnap = await db.collection("configs").doc("newspaper_sources").get();
-      const configured = sourcesSnap.exists ? sourcesSnap.data().sources : null;
-      if (Array.isArray(configured) && configured.length > 0) {
-        sources = configured;
-      }
-    } catch (e) {
-      console.error("Failed to load configs/newspaper_sources, using defaults", e);
-      Sentry.captureException(e);
+/**
+ * Shared RSS-fetch-and-store loop used by both the weekly scheduled fetch and
+ * the admin "force fetch" action below. `respectWeeklyCap` reproduces the
+ * scheduled job's "at most one new auto-fetched item per category per 7
+ * days" limit; force-fetch turns that off so it can immediately backfill up
+ * to `maxPerCategory` items per category regardless of what's already been
+ * fetched this week. Returns how many items were added, per category.
+ */
+async function runNewspaperFetch({ maxPerCategory, respectWeeklyCap }) {
+  let sources = DEFAULT_NEWSPAPER_SOURCES;
+  try {
+    const sourcesSnap = await db.collection("configs").doc("newspaper_sources").get();
+    const configured = sourcesSnap.exists ? sourcesSnap.data().sources : null;
+    if (Array.isArray(configured) && configured.length > 0) {
+      sources = configured;
     }
+  } catch (e) {
+    console.error("Failed to load configs/newspaper_sources, using defaults", e);
+    Sentry.captureException(e);
+  }
 
-    // Cap: at most one new auto-fetched item per category per 7-day window.
-    // Filtering by auto_fetched happens in JS (not the query) so this needs
-    // no composite Firestore index.
-    const categoriesFilledThisWeek = new Set();
+  // Cap: at most one new auto-fetched item per category per 7-day window.
+  // Filtering by auto_fetched happens in JS (not the query) so this needs
+  // no composite Firestore index.
+  const categoriesFilledThisWeek = new Set();
+  if (respectWeeklyCap) {
     try {
       const sevenDaysAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
       const recentSnap = await db.collection("newspaper_items")
@@ -408,77 +415,113 @@ exports.fetchNewspaperItems = onSchedule(
       console.error("Failed to check this week's categories, proceeding without the cap", e.message);
       Sentry.captureException(e);
     }
+  }
 
-    for (const source of sources) {
-      const category = source.default_category || "general";
-      if (categoriesFilledThisWeek.has(category)) continue; // already have one for this category this week
+  const addedPerCategory = {};
+  let totalAdded = 0;
+  const isCategoryFull = (category) =>
+    (respectWeeklyCap && categoriesFilledThisWeek.has(category)) ||
+    (addedPerCategory[category] || 0) >= maxPerCategory;
 
-      let feed;
+  for (const source of sources) {
+    const category = source.default_category || "general";
+    if (isCategoryFull(category)) continue;
+
+    let feed;
+    try {
+      feed = await rssParser.parseURL(source.url);
+    } catch (e) {
+      console.error(`Failed to fetch/parse Newspaper source ${source.id || source.url}`, e.message);
+      Sentry.captureException(e);
+      continue;
+    }
+
+    for (const entry of (feed.items || []).slice(0, 15)) {
+      if (isCategoryFull(category)) break; // filled by an earlier entry from this same source
+
+      const link = entry.link || "";
+      if (!link) continue;
+      const externalId = entry.guid || link;
+
       try {
-        feed = await rssParser.parseURL(source.url);
-      } catch (e) {
-        console.error(`Failed to fetch/parse Newspaper source ${source.id || source.url}`, e.message);
-        Sentry.captureException(e);
-        continue;
-      }
+        // Dedupe: skip if this item was already stored on a previous run
+        const existing = await db.collection("newspaper_items")
+          .where("external_id", "==", externalId)
+          .limit(1)
+          .get();
+        if (!existing.empty) continue;
 
-      for (const entry of (feed.items || []).slice(0, 15)) {
-        if (categoriesFilledThisWeek.has(category)) break; // filled by an earlier entry from this same source
+        const domain = extractDomain(link);
+        const isTrusted = TRUSTED_NEWS_DOMAINS.includes(domain);
+        const rawSummary = entry.contentSnippet || entry.content || "";
 
-        const link = entry.link || "";
-        if (!link) continue;
-        const externalId = entry.guid || link;
-
-        try {
-          // Dedupe: skip if this item was already stored on a previous run
-          const existing = await db.collection("newspaper_items")
-            .where("external_id", "==", externalId)
-            .limit(1)
-            .get();
-          if (!existing.empty) continue;
-
-          const domain = extractDomain(link);
-          const isTrusted = TRUSTED_NEWS_DOMAINS.includes(domain);
-          const rawSummary = entry.contentSnippet || entry.content || "";
-
-          let imageUrl = extractThumbnail(entry);
-          if (!imageUrl) {
-            imageUrl = await fetchOgImage(link);
-          }
-
-          await db.collection("newspaper_items").add({
-            title: (entry.title || "Untitled").slice(0, 200),
-            source_url: link,
-            source_domain: domain,
-            summary_text: rawSummary.replace(/\s+/g, " ").trim().slice(0, 400),
-            classroom_talking_point: "",
-            category,
-            image_url: imageUrl,
-            keywords: [],
-            source_trust: isTrusted ? "trusted" : "unverified",
-            admin_approved: isTrusted,
-            status: "live",
-            author_id: "system",
-            author_name: "Auto-Fetched",
-            view_count: 0,
-            likes_count: 0,
-            flag_count: 0,
-            auto_fetched: true,
-            fetch_source_id: source.id || null,
-            external_id: externalId,
-            created_at: admin.firestore.FieldValue.serverTimestamp(),
-            updated_at: admin.firestore.FieldValue.serverTimestamp(),
-          });
-
-          categoriesFilledThisWeek.add(category);
-        } catch (e) {
-          console.error(`Failed to store Newspaper item from ${source.id || source.url}`, e.message);
-          Sentry.captureException(e);
+        let imageUrl = extractThumbnail(entry);
+        if (!imageUrl) {
+          imageUrl = await fetchOgImage(link);
         }
+
+        await db.collection("newspaper_items").add({
+          title: (entry.title || "Untitled").slice(0, 200),
+          source_url: link,
+          source_domain: domain,
+          summary_text: rawSummary.replace(/\s+/g, " ").trim().slice(0, 400),
+          classroom_talking_point: "",
+          category,
+          image_url: imageUrl,
+          keywords: [],
+          source_trust: isTrusted ? "trusted" : "unverified",
+          admin_approved: isTrusted,
+          status: "live",
+          author_id: "system",
+          author_name: "Auto-Fetched",
+          view_count: 0,
+          likes_count: 0,
+          flag_count: 0,
+          auto_fetched: true,
+          fetch_source_id: source.id || null,
+          external_id: externalId,
+          created_at: admin.firestore.FieldValue.serverTimestamp(),
+          updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        addedPerCategory[category] = (addedPerCategory[category] || 0) + 1;
+        totalAdded += 1;
+        if (respectWeeklyCap) categoriesFilledThisWeek.add(category);
+      } catch (e) {
+        console.error(`Failed to store Newspaper item from ${source.id || source.url}`, e.message);
+        Sentry.captureException(e);
       }
     }
   }
+
+  return { totalAdded, addedPerCategory };
+}
+
+exports.fetchNewspaperItems = onSchedule(
+  { schedule: "every 168 hours", timeoutSeconds: 300 },
+  async () => {
+    await runNewspaperFetch({ maxPerCategory: 1, respectWeeklyCap: true });
+  }
 );
+
+// Admin-triggered immediate fetch that backfills up to 5 items per category
+// right away, instead of waiting on the weekly schedule's one-per-category
+// cadence. Wired to the Admin > Newspaper "Force Fetch" button so the feed
+// doesn't sit empty while the scheduled job slowly fills in over several
+// weeks. Uses the exact same sources, dedupe, and approval rules as the
+// scheduled fetch — it just lifts the one-per-category-per-week cap.
+exports.forceFetchNewspaperItems = onCall({ timeoutSeconds: 300 }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in to do this.");
+  }
+  const userSnap = await db.collection("users").doc(request.auth.uid).get();
+  const role = userSnap.exists ? userSnap.data().role : null;
+  if (role !== "admin" && role !== "manager") {
+    throw new HttpsError("permission-denied", "Admins only.");
+  }
+
+  return runNewspaperFetch({ maxPerCategory: 5, respectWeeklyCap: false });
+});
 
 // Callable from the Contribute/Admin newspaper forms so a user pasting a
 // source link can auto-suggest a thumbnail instead of always uploading one
