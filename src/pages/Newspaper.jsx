@@ -206,7 +206,13 @@ export default function Newspaper() {
       // silently dropping it — a curated pick should never just vanish.
       return curatedHighlightDocs.map((pick) => {
         const live = items.find((i) => i.id === pick.content_id);
-        if (live) return live;
+        if (live) {
+          // The Highlight form lets admin upload/paste a thumbnail specifically
+          // because the source article had none (or a bad one) — that explicit
+          // choice should win over the source item's own (possibly empty)
+          // image_url, not get silently discarded in favor of it.
+          return pick.image_url ? { ...live, image_url: pick.image_url } : live;
+        }
         return {
           id: pick.content_id || pick.id,
           title: pick.title,
