@@ -95,7 +95,7 @@ const Library = () => {
   const [userCache, setUserCache] = useState({});
 
   // Sidebar Filter Options
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeFeed, setActiveFeed] = useState("all"); // "all" | "trending" | "liked" | "saved"
   const [subjectFilter, setSubjectFilter] = useState("");
   const [gradeFilter, setGradeFilter] = useState("");
@@ -322,6 +322,22 @@ const Library = () => {
       updateDoc(doc(db, "memes", meme.id), { view_count: increment(1) }).catch(() => {});
     }
   };
+
+  // Deep link: ?highlight=<memeId> auto-opens that meme's detail modal once.
+  const highlightHandledRef = useRef(false);
+  useEffect(() => {
+    if (highlightHandledRef.current) return;
+    const highlightId = searchParams.get("highlight");
+    if (!highlightId || memes.length === 0) return;
+    const target = memes.find((m) => m.id === highlightId);
+    if (target) openMemeDetails(target);
+    highlightHandledRef.current = true;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("highlight");
+      return next;
+    }, { replace: true });
+  }, [memes, searchParams, setSearchParams]);
 
   // 1. Real-time Curation Feed Listener (Database-Side Sorting)
   useEffect(() => {

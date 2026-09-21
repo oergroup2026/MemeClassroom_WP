@@ -29,6 +29,7 @@ import RichTextArea from "../components/RichTextArea";
 import AdminAnalyticsDashboard from "../components/AdminAnalyticsDashboard";
 import { DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
+import { HIGHLIGHT_CONTENT_TYPES, HIGHLIGHT_PLACEMENTS, highlightContentTypeMeta } from "../constants/contentHighlights";
 import { basicQuestions } from "../data/memeTestQuestionsBasic";
 import { SLANG_STARTER_WORDS } from "../data/slangStarterWords";
 
@@ -67,6 +68,24 @@ const Admin = () => {
   });
   const [fetchingNewspaperThumbnail, setFetchingNewspaperThumbnail] = useState(false);
   const [isForceFetchingNewspaper, setIsForceFetchingNewspaper] = useState(false);
+
+  // ── Content Highlights (homepage + Newspaper hero curation) ──────────────
+  const [highlightDocs, setHighlightDocs] = useState([]);
+  const [hlView, setHlView] = useState("list"); // "list" | "form"
+  const [hlEditId, setHlEditId] = useState(null);
+  const [hlfContentType, setHlfContentType] = useState("newspaper_item");
+  const [hlfContentId, setHlfContentId] = useState("");
+  const [hlfPlacement, setHlfPlacement] = useState("newspaper");
+  const [hlfTitle, setHlfTitle] = useState("");
+  const [hlfSummary, setHlfSummary] = useState("");
+  const [hlfSourceLabel, setHlfSourceLabel] = useState("");
+  const [hlfLink, setHlfLink] = useState("");
+  const [hlfImageUrl, setHlfImageUrl] = useState("");
+  const [hlfImageFile, setHlfImageFile] = useState(null);
+  const [hlfImagePreview, setHlfImagePreview] = useState("");
+  const [hlfOrder, setHlfOrder] = useState(0);
+  const [hlfActive, setHlfActive] = useState(true);
+  const [hlSaving, setHlSaving] = useState(false);
   const [expertApps, setExpertApps] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [sponsoredAds, setSponsoredAds] = useState([]);
@@ -461,6 +480,13 @@ const Admin = () => {
       setNewspaperItems(list);
     });
 
+    // 20. Content Highlights (homepage + Newspaper hero curation)
+    const highlightsUnsub = onSnapshot(collection(db, "content_highlights"), (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => (a.order || 0) - (b.order || 0));
+      setHighlightDocs(list);
+    });
+
     return () => {
       uUnsub();
       cUnsub();
@@ -483,6 +509,7 @@ const Admin = () => {
       unbanReqsUnsub();
       slangTermsUnsub();
       slangQuestionsUnsub();
+      highlightsUnsub();
     };
   }, []);
 
@@ -688,6 +715,139 @@ const Admin = () => {
     } catch (e) {
       triggerAlert(e.message || "Publish failed.", "error");
     }
+  };
+
+  // ── CONTENT HIGHLIGHTS (homepage + Newspaper hero curation) ───────────────
+  const hlResetForm = () => {
+    setHlEditId(null);
+    setHlfContentType("newspaper_item");
+    setHlfContentId("");
+    setHlfPlacement("newspaper");
+    setHlfTitle("");
+    setHlfSummary("");
+    setHlfSourceLabel("");
+    setHlfLink("");
+    setHlfImageUrl("");
+    setHlfImageFile(null);
+    setHlfImagePreview("");
+    setHlfOrder(highlightDocs.length);
+    setHlfActive(true);
+  };
+
+  // Pre-fills a new highlight from an existing piece of content (Newspaper
+  // item / Resource / Meme / Staffroom post), so curating a pick is a couple
+  // of clicks from wherever that content is already being managed, instead
+  // of re-typing its title/image/link by hand. Admin can still edit
+  // everything (including swap in a different thumbnail) before saving.
+  const handleQuickHighlight = (contentType, item) => {
+    const meta = highlightContentTypeMeta(contentType);
+    setHlEditId(null);
+    setHlfContentType(contentType);
+    setHlfContentId(item.id);
+    setHlfPlacement(contentType === "newspaper_item" ? "newspaper" : "home");
+    setHlfTitle(item.title || "");
+    setHlfSummary((item.summary_text || item.body || item.caption || "").trim().slice(0, 240));
+    setHlfSourceLabel(meta?.label || "");
+    setHlfLink(meta?.buildLink(item.id) || "");
+    setHlfImageUrl(item.image_url || item.thumbnail_url || item.media_url || item.attachment_url || "");
+    setHlfImageFile(null);
+    setHlfImagePreview(item.image_url || item.thumbnail_url || item.media_url || item.attachment_url || "");
+    setHlfOrder(highlightDocs.length);
+    setHlfActive(true);
+    setActiveTab("highlights");
+    setHlView("form");
+  };
+
+  const hlPrefillForm = (h) => {
+    setHlEditId(h.id);
+    setHlfContentType(h.content_type || "newspaper_item");
+    setHlfContentId(h.content_id || "");
+    setHlfPlacement(h.placement || "home");
+    setHlfTitle(h.title || "");
+    setHlfSummary(h.summary || "");
+    setHlfSourceLabel(h.source_label || "");
+    setHlfLink(h.link || "");
+    setHlfImageUrl(h.image_url || "");
+    setHlfImageFile(null);
+    setHlfImagePreview(h.image_url || "");
+    setHlfOrder(h.order ?? 0);
+    setHlfActive(h.active ?? true);
+    setHlView("form");
+  };
+
+  const handleHlSave = async (e) => {
+    e.preventDefault();
+    if (!hlfTitle.trim() || !hlfLink.trim()) {
+      triggerAlert("Title and link are required.", "error");
+      return;
+    }
+    setHlSaving(true);
+    try {
+      let imageUrl = hlfImageUrl;
+      if (hlfImageFile) {
+        const storageRef = ref(storage, `content_highlights/${hlEditId || Date.now()}_${hlfImageFile.name}`);
+        const snap = await uploadBytes(storageRef, hlfImageFile);
+        imageUrl = await getDownloadURL(snap.ref);
+      }
+      const data = {
+        content_type: hlfContentType,
+        content_id: hlfContentId,
+        placement: hlfPlacement,
+        title: hlfTitle.trim(),
+        summary: hlfSummary.trim(),
+        source_label: hlfSourceLabel.trim(),
+        link: hlfLink.trim(),
+        image_url: imageUrl.trim(),
+        order: Number(hlfOrder),
+        active: hlfActive,
+        updated_at: serverTimestamp(),
+      };
+      if (hlEditId) {
+        await updateDoc(doc(db, "content_highlights", hlEditId), data);
+        triggerAlert("Highlight updated!");
+      } else {
+        await addDoc(collection(db, "content_highlights"), { ...data, created_at: serverTimestamp(), created_by: user.uid });
+        triggerAlert("Highlight created!");
+      }
+      hlResetForm();
+      setHlView("list");
+    } catch (e) {
+      triggerAlert(e.message || "Save failed.", "error");
+    } finally {
+      setHlSaving(false);
+    }
+  };
+
+  const handleHlDelete = (h) => {
+    openConfirm({
+      title: "Remove Highlight?",
+      message: `Remove "${h.title}" from the highlights carousel? The original content is not affected.`,
+      variant: "danger",
+      confirmLabel: "Remove",
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteDoc(doc(db, "content_highlights", h.id));
+          triggerAlert("Highlight removed.");
+        } catch (e) { triggerAlert(e.message || "Delete failed.", "error"); }
+      }
+    });
+  };
+
+  const handleHlToggleActive = async (h) => {
+    try {
+      await updateDoc(doc(db, "content_highlights", h.id), { active: !h.active, updated_at: serverTimestamp() });
+    } catch (e) { triggerAlert(e.message || "Toggle failed.", "error"); }
+  };
+
+  const handleHlReorder = async (placement, highlightId, direction) => {
+    const list = highlightDocs.filter(h => h.placement === placement);
+    const idx = list.findIndex(h => h.id === highlightId);
+    if ((direction === "up" && idx === 0) || (direction === "down" && idx === list.length - 1)) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    const newList = [...list];
+    [newList[idx], newList[swapIdx]] = [newList[swapIdx], newList[idx]];
+    await Promise.all(newList.map((h, i) => updateDoc(doc(db, "content_highlights", h.id), { order: i })));
   };
 
   const handleDeleteResourceAdmin = (resourceId) => {
@@ -2230,6 +2390,7 @@ const Admin = () => {
           { id: "analytics", label: "Analytics", roles: ["admin", "manager"] },
           { id: "moderation", label: "Moderation Queue", roles: ["admin", "manager"] },
           { id: "newspaper", label: "Newspaper", roles: ["admin", "manager"] },
+          { id: "highlights", label: "✨ Highlights", roles: ["admin", "manager"] },
           { id: "archivist", label: "Content Archivist", roles: ["admin", "manager"] },
           { id: "users", label: "User Directory", roles: ["admin", "manager"] },
           { id: "content", label: "Content Manager", roles: ["admin"] },
@@ -2499,6 +2660,13 @@ const Admin = () => {
                         </td>
                         <td className={rowCellClass}>
                           <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleQuickHighlight("newspaper_item", item)}
+                              className={btnClass("purple")}
+                              title="Feature this item in the Newspaper hero and/or homepage highlights"
+                            >
+                              ⭐ Highlight
+                            </button>
                             <button
                               onClick={() => handleToggleNewspaperVisibility(item.id, item.status)}
                               className={btnClass("gray")}
@@ -4321,6 +4489,13 @@ const Admin = () => {
                           <td className={rowCellClass}>
                             <div className="flex space-x-2">
                               <button
+                                onClick={() => handleQuickHighlight("meme", meme)}
+                                className={btnClass("purple")}
+                                title="Feature this meme in the homepage highlights"
+                              >
+                                ⭐ Highlight
+                              </button>
+                              <button
                                 onClick={() => handleAdminToggleMemeVisibility(meme.id, meme.visibility)}
                                 className={btnClass(meme.visibility === "admin_hidden" ? "green" : "gray")}
                                 title={meme.visibility === "admin_hidden" ? "Restore to public Library" : "Hide from public Library"}
@@ -4502,6 +4677,16 @@ const Admin = () => {
                           <td className={rowCellClass}>
                             <div className="flex space-x-2">
                               <button
+                                onClick={() => handleQuickHighlight(
+                                  res.type === "activity" ? "activity" : (res.type === "stories" || res.type === "story") ? "meme_story" : "resource",
+                                  res
+                                )}
+                                className={btnClass("purple")}
+                                title="Feature this in the homepage highlights"
+                              >
+                                ⭐ Highlight
+                              </button>
+                              <button
                                 onClick={() => handleAdminToggleResourceVisibility(res.id, res.status)}
                                 className={btnClass(res.status === "admin_hidden" ? "green" : "gray")}
                                 title={res.status === "admin_hidden" ? "Restore to Meme Reads" : "Hide from Meme Reads"}
@@ -4676,6 +4861,13 @@ const Admin = () => {
                             </td>
                             <td className={rowCellClass}>
                               <div className="flex space-x-2 mb-2">
+                                <button
+                                  onClick={() => handleQuickHighlight("staffroom_post", { ...post, title: postLabel })}
+                                  className={btnClass("purple")}
+                                  title="Feature this post in the homepage highlights"
+                                >
+                                  ⭐ Highlight
+                                </button>
                                 <button
                                   onClick={() => handleAdminTogglePostVisibility(post.id, post.visibility)}
                                   className={btnClass(post.visibility === "admin_hidden" ? "green" : "gray")}
@@ -5417,6 +5609,152 @@ const Admin = () => {
                   <button onClick={() => { stResetForm(); setStView("list"); }} className={sqBtnGhost}>Cancel</button>
                 </div>
               </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          TAB: HIGHLIGHTS — admin-curated Newspaper hero + homepage carousel
+          ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "highlights" && (() => {
+        const newspaperPicks = highlightDocs.filter(h => h.placement === "newspaper");
+        const homePicks = highlightDocs.filter(h => h.placement === "home");
+
+        const renderRow = (h, list, idx) => (
+          <div key={h.id} className="flex items-center gap-3 p-4">
+            <div className="flex flex-col gap-0.5">
+              <button onClick={() => handleHlReorder(h.placement, h.id, "up")} disabled={idx === 0} className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30" aria-label="Move up">▲</button>
+              <button onClick={() => handleHlReorder(h.placement, h.id, "down")} disabled={idx === list.length - 1} className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30" aria-label="Move down">▼</button>
+            </div>
+            {h.image_url ? (
+              <img src={h.image_url} alt="" className="w-14 h-10 object-cover rounded border border-gray-200 dark:border-zinc-700 flex-shrink-0" />
+            ) : (
+              <div className="w-14 h-10 rounded border border-gray-200 dark:border-zinc-700 flex-shrink-0 bg-gray-100 dark:bg-zinc-800" />
+            )}
+            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex-shrink-0 bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300">
+              {h.source_label || HIGHLIGHT_CONTENT_TYPES[h.content_type]?.label || h.content_type}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{h.title}</p>
+              <p className="text-[11px] text-gray-400 truncate">{h.link}</p>
+            </div>
+            <button
+              onClick={() => handleHlToggleActive(h)}
+              className={`text-[10px] font-black px-2 py-0.5 rounded-full border transition ${
+                h.active
+                  ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-600 dark:text-green-400"
+                  : "bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-400"
+              }`}
+            >
+              {h.active ? "● Live" : "○ Hidden"}
+            </button>
+            <button onClick={() => hlPrefillForm(h)} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition">✏️ Edit</button>
+            <button onClick={() => handleHlDelete(h)} className={btnClass("red")}>🗑️</button>
+          </div>
+        );
+
+        return (
+          <div className="space-y-6">
+            <div className={`p-5 ${containerClass} flex items-center justify-between flex-wrap gap-3`}>
+              <div>
+                <h2 className="text-base font-extrabold text-gray-900 dark:text-white">✨ Highlights</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Curate what appears in the Newspaper page's hero and the homepage highlights carousel (shown after the Literacy Test banner). Use the ⭐ Highlight button next to an item in Newspaper or Content Manager to start from real content.
+                </p>
+              </div>
+              {hlView === "form" && (
+                <button onClick={() => { setHlView("list"); hlResetForm(); }} className={btnClass("gray")}>
+                  ← Back to List
+                </button>
+              )}
+            </div>
+
+            {hlView === "list" && (
+              <>
+                <div className={containerClass}>
+                  <div className="p-4 border-b border-gray-100 dark:border-zinc-800">
+                    <h3 className="text-sm font-extrabold text-gray-700 dark:text-gray-200">📰 Newspaper Hero ({newspaperPicks.length})</h3>
+                    <p className="text-[11px] text-gray-400 mt-0.5">When empty, the Newspaper page falls back to auto-picking one recent approved item per category.</p>
+                  </div>
+                  {newspaperPicks.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic p-6 text-center">No manual picks yet — the Newspaper hero is on auto-pick.</p>
+                  ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-zinc-800">
+                      {newspaperPicks.map((h, idx) => renderRow(h, newspaperPicks, idx))}
+                    </div>
+                  )}
+                </div>
+
+                <div className={containerClass}>
+                  <div className="p-4 border-b border-gray-100 dark:border-zinc-800">
+                    <h3 className="text-sm font-extrabold text-gray-700 dark:text-gray-200">🏠 Homepage Highlights ({homePicks.length})</h3>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Shown on the homepage, right after the Literacy Test banner. Hidden entirely when there are none.</p>
+                  </div>
+                  {homePicks.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic p-6 text-center">No homepage highlights yet.</p>
+                  ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-zinc-800">
+                      {homePicks.map((h, idx) => renderRow(h, homePicks, idx))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {hlView === "form" && (
+              <form onSubmit={handleHlSave} className={`p-6 space-y-3 ${containerClass}`}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <select value={hlfContentType} onChange={e => setHlfContentType(e.target.value)} className={inputClass}>
+                    {Object.entries(HIGHLIGHT_CONTENT_TYPES).map(([value, meta]) => (
+                      <option key={value} value={value}>{meta.label}</option>
+                    ))}
+                  </select>
+                  <select value={hlfPlacement} onChange={e => setHlfPlacement(e.target.value)} className={inputClass}>
+                    {HIGHLIGHT_PLACEMENTS.map(p => (
+                      <option key={p} value={p}>{p === "home" ? "Homepage Highlights" : "Newspaper Hero"}</option>
+                    ))}
+                  </select>
+                  <input type="text" value={hlfTitle} onChange={e => setHlfTitle(e.target.value)} placeholder="Title" className={inputClass} />
+                  <input type="text" value={hlfSourceLabel} onChange={e => setHlfSourceLabel(e.target.value)} placeholder="Small header, e.g. Resources" className={inputClass} />
+                  <input type="text" value={hlfLink} onChange={e => setHlfLink(e.target.value)} placeholder="Link, e.g. /resources/activity/xyz" className={`${inputClass} sm:col-span-2`} />
+                  <textarea value={hlfSummary} onChange={e => setHlfSummary(e.target.value)} placeholder="Short summary (optional)" rows={2} className={`${inputClass} sm:col-span-2`} />
+                  <div className="flex items-center gap-3 sm:col-span-2">
+                    {(hlfImagePreview || hlfImageUrl) && (
+                      <img src={hlfImagePreview || hlfImageUrl} alt="Thumbnail preview" className="w-16 h-12 object-cover rounded-lg border border-gray-200 dark:border-zinc-700 flex-shrink-0" />
+                    )}
+                    <label className="cursor-pointer bg-gray-100 dark:bg-zinc-800 hover:bg-purple-50 dark:hover:bg-purple-950/20 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 text-xs font-bold px-3 py-2 rounded-xl transition inline-block">
+                      📁 Choose Thumbnail
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0] || null;
+                          setHlfImageFile(file);
+                          setHlfImagePreview(file ? URL.createObjectURL(file) : "");
+                        }}
+                      />
+                    </label>
+                    <input
+                      type="url"
+                      value={hlfImageUrl}
+                      onChange={e => setHlfImageUrl(e.target.value)}
+                      placeholder="...or paste an image URL"
+                      className={`${inputClass} flex-1`}
+                      disabled={!!hlfImageFile}
+                    />
+                  </div>
+                  <input type="number" value={hlfOrder} onChange={e => setHlfOrder(e.target.value)} placeholder="Order" className={inputClass} />
+                  <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                    <input type="checkbox" checked={hlfActive} onChange={e => setHlfActive(e.target.checked)} className="w-3.5 h-3.5 accent-purple-600" />
+                    Active (visible on the site)
+                  </label>
+                </div>
+                <button type="submit" disabled={hlSaving} className={`${btnClass("purple")} mt-1`}>
+                  {hlSaving ? "Saving…" : hlEditId ? "Save Changes" : "Create Highlight"}
+                </button>
+              </form>
             )}
           </div>
         );

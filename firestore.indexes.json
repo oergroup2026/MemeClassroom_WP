@@ -31,6 +31,15 @@
         { "fieldPath": "active", "order": "ASCENDING" },
         { "fieldPath": "order", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "content_highlights",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "placement", "order": "ASCENDING" },
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "order", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
