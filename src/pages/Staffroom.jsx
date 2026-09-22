@@ -20,10 +20,17 @@ import {
   runTransaction,
   arrayUnion,
   arrayRemove,
+  orderBy,
+  limit,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { checkUpload } from "../utils/uploadLimits";
 import { db, storage } from "../firebase";
+
+// Threads fetched per page. This feed also opens a reply listener PER thread,
+// so an unbounded thread list multiplied the cost: every visitor read every
+// post and then opened a listener for each one's replies.
+const THREAD_PAGE_SIZE = 40;
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
@@ -149,6 +156,8 @@ const Staffroom = () => {
 
   // ── Core data states ─────────────────────────────────────────────────────
   const [threads, setThreads] = useState([]);
+  const [threadWindow, setThreadWindow] = useState(THREAD_PAGE_SIZE);
+  const [hasMoreThreads, setHasMoreThreads] = useState(false);
   const [replies, setReplies] = useState({});
   const [userCache, setUserCache] = useState({ admin: ADMIN_CACHE_ENTRY });
   const [availableMemes, setAvailableMemes] = useState([]);
@@ -393,13 +402,20 @@ const Staffroom = () => {
   useEffect(() => {
     const replyUnsubs = {};
 
-    const unsubThreads = onSnapshot(collection(db, "staffroom_posts"), (snapshot) => {
+    const threadQuery = query(
+      collection(db, "staffroom_posts"),
+      orderBy("created_at", "desc"),
+      limit(threadWindow)
+    );
+
+    const unsubThreads = onSnapshot(threadQuery, (snapshot) => {
       const list = [];
       snapshot.forEach((d) => list.push({ id: d.id, ...d.data() }));
       list.sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0));
       // Exclude admin-hidden posts from the public Staffroom feed
       const visibleList = list.filter((t) => t.visibility !== "admin_hidden");
       setThreads(visibleList);
+      setHasMoreThreads(list.length === threadWindow);
       setFeedLoading(false);
 
       // Track unread (only from visible posts)
@@ -439,7 +455,7 @@ const Staffroom = () => {
       unsubThreads();
       Object.values(replyUnsubs).forEach((unsub) => unsub());
     };
-  }, []);
+  }, [threadWindow]);
 
   // 6. User profile resolution (batch, no infinite loop)
   useEffect(() => {
@@ -1907,6 +1923,24 @@ const Staffroom = () => {
               <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-800 rounded-xl p-12 text-center text-gray-500 shadow-sm">
                 <p className="text-sm font-semibold mb-1">No threads match these filters.</p>
                 <p className="text-xs text-gray-400">Try broadening your subject, grade, or keywords.</p>
+              </div>
+            )}
+
+            {/* Older threads load on request. The filters and search above run
+                over what is loaded, so this widens them too. */}
+            {hasMoreThreads && (
+              <div className="flex flex-col items-center gap-1.5 pt-1">
+                <button
+                  id="staffroom-load-more"
+                  type="button"
+                  onClick={() => setThreadWindow((n) => n + THREAD_PAGE_SIZE)}
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition active:scale-95"
+                >
+                  Load older threads
+                </button>
+                <p className="text-[10px] text-gray-400">
+                  Showing the {threads.length} most recent
+                </p>
               </div>
             )}
           </div>
