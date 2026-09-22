@@ -31,6 +31,7 @@ import AdminAnalyticsDashboard from "../components/AdminAnalyticsDashboard";
 import { DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
 import { HIGHLIGHT_CONTENT_TYPES, HIGHLIGHT_PLACEMENTS, highlightContentTypeMeta } from "../constants/contentHighlights";
+import { isStoryResource } from "../utils/storyTemplates";
 import { basicQuestions } from "../data/memeTestQuestionsBasic";
 import { SLANG_STARTER_WORDS } from "../data/slangStarterWords";
 
@@ -277,6 +278,7 @@ const Admin = () => {
   const [cmTplStatus, setCmTplStatus] = useState("all");           // "all"|"approved"|"pending"|"rejected"
   const [cmTplFormat, setCmTplFormat] = useState("all");           // "all"|"image"|"video"|"gif"|"audio"
   const [cmTplCreator, setCmTplCreator] = useState("all");         // "all"|"admin"|"user"
+  const [cmTplStory, setCmTplStory] = useState("all");             // "all"|"linked"|"unlinked"
 
   // Content Manager — bulk selection (Set of IDs per sub-tab)
   const [cmMemeSelected, setCmMemeSelected] = useState(new Set());
@@ -1105,6 +1107,26 @@ const Admin = () => {
           ];
           resourceData.keywords = []; // remove keywords for stories
           resourceData.admin_approved = true; // Admin seeds are auto-approved
+
+          // The attached "customizable" image is meant to double as a Lab
+          // template — create the linked `templates` doc so the story
+          // actually surfaces there, instead of only living in Meme Stories.
+          if (fileUrl) {
+            let detectedFormat = "image";
+            if (resFile?.type?.startsWith("video/")) detectedFormat = "video";
+            else if (resFile?.type?.startsWith("audio/")) detectedFormat = "audio";
+            else if (resFile?.type === "image/gif") detectedFormat = "gif";
+            const templateDocRef = await addDoc(collection(db, "templates"), {
+              title: resTitle.trim(),
+              creator_id: user.uid,
+              media_url: fileUrl,
+              format: detectedFormat,
+              is_admin_preset: true,
+              status: "approved",
+              created_at: serverTimestamp()
+            });
+            resourceData.template_id = templateDocRef.id;
+          }
         }
 
         await addDoc(collection(db, "resources"), resourceData);
@@ -2395,6 +2417,14 @@ const Admin = () => {
     );
   };
 
+  // Templates that a live (non-hidden) meme story links to — the only
+  // templates the intended workflow considers "reviewed" and intentional.
+  // Anything outside this set is either awaiting a story or was added
+  // outside that pipeline (e.g. earlier unreviewed seeding).
+  const storyTemplateIds = new Set(
+    resources.filter(isStoryResource).map((r) => r.template_id)
+  );
+
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 space-y-8">
       {/* Confirm dialog */}
@@ -3099,6 +3129,7 @@ const Admin = () => {
                     <tr>
                       <th className={headerCellClass}>Template Title</th>
                       <th className={headerCellClass}>Format</th>
+                      <th className={headerCellClass}>Story</th>
                       <th className={headerCellClass}>Featured</th>
                       <th className={headerCellClass}>Actions</th>
                     </tr>
@@ -3108,6 +3139,13 @@ const Admin = () => {
                       <tr key={temp.id}>
                         <td className={rowCellClass}>{temp.title}</td>
                         <td className={`${rowCellClass} capitalize`}>{temp.format}</td>
+                        <td className={rowCellClass}>
+                          {storyTemplateIds.has(temp.id) ? (
+                            <span className="bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">📖 Linked</span>
+                          ) : (
+                            <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">⚠️ No story</span>
+                          )}
+                        </td>
                         <td className={rowCellClass}>
                           {temp.is_featured ? (
                             <span className="text-yellow-500 font-bold">⭐ Featured</span>
@@ -5029,9 +5067,12 @@ const Admin = () => {
               if (cmTplFormat !== "all" && t.format !== cmTplFormat) return false;
               if (cmTplCreator === "admin" && t.creator_id !== user?.uid) return false;
               if (cmTplCreator === "user" && t.creator_id === user?.uid) return false;
+              if (cmTplStory === "linked" && !storyTemplateIds.has(t.id)) return false;
+              if (cmTplStory === "unlinked" && storyTemplateIds.has(t.id)) return false;
               return true;
             });
-            const anyTplFilter = cmTplStatus !== "all" || cmTplFormat !== "all" || cmTplCreator !== "all";
+            const unlinkedCount = templates.filter(t => !storyTemplateIds.has(t.id)).length;
+            const anyTplFilter = cmTplStatus !== "all" || cmTplFormat !== "all" || cmTplCreator !== "all" || cmTplStory !== "all";
             // Selection helpers
             const isAllTplSelected = filtered.length > 0 && filtered.every(t => cmTplSelected.has(t.id));
             const isSomeTplSelected = filtered.some(t => cmTplSelected.has(t.id));
@@ -5039,6 +5080,14 @@ const Admin = () => {
             const toggleAllTpl = () => {
               if (isAllTplSelected) setCmTplSelected(prev => { const n = new Set(prev); filtered.forEach(t => n.delete(t.id)); return n; });
               else setCmTplSelected(prev => { const n = new Set(prev); filtered.forEach(t => n.add(t.id)); return n; });
+            };
+            // One click: switch the view to templates with no linked meme story
+            // (the "unreviewed / not from the Meme Stories pipeline" set) and
+            // pre-select all of them across the whole catalog, ready to review
+            // and bulk-delete below.
+            const selectAllWithoutStory = () => {
+              setCmTplStory("unlinked");
+              setCmTplSelected(new Set(templates.filter(t => !storyTemplateIds.has(t.id)).map(t => t.id)));
             };
             const tplTotalPages = Math.max(1, Math.ceil(filtered.length / 10));
             const tplPage = Math.min(cmTemplatesPage, tplTotalPages);
@@ -5051,6 +5100,20 @@ const Admin = () => {
                 <p className="text-xs text-gray-400 mb-2">
                   Includes pending, approved, and rejected templates. Delete permanently removes the document (unlike Reject in the Moderation tab which only changes status).
                 </p>
+
+                {unlinkedCount > 0 && (
+                  <div className="flex items-center flex-wrap gap-2 mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
+                    <span className="text-[11px] text-amber-800 dark:text-amber-300 font-semibold">
+                      ⚠️ {unlinkedCount} template{unlinkedCount !== 1 ? "s" : ""} {unlinkedCount !== 1 ? "aren't" : "isn't"} linked to a Meme Story — outside the intended contribute-a-story pipeline.
+                    </span>
+                    <button
+                      onClick={selectAllWithoutStory}
+                      className="ml-auto text-[10px] font-bold text-amber-700 dark:text-amber-300 underline hover:no-underline"
+                    >
+                      🧹 Select all {unlinkedCount} without a story
+                    </button>
+                  </div>
+                )}
 
                 {/* Templates filter bar */}
                 <div className="flex flex-wrap gap-2 mb-4 items-center">
@@ -5071,9 +5134,14 @@ const Admin = () => {
                     <option value="admin">Admin-seeded</option>
                     <option value="user">User-submitted</option>
                   </select>
+                  <select value={cmTplStory} onChange={e => setCmTplStory(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
+                    <option value="all">Linked + Unlinked</option>
+                    <option value="linked">📖 Linked to a Story</option>
+                    <option value="unlinked">⚠️ No Story</option>
+                  </select>
                   {anyTplFilter && (
                     <button
-                      onClick={() => { setCmTplStatus("all"); setCmTplFormat("all"); setCmTplCreator("all"); }}
+                      onClick={() => { setCmTplStatus("all"); setCmTplFormat("all"); setCmTplCreator("all"); setCmTplStory("all"); }}
                       className="text-[10px] text-indigo-600 dark:text-indigo-400 underline hover:no-underline"
                     >✕ Clear filters</button>
                   )}
@@ -5114,6 +5182,7 @@ const Admin = () => {
                         <th className={headerCellClass}>Title</th>
                         <th className={headerCellClass}>Format</th>
                         <th className={headerCellClass}>Creator</th>
+                        <th className={headerCellClass}>Story</th>
                         <th className={headerCellClass}>Status</th>
                         <th className={headerCellClass}>Date</th>
                         <th className={headerCellClass}>Actions</th>
@@ -5145,6 +5214,13 @@ const Admin = () => {
                             <span className="font-semibold block max-w-[180px] truncate">{temp.title || "Untitled"}</span>
                           </td>
                           <td className={`${rowCellClass} capitalize`}>{temp.format || "—"}</td>
+                          <td className={rowCellClass}>
+                            {storyTemplateIds.has(temp.id) ? (
+                              <span className="bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">📖 Linked</span>
+                            ) : (
+                              <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">⚠️ No story</span>
+                            )}
+                          </td>
                           <td className={`${rowCellClass} font-mono text-[10px]`}>
                             {temp.creator_id === user?.uid ? (
                               <span className="bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded text-[10px] font-bold">🔐 Admin</span>

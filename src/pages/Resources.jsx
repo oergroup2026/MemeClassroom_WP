@@ -29,7 +29,6 @@ import ActivityContributeModal from "../components/ActivityContributeModal";
 import ContributeResourceModal from "../components/ContributeResourceModal";
 import SlangDecoderTabContent from "../components/SlangDecoderTabContent";
 import FormattedText from "../components/FormattedText";
-import { trackCustomSubmission } from "../utils/taxonomyUtils";
 import { fuzzySearch } from "../utils/searchUtils";
 import TtsSpeakerButton from "../components/TtsSpeakerButton";
 import SmartSearchBar from "../components/SmartSearchBar";
@@ -752,7 +751,6 @@ const Resources = () => {
 
   // ── Modals & UI
   const [showFilters, setShowFilters] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
   const [editingResource, setEditingResource] = useState(null); // null = create mode; resource obj = edit mode
   const [detailResource, setDetailResource] = useState(null);
   const currentResourceDetail = detailResource ? (resources.find(r => r.id === detailResource.id) || detailResource) : null;
@@ -770,28 +768,6 @@ const Resources = () => {
   // ── Universal contribute modal
   const [showContributeModal, setShowContributeModal] = useState(false);
   const [contributeDefaultType, setContributeDefaultType] = useState(null); // null = show type picker
-
-  // ── Upload form state
-  const [uploadTitle, setUploadTitle] = useState("");
-  const [uploadBody, setUploadBody] = useState("");
-  const [uploadType, setUploadType] = useState("article");
-  const [uploadSubject, setUploadSubject] = useState("Biology");
-  const [uploadCustomSubject, setUploadCustomSubject] = useState("");
-  const [uploadGrade, setUploadGrade] = useState("High School (9–10)");
-  const [uploadUrl, setUploadUrl] = useState("");
-  const [uploadFile, setUploadFile] = useState(null);
-  const [uploadPublicationYear, setUploadPublicationYear] = useState("");
-  const [uploadPublisherName, setUploadPublisherName] = useState("");
-  const [uploadThumbnailUrl, setUploadThumbnailUrl] = useState("");
-  const [uploadThumbnailFile, setUploadThumbnailFile] = useState(null);
-  const [uploadKeywords, setUploadKeywords] = useState("");
-  const [uploadLoading, setUploadLoading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
-  // Story-specific upload fields
-  const [uploadUsageContext, setUploadUsageContext] = useState("");
-  const [uploadEducationalUse, setUploadEducationalUse] = useState("");
-  const [uploadExampleImages, setUploadExampleImages] = useState([""]); // array of URL strings
-  const [uploadExampleFiles, setUploadExampleFiles] = useState([]); // array of File objects
 
   // ── External link form state (for "External" tab)
   const [showExternalModal, setShowExternalModal] = useState(false);
@@ -811,53 +787,9 @@ const Resources = () => {
   const [extError, setExtError] = useState("");
 
   // ── Helpers
-  const getTitleLabel = () => {
-    switch (uploadType) {
-      case "stories":
-        return "Template/Meme Name *";
-      case "article":
-        return "Article Title *";
-      case "research_paper":
-        return "Research Paper Title *";
-      case "activity":
-        return "Activity Name *";
-      case "course":
-        return "Course Title *";
-      default:
-        return "Resource Title *";
-    }
-  };
-
-  const getTitlePlaceholder = () => {
-    switch (uploadType) {
-      case "stories":
-        return "e.g. Winnie the Pooh Reading a Paper";
-      case "article":
-        return "e.g. Cognitive Recalls on Meme-based Biology";
-      case "research_paper":
-        return "e.g. Analysis of Meme Pedagogy in Classrooms";
-      case "activity":
-        return "e.g. Mitosis Meme Matching Game";
-      case "course":
-        return "e.g. Introduction to Memetics 101";
-      default:
-        return "e.g. Cognitive Recalls on Meme-based Biology";
-    }
-  };
-
   const showToast = useCallback((message, type = "info") => {
     setToast({ message, type, id: Date.now() });
   }, []);
-
-  const resetUploadForm = () => {
-    setUploadTitle(""); setUploadBody(""); setUploadUrl(""); setUploadFile(null);
-    setUploadPublicationYear(""); setUploadPublisherName(""); setUploadThumbnailUrl("");
-    setUploadThumbnailFile(null); setUploadKeywords(""); setUploadError("");
-    setUploadSubject("Biology"); setUploadCustomSubject(""); setUploadGrade("High School (9–10)");
-    setUploadType("article"); setEditingResource(null);
-    setUploadUsageContext(""); setUploadEducationalUse(""); setUploadExampleImages([""]);
-    setUploadExampleFiles([]);
-  };
 
   // ── URL category sync
   useEffect(() => {
@@ -1317,149 +1249,6 @@ const Resources = () => {
     setShowContributeModal(true);
   };
 
-  const handleResourceSubmit = async (e) => {
-    e.preventDefault();
-    if (!user) { showToast("Please sign in to contribute resources.", "warning"); return; }
-    setUploadLoading(true);
-    setUploadError("");
-
-    const finalSubject = uploadSubject === "Other" ? uploadCustomSubject.trim() : uploadSubject;
-    if (uploadType !== "stories" && !finalSubject) { setUploadError("Please specify a subject."); setUploadLoading(false); return; }
-
-    let fileUrl = editingResource ? (editingResource.file_url || "") : uploadUrl;
-    if (!editingResource) fileUrl = uploadUrl;
-    let thumbnailUrl = editingResource ? (editingResource.thumbnail_url || "") : "";
-
-    try {
-      if (uploadFile) {
-        const storageRef = ref(storage, `resources/${user.uid}_res_${Date.now()}`);
-        const snapshot = await uploadBytes(storageRef, uploadFile);
-        fileUrl = await getDownloadURL(snapshot.ref);
-      }
-      if (uploadThumbnailFile) {
-        const thumbRef = ref(storage, `resources/thumb_${user.uid}_${Date.now()}`);
-        const snapshot = await uploadBytes(thumbRef, uploadThumbnailFile);
-        thumbnailUrl = await getDownloadURL(snapshot.ref);
-      } else if (!thumbnailUrl && uploadFile && uploadFile.type.startsWith("image/")) {
-        // Auto-use the uploaded image as thumbnail if no separate thumbnail provided
-        thumbnailUrl = fileUrl;
-      }
-
-      let extraExampleUrls = [];
-      if (uploadType === "stories" && uploadExampleFiles.length > 0) {
-        for (let i = 0; i < uploadExampleFiles.length; i++) {
-          const file = uploadExampleFiles[i];
-          if (file) {
-            const exRef = ref(storage, `resources/examples_${user.uid}_${Date.now()}_${i}`);
-            const exSnap = await uploadBytes(exRef, file);
-            const exUrl = await getDownloadURL(exSnap.ref);
-            extraExampleUrls.push(exUrl);
-          }
-        }
-      }
-      const finalExampleImages = [
-        ...uploadExampleImages.map((u) => u.trim()).filter(Boolean),
-        ...extraExampleUrls,
-      ];
-
-      const parsedKeywords = (uploadType === "stories" || !uploadKeywords)
-        ? []
-        : uploadKeywords.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
-
-      if (editingResource) {
-        // ── EDIT MODE
-        const wasApproved = editingResource.admin_approved === true;
-        const isAdmin = profile?.role === "admin";
-
-        const finalSubject = uploadType === "stories" ? "" : (uploadSubject === "Other" ? uploadCustomSubject.trim() : uploadSubject);
-        const finalGrade = uploadType === "stories" ? "" : uploadGrade;
-
-        const updatedData = {
-          title: uploadTitle.trim(),
-          body: uploadBody,
-          type: uploadType,
-          subject: finalSubject,
-          grade_group: finalGrade,
-          file_url: fileUrl || editingResource.file_url || "",
-          thumbnail_url: thumbnailUrl || editingResource.thumbnail_url || "",
-          keywords: parsedKeywords,
-          updated_at: serverTimestamp()
-        };
-        if (uploadType === "article" || uploadType === "research_paper") {
-          updatedData.publication_year = uploadPublicationYear;
-          updatedData.publisher_name = uploadPublisherName;
-        }
-        if (uploadType === "stories") {
-          updatedData.meme_name = uploadTitle.trim();
-          updatedData.usage_context = uploadUsageContext.trim();
-          updatedData.educational_use = uploadEducationalUse.trim();
-          updatedData.example_images = finalExampleImages;
-        }
-
-        await updateDoc(doc(db, "resources", editingResource.id), updatedData);
-        showToast(wasApproved && !isAdmin
-          ? "Resource updated! It will be re-reviewed by admin before approval badge is removed."
-          : "Resource updated successfully.",
-          "success"
-        );
-      } else {
-        // ── CREATE MODE — go live immediately, pending admin approval badge
-        const resColRef = collection(db, "resources");
-        const statsDocRef = doc(db, "user_stats", user.uid);
-
-        await runTransaction(db, async (transaction) => {
-          const statsSnap = await transaction.get(statsDocRef);
-          const newDocRef = doc(resColRef);
-          const resourceData = {
-            title: uploadTitle.trim(),
-            body: uploadBody,
-            type: uploadType,
-            subject: uploadType === "stories" ? "" : finalSubject,
-            grade_group: uploadType === "stories" ? "" : uploadGrade,
-            file_url: fileUrl,
-            thumbnail_url: thumbnailUrl,
-            keywords: parsedKeywords,
-            likes_count: 0,
-            flag_count: 0,
-            view_count: 0,
-            author_id: user.uid,
-            status: "live",
-            admin_approved: false,
-            created_at: serverTimestamp()
-          };
-          if (uploadType === "article" || uploadType === "research_paper") {
-            resourceData.publication_year = uploadPublicationYear;
-            resourceData.publisher_name = uploadPublisherName;
-          }
-          if (uploadType === "stories") {
-            resourceData.meme_name = uploadTitle.trim();
-            resourceData.usage_context = uploadUsageContext.trim();
-            resourceData.educational_use = uploadEducationalUse.trim();
-            resourceData.example_images = finalExampleImages;
-          }
-          transaction.set(newDocRef, resourceData);
-          if (statsSnap.exists()) {
-            transaction.update(statsDocRef, { resources_contributed_count: increment(1) });
-          } else {
-            transaction.set(statsDocRef, { resources_contributed_count: 1 }, { merge: true });
-          }
-        });
-        showToast("Resource published! It's live and pending admin review.", "success");
-      }
-
-      if (uploadSubject === "Other" && uploadCustomSubject.trim()) {
-        trackCustomSubmission("subject", uploadCustomSubject.trim());
-      }
-
-      setShowUploadModal(false);
-      resetUploadForm();
-    } catch (err) {
-      console.error(err);
-      setUploadError("Submission failed. Please check your connection and try again.");
-    } finally {
-      setUploadLoading(false);
-    }
-  };
 
   // External link submit
   const handleExternalSubmit = async (e) => {
