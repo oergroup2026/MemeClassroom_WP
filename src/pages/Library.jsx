@@ -18,11 +18,18 @@ import {
   deleteDoc,
   serverTimestamp,
   increment,
-  runTransaction
+  runTransaction,
+  limit
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { checkUpload } from "../utils/uploadLimits";
 import { db, storage } from "../firebase";
+
+// Memes fetched per page. Large enough that a typical library is fully loaded
+// in one go — so search and the sidebar filters, which run over the loaded
+// list, behave exactly as before — while still bounding the cost once the
+// collection grows.
+const MEME_PAGE_SIZE = 60;
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
@@ -92,6 +99,12 @@ const Library = () => {
   // Memes list & filtering state
   const [memes, setMemes] = useState([]);
   const [filteredMemes, setFilteredMemes] = useState([]);
+  // How many memes the live listener currently subscribes to. Firestore bills
+  // per document read, and this listener previously fetched EVERY public meme
+  // on every visit, for every visitor. The window grows only when the reader
+  // asks for more, so nothing already on screen is ever removed.
+  const [memeWindow, setMemeWindow] = useState(MEME_PAGE_SIZE);
+  const [hasMoreMemes, setHasMoreMemes] = useState(false);
   const [userCache, setUserCache] = useState({});
 
   // Sidebar Filter Options
@@ -343,7 +356,12 @@ const Library = () => {
   useEffect(() => {
     const memesCol = collection(db, "memes");
     // Show only public, unflagged memes, sorted newest first
-    const q = query(memesCol, where("visibility", "==", "public"), orderBy("created_at", "desc"));
+    const q = query(
+      memesCol,
+      where("visibility", "==", "public"),
+      orderBy("created_at", "desc"),
+      limit(memeWindow)
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const memeList = [];
@@ -353,12 +371,14 @@ const Library = () => {
 
       setMemes(memeList);
       setFilteredMemes(memeList);
+      // A full page back means there is probably another page behind it.
+      setHasMoreMemes(memeList.length === memeWindow);
     }, (error) => {
       console.error("Firestore listening failed", error);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [memeWindow]);
 
   // Real-time Ratings Subscription (to compute card-level averages on client)
   useEffect(() => {
@@ -1784,6 +1804,25 @@ const Library = () => {
               <div className="flex justify-center text-gray-400 mb-3"><Flag className="w-12 h-12" /></div>
               <h3 className="text-lg font-extrabold text-gray-900 dark:text-white mb-2">No matching memes found</h3>
               <p className="text-xs text-gray-400">Try broadening your subject tags, grade or format choices.</p>
+            </div>
+          )}
+
+          {/* Older memes are fetched only when asked for. Search and the
+              sidebar filters run over what is loaded, so loading more also
+              widens what they cover. */}
+          {hasMoreMemes && (
+            <div className="flex flex-col items-center gap-1.5 pt-2">
+              <button
+                id="library-load-more"
+                type="button"
+                onClick={() => setMemeWindow((n) => n + MEME_PAGE_SIZE)}
+                className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition active:scale-95"
+              >
+                Load more memes
+              </button>
+              <p className="text-[10px] text-gray-400">
+                Showing the {memes.length} most recent · loading more also widens search
+              </p>
             </div>
           )}
 

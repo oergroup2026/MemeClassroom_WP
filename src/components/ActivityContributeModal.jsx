@@ -94,7 +94,11 @@ const InternalSearchPicker = ({ type, onSelect, onClose }) => {
         ).slice(0, 8));
       } else {
         // Search resources collection
-        const snap = await getDocs(collection(db, "resources"));
+        // Bounded like the meme branch above. This previously read EVERY
+        // resource document on every keystroke-triggered search, purely to
+        // filter them down to 8 in the browser. The client-side type filter
+        // below discards some, so the cap is set well above the 8 shown.
+        const snap = await getDocs(query(collection(db, "resources"), limit(50)));
         const all = [];
         snap.forEach(d => {
           const data = d.data();
