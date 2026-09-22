@@ -4429,7 +4429,7 @@ const Admin = () => {
                     setCmMemeVisibility("all"); setCmMemeFormat("all"); setCmMemeCreator("all"); setCmMemeSelected(new Set());
                     setCmResStatus("all"); setCmResType("all"); setCmResCreator("all"); setCmResSelected(new Set());
                     setCmPostVisibility("all"); setCmPostType("all"); setCmPostCreator("all"); setCmPostSelected(new Set());
-                    setCmTplStatus("all"); setCmTplFormat("all"); setCmTplCreator("all"); setCmTplSelected(new Set());
+                    setCmTplStatus("all"); setCmTplFormat("all"); setCmTplCreator("all"); setCmTplStory("all"); setCmTplSelected(new Set());
                   }}
                   className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${contentManagerTab === st.id
                       ? "bg-indigo-600 text-white shadow-sm"
