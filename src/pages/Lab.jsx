@@ -3727,6 +3727,21 @@ const Lab = () => {
                     </span>
                   </div>
 
+                  {/* Meme Story info icon — every template here has a linked story */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMemeStoryModal({ open: true, story: null, template: tpl, loading: true });
+                      fetchStoryForTemplate(tpl.id);
+                    }}
+                    className="absolute top-1 right-1 z-20 w-5 h-5 flex items-center justify-center rounded-full bg-black/65 hover:bg-amber-500 text-white text-[10px] font-bold shadow transition"
+                    title="Explore this meme's story"
+                    aria-label="Explore this meme's story"
+                  >
+                    ⓘ
+                  </button>
+
                   {/* Bottom Title Bar */}
                   <div className="absolute inset-x-0 bottom-0 p-1 z-10">
                     <span className="text-[9px] font-bold text-white truncate block w-full leading-tight drop-shadow-sm">

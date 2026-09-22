@@ -3,13 +3,14 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 import { SUBJECTS } from "../constants/taxonomy";
 import { fuzzySearch } from "../utils/searchUtils";
-import { fetchStoryTemplateIds } from "../utils/storyTemplates";
+import { fetchStoryTemplateIds, fetchTemplateStoryIds } from "../utils/storyTemplates";
 
 const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => {
   const [memes, setMemes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
+  const [storyIdByTemplate, setStoryIdByTemplate] = useState(new Map());
 
   useEffect(() => {
     if (!isOpen) return;
@@ -22,7 +23,11 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => 
 
         // Only approved templates that have a meme story are offered
         try {
-          const storyIds = await fetchStoryTemplateIds();
+          const [storyIds, storyIdMap] = await Promise.all([
+            fetchStoryTemplateIds(),
+            fetchTemplateStoryIds(),
+          ]);
+          if (isMounted) setStoryIdByTemplate(storyIdMap);
           const snapTemplates = await getDocs(
             query(collection(db, "templates"), where("status", "==", "approved"))
           );
@@ -131,14 +136,22 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => 
         ) : filteredMemes.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {filteredMemes.map((item) => (
-              <button
+              <div
                 key={item.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => {
                   onSelect(item.media_url, item);
                   onClose();
                 }}
-                className="flex flex-col items-start p-2 border border-gray-200 dark:border-zinc-800 rounded-xl hover:border-rose-500 hover:bg-rose-50/10 transition text-left w-full bg-white dark:bg-zinc-900 shadow-xs overflow-hidden group active:scale-95"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect(item.media_url, item);
+                    onClose();
+                  }
+                }}
+                className="flex flex-col items-start p-2 border border-gray-200 dark:border-zinc-800 rounded-xl hover:border-rose-500 hover:bg-rose-50/10 transition text-left w-full bg-white dark:bg-zinc-900 shadow-xs overflow-hidden group active:scale-95 cursor-pointer"
               >
                 <div className="w-full aspect-video bg-black/10 dark:bg-black/50 rounded-lg overflow-hidden flex items-center justify-center mb-1.5 relative">
                   <img 
@@ -147,9 +160,22 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => 
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
                   />
                   {item.isTemplate && (
-                    <span className="absolute top-1 right-1 bg-black/60 text-white text-[8px] font-bold px-1.5 py-0.5 rounded">
+                    <span className="absolute top-1 left-1 bg-black/60 text-white text-[8px] font-bold px-1.5 py-0.5 rounded">
                       Template
                     </span>
+                  )}
+                  {storyIdByTemplate.has(item.id) && (
+                    <a
+                      href={`/resources/story/${storyIdByTemplate.get(item.id)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-black/60 hover:bg-rose-500 text-white text-[10px] font-bold shadow transition"
+                      title="Explore this meme's story"
+                      aria-label="Explore this meme's story"
+                    >
+                      ⓘ
+                    </a>
                   )}
                 </div>
                 <div className="w-full px-0.5">
@@ -160,7 +186,7 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => 
                     {item.title}
                   </span>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         ) : (

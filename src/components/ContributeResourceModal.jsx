@@ -576,6 +576,10 @@ export default function ContributeResourceModal({
     if (!user) { setError("Please sign in to contribute."); return; }
     if (!form.title.trim()) { setError("Title is required."); return; }
     if (!form.body.trim()) { setError("Description is required."); return; }
+    if (selectedType === "stories" && !form.file && !editingResource?.file_url) {
+      setError("Please attach a template image.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -608,6 +612,28 @@ export default function ContributeResourceModal({
         }
       }
 
+      // A Meme Story's attached image doubles as a Lab template. Create the
+      // linked `templates` doc here (or, when editing a story that predates
+      // this pairing, backfill it) so the story actually surfaces in the Lab
+      // — mirrors the Lab's own "contribute template + story" pipeline, just
+      // starting from the story side instead.
+      let storyTemplateId = editingResource?.template_id || null;
+      if (selectedType === "stories" && !storyTemplateId && fileUrl) {
+        let detectedFormat = "image";
+        if (form.file?.type?.startsWith("video/")) detectedFormat = "video";
+        else if (form.file?.type === "image/gif") detectedFormat = "gif";
+        const templateDocRef = await addDoc(collection(db, "templates"), {
+          title: form.title.trim(),
+          creator_id: user.uid,
+          media_url: fileUrl,
+          format: detectedFormat,
+          is_admin_preset: false,
+          status: "pending",
+          created_at: serverTimestamp(),
+        });
+        storyTemplateId = templateDocRef.id;
+      }
+
       const finalSubject = form.subject === "Other" ? form.customSubject.trim() : form.subject;
       const parsedKeywords = form.keywords
         ? form.keywords.split(",").map(k => k.trim().toLowerCase()).filter(Boolean)
@@ -636,6 +662,7 @@ export default function ContributeResourceModal({
         baseData.usage_context = form.usageContext.trim();
         baseData.educational_use = form.educationalUse.trim();
         baseData.example_images = exampleUrls;
+        baseData.template_id = storyTemplateId || "";
       }
 
       if (editingResource) {
@@ -790,6 +817,9 @@ export default function ContributeResourceModal({
           <div className="px-6 py-4 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between gap-3 flex-shrink-0">
             <div className="flex-1">
               <p className="text-[10px] text-gray-400">⏳ Will be posted live with a "Pending Approval" badge</p>
+              {selectedType === "stories" && !editingResource?.template_id && (
+                <p className="text-[10px] text-amber-600 dark:text-amber-400">🎨 Its template image will appear in the Meme Lab once an admin approves it.</p>
+              )}
               <p className="text-[10px] text-purple-600/80 dark:text-purple-400/80 font-medium">📚 Shared under Creative Commons CC BY-NC-SA 4.0 for non-commercial educational instruction.</p>
             </div>
             <div className="flex items-center gap-2">
