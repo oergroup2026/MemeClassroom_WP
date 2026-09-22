@@ -52,5 +52,15 @@ jobs:
       # Note: --force also means functions removed from functions/index.js are
       # deleted without a confirmation prompt. That is what we want from CI,
       # where the source is the single source of truth.
-      - name: Deploy Firestore rules, indexes, Storage rules and Cloud Functions
-        run: npx -y firebase-tools deploy --only firestore:rules,firestore:indexes,storage,functions --project memeclassroom-98d2b --force
+      # Rules and indexes deploy FIRST, in their own step. They are the security
+      # boundary and have no external dependencies, so they must not be held
+      # hostage by the functions half. A Storage-triggered function needs a
+      # one-time project-owner IAM grant (Pub/Sub Publisher for the Cloud
+      # Storage service agent); until that exists the functions deploy aborts
+      # during preparation — which previously happened BEFORE the rules were
+      # released, so a rules change silently failed to go live.
+      - name: Deploy Firestore rules, indexes and Storage rules
+        run: npx -y firebase-tools deploy --only firestore:rules,firestore:indexes,storage --project memeclassroom-98d2b --force
+
+      - name: Deploy Cloud Functions
+        run: npx -y firebase-tools deploy --only functions --project memeclassroom-98d2b --force
