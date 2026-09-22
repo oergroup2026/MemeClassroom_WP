@@ -25,6 +25,7 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { checkUpload } from "../utils/uploadLimits";
+import { describeWriteError } from "../utils/writeErrors";
 import { db, storage } from "../firebase";
 
 // Threads fetched per page. This feed also opens a reply listener PER thread,
@@ -723,7 +724,7 @@ const Staffroom = () => {
       toast("Thread published successfully!", "success");
     } catch (err) {
       console.error(err);
-      setComposeError("Failed to publish thread.");
+      setComposeError(describeWriteError(err, "Failed to publish thread."));
       setAttachmentUploading(false);
     } finally {
       setComposeLoading(false);
@@ -749,7 +750,7 @@ const Staffroom = () => {
       toast("Reply posted!", "success");
     } catch (e) {
       console.error("Reply failed", e);
-      toast("Failed to post reply. Try again.", "error");
+      toast(describeWriteError(e, "Failed to post reply. Try again."), "error");
     }
   };
 

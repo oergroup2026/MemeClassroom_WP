@@ -32,11 +32,13 @@
 
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onObjectFinalized } = require("firebase-functions/v2/storage");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const Parser = require("rss-parser");
 const Sentry = require("@sentry/node");
 const { TRUSTED_NEWS_DOMAINS, DEFAULT_NEWSPAPER_SOURCES } = require("./newspaperConfig");
+const { LIMITS, FRIENDLY, uidFromObjectName, newWindow, windowExpired, WINDOW_HOURS } = require("./rateLimits");
 
 // No-op until SENTRY_DSN is set (functions/.env, see functions/.env.example) —
 // captureException() below is safe to call either way.
@@ -868,3 +870,109 @@ exports.backfillUserCards = onSchedule(
     }
   }
 );
+
+
+// ─── Per-user rate limiting ─────────────────────────────────────────────────
+//
+// See functions/rateLimits.js for the reasoning. In short: /user_quotas/{uid}
+// is written only here, never by a client, so firestore.rules and storage.rules
+// can trust it and refuse further writes once someone is over their daily cap.
+
+/** True when this uid belongs to an admin, who is never rate limited. */
+async function isAdminUid(uid) {
+  try {
+    const snap = await db.collection("users").doc(uid).get();
+    return snap.exists && snap.data()?.role === "admin";
+  } catch (e) {
+    console.error(`Could not check admin status for ${uid}`, e);
+    return false; // fail closed: treat as a normal user and still count them
+  }
+}
+
+/**
+ * Add `amount` to one counter on a user's quota document, rolling the window
+ * over when it has expired, and block the user once any counter is over.
+ *
+ * Runs in a transaction so concurrent uploads cannot each read a stale count.
+ * Returns the counter's new value, or null when nothing was counted.
+ */
+async function bumpQuota(uid, counters) {
+  if (!uid) return null;
+
+  const ref = db.collection("user_quotas").doc(uid);
+  const now = new Date();
+
+  const result = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists ? snap.data() : null;
+    const base = !data || windowExpired(data, now) ? newWindow(now) : { ...data };
+
+    for (const [key, amount] of Object.entries(counters)) {
+      base[key] = (base[key] || 0) + amount;
+    }
+
+    // Which caps, if any, has this user now passed?
+    const exceeded = Object.keys(LIMITS).filter((key) => (base[key] || 0) > LIMITS[key]);
+
+    if (exceeded.length > 0) {
+      const windowStart = base.window_start instanceof Date ? base.window_start : base.window_start.toDate();
+      base.blocked_until = new Date(windowStart.getTime() + WINDOW_HOURS * 60 * 60 * 1000);
+      base.block_reason = FRIENDLY[exceeded[0]] || exceeded[0];
+    } else if (!base.blocked_until) {
+      // Always present, so the rules can compare it without an exists() check.
+      base.blocked_until = new Date(0);
+      base.block_reason = "";
+    }
+
+    tx.set(ref, base, { merge: true });
+    return { exceeded, counts: base };
+  });
+
+  if (result.exceeded.length > 0) {
+    // Admins are exempt; undo the block if we just set one on an admin.
+    if (await isAdminUid(uid)) {
+      await ref.set({ blocked_until: new Date(0), block_reason: "" }, { merge: true });
+      return result;
+    }
+    console.warn(`Rate limit hit by ${uid}: ${result.exceeded.join(", ")}`);
+  }
+  return result;
+}
+
+// Count every uploaded file and its size. Storage is the expensive resource, so
+// this is the counter that actually protects the bill. Objects whose uploader
+// cannot be determined (admin-seeded seed_*/admin_* names) are skipped.
+exports.trackUploadQuota = onObjectFinalized(async (event) => {
+  const name = event.data?.name;
+  const size = Number(event.data?.size || 0);
+  const uid = uidFromObjectName(name);
+  if (!uid) return;
+
+  try {
+    await bumpQuota(uid, { uploads: 1, bytes: size });
+  } catch (e) {
+    console.error(`Failed to record upload quota for ${uid} (${name})`, e);
+    Sentry.captureException(e);
+  }
+});
+
+/** Shared handler for the content-creation counters. */
+function countContentCreate(collection, field) {
+  return onDocumentCreated(`${collection}/{docId}`, async (event) => {
+    const data = event.data?.data();
+    const uid = data?.creator_id || data?.author_id || data?.user_id;
+    if (!uid) return;
+
+    try {
+      await bumpQuota(uid, { [field]: 1 });
+    } catch (e) {
+      console.error(`Failed to record ${field} quota for ${uid}`, e);
+      Sentry.captureException(e);
+    }
+  });
+}
+
+exports.trackMemeQuota = countContentCreate("memes", "memes");
+exports.trackStaffroomQuota = countContentCreate("staffroom_posts", "staffroom_posts");
+exports.trackCommentQuota = countContentCreate("comments", "comments");
+exports.trackResourceQuota = countContentCreate("resources", "resources");

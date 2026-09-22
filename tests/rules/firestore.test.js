@@ -276,3 +276,96 @@ describe("private data stays private", () => {
     await assertSucceeds(getDoc(doc(alice, `private_contacts/${ALICE}`)));
   });
 });
+
+describe("daily rate limits", () => {
+  const past = new Date(Date.now() - 60 * 60 * 1000);     // an hour ago
+  const future = new Date(Date.now() + 60 * 60 * 1000);   // an hour from now
+
+  async function setQuota(uid, blockedUntil) {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc(`user_quotas/${uid}`).set({
+        window_start: past,
+        memes: 1,
+        blocked_until: blockedUntil,
+        block_reason: blockedUntil > new Date() ? "daily meme limit" : "",
+      });
+    });
+  }
+
+  it("lets a user with no quota document create content", async () => {
+    await assertSucceeds(setDoc(doc(alice, "memes/rl0"), { creator_id: ALICE, visibility: "public" }));
+  });
+
+  it("lets a user under their limit create content", async () => {
+    await setQuota(ALICE, new Date(0));
+    await assertSucceeds(setDoc(doc(alice, "memes/rl1"), { creator_id: ALICE, visibility: "public" }));
+  });
+
+  it("stops a rate-limited user creating a meme", async () => {
+    await setQuota(ALICE, future);
+    await assertFails(setDoc(doc(alice, "memes/rl2"), { creator_id: ALICE, visibility: "public" }));
+  });
+
+  it("stops a rate-limited user posting in the Staffroom", async () => {
+    await setQuota(ALICE, future);
+    await assertFails(setDoc(doc(alice, "staffroom_posts/rl3"), { author_id: ALICE, title: "t", body: "b" }));
+  });
+
+  it("stops a rate-limited user commenting", async () => {
+    await setQuota(ALICE, future);
+    await assertFails(setDoc(doc(alice, "comments/rl4"), { user_id: ALICE, meme_id: "m", text: "x" }));
+  });
+
+  it("stops a rate-limited user contributing a resource", async () => {
+    await setQuota(ALICE, future);
+    await assertFails(setDoc(doc(alice, "resources/rl5"), { author_id: ALICE, admin_approved: false, title: "r" }));
+  });
+
+  it("lets the user create again once the block has expired", async () => {
+    await setQuota(ALICE, past);
+    await assertSucceeds(setDoc(doc(alice, "memes/rl6"), { creator_id: ALICE, visibility: "public" }));
+  });
+
+  it("does not limit one user because another is blocked", async () => {
+    await setQuota(ALICE, future);
+    await assertSucceeds(setDoc(doc(bob, "memes/rl7"), { creator_id: BOB, visibility: "public" }));
+  });
+
+  it("still lets a blocked user read and edit what they already posted", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc("memes/owned").set({ creator_id: ALICE, visibility: "public", title: "t", flag_count: 0 });
+    });
+    await setQuota(ALICE, future);
+    await assertSucceeds(updateDoc(doc(alice, "memes/owned"), { title: "renamed" }));
+  });
+});
+
+describe("quota documents cannot be tampered with", () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc(`user_quotas/${ALICE}`).set({
+        window_start: new Date(), memes: 99, blocked_until: new Date(Date.now() + 3600000), block_reason: "daily meme limit",
+      });
+    });
+  });
+
+  it("lets a user read their own quota, so the app can explain the block", async () => {
+    await assertSucceeds(getDoc(doc(alice, `user_quotas/${ALICE}`)));
+  });
+
+  it("stops a user lifting their own block", async () => {
+    await assertFails(updateDoc(doc(alice, `user_quotas/${ALICE}`), { blocked_until: new Date(0) }));
+  });
+
+  it("stops a user resetting their own counters", async () => {
+    await assertFails(setDoc(doc(alice, `user_quotas/${ALICE}`), { memes: 0, blocked_until: new Date(0) }));
+  });
+
+  it("stops another user reading it", async () => {
+    await assertFails(getDoc(doc(bob, `user_quotas/${ALICE}`)));
+  });
+
+  it("stops even an admin writing it, since only Cloud Functions may", async () => {
+    await assertFails(updateDoc(doc(admin, `user_quotas/${ALICE}`), { blocked_until: new Date(0) }));
+  });
+});
