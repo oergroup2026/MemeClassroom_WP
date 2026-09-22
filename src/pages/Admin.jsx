@@ -2493,9 +2493,13 @@ const Admin = () => {
 
       {/* TAB CONTENT A: SYSTEM ANALYTICS */}
       {activeTab === "analytics" && (
+        // memes is filtered to visibility === "public" so this dashboard's
+        // counts match what the public Library actually shows — otherwise
+        // auto-saved drafts (Lab autosaves every 30s while editing) and
+        // hidden memes inflate "Memes Created" and the subject/format charts.
         <AdminAnalyticsDashboard
           users={users}
-          memes={memes}
+          memes={memes.filter(m => m.visibility === "public")}
           resources={resources}
           literacyTests={literacyTests}
         />
@@ -4429,7 +4433,7 @@ const Admin = () => {
                     setCmMemeVisibility("all"); setCmMemeFormat("all"); setCmMemeCreator("all"); setCmMemeSelected(new Set());
                     setCmResStatus("all"); setCmResType("all"); setCmResCreator("all"); setCmResSelected(new Set());
                     setCmPostVisibility("all"); setCmPostType("all"); setCmPostCreator("all"); setCmPostSelected(new Set());
-                    setCmTplStatus("all"); setCmTplFormat("all"); setCmTplCreator("all"); setCmTplSelected(new Set());
+                    setCmTplStatus("all"); setCmTplFormat("all"); setCmTplCreator("all"); setCmTplStory("all"); setCmTplSelected(new Set());
                   }}
                   className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${contentManagerTab === st.id
                       ? "bg-indigo-600 text-white shadow-sm"
@@ -4490,20 +4494,40 @@ const Admin = () => {
             const memesTotalPages = Math.max(1, Math.ceil(filtered.length / 10));
             const memesPage = Math.min(cmMemesPage, memesTotalPages);
             const pageItems = filtered.slice((memesPage - 1) * 10, memesPage * 10);
+            const draftCount = memes.filter(m => m.visibility === "draft").length;
+            const selectAllDrafts = () => {
+              setCmMemeVisibility("draft");
+              setCmMemeSelected(new Set(memes.filter(m => m.visibility === "draft").map(m => m.id)));
+            };
             return (
               <div className={`p-6 ${containerClass}`}>
                 <h3 className="text-sm font-extrabold mb-1 border-b pb-2 uppercase text-indigo-600 dark:text-indigo-400">
                   All Memes — Full Catalog ({filtered.length} of {memes.length})
                 </h3>
                 <p className="text-xs text-gray-400 mb-2">
-                  Includes public, flagged-hidden, and admin-hidden memes. Hide suppresses from Library feed; Delete is permanent.
+                  Includes public, draft, flagged-hidden, and admin-hidden memes. Hide suppresses from Library feed; Delete is permanent.
                 </p>
+
+                {draftCount > 0 && (
+                  <div className="flex items-center flex-wrap gap-2 mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
+                    <span className="text-[11px] text-amber-800 dark:text-amber-300 font-semibold">
+                      📝 {draftCount} unpublished draft{draftCount !== 1 ? "s" : ""} — auto-saved by the Lab every 30s while editing, never shown in the public Library.
+                    </span>
+                    <button
+                      onClick={selectAllDrafts}
+                      className="ml-auto text-[10px] font-bold text-amber-700 dark:text-amber-300 underline hover:no-underline"
+                    >
+                      🧹 Select all {draftCount} drafts
+                    </button>
+                  </div>
+                )}
 
                 {/* Memes filter bar */}
                 <div className="flex flex-wrap gap-2 mb-4 items-center">
                   <select value={cmMemeVisibility} onChange={e => setCmMemeVisibility(e.target.value)} className={`${inputClass} !py-1 !text-[11px] w-auto`}>
                     <option value="all">All Visibility</option>
                     <option value="public">✅ Public</option>
+                    <option value="draft">📝 Draft</option>
                     <option value="flagged_hidden">🏳️ Flagged</option>
                     <option value="admin_hidden">🚫 Admin Hidden</option>
                   </select>
@@ -4605,6 +4629,8 @@ const Admin = () => {
                               <span className="bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-300 px-2 py-0.5 rounded text-[10px] font-bold">🚫 Admin Hidden</span>
                             ) : meme.visibility === "flagged_hidden" ? (
                               <span className="bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded text-[10px] font-bold">🏳️ Flagged</span>
+                            ) : meme.visibility === "draft" ? (
+                              <span className="bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded text-[10px] font-bold">📝 Draft</span>
                             ) : (
                               <span className="bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded text-[10px] font-bold">✅ Public</span>
                             )}
