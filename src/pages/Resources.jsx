@@ -1249,6 +1249,29 @@ const Resources = () => {
     setShowContributeModal(true);
   };
 
+  // Shared "Contribute" entry point — used by the corner button on the tile
+  // landing screen and on every category page, plus the empty-state CTA.
+  // Routes to the type-specific modal for tabs that have one (activity,
+  // additional/external), or the universal modal for everything else.
+  // "article_paper" combines two TYPE_CONFIG entries (article + research_paper)
+  // so it has no single matching type — fall through to the picker for it.
+  const CONTRIBUTE_TAB_TO_TYPE = { course: "course", stories: "stories" };
+  const handleContributeClick = (tab) => {
+    if (!user) { navigate("/auth"); return; }
+    if (tab === "activity") {
+      setEditingActivity(null);
+      setShowActivityModal(true);
+      return;
+    }
+    if (tab === "additional") {
+      setShowExternalModal(true);
+      return;
+    }
+    setContributeDefaultType(CONTRIBUTE_TAB_TO_TYPE[tab] || null);
+    setEditingResource(null);
+    setShowContributeModal(true);
+  };
+
 
   // External link submit
   const handleExternalSubmit = async (e) => {
@@ -1580,8 +1603,14 @@ const Resources = () => {
         {activeTab === null ? (
           // ── TILE LANDING SCREEN ────────────────────────────────────────────────
           <div className="space-y-8">
-            <div className="border-b border-gray-200 dark:border-gray-800 pb-5">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-5">
               <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">Meme Resources</h1>
+              <button
+                onClick={() => handleContributeClick(null)}
+                className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border-2 border-[#E0115F] text-[#E0115F] hover:bg-[#E0115F] hover:text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-sm self-start sm:self-auto"
+              >
+                <Plus className="w-4 h-4" /> Contribute a Resource
+              </button>
             </div>
 
             {/* Tile Grid */}
@@ -1620,25 +1649,6 @@ const Resources = () => {
                   <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed line-clamp-2">Meme culture in the news — for classroom discussion</p>
                 </div>
               </button>
-
-              {/* Contribute Tile */}
-              <button
-                onClick={() => {
-                  if (!user) { navigate("/auth"); return; }
-                  setContributeDefaultType(null);
-                  setEditingResource(null);
-                  setShowContributeModal(true);
-                }}
-                className="group relative flex flex-col items-start gap-3 p-5 rounded-2xl bg-white dark:bg-zinc-900/80 border border-dashed border-[#E0115F]/40 hover:border-[#E0115F] shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left hover:bg-[#E0115F]/5 w-full"
-              >
-                <div className="p-2.5 rounded-xl bg-[#E0115F]/10 text-[#E0115F] transition-colors">
-                  <Plus className="w-6 h-6" strokeWidth={1.75} />
-                </div>
-                <div className="flex-1">
-                  <p className="font-extrabold text-sm text-gray-900 dark:text-white leading-snug">Contribute a Resource</p>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">Share articles, activities, courses, stories & more</p>
-                </div>
-              </button>
             </div>
           </div>
         ) : (
@@ -1651,9 +1661,17 @@ const Resources = () => {
               <ChevronLeft className="w-4 h-4" />
               Back to Resources
             </button>
-            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-              {activeTileLabel}
-            </h1>
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+              <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">
+                {activeTileLabel}
+              </h1>
+              <button
+                onClick={() => handleContributeClick(activeTab)}
+                className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border-2 border-[#E0115F] text-[#E0115F] hover:bg-[#E0115F] hover:text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-sm self-start sm:self-auto"
+              >
+                <Plus className="w-4 h-4" /> Contribute a Resource
+              </button>
+            </div>
           </div>
         )}
 
@@ -2400,32 +2418,12 @@ const Resources = () => {
                         Clear All Filters
                       </button>
                     )}
-                    {user ? (
-                      <button
-                        onClick={() => {
-                          if (activeTab === "activity") {
-                            setEditingActivity(null);
-                            setShowActivityModal(true);
-                          } else if (activeTab === "additional") {
-                            setShowExternalModal(true);
-                          } else {
-                            setContributeDefaultType(activeTab !== "all" ? activeTab : null);
-                            setEditingResource(null);
-                            setShowContributeModal(true);
-                          }
-                        }}
-                        className="border border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 text-xs font-bold px-4 py-2 rounded-xl transition"
-                      >
-                        Be the first to contribute →
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => navigate("/auth")}
-                        className="border border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 text-xs font-bold px-4 py-2 rounded-xl transition inline-block"
-                      >
-                        Be the first to contribute →
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleContributeClick(activeTab)}
+                      className="border border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 text-xs font-bold px-4 py-2 rounded-xl transition"
+                    >
+                      Be the first to contribute →
+                    </button>
                   </div>
                 </div>
               )}
