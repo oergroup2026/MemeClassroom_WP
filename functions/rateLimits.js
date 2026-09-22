@@ -22,13 +22,13 @@ const WINDOW_HOURS = 24;
 
 const LIMITS = {
   // Storage
-  uploads: 60,                     // files per day
-  bytes: 500 * 1024 * 1024,        // 500MB per day
+  uploads: 30,                     // files per day
+  bytes: 250 * 1024 * 1024,        // 250MB per day
   // Firestore content
-  memes: 50,
-  staffroom_posts: 30,
-  comments: 150,
-  resources: 25,
+  memes: 25,
+  staffroom_posts: 15,
+  comments: 75,
+  resources: 12,
 };
 
 const FRIENDLY = {
