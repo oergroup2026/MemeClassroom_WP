@@ -57,6 +57,18 @@ service firebase.storage {
     // String, so calling .matches() on it raises an error and the rule denies —
     // which silently blocked EVERY non-admin upload. Caught by
     // tests/rules/storage.test.js; see the "uploads are owned by" cases.
+    // Per-user daily upload cap, counted by the trackUploadQuota Cloud Function
+    // into /user_quotas/{uid}. That document is written only by Cloud Functions
+    // (see firestore.rules), so it can be trusted here. Like the Firestore side,
+    // enforcement lags by one upload — enough to bound the cost, which is the
+    // point. Same cross-service lookup as isAdmin(), so it carries the same
+    // caveat: the Storage emulator does not implement firestore.get(), so this
+    // cannot be covered by the rules tests and must be checked in production.
+    function notRateLimited() {
+      return !firestore.exists(/databases/(default)/documents/user_quotas/$(request.auth.uid)) ||
+        firestore.get(/databases/(default)/documents/user_quotas/$(request.auth.uid)).data.blocked_until < request.time;
+    }
+
     function ownsIncomingObject() {
       return isLoggedIn() && request.resource.name.matches('.*' + request.auth.uid + '.*');
     }
@@ -101,6 +113,7 @@ service firebase.storage {
     match /avatars/{allPaths=**} {
       allow read: if true;
       allow create, update: if (ownsIncomingObject() || isAdmin())
+        && notRateLimited()
         && isImageType()
         && request.resource.size <= maxMB(5);
       allow delete: if ownsExistingObject() || isAdmin();
@@ -113,7 +126,8 @@ service firebase.storage {
     // ffmpeg.wasm. Kept in sync with src/utils/uploadLimits.js.
     match /memes/{allPaths=**} {
       allow read: if true;
-      allow create, update: if (ownsIncomingObject() || isAdmin()) && (
+      allow create, update: if (ownsIncomingObject() || isAdmin())
+        && notRateLimited() && (
         (isImageType() && request.resource.size <= maxMB(10)) ||
         (isVideoType() && request.resource.size <= maxMB(50)) ||
         (isAudioType() && request.resource.size <= maxMB(20))
@@ -125,6 +139,7 @@ service firebase.storage {
     match /templates/{allPaths=**} {
       allow read: if true;
       allow create, update: if (ownsIncomingObject() || isAdmin())
+        && notRateLimited()
         && (isImageType() || isVideoType())
         && request.resource.size <= maxMB(20);
       allow delete: if ownsExistingObject() || isAdmin();
@@ -134,6 +149,7 @@ service firebase.storage {
     match /resources/{allPaths=**} {
       allow read: if true;
       allow create, update: if (ownsIncomingObject() || isAdmin())
+        && notRateLimited()
         && (isImageType() || isVideoType() || isAudioType() || isDocumentType())
         && request.resource.size <= maxMB(50);
       allow delete: if ownsExistingObject() || isAdmin();
@@ -143,6 +159,7 @@ service firebase.storage {
     match /newspaper/{allPaths=**} {
       allow read: if true;
       allow create, update: if (ownsIncomingObject() || isAdmin())
+        && notRateLimited()
         && isImageType()
         && request.resource.size <= maxMB(10);
       allow delete: if ownsExistingObject() || isAdmin();
@@ -153,6 +170,7 @@ service firebase.storage {
     match /staffroom/{allPaths=**} {
       allow read: if true;
       allow create, update: if (ownsIncomingObject() || isAdmin())
+        && notRateLimited()
         && (isImageType() || isDocumentType())
         && request.resource.size <= maxMB(20);
       allow delete: if ownsExistingObject() || isAdmin();
@@ -172,6 +190,7 @@ service firebase.storage {
     match /lab_exports/{allPaths=**} {
       allow read: if true;
       allow create, update: if (ownsIncomingObject() || isAdmin())
+        && notRateLimited()
         && isImageType()
         && request.resource.size <= maxMB(10);
       allow delete: if ownsExistingObject() || isAdmin();

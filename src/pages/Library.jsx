@@ -22,6 +22,7 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { checkUpload } from "../utils/uploadLimits";
+import { describeWriteError } from "../utils/writeErrors";
 import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
@@ -760,7 +761,7 @@ const Library = () => {
       setUploadFile(null);
     } catch (err) {
       console.error(err);
-      setUploadError("Direct file upload failed. Try again.");
+      setUploadError(describeWriteError(err, "Direct file upload failed. Try again."));
     } finally {
       setUploadLoading(false);
     }

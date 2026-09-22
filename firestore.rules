@@ -42,6 +42,29 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.banned == true;
     }
 
+    // Per-user daily caps. /user_quotas/{uid} is maintained only by Cloud
+    // Functions (clients are denied all writes below), so this document can be
+    // trusted here. blocked_until is always present and sits at epoch 0 while a
+    // user is within their limits.
+    //
+    // Enforcement lags by one write — the function that counts a create runs
+    // after it — so someone determined gets a handful past the cap before this
+    // starts refusing. That is enough to bound the cost, which is the point.
+    function notRateLimited() {
+      return !exists(/databases/$(database)/documents/user_quotas/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/user_quotas/$(request.auth.uid)).data.blocked_until < request.time;
+    }
+
+    // ─── User Quotas ────────────────────────────────────────────────────────
+    // Readable by the owner so the app can tell them why a post was refused,
+    // and by admins for support. Written only by Cloud Functions, which use the
+    // Admin SDK and bypass these rules — a client that could write this could
+    // lift its own limit.
+    match /user_quotas/{userId} {
+      allow read: if isLoggedIn() && (isOwner(userId) || isAdmin());
+      allow write: if false;
+    }
+
     // ─── Users ──────────────────────────────────────────────────────────────
     // This document holds the user's school/institution, town, state and
     // country. It was readable by ANY signed-in user, so since registration is
@@ -110,7 +133,8 @@ service cloud.firestore {
           isAdmin()
         )
       );
-      allow create: if isLoggedIn() && !isBanned() && request.resource.data.creator_id == request.auth.uid;
+      allow create: if isLoggedIn() && !isBanned() && notRateLimited()
+        && request.resource.data.creator_id == request.auth.uid;
       allow update: if isLoggedIn() && (
         isAdmin() ||
         // The creator may edit their own meme, but not its moderation counter —
@@ -214,7 +238,7 @@ service cloud.firestore {
 
     match /comments/{commentId} {
       allow read: if true;
-      allow create: if isLoggedIn() && !isBanned()
+      allow create: if isLoggedIn() && !isBanned() && notRateLimited()
         && request.resource.data.user_id == request.auth.uid
         && expertFlagIsPermitted();
       // Editing previously required only "signed in and not banned" — with no
@@ -240,7 +264,7 @@ service cloud.firestore {
     // voting and reacting all still require a signed-in, non-banned user below.
     match /staffroom_posts/{postId} {
       allow read: if true;
-      allow create: if isLoggedIn() && !isBanned();
+      allow create: if isLoggedIn() && !isBanned() && notRateLimited();
       allow update: if isLoggedIn() && (
         resource.data.author_id == request.auth.uid ||
         isAdmin() ||
@@ -266,7 +290,7 @@ service cloud.firestore {
     // self-approval gap this file used to call out in a comment but not fix.
     match /resources/{resourceId} {
       allow read: if true;
-      allow create: if isLoggedIn() && !isBanned() && (
+      allow create: if isLoggedIn() && !isBanned() && notRateLimited() && (
         isAdmin() ||
         (request.resource.data.author_id == request.auth.uid && request.resource.data.admin_approved == false)
       );
