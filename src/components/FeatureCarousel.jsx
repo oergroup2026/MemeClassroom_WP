@@ -201,28 +201,31 @@ const FeatureCarousel = () => {
           Sits above the image on a solid theme-matching background so the
           title stays readable in both light and dark mode. The top padding
           leaves room for the floating Navbar icons. */}
-      <div className="relative z-10 flex flex-col items-center justify-center pt-16 sm:pt-24 pb-8 sm:pb-10 px-4 text-center bg-[#FAFAF9] dark:bg-[#18181b]">
+      <div className="relative z-10 flex flex-col items-center justify-center pt-14 sm:pt-16 pb-4 sm:pb-6 px-4 text-center bg-[#FAFAF9] dark:bg-[#18181b]">
         {/* Badge */}
-        <div className="inline-flex items-center px-4 sm:px-5 py-1.5 rounded-full bg-slate-900/5 dark:bg-white/10 backdrop-blur-sm border border-slate-300 dark:border-white/30 text-slate-700 dark:text-white text-[10px] sm:text-sm font-black uppercase tracking-[0.2em] mb-4 sm:mb-6">
+        <div className="inline-flex items-center px-3 sm:px-4 py-1 rounded-full bg-slate-900/5 dark:bg-white/10 backdrop-blur-sm border border-slate-300 dark:border-white/30 text-slate-700 dark:text-white text-[9px] sm:text-xs font-black uppercase tracking-[0.18em] mb-3 sm:mb-4">
           Open Pedagogical Resources for Memes
         </div>
 
         {/* Main title */}
-        <h1 className="text-[clamp(2.25rem,8vw,6rem)] font-black tracking-[-0.03em] text-slate-900 dark:text-white leading-[1.02]">
+        <h1 className="text-[clamp(2rem,6vw,4.25rem)] font-black tracking-[-0.03em] text-slate-900 dark:text-white leading-[1.02]">
           Meme
           <span className="text-ruby-600">Classroom</span>
         </h1>
 
         {/* Tagline */}
-        <p className="mt-4 sm:mt-5 text-sm sm:text-base lg:text-lg font-semibold text-slate-600 dark:text-white/85 max-w-[300px] sm:max-w-lg lg:max-w-xl leading-relaxed">
+        <p className="mt-2 sm:mt-3 text-xs sm:text-sm lg:text-base font-semibold text-slate-600 dark:text-white/85 max-w-[300px] sm:max-w-md lg:max-w-lg leading-snug sm:leading-relaxed">
           MemeClassroom isn't a content silo — it's your space to learn, teach, and think critically with memes.
         </p>
       </div>
 
-      {/* ── Hero image area: the background image lives only inside this box ── */}
+      {/* ── Hero card: the carousel sits in a large rounded card rather than
+          spanning the full width, on the same solid background as the brand
+          block. ─────────────────────────────────────────────────────────────── */}
+      <div className="px-3 sm:px-6 lg:px-8 pb-2 bg-[#FAFAF9] dark:bg-[#18181b]">
       <div
-        className="relative w-full overflow-hidden"
-        style={{ height: "clamp(400px, 34vw, 480px)" }}
+        className="relative w-full max-w-6xl mx-auto overflow-hidden rounded-3xl sm:rounded-[2rem] shadow-[0_12px_40px_rgba(15,23,42,0.18)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.55)]"
+        style={{ height: "clamp(340px, min(32vw, 100svh - 360px), 440px)" }}
       >
         {/* ── Background image layers (cross-fade) ─────────────────────────── */}
         {SLIDES.map((s, idx) => (
@@ -255,7 +258,7 @@ const FeatureCarousel = () => {
 
         {/* ── Slide content (badge + title + description + CTA) ─────────────── */}
         <div
-          className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end px-5 sm:px-10 md:px-16 pb-12 sm:pb-16"
+          className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end px-6 sm:px-12 md:px-16 pb-11 sm:pb-12"
           style={{
             opacity: textVisible ? 1 : 0,
             transform: textVisible
@@ -279,7 +282,7 @@ const FeatureCarousel = () => {
 
           {/* Slide title */}
           <h2
-            className="text-2xl sm:text-4xl lg:text-[2.6rem] font-black text-white leading-[1.1] tracking-tight mb-3 whitespace-pre-line"
+            className="text-2xl sm:text-4xl lg:text-[2.3rem] font-black text-white leading-[1.1] tracking-tight mb-3 whitespace-pre-line"
             style={{ textShadow: "0 2px 16px rgba(0,0,0,0.7)" }}
           >
             {slide.title}
@@ -316,14 +319,14 @@ const FeatureCarousel = () => {
         {/* ── Prev / Next arrows (inside the image) ────────────────────────── */}
         <button
           onClick={goPrev}
-          className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 backdrop-blur-md border border-white/15 text-white hover:bg-black/50 hover:scale-110 transition-all duration-200 active:scale-95"
+          className="absolute left-3 sm:left-5 bottom-0.5 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 z-20 flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 backdrop-blur-md border border-white/15 text-white hover:bg-black/50 hover:scale-110 transition-all duration-200 active:scale-95"
           aria-label="Previous slide"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
         <button
           onClick={goNext}
-          className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 backdrop-blur-md border border-white/15 text-white hover:bg-black/50 hover:scale-110 transition-all duration-200 active:scale-95"
+          className="absolute right-3 sm:right-5 bottom-0.5 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 z-20 flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/30 backdrop-blur-md border border-white/15 text-white hover:bg-black/50 hover:scale-110 transition-all duration-200 active:scale-95"
           aria-label="Next slide"
         >
           <ChevronRight className="w-5 h-5" />
@@ -369,6 +372,7 @@ const FeatureCarousel = () => {
           className="absolute inset-0 pointer-events-none z-10"
           style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)" }}
         />
+      </div>
       </div>
 
       <style>{`
