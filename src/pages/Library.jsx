@@ -46,6 +46,7 @@ import AiQuotaModal from "../components/AiQuotaModal";
 import { useTour } from "../hooks/useTour";
 import TourOverlay from "../components/TourOverlay";
 import PageHelpPanel from "../components/PageHelpPanel";
+import { formatTimeAgo, formatFullDate } from "../utils/timeAgo";
 import {
   Search,
   Flame,
@@ -1544,7 +1545,7 @@ const Library = () => {
                 const isLiked = !!userLikesMap[meme.id];
                 const isSaved = !!userSavesMap[meme.id];
                 const creatorName = meme.creator_id === "admin" ? "Admin" : (userCache[meme.creator_id]?.name || "Creator");
-                const timeAgo = meme.created_at ? "2h ago" : "Just now";
+                const timeAgo = formatTimeAgo(meme.created_at);
                 const accentColor = getSubjectColor(meme.subject);
 
                 return (
@@ -1571,7 +1572,7 @@ const Library = () => {
                           <h5 className="text-[11px] font-extrabold text-gray-900 dark:text-white group-hover:text-purple-650 transition truncate max-w-[150px]">{creatorName}</h5>
                           {/* Secondary metadata: timestamp + education level (moved off the card face) */}
                           <span className="text-[9px] text-gray-400 flex items-center gap-1 truncate">
-                            {timeAgo}
+                            <span title={formatFullDate(meme.created_at)}>{timeAgo}</span>
                             {meme.age_group && (
                               <>
                                 <span className="opacity-50">·</span>
@@ -2120,10 +2121,8 @@ const Library = () => {
                                 <div className="flex justify-between items-center mb-1">
                                   <span className="font-bold text-gray-800 dark:text-zinc-200">{commenterName}</span>
                                   <div className="flex items-center gap-2 text-gray-400">
-                                    <span className="text-[9px]">
-                                      {comment.timestamp?.seconds
-                                        ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString()
-                                        : "Just now"}
+                                    <span className="text-[9px]" title={formatFullDate(comment.timestamp)}>
+                                      {formatTimeAgo(comment.timestamp)}
                                     </span>
                                     {isAuthor && (
                                       <button
@@ -2201,10 +2200,8 @@ const Library = () => {
                                 <div className="flex justify-between items-center mb-1">
                                   <span className="font-bold text-emerald-700 dark:text-emerald-400">{commenterName}</span>
                                   <div className="flex items-center gap-2 text-gray-400">
-                                    <span className="text-[9px]">
-                                      {comment.timestamp?.seconds
-                                        ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString()
-                                        : "Just now"}
+                                    <span className="text-[9px]" title={formatFullDate(comment.timestamp)}>
+                                      {formatTimeAgo(comment.timestamp)}
                                     </span>
                                     {isAuthor && (
                                       <button

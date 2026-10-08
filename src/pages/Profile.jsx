@@ -51,6 +51,7 @@ import {
 import { useTour } from "../hooks/useTour";
 import TourOverlay from "../components/TourOverlay";
 import PageHelpPanel from "../components/PageHelpPanel";
+import { formatTimeAgo } from "../utils/timeAgo";
 
 
 const MILESTONES = [0, 1, 5, 10, 25, 50];
@@ -1013,7 +1014,7 @@ const Profile = () => {
         {items.map((res) => {
           const typeLabel = typeLabels[res.type] || "Resource";
           const badgeColor = typeBadgeColors[res.type] || "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400";
-          const createdDate = res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : "";
+          const createdDate = res.created_at ? formatTimeAgo(res.created_at) : "";
           return (
             <div key={res.id} className="flex flex-col h-full bg-white dark:bg-zinc-900/80 border border-gray-200/80 dark:border-zinc-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
               {/* Header Bar */}

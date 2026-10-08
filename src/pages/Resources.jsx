@@ -35,6 +35,7 @@ import SmartSearchBar from "../components/SmartSearchBar";
 import { useTour } from "../hooks/useTour";
 import TourOverlay from "../components/TourOverlay";
 import PageHelpPanel from "../components/PageHelpPanel";
+import { formatTimeAgo, formatFullDate } from "../utils/timeAgo";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 12;
@@ -165,7 +166,7 @@ const ResourceDetailModal = ({ res, authorName, isLiked, isBookmarked, user, act
             <span className="font-semibold text-gray-700 dark:text-gray-200">By {authorName}</span>
             {res.subject && <span className="bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">{res.subject}</span>}
             {res.grade_group && <span className="bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">{res.grade_group}</span>}
-            <span>📅 {res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : "Unknown date"}</span>
+            <span>📅 <span title={formatFullDate(res.created_at)}>{formatTimeAgo(res.created_at, "Unknown date")}</span></span>
             {res.view_count > 0 && <span>👁 {res.view_count} views</span>}
           </div>
 
@@ -411,7 +412,7 @@ const ExternalToolDetailModal = ({ tool, contributorName, user, isAdmin, onClose
             <span className="font-semibold text-gray-700 dark:text-gray-200">
               Contributed by <strong className="text-purple-600 dark:text-purple-400">{contributorName}</strong>
             </span>
-            <span>📅 {tool.created_at ? new Date((tool.created_at.seconds || 0) * 1000).toLocaleDateString() : "Recently added"}</span>
+            <span>📅 <span title={formatFullDate(tool.created_at)}>{formatTimeAgo(tool.created_at, "Recently added")}</span></span>
           </div>
 
           {/* Full Description formatted with FormattedText */}
@@ -1377,7 +1378,10 @@ const Resources = () => {
             <div className="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 flex items-center justify-center font-extrabold text-[10px] flex-shrink-0">
               {authorName.charAt(0).toUpperCase()}
             </div>
-            <span className="text-[11px] font-extrabold text-gray-800 dark:text-white truncate">{authorName}</span>
+            <div className="min-w-0">
+              <span className="text-[11px] font-extrabold text-gray-800 dark:text-white truncate block">{authorName}</span>
+              <span className="text-[9px] text-gray-400 block truncate" title={formatFullDate(res.created_at)}>{formatTimeAgo(res.created_at)}</span>
+            </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {isPending && (
@@ -1845,7 +1849,7 @@ const Resources = () => {
                                   Visit Tool ↗
                                 </a>
                                 <div className="flex items-center justify-between text-[10px] text-gray-400 font-medium">
-                                  <span>Added: {link.created_at ? new Date(link.created_at.seconds * 1000).toLocaleDateString() : "Just now"}</span>
+                                  <span>Added: {formatTimeAgo(link.created_at)}</span>
                                   <div className="flex items-center gap-2">
                                     {user && (link.contributor_id === user.uid || isAdmin) && (
                                       <button
@@ -1922,7 +1926,7 @@ const Resources = () => {
                                   </button>
                                 )}
                                 <div className="flex items-center justify-between text-[10px] text-gray-400 font-medium">
-                                  <span>Added: {res.created_at ? new Date(res.created_at.seconds * 1000).toLocaleDateString() : "Just now"}</span>
+                                  <span>Added: {formatTimeAgo(res.created_at)}</span>
                                   <div className="flex items-center gap-2">
                                     {canDelete && (
                                       <button onClick={() => handleDeleteResource(res.id)} className="text-red-500 hover:text-red-700 font-bold transition">
@@ -2095,9 +2099,12 @@ const Resources = () => {
                                 <div className="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0 border border-amber-200/50 dark:border-amber-800/30 text-[10px] font-extrabold text-amber-700 dark:text-amber-300">
                                   {authorName.charAt(0).toUpperCase()}
                                 </div>
-                                <span className="text-[11px] font-extrabold text-gray-800 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition truncate">
-                                  {authorName}
-                                </span>
+                                <div className="min-w-0">
+                                  <span className="text-[11px] font-extrabold text-gray-800 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition truncate block">
+                                    {authorName}
+                                  </span>
+                                  <span className="text-[9px] text-gray-400 block truncate" title={formatFullDate(res.created_at)}>{formatTimeAgo(res.created_at)}</span>
+                                </div>
                               </div>
                               <div className="flex items-center gap-1.5 flex-shrink-0">
                                 {!res.admin_approved && (
@@ -2230,6 +2237,7 @@ const Resources = () => {
                                 {(res.type === "article" || res.type === "research_paper") && res.publisher_name && (
                                   <span className="text-[9px] text-gray-400 block truncate">{res.publisher_name}</span>
                                 )}
+                                <span className="text-[9px] text-gray-400 block truncate" title={formatFullDate(res.created_at)}>{formatTimeAgo(res.created_at)}</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0">

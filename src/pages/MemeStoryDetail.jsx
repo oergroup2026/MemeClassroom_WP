@@ -39,6 +39,7 @@ import {
 
 import { useToast } from "../components/ToastNotification";
 import TtsSpeakerButton from "../components/TtsSpeakerButton";
+import { formatTimeAgo } from "../utils/timeAgo";
 
 // ─── Section block ─────────────────────────────────────────────────────────────
 const Section = ({ icon: Icon, label, colorClass, children }) => (
@@ -360,9 +361,7 @@ export default function MemeStoryDetail() {
     );
   }
 
-  const dateStr = story.created_at
-    ? new Date(story.created_at.seconds * 1000).toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })
-    : "Just now";
+  const dateStr = formatTimeAgo(story.created_at);
 
   return (
     <div className="relative overflow-visible">

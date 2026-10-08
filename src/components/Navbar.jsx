@@ -31,6 +31,7 @@ import {
   Search,
   Sparkles
 } from "lucide-react";
+import { formatTimeAgo } from "../utils/timeAgo";
 
 // Contrast/accessibility icon
 const ContrastIcon = () => (
@@ -358,9 +359,7 @@ const Navbar = () => {
                           <div key={notif.id} className="p-3 hover:bg-gray-50 dark:hover:bg-zinc-800/60 transition">
                             <p className="text-xs font-semibold text-gray-800 dark:text-zinc-200">{notif.title || notif.message}</p>
                             <span className="block text-[9px] text-gray-400 mt-1">
-                              {notif.created_at?.seconds
-                                ? new Date(notif.created_at.seconds * 1000).toLocaleString()
-                                : "Just now"}
+                              {formatTimeAgo(notif.created_at)}
                             </span>
                           </div>
                         ))

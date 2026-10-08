@@ -17,6 +17,7 @@ import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
 import { fuzzySearch } from "../utils/searchUtils";
 import ContributeNewspaperModal from "../components/ContributeNewspaperModal";
 import SocialEmbed, { getSocialPlatform } from "../components/SocialEmbed";
+import { formatTimeAgo, formatFullDate } from "../utils/timeAgo";
 
 const ITEMS_PER_PAGE = 12;
 
@@ -425,13 +426,16 @@ export default function Newspaper() {
         </div>
 
         {/* View More */}
-        <div className="px-3.5 py-2.5">
+        <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
           <button
             onClick={openDetail}
             className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline"
           >
             View More →
           </button>
+          <span className="text-[10px] text-gray-400" title={formatFullDate(item.created_at)}>
+            {formatTimeAgo(item.created_at)}
+          </span>
         </div>
       </div>
     );
@@ -480,6 +484,7 @@ export default function Newspaper() {
 
             <div className="px-5 py-4 space-y-3">
               <h2 className="font-extrabold text-lg text-gray-900 dark:text-white leading-snug">{item.title}</h2>
+              <p className="text-[11px] text-gray-400 -mt-1.5" title={formatFullDate(item.created_at)}>Posted {formatTimeAgo(item.created_at)}</p>
               <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{item.summary_text}</p>
               {item.classroom_talking_point && (
                 <div className="p-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900 rounded-lg text-xs text-sky-700 dark:text-sky-400">
@@ -602,11 +607,9 @@ export default function Newspaper() {
                     <h3 className="text-white font-extrabold text-base sm:text-xl leading-snug line-clamp-2 [text-shadow:0_1px_4px_rgba(0,0,0,0.7)]">
                       {item.title}
                     </h3>
-                    {item.source_domain && (
-                      <p className="text-white/70 text-[11px] font-semibold [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]">
-                        {item.source_domain}
-                      </p>
-                    )}
+                    <p className="text-white/70 text-[11px] font-semibold [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]">
+                      {item.source_domain ? `${item.source_domain} · ` : ""}{formatTimeAgo(item.created_at)}
+                    </p>
                   </div>
                 </div>
               );

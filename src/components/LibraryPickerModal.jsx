@@ -4,6 +4,7 @@ import { db } from "../firebase";
 import { SUBJECTS } from "../constants/taxonomy";
 import { fuzzySearch } from "../utils/searchUtils";
 import { fetchStoryTemplateIds, fetchTemplateStoryIds } from "../utils/storyTemplates";
+import { formatTimeAgo } from "../utils/timeAgo";
 
 const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => {
   const [memes, setMemes] = useState([]);
@@ -185,6 +186,9 @@ const LibraryPickerModal = ({ isOpen, onClose, onSelect, format = "image" }) => 
                   <span className="text-xs font-bold text-gray-800 dark:text-gray-200 block truncate group-hover:text-rose-600 dark:group-hover:text-rose-400 transition">
                     {item.title}
                   </span>
+                  {item.created_at && (
+                    <span className="text-[9px] text-gray-400 block truncate">{formatTimeAgo(item.created_at)}</span>
+                  )}
                 </div>
               </div>
             ))}

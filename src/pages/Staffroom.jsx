@@ -46,6 +46,7 @@ import TtsSpeakerButton from "../components/TtsSpeakerButton";
 import { useTour } from "../hooks/useTour";
 import TourOverlay from "../components/TourOverlay";
 import PageHelpPanel from "../components/PageHelpPanel";
+import { formatTimeAgo, formatFullDate } from "../utils/timeAgo";
 import {
   ThumbsUp,
   MessageSquare,
@@ -1598,6 +1599,7 @@ const Staffroom = () => {
                             >
                               {authorName}
                             </button>
+                            <p className="text-[9px] text-gray-400" title={formatFullDate(thread.created_at)}>{formatTimeAgo(thread.created_at)}</p>
                             {authorTagline && (
                               <p className="text-[9px] text-gray-400 italic">{authorTagline}</p>
                             )}
@@ -1856,6 +1858,7 @@ const Staffroom = () => {
                                   <button onClick={() => openUserModal(reply.author_id)} className="font-bold text-xs text-purple-650 hover:underline">
                                     {rAuthorName}
                                   </button>
+                                  <span className="text-[10px] text-gray-400" title={formatFullDate(reply.created_at)}>{formatTimeAgo(reply.created_at)}</span>
                                   {user && (reply.author_id === user.uid || thread.author_id === user.uid || profile?.role === "admin" || profile?.role === "expert") && (
                                     <button onClick={() => handleDeleteReply(reply.id)} className="text-red-500 hover:text-red-750 text-xs font-bold transition ml-2">
                                       Delete
@@ -2359,7 +2362,7 @@ const Staffroom = () => {
                         <div className="flex justify-between items-center text-gray-500 mb-1">
                           <span className="font-bold text-purple-700 flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-purple-650" /> Verified Review ({commenterName})</span>
                           <div className="flex items-center space-x-2">
-                            <span>{comment.timestamp?.seconds ? new Date(comment.timestamp.seconds * 1000).toLocaleDateString() : "Just now"}</span>
+                            <span title={formatFullDate(comment.timestamp)}>{formatTimeAgo(comment.timestamp)}</span>
                             {isAuthor && (
                               <button onClick={() => handleDeleteComment(comment.id)} className="text-red-500 hover:text-red-700 font-bold transition ml-2">Delete</button>
                             )}

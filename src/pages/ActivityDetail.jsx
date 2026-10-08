@@ -17,6 +17,7 @@ import FormattedText from "../components/FormattedText";
 import ActivityContributeModal from "../components/ActivityContributeModal";
 import TtsSpeakerButton from "../components/TtsSpeakerButton";
 import { useToast } from "../components/ToastNotification";
+import { formatTimeAgo } from "../utils/timeAgo";
 
 // ─── Pending Approval Popup ───────────────────────────────────────────────────
 const PendingApprovalPopup = ({ onClose }) => (
@@ -76,9 +77,7 @@ const CollapsibleSection = ({ title, icon: IconComponent, count, defaultOpen = f
 
 // ─── Comment Item ─────────────────────────────────────────────────────────────
 const CommentItem = ({ comment, currentUser, onDelete }) => {
-  const date = comment.created_at?.seconds
-    ? new Date(comment.created_at.seconds * 1000).toLocaleDateString()
-    : "Just now";
+  const date = formatTimeAgo(comment.created_at);
   return (
     <div className="flex gap-3">
       <div className="w-7 h-7 rounded-full bg-ruby-100 dark:bg-ruby-950 text-ruby-700 dark:text-ruby-300 flex items-center justify-center font-extrabold text-[10px] flex-shrink-0">
@@ -402,9 +401,7 @@ export default function ActivityDetail() {
   }
 
   const isPending = !activity.admin_approved;
-  const dateStr = activity.created_at?.seconds
-    ? new Date(activity.created_at.seconds * 1000).toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })
-    : "Unknown date";
+  const dateStr = formatTimeAgo(activity.created_at, "Unknown date");
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 space-y-6">
