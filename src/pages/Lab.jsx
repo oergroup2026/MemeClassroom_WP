@@ -1726,10 +1726,10 @@ const Lab = () => {
 
   // --- Canvas Settings State ---
   const [canvasAspect, setCanvasAspect] = useState("1:1"); // "1:1" | "16:9" | "9:16" | "4:3"
-  const [canvasBg, setCanvasBg] = useState(highContrastMode ? "#111624" : "#ffffff"); // background fill color
+  const [canvasBg, setCanvasBg] = useState(highContrastMode ? "#09090b" : "#ffffff"); // background fill color
 
   useEffect(() => {
-    setCanvasBg(highContrastMode ? "#111624" : "#ffffff");
+    setCanvasBg(highContrastMode ? "#09090b" : "#ffffff");
   }, [highContrastMode]);
 
   const ASPECT_RATIOS = {
@@ -2474,21 +2474,20 @@ const Lab = () => {
   const activeTextLayer = textLayers.find(l => l.id === selectedTextId);
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 py-3 flex flex-col min-h-[calc(100vh-70px)] pb-16 bg-[#FAFAF9] dark:bg-[#090D16] text-slate-800 dark:text-white transition-colors duration-200" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 py-8 flex flex-col min-h-[calc(100vh-70px)] pb-24 bg-[#FAFAF9] dark:bg-[#18181b] text-gray-800 dark:text-white transition-colors duration-200" onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
 
-      {/* ── TOP STUDIO WORKBENCH NAVIGATION BAR ─────────────────────────── */}
-      <div className="bg-white dark:bg-[#0e131f] border border-slate-200/80 dark:border-[#1b2336] text-slate-800 dark:text-white rounded-2xl p-2.5 sm:p-3 mb-3 flex flex-wrap items-center justify-between gap-3 shadow-sm dark:shadow-lg transition-colors duration-200 select-none">
+      {/* ── PAGE TITLE (matches Library / Resources headers) ─────────────── */}
+      <div className="mb-6">
+        <h1 className="text-4xl font-extrabold tracking-tight font-sans" style={{ background: "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Meme Lab</h1>
+        <p className="text-xs text-gray-500 mt-1">Create image, video, GIF and audio memes for your classroom, then publish them to the Library.</p>
+      </div>
+
+      {/* ── TOOLBAR: format tabs + undo/redo + AI + export ───────────────── */}
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-800 dark:text-white rounded-2xl p-2.5 sm:p-3 mb-4 flex flex-wrap items-center justify-between gap-3 shadow-sm transition-colors duration-200 select-none">
         {/* Left section: Studio Brand + Unified Format Tabs */}
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 px-3.5 py-1.5 bg-rose-50 dark:bg-[#250a18] border border-rose-200 dark:border-[#e11d48]/40 rounded-full text-xs font-black tracking-wider text-[#e11d48] dark:text-[#f43f5e] shadow-xs">
-            <span className="text-sm">🎨</span>
-            <span>MEME STUDIO</span>
-          </div>
-
-          <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block" />
-
           {/* Format Switcher Tabs */}
-          <div className="flex bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a] gap-1 shadow-inner">
+          <div className="flex bg-gray-100 dark:bg-[#09090b] p-1 rounded-xl border border-gray-200 dark:border-[#27272a] gap-1 shadow-inner">
             {[
               { id: "image", label: "Image", icon: <ImageIcon className="w-3.5 h-3.5" /> },
               { id: "video", label: "Video", icon: <VideoIcon className="w-3.5 h-3.5" /> },
@@ -2501,8 +2500,8 @@ const Lab = () => {
                 onClick={() => { setActiveTab(tab.id); setAlertMessage(""); }}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
                   activeTab === tab.id
-                    ? "bg-[#e11d48] text-white shadow-md shadow-[#e11d48]/25 font-bold scale-[1.02]"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/80 dark:hover:bg-[#1b2336] font-semibold"
+                    ? "bg-[#E0115F] text-white shadow-md shadow-[#E0115F]/25 font-bold scale-[1.02]"
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/80 dark:hover:bg-[#27272a] font-semibold"
                 }`}
               >
                 {tab.icon}
@@ -2515,13 +2514,13 @@ const Lab = () => {
         {/* Right section: Global Actions (Undo/Redo, AI Punchlines, Export) */}
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Undo / Redo */}
-          <div className="flex items-center bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a] gap-0.5 shadow-inner">
+          <div className="flex items-center bg-gray-100 dark:bg-[#09090b] p-1 rounded-xl border border-gray-200 dark:border-[#27272a] gap-0.5 shadow-inner">
             <button
               type="button"
               onClick={undoTextLayers}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
-              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-25 rounded-lg hover:bg-slate-200/70 dark:hover:bg-[#1e273a] transition"
+              className="p-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-25 rounded-lg hover:bg-gray-200/70 dark:hover:bg-[#27272a] transition"
             >
               <Undo2 className="w-4 h-4" />
             </button>
@@ -2530,7 +2529,7 @@ const Lab = () => {
               onClick={redoTextLayers}
               disabled={!canRedo}
               title="Redo (Ctrl+Y)"
-              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-25 rounded-lg hover:bg-slate-200/70 dark:hover:bg-[#1e273a] transition"
+              className="p-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-25 rounded-lg hover:bg-gray-200/70 dark:hover:bg-[#27272a] transition"
             >
               <Redo2 className="w-4 h-4" />
             </button>
@@ -2539,9 +2538,9 @@ const Lab = () => {
           <button
             type="button"
             onClick={() => { setAiError(""); setShowAiPunchlinesModal(true); }}
-            className="bg-slate-100 dark:bg-[#111624] hover:bg-slate-200/80 dark:hover:bg-[#1e273a] text-slate-800 dark:text-white border border-slate-200 dark:border-[#1e273a] hover:border-[#e11d48]/60 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs active:scale-95"
+            className="bg-gray-100 dark:bg-[#09090b] hover:bg-gray-200/80 dark:hover:bg-[#27272a] text-gray-800 dark:text-white border border-gray-200 dark:border-[#27272a] hover:border-[#E0115F]/60 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs active:scale-95"
           >
-            <span className="text-[#f43f5e]">⚡</span>
+            <span className="text-[#eb2868]">⚡</span>
             <span>AI Punchlines</span>
           </button>
 
@@ -2549,7 +2548,7 @@ const Lab = () => {
           <button
             type="button"
             onClick={() => setShowSaveModal(true)}
-            className="bg-[#e11d48] hover:bg-[#f43f5e] text-white font-extrabold text-xs px-4.5 py-2 rounded-xl shadow-lg shadow-[#e11d48]/30 hover:shadow-[#e11d48]/50 transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+            className="bg-[#E0115F] hover:bg-[#eb2868] text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-lg shadow-[#E0115F]/30 hover:shadow-[#E0115F]/50 transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
             title="Export & publish your meme composition"
           >
             <Download className="w-4 h-4" strokeWidth={2.2} />
@@ -2591,7 +2590,7 @@ const Lab = () => {
       {/* On lg+ this is a two-column grid: the canvas on the left and a single
           tabbed side panel (Editor / Templates) on the right. Below lg everything
           stacks: canvas, tab bar, then whichever panel is active. */}
-      <div className="flex-1 flex flex-col gap-4 w-full min-h-[calc(100vh-140px)] lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_auto] lg:content-start lg:gap-x-4 lg:gap-y-3">
+      <div className="flex-1 flex flex-col gap-4 w-full min-h-[calc(100vh-140px)] lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[auto_1fr] lg:content-start lg:gap-x-5 lg:gap-y-3">
 
         {/* ── LEFT COLUMN: COMPACT CANVAS BOX + BOTTOM CONTROLS CARD ── */}
         <div className="flex-1 flex flex-col gap-4 min-w-0 lg:contents">
@@ -2599,7 +2598,7 @@ const Lab = () => {
           {/* 1. COMPACT CANVAS AREA BOX (Reduced height & size for optimal viewport fit) */}
           <div
             id="lab-canvas-area"
-            className="lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:self-start bg-slate-100/90 dark:bg-[#0b0e14] border border-slate-200 dark:border-[#1b2336] rounded-2xl shadow-sm relative flex items-center justify-center p-2.5 sm:p-3 min-h-[260px] lg:min-h-[280px] overflow-hidden select-none"
+            className="lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:self-stretch bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm relative flex items-center justify-center p-4 sm:p-6 min-h-[420px] lg:min-h-[640px] overflow-hidden select-none"
             style={{
               backgroundImage: highContrastMode
                 ? "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)"
@@ -2609,11 +2608,11 @@ const Lab = () => {
           >
             {/* Floating Bottom-Left: Zoom Controls Capsule (Image Canvas Only) */}
             {activeTab === "image" && (
-              <div className="absolute bottom-3 left-3 z-30 flex items-center gap-1.5 bg-white/90 dark:bg-[#101626]/90 backdrop-blur-md border border-slate-200 dark:border-[#1e273d] px-2.5 py-1.5 rounded-xl shadow-md text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <div className="absolute bottom-3 left-3 z-30 flex items-center gap-1.5 bg-white/90 dark:bg-[#18181b]/90 backdrop-blur-md border border-gray-200 dark:border-[#27272a] px-2.5 py-1.5 rounded-xl shadow-md text-xs font-semibold text-gray-700 dark:text-gray-300">
                 <button
                   type="button"
                   onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))}
-                  className="w-5 h-5 flex items-center justify-center hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-sm font-bold"
+                  className="w-5 h-5 flex items-center justify-center hover:text-rose-600 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-800/60 transition text-sm font-bold"
                   title="Zoom Out"
                 >
                   -
@@ -2629,16 +2628,16 @@ const Lab = () => {
                 <button
                   type="button"
                   onClick={() => setZoomLevel(prev => Math.min(200, prev + 10))}
-                  className="w-5 h-5 flex items-center justify-center hover:text-rose-600 dark:hover:text-white rounded hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-sm font-bold"
+                  className="w-5 h-5 flex items-center justify-center hover:text-rose-600 dark:hover:text-white rounded hover:bg-gray-100 dark:hover:bg-gray-800/60 transition text-sm font-bold"
                   title="Zoom In"
                 >
                   +
                 </button>
-                <div className="h-3.5 w-px bg-slate-300 dark:bg-slate-700 mx-0.5" />
+                <div className="h-3.5 w-px bg-gray-300 dark:bg-gray-700 mx-0.5" />
                 <button
                   type="button"
                   onClick={() => setZoomLevel(100)}
-                  className="p-0.5 text-slate-500 hover:text-rose-600 dark:hover:text-white transition"
+                  className="p-0.5 text-gray-500 hover:text-rose-600 dark:hover:text-white transition"
                   title="Fit Canvas"
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
@@ -2648,7 +2647,7 @@ const Lab = () => {
 
             {/* Floating Right: Aspect Ratio Capsule & BG Color Picker (Image Canvas Only) */}
             {activeTab === "image" && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 bg-white/90 dark:bg-[#101626]/90 backdrop-blur-md border border-slate-200 dark:border-[#1e273d] p-1.5 rounded-xl shadow-md">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1 bg-white/90 dark:bg-[#18181b]/90 backdrop-blur-md border border-gray-200 dark:border-[#27272a] p-1.5 rounded-xl shadow-md">
                 {["1:1", "16:9", "9:16", "4:3"].map((ratio) => (
                   <button
                     key={ratio}
@@ -2656,18 +2655,18 @@ const Lab = () => {
                     onClick={() => setCanvasAspect(ratio)}
                     className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-all ${
                       canvasAspect === ratio
-                        ? "bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white shadow-xs scale-105"
-                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                        ? "bg-gradient-to-r from-[#E0115F] to-[#eb2868] text-white shadow-xs scale-105"
+                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/60"
                     }`}
                   >
                     {ratio}
                   </button>
                 ))}
-                <div className="w-full h-px bg-slate-200 dark:bg-slate-800 my-0.5" />
-                <label className="flex items-center justify-center gap-1 cursor-pointer py-0.5 px-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-[10px] font-bold text-slate-600 dark:text-slate-400" title="Canvas Background Color">
+                <div className="w-full h-px bg-gray-200 dark:bg-gray-800 my-0.5" />
+                <label className="flex items-center justify-center gap-1 cursor-pointer py-0.5 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/60 transition text-[10px] font-bold text-gray-600 dark:text-gray-400" title="Canvas Background Color">
                   <span className="text-[9px]">BG</span>
                   <div
-                    className="w-3.5 h-3.5 rounded border border-slate-400 dark:border-slate-600 relative overflow-hidden shadow-xs"
+                    className="w-3.5 h-3.5 rounded border border-gray-400 dark:border-gray-600 relative overflow-hidden shadow-xs"
                     style={{ backgroundColor: canvasBg }}
                   >
                     <input
@@ -2690,7 +2689,7 @@ const Lab = () => {
               className={`flex items-center justify-center ${activeTab === "video" ? "w-full h-full" : "max-w-full max-h-full"}`}
             >
               {activeTab === "video" ? (
-                <div className="w-full h-full min-h-[320px] shadow-lg rounded-2xl overflow-hidden border border-slate-200 dark:border-zinc-800 flex flex-col">
+                <div className="w-full h-full min-h-[320px] shadow-lg rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 flex flex-col">
                   <ClassicVideoEditor
                     videoUrl={videoUrl}
                     videoFile={videoFile}
@@ -2733,13 +2732,13 @@ const Lab = () => {
               ) : (
                 <div
                   ref={canvasContainerRef}
-                  className={`relative w-full max-w-[340px] max-h-[40vh] sm:max-h-[300px] ${
+                  className={`relative w-full max-w-[560px] max-h-[55vh] sm:max-h-[540px] ${
                     activeTab === "image"
                       ? (ASPECT_RATIOS[canvasAspect]?.css || "aspect-square")
                       : activeTab === "audio"
-                      ? "aspect-[16/10] max-w-[420px]"
+                      ? "aspect-[16/10] max-w-[560px]"
                       : "aspect-square"
-                  } flex items-center justify-center select-none shadow-xl border border-slate-300 dark:border-[#1b2336] rounded-2xl overflow-hidden`}
+                  } flex items-center justify-center select-none shadow-xl border border-gray-300 dark:border-[#27272a] rounded-2xl overflow-hidden`}
                   style={{
                     backgroundColor: canvasBg,
                     filter: FILTER_MAP[selectedFilter] || undefined
@@ -2782,7 +2781,7 @@ const Lab = () => {
                         }}
                         className={`pointer-events-auto px-2 py-1 rounded transition select-none ${
                           selectedTextId === layer.id
-                            ? "border-2 border-dashed border-[#e11d48] ring-2 ring-[#e11d48]/50 bg-[#e11d48]/10"
+                            ? "border-2 border-dashed border-[#E0115F] ring-2 ring-[#E0115F]/50 bg-[#E0115F]/10"
                             : ""
                         }`}
                       >
@@ -2793,7 +2792,7 @@ const Lab = () => {
                             onChange={(e) => updateTextLayer("text", e.target.value)}
                             onBlur={() => setEditingTextId(null)}
                             onKeyDown={(e) => { if (e.key === "Enter") setEditingTextId(null); }}
-                            className="bg-black/90 text-white px-1 text-sm rounded border border-[#e11d48] focus:outline-none"
+                            className="bg-black/90 text-white px-1 text-sm rounded border border-[#E0115F] focus:outline-none"
                             autoFocus
                           />
                         ) : (
@@ -2803,22 +2802,22 @@ const Lab = () => {
                           <>
                             <div
                               onPointerDown={(e) => handleResizePointerDown(e, layer.id, "nw")}
-                              className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-[#e11d48] border-2 border-white rounded-full cursor-nw-resize z-30 shadow-md hover:scale-125 transition"
+                              className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-[#E0115F] border-2 border-white rounded-full cursor-nw-resize z-30 shadow-md hover:scale-125 transition"
                               title="Drag to resize text"
                             />
                             <div
                               onPointerDown={(e) => handleResizePointerDown(e, layer.id, "ne")}
-                              className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-[#e11d48] border-2 border-white rounded-full cursor-ne-resize z-30 shadow-md hover:scale-125 transition"
+                              className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-[#E0115F] border-2 border-white rounded-full cursor-ne-resize z-30 shadow-md hover:scale-125 transition"
                               title="Drag to resize text"
                             />
                             <div
                               onPointerDown={(e) => handleResizePointerDown(e, layer.id, "sw")}
-                              className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-[#e11d48] border-2 border-white rounded-full cursor-sw-resize z-30 shadow-md hover:scale-125 transition"
+                              className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-[#E0115F] border-2 border-white rounded-full cursor-sw-resize z-30 shadow-md hover:scale-125 transition"
                               title="Drag to resize text"
                             />
                             <div
                               onPointerDown={(e) => handleResizePointerDown(e, layer.id, "se")}
-                              className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-[#e11d48] border-2 border-white rounded-full cursor-se-resize z-30 shadow-md hover:scale-125 transition"
+                              className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-[#E0115F] border-2 border-white rounded-full cursor-se-resize z-30 shadow-md hover:scale-125 transition"
                               title="Drag to resize text"
                             />
                           </>
@@ -2864,7 +2863,7 @@ const Lab = () => {
                                         width: "6px",
                                         flexShrink: 0,
                                         cursor: "col-resize",
-                                        background: "rgba(225,29,72,0.5)",
+                                        background: "rgba(224,17,95,0.5)",
                                         zIndex: 25,
                                         position: "relative"
                                       }}
@@ -2937,7 +2936,7 @@ const Lab = () => {
                                         height: "6px",
                                         flexShrink: 0,
                                         cursor: "row-resize",
-                                        background: "rgba(225,29,72,0.5)",
+                                        background: "rgba(224,17,95,0.5)",
                                         zIndex: 25,
                                         position: "relative"
                                       }}
@@ -2993,7 +2992,7 @@ const Lab = () => {
                                 <img src={images[0]} alt="Grid 1" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                               </div>
                               <div
-                                style={{ width: "6px", cursor: "col-resize", background: "rgba(225,29,72,0.5)", zIndex: 25, position: "relative", flexShrink: 0 }}
+                                style={{ width: "6px", cursor: "col-resize", background: "rgba(224,17,95,0.5)", zIndex: 25, position: "relative", flexShrink: 0 }}
                                 onPointerDown={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
@@ -3021,7 +3020,7 @@ const Lab = () => {
 
                             {/* Horizontal divider */}
                             <div
-                              style={{ height: "6px", cursor: "row-resize", background: "rgba(225,29,72,0.5)", zIndex: 25, position: "relative", flexShrink: 0 }}
+                              style={{ height: "6px", cursor: "row-resize", background: "rgba(224,17,95,0.5)", zIndex: 25, position: "relative", flexShrink: 0 }}
                               onPointerDown={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -3049,7 +3048,7 @@ const Lab = () => {
                                 <img src={images[2] || images[0]} alt="Grid 3" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                               </div>
                               <div
-                                style={{ width: "6px", cursor: "col-resize", background: "rgba(225,29,72,0.5)", zIndex: 25, position: "relative", flexShrink: 0 }}
+                                style={{ width: "6px", cursor: "col-resize", background: "rgba(224,17,95,0.5)", zIndex: 25, position: "relative", flexShrink: 0 }}
                                 onPointerDown={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
@@ -3083,26 +3082,26 @@ const Lab = () => {
                           </div>
                         )
                       ) : (
-                        <div className="flex flex-col items-center justify-center p-8 text-center w-full h-full select-none">
-                          <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-[#1b2336] border border-rose-200 dark:border-[#e11d48]/30 flex items-center justify-center mb-3 shadow-xs text-[#e11d48] dark:text-[#f43f5e]">
+                        <div className="flex flex-col items-center justify-center p-8 text-center w-full h-full select-none bg-white dark:bg-zinc-900">
+                          <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-[#27272a] border border-rose-200 dark:border-[#E0115F]/30 flex items-center justify-center mb-3 shadow-xs text-[#E0115F] dark:text-[#eb2868]">
                             <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                           </div>
-                          <p className="font-bold text-sm mb-1 text-slate-800 dark:text-slate-200">Start Your Meme Creation</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mb-4">
+                          <p className="font-bold text-sm mb-1 text-gray-800 dark:text-gray-200">Start Your Meme Creation</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mb-4">
                             Choose a template from the database on the right or upload your own media.
                           </p>
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => setShowLibraryPickerModal(true)}
-                              className="px-3.5 py-1.5 rounded-xl bg-[#e11d48] hover:bg-[#f43f5e] text-white text-xs font-bold shadow-md shadow-[#e11d48]/20 transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                              className="px-3.5 py-1.5 rounded-xl bg-[#E0115F] hover:bg-[#eb2868] text-white text-xs font-bold shadow-md shadow-[#E0115F]/20 transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
                             >
                               <span>+</span>
                               <span>Browse Templates</span>
                             </button>
-                            <label className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                            <label className="px-3.5 py-1.5 rounded-xl bg-gray-100 dark:bg-[#09090b] border border-gray-200 dark:border-[#27272a] text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
                               <span>⬆️</span>
                               <span>Upload Image</span>
                               <input
@@ -3119,7 +3118,7 @@ const Lab = () => {
                   )}
 
                   {activeTab === "gif" && (
-                    <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-black/90">
+                    <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-black/90">
                       {gifUrl ? (
                         <img
                           src={gifUrl}
@@ -3127,16 +3126,16 @@ const Lab = () => {
                           className="w-full max-h-full object-contain"
                         />
                       ) : (
-                        <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 w-full h-full">
-                          <p className="font-bold text-xs mb-1 text-slate-700 dark:text-slate-300">GIF Canvas Empty</p>
-                          <p className="text-[11px] text-slate-500 max-w-xs">Select a looping GIF reaction template.</p>
+                        <div className="flex flex-col items-center justify-center p-6 text-center text-gray-400 w-full h-full">
+                          <p className="font-bold text-xs mb-1 text-gray-700 dark:text-gray-300">GIF Canvas Empty</p>
+                          <p className="text-[11px] text-gray-500 max-w-xs">Select a looping GIF reaction template.</p>
                         </div>
                       )}
                     </div>
                   )}
 
                   {activeTab === "audio" && (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 p-4 gap-3 overflow-y-auto">
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900/90 border border-gray-200 dark:border-gray-800 p-4 gap-3 overflow-y-auto">
                       {audioUrl ? (
                         <>
                           <AudiogramCanvas
@@ -3157,9 +3156,9 @@ const Lab = () => {
                           />
                         </>
                       ) : (
-                        <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 w-full h-full">
-                          <p className="font-bold text-xs mb-1 text-slate-300">Audio Workspace Empty</p>
-                          <p className="text-[11px] text-slate-500 max-w-xs">Select an audio template or upload an MP3.</p>
+                        <div className="flex flex-col items-center justify-center p-6 text-center text-gray-400 w-full h-full">
+                          <p className="font-bold text-xs mb-1 text-gray-300">Audio Workspace Empty</p>
+                          <p className="text-[11px] text-gray-500 max-w-xs">Select an audio template or upload an MP3.</p>
                         </div>
                       )}
                     </div>
@@ -3174,7 +3173,7 @@ const Lab = () => {
             <div
               role="tablist"
               aria-label="Workspace panel"
-              className="lg:col-start-2 lg:row-start-1 grid grid-cols-2 gap-1 p-1 rounded-2xl bg-slate-100 dark:bg-[#0b0e14] border border-slate-200/80 dark:border-[#1b2336]"
+              className="lg:col-start-2 lg:row-start-1 grid grid-cols-2 gap-1 p-1 rounded-2xl bg-gray-100 dark:bg-[#09090b] border border-gray-200/80 dark:border-[#27272a]"
             >
               {[
                 { id: "editor", label: "Editor", icon: <Sliders className="w-3.5 h-3.5" /> },
@@ -3188,10 +3187,10 @@ const Lab = () => {
                   aria-selected={panelTab === tab.id}
                   aria-controls={`lab-panel-${tab.id}`}
                   onClick={() => setSidePanelTab(tab.id)}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#e11d48]/60 ${
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E0115F]/60 ${
                     panelTab === tab.id
-                      ? "bg-white dark:bg-[#1b2336] text-[#e11d48] dark:text-white shadow-sm ring-1 ring-[#e11d48]/40"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-[#111624]"
+                      ? "bg-white dark:bg-[#27272a] text-[#E0115F] dark:text-white shadow-sm ring-1 ring-[#E0115F]/40"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-[#09090b]"
                   }`}
                 >
                   {tab.icon}
@@ -3211,10 +3210,10 @@ const Lab = () => {
             role="tabpanel"
             id="lab-panel-editor"
             aria-labelledby="lab-panel-tab-editor"
-            className={`${panelTab !== "editor" ? "hidden " : "lab-panel-in "}lg:col-start-2 lg:row-start-2 lg:self-start bg-white dark:bg-[#0e131f] border border-slate-200/80 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm dark:shadow-xl flex flex-col gap-3 text-slate-800 dark:text-white transition-colors duration-200`}
+            className={`${panelTab !== "editor" ? "hidden " : "lab-panel-in "}lg:col-start-2 lg:row-start-2 lg:self-start bg-white dark:bg-[#18181b] border border-gray-200/80 dark:border-[#27272a] rounded-2xl p-4 shadow-sm dark:shadow-xl flex flex-col gap-3 text-gray-800 dark:text-white transition-colors duration-200`}
           >
             {/* Controls Tabs Navigation */}
-            <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 lg:gap-1 border-b border-slate-100 dark:border-[#1b2336] pb-3">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 lg:gap-1 border-b border-gray-100 dark:border-[#27272a] pb-3">
               {[
                 { id: "text", label: "Text", icon: <Type className="w-3.5 h-3.5" /> },
                 { id: "image", label: "Image", icon: <ImageIcon className="w-3.5 h-3.5" /> },
@@ -3227,8 +3226,8 @@ const Lab = () => {
                   onClick={() => setActiveControlTab(tab.id)}
                   className={`flex items-center gap-1 px-1.5 flex-1 justify-center sm:gap-1.5 sm:px-4 sm:flex-none sm:justify-start lg:gap-1 lg:px-1.5 lg:flex-1 lg:justify-center py-2 rounded-xl text-xs font-bold transition-all ${
                     activeControlTab === tab.id
-                      ? "bg-[#e11d48] text-white shadow-md shadow-[#e11d48]/25 font-bold"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#111624]"
+                      ? "bg-[#E0115F] text-white shadow-md shadow-[#E0115F]/25 font-bold"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#09090b]"
                   }`}
                 >
                   {tab.icon}
@@ -3244,7 +3243,7 @@ const Lab = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Top Text
                       </label>
                       {topTextInput && (
@@ -3265,13 +3264,13 @@ const Lab = () => {
                         value={topTextInput}
                         onChange={(e) => handleTopTextChange(e.target.value)}
                         placeholder="e.g. FINISHED ASSIGNMENT BEFORE DEADLINE"
-                        className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
+                        className="w-full bg-gray-50 dark:bg-[#09090b] border border-gray-200 dark:border-[#27272a] focus:border-[#E0115F] rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#E0115F] transition shadow-inner"
                       />
                       {topTextInput && (
                         <button
                           type="button"
                           onClick={deleteTopText}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 p-0.5"
                           title="Clear text"
                         >
                           ✕
@@ -3282,7 +3281,7 @@ const Lab = () => {
 
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Bottom Text
                       </label>
                       {bottomTextInput && (
@@ -3303,13 +3302,13 @@ const Lab = () => {
                         value={bottomTextInput}
                         onChange={(e) => handleBottomTextChange(e.target.value)}
                         placeholder="e.g. REALIZES THERE'S A PRESENTATION LEFT"
-                        className="w-full bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
+                        className="w-full bg-gray-50 dark:bg-[#09090b] border border-gray-200 dark:border-[#27272a] focus:border-[#E0115F] rounded-xl pl-3.5 pr-8 py-2.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#E0115F] transition shadow-inner"
                       />
                       {bottomTextInput && (
                         <button
                           type="button"
                           onClick={deleteBottomText}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 p-0.5"
                           title="Clear text"
                         >
                           ✕
@@ -3323,11 +3322,11 @@ const Lab = () => {
                 <div className="flex flex-wrap items-center gap-3 pt-1">
                   {/* Font Select */}
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Font:</span>
+                    <span className="text-[11px] font-bold text-gray-600 dark:text-gray-400">Font:</span>
                     <select
                       onChange={(e) => handleFontChange(e.target.value)}
                       defaultValue="Impact, sans-serif"
-                      className="bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                      className="bg-gray-50 dark:bg-[#09090b] border border-gray-200 dark:border-[#27272a] text-xs text-gray-800 dark:text-white font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#E0115F] cursor-pointer"
                     >
                       <option value="Impact, sans-serif">Impact</option>
                       <option value="Montserrat, sans-serif">Montserrat</option>
@@ -3341,11 +3340,11 @@ const Lab = () => {
 
                   {/* Size Select */}
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Size:</span>
+                    <span className="text-[11px] font-bold text-gray-600 dark:text-gray-400">Size:</span>
                     <select
                       onChange={(e) => handleFontSizeChange(e.target.value)}
                       defaultValue="Large"
-                      className="bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-xs text-slate-800 dark:text-white font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#e11d48] cursor-pointer"
+                      className="bg-gray-50 dark:bg-[#09090b] border border-gray-200 dark:border-[#27272a] text-xs text-gray-800 dark:text-white font-bold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-[#E0115F] cursor-pointer"
                     >
                       <option value="Small">Small (18px)</option>
                       <option value="Medium">Medium (24px)</option>
@@ -3355,16 +3354,16 @@ const Lab = () => {
                     </select>
                   </div>
 
-                  <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block lg:hidden" />
+                  <div className="h-5 w-px bg-gray-200 dark:bg-[#27272a] hidden sm:block lg:hidden" />
 
                   {/* Color Circular Swatches */}
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Color:</span>
+                    <span className="text-[11px] font-bold text-gray-600 dark:text-gray-400">Color:</span>
                     <div className="flex items-center gap-1.5">
                       {[
                         { color: "#ffffff", title: "White" },
                         { color: "#000000", title: "Black" },
-                        { color: "#f43f5e", title: "Pink" },
+                        { color: "#eb2868", title: "Pink" },
                         { color: "#facc15", title: "Yellow" },
                         { color: "#38bdf8", title: "Sky Blue" },
                         { color: "#4ade80", title: "Green" },
@@ -3375,13 +3374,13 @@ const Lab = () => {
                           type="button"
                           onClick={() => handleColorChange(item.color)}
                           title={item.title}
-                          className="w-5 h-5 rounded-full border border-slate-300 dark:border-white/20 hover:scale-125 transition-transform shadow-xs cursor-pointer"
+                          className="w-5 h-5 rounded-full border border-gray-300 dark:border-white/20 hover:scale-125 transition-transform shadow-xs cursor-pointer"
                           style={{ backgroundColor: item.color }}
                         />
                       ))}
                       {/* Rainbow / Custom Color Picker */}
                       <label
-                        className="w-5 h-5 rounded-full border border-slate-300 dark:border-white/30 cursor-pointer flex items-center justify-center overflow-hidden hover:scale-125 transition-transform shadow-xs relative"
+                        className="w-5 h-5 rounded-full border border-gray-300 dark:border-white/30 cursor-pointer flex items-center justify-center overflow-hidden hover:scale-125 transition-transform shadow-xs relative"
                         style={{
                           background: "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)"
                         }}
@@ -3396,17 +3395,17 @@ const Lab = () => {
                     </div>
                   </div>
 
-                  <div className="h-5 w-px bg-slate-200 dark:bg-[#1e273a] hidden sm:block lg:hidden" />
+                  <div className="h-5 w-px bg-gray-200 dark:bg-[#27272a] hidden sm:block lg:hidden" />
 
                   {/* Style Toggle Buttons: [B] [I] [U] [↻] */}
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#111624] p-1 rounded-xl border border-slate-200 dark:border-[#1e273a]">
+                  <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#09090b] p-1 rounded-xl border border-gray-200 dark:border-[#27272a]">
                     <button
                       type="button"
                       onClick={() => handleStyleToggle("bold")}
                       className={`w-7 h-7 flex items-center justify-center font-black text-xs rounded-lg transition ${
                         (selectedTextId ? activeTextLayer?.fontWeight === "bold" : textLayers.some(l => l.fontWeight === "bold"))
-                          ? "bg-[#e11d48]/25 border border-[#e11d48] text-[#e11d48] dark:text-white shadow-xs"
-                          : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336]"
+                          ? "bg-[#E0115F]/25 border border-[#E0115F] text-[#E0115F] dark:text-white shadow-xs"
+                          : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-[#27272a]"
                       }`}
                       title="Bold"
                     >
@@ -3417,8 +3416,8 @@ const Lab = () => {
                       onClick={() => handleStyleToggle("italic")}
                       className={`w-7 h-7 flex items-center justify-center italic font-bold text-xs rounded-lg transition ${
                         (selectedTextId ? activeTextLayer?.fontStyle === "italic" : textLayers.some(l => l.fontStyle === "italic"))
-                          ? "bg-[#e11d48]/25 border border-[#e11d48] text-[#e11d48] dark:text-white shadow-xs"
-                          : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336]"
+                          ? "bg-[#E0115F]/25 border border-[#E0115F] text-[#E0115F] dark:text-white shadow-xs"
+                          : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-[#27272a]"
                       }`}
                       title="Italic"
                     >
@@ -3429,8 +3428,8 @@ const Lab = () => {
                       onClick={() => handleStyleToggle("underline")}
                       className={`w-7 h-7 flex items-center justify-center underline font-bold text-xs rounded-lg transition ${
                         (selectedTextId ? activeTextLayer?.textDecoration === "underline" : textLayers.some(l => l.textDecoration === "underline"))
-                          ? "bg-[#e11d48]/25 border border-[#e11d48] text-[#e11d48] dark:text-white shadow-xs"
-                          : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336]"
+                          ? "bg-[#E0115F]/25 border border-[#E0115F] text-[#E0115F] dark:text-white shadow-xs"
+                          : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-[#27272a]"
                       }`}
                       title="Underline"
                     >
@@ -3439,7 +3438,7 @@ const Lab = () => {
                     <button
                       type="button"
                       onClick={() => handleStyleToggle("uppercase")}
-                      className="w-7 h-7 flex items-center justify-center text-[10px] font-black tracking-tighter text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336] rounded-lg transition"
+                      className="w-7 h-7 flex items-center justify-center text-[10px] font-black tracking-tighter text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-[#27272a] rounded-lg transition"
                       title="Toggle All-Caps"
                     >
                       Aa
@@ -3457,7 +3456,7 @@ const Lab = () => {
                           return { ...l, rotation: 0 };
                         }));
                       }}
-                      className="w-7 h-7 flex items-center justify-center text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1b2336] rounded-lg transition"
+                      className="w-7 h-7 flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-[#27272a] rounded-lg transition"
                       title="Reset position & rotation of all text layers (keeps your text and layer count)"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -3479,7 +3478,7 @@ const Lab = () => {
                   <button
                     type="button"
                     onClick={clearAllText}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 hover:border-red-300 font-bold text-xs transition active:scale-95"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800/80 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 border border-gray-200 dark:border-gray-700 hover:border-red-300 font-bold text-xs transition active:scale-95"
                     title="Delete and clear all text captions"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -3505,7 +3504,7 @@ const Lab = () => {
             {/* TAB CONTENT: IMAGE */}
             {activeControlTab === "image" && (
               <div className="flex flex-wrap items-center gap-3">
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Collage Layout:</span>
+                <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">Collage Layout:</span>
                 {[
                   { id: "single", label: "Single" },
                   { id: "rows", label: "2 Rows (Meme)" },
@@ -3523,8 +3522,8 @@ const Lab = () => {
                     }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
                       collageLayout === l.id
-                        ? "bg-[#e11d48]/15 border-[#e11d48] text-rose-600 dark:text-white"
-                        : "bg-slate-100 dark:bg-[#111624] border-slate-200 dark:border-[#1e273a] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                        ? "bg-[#E0115F]/15 border-[#E0115F] text-rose-600 dark:text-white"
+                        : "bg-gray-100 dark:bg-[#09090b] border-gray-200 dark:border-[#27272a] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     }`}
                   >
                     {l.label}
@@ -3552,8 +3551,8 @@ const Lab = () => {
                     onClick={() => setSelectedFilter(fName)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition border ${
                       selectedFilter === fName
-                        ? "bg-gradient-to-r from-[#e11d48] to-[#f43f5e] text-white border-transparent shadow-xs"
-                        : "bg-slate-100 dark:bg-[#111624] border-slate-200 dark:border-[#1e273a] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                        ? "bg-gradient-to-r from-[#E0115F] to-[#eb2868] text-white border-transparent shadow-xs"
+                        : "bg-gray-100 dark:bg-[#09090b] border-gray-200 dark:border-[#27272a] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     }`}
                   >
                     {fName}
@@ -3570,14 +3569,14 @@ const Lab = () => {
                   onClick={() => setTextEffectShadow(prev => !prev)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition border ${
                     textEffectShadow
-                      ? "bg-[#e11d48]/15 border-[#e11d48] text-rose-600 dark:text-white"
-                      : "bg-slate-100 dark:bg-[#111624] border-slate-200 dark:border-[#1e273a] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                      ? "bg-[#E0115F]/15 border-[#E0115F] text-rose-600 dark:text-white"
+                      : "bg-gray-100 dark:bg-[#09090b] border-gray-200 dark:border-[#27272a] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                   }`}
                 >
                   Drop Shadow: {textEffectShadow ? "ON" : "OFF"}
                 </button>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Stroke:</span>
+                  <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">Stroke:</span>
                   {[
                     { label: "None", width: 0 },
                     { label: "Thin", width: 1 },
@@ -3594,14 +3593,14 @@ const Lab = () => {
                           setTextLayers(prev => prev.map(l => ({ ...l, strokeWidth: s.width })));
                         }
                       }}
-                      className="px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] text-slate-700 dark:text-slate-300 hover:text-rose-600 font-bold"
+                      className="px-2.5 py-1 rounded-lg text-xs bg-gray-100 dark:bg-[#09090b] border border-gray-200 dark:border-[#27272a] text-gray-700 dark:text-gray-300 hover:text-rose-600 font-bold"
                     >
                       {s.label}
                     </button>
                   ))}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Image Effect:</span>
+                  <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">Image Effect:</span>
                   {[
                     { id: "none", label: "None" },
                     { id: "deepfry", label: "Deep Fry" },
@@ -3614,8 +3613,8 @@ const Lab = () => {
                       onClick={() => setActiveEffect(prev => prev === eff.id ? "none" : eff.id)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-bold transition border ${
                         activeEffect === eff.id
-                          ? "bg-[#e11d48]/15 border-[#e11d48] text-rose-600 dark:text-white"
-                          : "bg-slate-100 dark:bg-[#111624] border-slate-200 dark:border-[#1e273a] text-slate-700 dark:text-slate-300 hover:text-rose-600"
+                          ? "bg-[#E0115F]/15 border-[#E0115F] text-rose-600 dark:text-white"
+                          : "bg-gray-100 dark:bg-[#09090b] border-gray-200 dark:border-[#27272a] text-gray-700 dark:text-gray-300 hover:text-rose-600"
                       }`}
                     >
                       {eff.label}
@@ -3637,17 +3636,17 @@ const Lab = () => {
             activeTab === "video" ? "lg:row-start-1 lg:row-span-2" : "lg:row-start-2"
           }`}
         >
-          <div className="bg-white dark:bg-[#0e131f] border border-slate-200/80 dark:border-[#1b2336] rounded-2xl p-4 shadow-sm dark:shadow-xl flex flex-col gap-3.5 text-slate-800 dark:text-white transition-colors duration-200">
+          <div className="bg-white dark:bg-[#18181b] border border-gray-200/80 dark:border-[#27272a] rounded-2xl p-4 shadow-sm dark:shadow-xl flex flex-col gap-3.5 text-gray-800 dark:text-white transition-colors duration-200">
 
             {/* Search Templates Bar */}
             <div className="relative w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search templates..."
                 value={templateSearchQuery}
                 onChange={(e) => setTemplateSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 dark:bg-[#111624] border border-slate-200 dark:border-[#1e273a] focus:border-[#e11d48] rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-medium focus:outline-none focus:ring-1 focus:ring-[#e11d48] transition shadow-inner"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-gray-50 dark:bg-[#09090b] border border-gray-200 dark:border-[#27272a] focus:border-[#E0115F] rounded-xl text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 font-medium focus:outline-none focus:ring-1 focus:ring-[#E0115F] transition shadow-inner"
               />
             </div>
 
@@ -3665,14 +3664,14 @@ const Lab = () => {
                   onClick={() => setSelectedCategory(cat.id)}
                   className={`px-3 py-1 rounded-full text-xs font-bold transition whitespace-nowrap ${
                     selectedCategory === cat.id
-                      ? "border border-[#e11d48] text-[#e11d48] dark:text-[#f43f5e] bg-rose-50 dark:bg-[#e11d48]/15 shadow-xs font-bold"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#111624] border border-transparent"
+                      ? "border border-[#E0115F] text-[#E0115F] dark:text-[#eb2868] bg-rose-50 dark:bg-[#E0115F]/15 shadow-xs font-bold"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#09090b] border border-transparent"
                   }`}
                 >
                   {cat.label}
                 </button>
               ))}
-              <span className="text-slate-500 dark:text-slate-400 text-xs font-medium px-1 cursor-pointer hover:text-slate-900 dark:hover:text-white flex items-center gap-0.5">
+              <span className="text-gray-500 dark:text-gray-400 text-xs font-medium px-1 cursor-pointer hover:text-gray-900 dark:hover:text-white flex items-center gap-0.5">
                 More ⌄
               </span>
             </div>
@@ -3680,7 +3679,7 @@ const Lab = () => {
             {/* Live Giphy Search (GIF tab only) */}
             {activeTab === "gif" && (
               <div className="pb-1">
-                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-2">
+                <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider block mb-2">
                   Search Giphy
                 </span>
                 <GiphySearch onSelect={(url) => { setGifUrl(url); setGifFile(null); }} />
@@ -3693,10 +3692,10 @@ const Lab = () => {
                 <div
                   key={tpl.id}
                   onClick={() => handleSelectTemplatePreset(tpl)}
-                  className={`group relative h-20 sm:h-22 w-full rounded-xl overflow-hidden border cursor-pointer bg-slate-100 dark:bg-[#111624] shadow-xs transition-all duration-200 hover:scale-[1.03] hover:shadow-md shrink-0 select-none ${
+                  className={`group relative h-20 sm:h-22 w-full rounded-xl overflow-hidden border cursor-pointer bg-gray-100 dark:bg-[#09090b] shadow-xs transition-all duration-200 hover:scale-[1.03] hover:shadow-md shrink-0 select-none ${
                     tpl.id === templateId
-                      ? "border-[#e11d48] ring-2 ring-[#e11d48] shadow-[#e11d48]/20"
-                      : "border-slate-200 dark:border-[#1e273a] hover:border-[#e11d48]"
+                      ? "border-[#E0115F] ring-2 ring-[#E0115F] shadow-[#E0115F]/20"
+                      : "border-gray-200 dark:border-[#27272a] hover:border-[#E0115F]"
                   }`}
                   title={tpl.title}
                 >
@@ -3756,7 +3755,7 @@ const Lab = () => {
             <button
               type="button"
               onClick={() => setShowLibraryPickerModal(true)}
-              className="w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-[#1e273a] bg-slate-50 dark:bg-[#111624] hover:bg-slate-100 dark:hover:bg-[#1b2336] hover:border-[#e11d48] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-xs active:scale-95 cursor-pointer"
+              className="w-full py-2.5 px-3 rounded-xl border border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#09090b] hover:bg-gray-100 dark:hover:bg-[#27272a] hover:border-[#E0115F] text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-xs active:scale-95 cursor-pointer"
               title="Browse every template that has a meme story"
             >
               <span>+</span>
@@ -3765,7 +3764,7 @@ const Lab = () => {
 
             {/* Upload Media Dashed Dropzone */}
             <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                 Upload Media
               </span>
               <div
@@ -3774,8 +3773,8 @@ const Lab = () => {
                 onDrop={handleDropzoneDrop}
                 className={`border-2 border-dashed rounded-xl p-4 text-center transition relative flex flex-col items-center justify-center gap-1.5 ${
                   isDragOverDropzone
-                    ? "border-[#e11d48] bg-rose-50/60 dark:bg-[#e11d48]/10"
-                    : "border-slate-300 dark:border-[#1e273a] bg-slate-50/60 dark:bg-[#0b0e14]/60 hover:border-[#e11d48]/60"
+                    ? "border-[#E0115F] bg-rose-50/60 dark:bg-[#E0115F]/10"
+                    : "border-gray-300 dark:border-[#27272a] bg-gray-50/60 dark:bg-[#09090b]/60 hover:border-[#E0115F]/60"
                 }`}
               >
                 <input
@@ -3785,22 +3784,22 @@ const Lab = () => {
                   onChange={handleSidebarFileChange}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-[#1b2336] flex items-center justify-center text-[#e11d48] dark:text-[#f43f5e]">
+                <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-[#27272a] flex items-center justify-center text-[#E0115F] dark:text-[#eb2868]">
                   <UploadCloud className="w-4 h-4" />
                 </div>
                 <div className="text-center">
-                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  <p className="text-[11px] text-gray-600 dark:text-gray-400">
                     Drag and drop an image, video or audio file here,
                   </p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500">or</p>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500">or</p>
                 </div>
                 <button
                   type="button"
-                  className="bg-[#e11d48] hover:bg-[#f43f5e] text-white text-xs font-bold px-5 py-1.5 rounded-xl shadow-md shadow-[#e11d48]/25 transition pointer-events-none"
+                  className="bg-[#E0115F] hover:bg-[#eb2868] text-white text-xs font-bold px-5 py-1.5 rounded-xl shadow-md shadow-[#E0115F]/25 transition pointer-events-none"
                 >
                   Choose File
                 </button>
-                <span className="text-[10px] text-slate-500 mt-0.5">
+                <span className="text-[10px] text-gray-500 mt-0.5">
                   Supports: JPG, PNG, GIF, MP4, WEBP (Max 10MB)
                 </span>
               </div>
@@ -3808,7 +3807,7 @@ const Lab = () => {
 
             {/* Contribute Template */}
             <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                 Contribute Template
               </span>
               <button
@@ -3820,7 +3819,7 @@ const Lab = () => {
                   }
                   setShowContributeModal(true);
                 }}
-                className="w-full py-2.5 px-3 rounded-xl border-2 border-dashed border-slate-300 dark:border-[#1e273a] bg-slate-50/60 dark:bg-[#0b0e14]/60 hover:border-[#e11d48]/60 hover:bg-rose-50/60 dark:hover:bg-[#e11d48]/10 text-slate-600 dark:text-slate-400 hover:text-[#e11d48] dark:hover:text-[#f43f5e] text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                className="w-full py-2.5 px-3 rounded-xl border-2 border-dashed border-gray-300 dark:border-[#27272a] bg-gray-50/60 dark:bg-[#09090b]/60 hover:border-[#E0115F]/60 hover:bg-rose-50/60 dark:hover:bg-[#E0115F]/10 text-gray-600 dark:text-gray-400 hover:text-[#E0115F] dark:hover:text-[#eb2868] text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
                 title="Share a new template with the community library"
               >
                 <span>+</span>
@@ -4378,12 +4377,12 @@ const Lab = () => {
           onClick={() => setShowAiPunchlinesModal(false)}
         >
           <div
-            className="bg-white dark:bg-[#111624] border border-gray-200 dark:border-[#1e273a] rounded-2xl w-full max-w-md shadow-2xl p-6 relative animate-scaleIn"
+            className="bg-white dark:bg-[#09090b] border border-gray-200 dark:border-[#27272a] rounded-2xl w-full max-w-md shadow-2xl p-6 relative animate-scaleIn"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <span className="text-[#f43f5e]">⚡</span> AI Punchlines
+                <span className="text-[#eb2868]">⚡</span> AI Punchlines
               </h3>
               <button
                 type="button"
@@ -4404,13 +4403,13 @@ const Lab = () => {
                 onChange={(e) => setAiPromptTopic(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !aiLoading) handleGenerateAiCaptions(); }}
                 placeholder="Topic (e.g. Photosynthesis, Algebra II)..."
-                className="flex-1 bg-slate-50 dark:bg-[#0e131f] border border-slate-200 dark:border-[#1e273a] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#e11d48] focus:border-[#e11d48] transition"
+                className="flex-1 bg-gray-50 dark:bg-[#18181b] border border-gray-200 dark:border-[#27272a] rounded-xl px-3.5 py-2 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 font-bold focus:outline-none focus:ring-1 focus:ring-[#E0115F] focus:border-[#E0115F] transition"
               />
               <button
                 type="button"
                 onClick={handleGenerateAiCaptions}
                 disabled={aiLoading}
-                className="px-4 py-2 rounded-xl bg-[#e11d48] hover:bg-[#f43f5e] disabled:opacity-50 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md active:scale-95 shrink-0"
+                className="px-4 py-2 rounded-xl bg-[#E0115F] hover:bg-[#eb2868] disabled:opacity-50 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md active:scale-95 shrink-0"
               >
                 {aiLoading ? (
                   <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -4428,8 +4427,8 @@ const Lab = () => {
             )}
 
             {aiLoading ? (
-              <div className="py-8 flex flex-col items-center justify-center gap-2 text-slate-400 dark:text-zinc-500 text-xs">
-                <div className="w-6 h-6 border-2 border-[#e11d48] border-t-transparent rounded-full animate-spin" />
+              <div className="py-8 flex flex-col items-center justify-center gap-2 text-gray-400 dark:text-zinc-500 text-xs">
+                <div className="w-6 h-6 border-2 border-[#E0115F] border-t-transparent rounded-full animate-spin" />
                 Brainstorming punchlines...
               </div>
             ) : aiCaptions.length > 0 ? (
@@ -4439,15 +4438,15 @@ const Lab = () => {
                     key={idx}
                     type="button"
                     onClick={() => applyAiCaption(cap)}
-                    className="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-[#1e273a] bg-slate-50 dark:bg-[#0e131f] hover:border-[#e11d48] hover:bg-rose-50/60 dark:hover:bg-[#1e273a] transition text-xs font-semibold text-slate-800 dark:text-zinc-200 flex items-start justify-between gap-2 group"
+                    className="w-full text-left p-3 rounded-xl border border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#18181b] hover:border-[#E0115F] hover:bg-rose-50/60 dark:hover:bg-[#27272a] transition text-xs font-semibold text-gray-800 dark:text-zinc-200 flex items-start justify-between gap-2 group"
                   >
                     <span>{cap}</span>
-                    <span className="shrink-0 text-[10px] font-bold text-[#e11d48] opacity-0 group-hover:opacity-100 transition">Use</span>
+                    <span className="shrink-0 text-[10px] font-bold text-[#E0115F] opacity-0 group-hover:opacity-100 transition">Use</span>
                   </button>
                 ))}
               </div>
             ) : (
-              <div className="py-6 text-center text-xs text-slate-400 dark:text-zinc-500">
+              <div className="py-6 text-center text-xs text-gray-400 dark:text-zinc-500">
                 Enter a topic (optional) and hit Generate to get 3 caption ideas.
               </div>
             )}
@@ -4455,7 +4454,7 @@ const Lab = () => {
             <button
               type="button"
               onClick={() => { setShowAiPunchlinesModal(false); setShowAiModal(true); }}
-              className="mt-4 w-full text-center text-[10px] font-semibold text-slate-400 dark:text-zinc-500 hover:text-[#e11d48] transition"
+              className="mt-4 w-full text-center text-[10px] font-semibold text-gray-400 dark:text-zinc-500 hover:text-[#E0115F] transition"
             >
               View AI credits & quota
             </button>
