@@ -92,7 +92,6 @@ export const AuthProvider = ({ children }) => {
     }
 
     const userDocRef = doc(db, "users", uid);
-    const statsDocRef = doc(db, "user_stats", uid);
     const verificationDocRef = doc(db, "users", uid, "private", "verification");
     const contactDocRef = doc(db, "private_contacts", uid);
 
@@ -134,13 +133,8 @@ export const AuthProvider = ({ children }) => {
         updated_at: serverTimestamp()
       });
 
-      transaction.set(statsDocRef, {
-        memes_created_count: 0,
-        resources_contributed_count: 0,
-        staffroom_posts_count: 0,
-        ratings_provided_count: 0,
-        total_likes_received: 0
-      });
+      // /user_stats/{uid} is created by a Cloud Function when this profile is
+      // written; clients may not write stats.
     });
 
     // Fetch the newly created profile

@@ -25,6 +25,10 @@ export async function awardBadgeIfMissing({
   announce = true,
 }) {
   if (!uid || uid === "guest_dev") return false;
+  // Level and Contributor badges are awarded by a Cloud Function from real stats
+  // (functions/derivedData.js); firestore.rules rejects clients creating them.
+  // Only literacy-test badges are still created from the browser.
+  if (category !== "literacy") return false;
   const names = matchNames || [badgeName];
 
   let alreadyHas;

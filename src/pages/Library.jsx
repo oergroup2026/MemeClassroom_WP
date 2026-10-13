@@ -768,11 +768,7 @@ const Library = () => {
         trackCustomSubmission("language", uploadCustomLanguage.trim());
       }
 
-      // Update user stats
-      const statsRef = doc(db, "user_stats", user.uid);
-      await setDoc(statsRef, {
-        memes_created_count: increment(1)
-      }, { merge: true });
+      // memes_created_count is updated by a Cloud Function (derivedData.js).
 
       setShowDirectUploadModal(false);
       setUploadTitle("");
@@ -888,15 +884,11 @@ const Library = () => {
 
     const ratingDocId = `${user.uid}_${activeMeme.id}`;
     const ratingRef = doc(db, "ratings", ratingDocId);
-    const statsRef = doc(db, "user_stats", user.uid);
 
     try {
       await runTransaction(db, async (transaction) => {
         const ratingDoc = await transaction.get(ratingRef);
         const existingData = ratingDoc.exists() ? ratingDoc.data() : {};
-
-        const statsDoc = await transaction.get(statsRef);
-        const currentCount = statsDoc.exists() ? (statsDoc.data().ratings_provided_count || 0) : 0;
 
         let newRating = {
           meme_id: activeMeme.id,
@@ -910,14 +902,9 @@ const Library = () => {
           newRating.created_at = new Date();
         }
 
+        // ratings_provided_count is updated by a Cloud Function when a rating
+        // document is first created.
         transaction.set(ratingRef, newRating);
-
-        // Only increment user's ratings_provided_count if it's their first time rating this meme
-        if (!ratingDoc.exists()) {
-          transaction.set(statsRef, {
-            ratings_provided_count: currentCount + 1
-          }, { merge: true });
-        }
       });
     } catch (e) {
       console.error("Rating transaction failed", e);
@@ -973,20 +960,6 @@ const Library = () => {
     if (!window.confirm("Are you sure you want to delete this meme? This action cannot be undone.")) return;
     try {
       await deleteDoc(doc(db, "memes", memeId));
-      if (user) {
-        try {
-          const statsDocRef = doc(db, "user_stats", user.uid);
-          await runTransaction(db, async (tx) => {
-            const snap = await tx.get(statsDocRef);
-            if (snap.exists()) {
-              const current = snap.data().memes_created_count || 0;
-              tx.update(statsDocRef, { memes_created_count: Math.max(0, current - 1) });
-            }
-          });
-        } catch (statsErr) {
-          console.warn("Could not update user stats", statsErr);
-        }
-      }
       setActiveMeme(null);
       showLibToast("Meme deleted successfully.", "success");
     } catch (e) {

@@ -55,6 +55,17 @@ service cloud.firestore {
         get(/databases/$(database)/documents/user_quotas/$(request.auth.uid)).data.blocked_until < request.time;
     }
 
+    // Counters (likes, views, flags, comments) are derived data. A new document
+    // must start them at zero, otherwise anyone could publish a meme that
+    // already claims 9,999 likes. Cloud Functions maintain likes_count (see
+    // functions/derivedData.js); clients may only add +1 views / flags below.
+    function startsWithZeroCounters() {
+      return request.resource.data.get('likes_count', 0) == 0
+        && request.resource.data.get('view_count', 0) == 0
+        && request.resource.data.get('flag_count', 0) == 0
+        && request.resource.data.get('comments_count', 0) == 0;
+    }
+
     // ─── User Quotas ────────────────────────────────────────────────────────
     // Readable by the owner so the app can tell them why a post was refused,
     // and by admins for support. Written only by Cloud Functions, which use the
@@ -138,19 +149,17 @@ service cloud.firestore {
         )
       );
       allow create: if isLoggedIn() && !isBanned() && notRateLimited()
-        && request.resource.data.creator_id == request.auth.uid;
+        && request.resource.data.creator_id == request.auth.uid
+        && startsWithZeroCounters();
       allow update: if isLoggedIn() && (
         isAdmin() ||
-        // The creator may edit their own meme, but not its moderation counter —
+        // The creator may edit their own meme, but not its counters —
         // otherwise anyone whose content was reported could simply zero their
-        // own flag_count and drop off the moderation queue.
+        // own flag_count, or give their own meme a million likes/views.
+        // likes_count is maintained only by Cloud Functions (derivedData.js).
         (
           resource.data.creator_id == request.auth.uid &&
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['flag_count'])
-        ) ||
-        (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count']) &&
-          (request.resource.data.likes_count == resource.data.likes_count + 1 || request.resource.data.likes_count == resource.data.likes_count - 1)
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['flag_count', 'likes_count', 'view_count'])
         ) ||
         // Reporting is increment-only. Allowing -1 let anyone repeatedly
         // decrement a reported item's counter and un-report it; the client only
@@ -218,18 +227,12 @@ service cloud.firestore {
     }
 
     // ─── User Stats ──────────────────────────────────────────────────────────
+    // These numbers drive badges, so they must come from real actions. They are
+    // written only by Cloud Functions (functions/derivedData.js), which bypass
+    // these rules; admins keep write access for support and seeding.
     match /user_stats/{userId} {
       allow read: if isLoggedIn();
-      allow create: if isLoggedIn() && (isOwner(userId) || isAdmin());
-      allow update: if isLoggedIn() && (
-        isOwner(userId) ||
-        isAdmin() ||
-        (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total_likes_received']) &&
-          (request.resource.data.total_likes_received == resource.data.total_likes_received + 1 || request.resource.data.total_likes_received == resource.data.total_likes_received - 1)
-        )
-      );
-      allow delete: if isLoggedIn() && (isOwner(userId) || isAdmin());
+      allow write: if isAdmin();
     }
 
     // ─── Expert Applications ──────────────────────────────────────────────────
@@ -306,7 +309,8 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isLoggedIn() && !isBanned() && notRateLimited() && (
         isAdmin() ||
-        (request.resource.data.author_id == request.auth.uid && request.resource.data.admin_approved == false)
+        (request.resource.data.author_id == request.auth.uid && request.resource.data.admin_approved == false
+          && startsWithZeroCounters())
       );
       allow update: if isLoggedIn() && (
         isAdmin() ||
@@ -316,7 +320,13 @@ service cloud.firestore {
             !request.resource.data.diff(resource.data).affectedKeys().hasAny(['admin_approved']) ||
             request.resource.data.admin_approved == false
           ) &&
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'author_id', 'flag_count'])
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'author_id', 'flag_count', 'likes_count', 'view_count', 'comments_count'])
+        ) ||
+        // View counting, same increment-only shape as /memes. (Before, only the
+        // author could write the resource, so everyone else's view silently failed.)
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['view_count']) &&
+          request.resource.data.view_count == resource.data.get('view_count', 0) + 1
         ) ||
         // Reporting a resource (ActivityDetail, MemeStoryDetail, Resources) is
         // an increment by a user who is NOT the author, which the author-only
@@ -368,23 +378,41 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isLoggedIn() && !isBanned() && (
         isAdmin() ||
-        (request.resource.data.author_id == request.auth.uid && request.resource.data.admin_approved == false)
+        (request.resource.data.author_id == request.auth.uid && request.resource.data.admin_approved == false
+          && startsWithZeroCounters())
       );
       allow update: if isLoggedIn() && (
         isAdmin() ||
         (
           resource.data.author_id == request.auth.uid &&
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['admin_approved', 'status', 'author_id', 'view_count', 'likes_count', 'flag_count'])
+        ) ||
+        // View counting by any reader, increment-only (likes_count is Cloud Functions only).
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['view_count']) &&
+          request.resource.data.view_count == resource.data.get('view_count', 0) + 1
+        ) ||
+        // Reporting, increment-only, as on /memes and /resources.
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['flag_count']) &&
+          request.resource.data.flag_count == resource.data.get('flag_count', 0) + 1
         )
       );
       allow delete: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
     }
 
     // ─── Newspaper Likes ─────────────────────────────────────────────────────
+    // Like documents: the id must be {uid}_{target} so a person can like a thing
+    // once, and an update may not retarget the like (Cloud Functions adjust the
+    // counters on create/delete using these fields).
     match /newspaper_likes/{likeId} {
       allow read: if isLoggedIn();
-      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
-      allow update, delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid
+        && likeId == request.auth.uid + '_' + request.resource.data.item_id;
+      allow update: if isLoggedIn() && resource.data.user_id == request.auth.uid
+        && request.resource.data.user_id == resource.data.user_id
+        && request.resource.data.item_id == resource.data.item_id;
+      allow delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
     }
 
     // ─── Saves (Bookmarks) ───────────────────────────────────────────────────
@@ -397,21 +425,32 @@ service cloud.firestore {
     // ─── Resource Likes ──────────────────────────────────────────────────────
     match /resource_likes/{likeId} {
       allow read: if isLoggedIn();
-      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
-      allow update, delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid
+        && likeId == request.auth.uid + '_' + request.resource.data.resource_id;
+      allow update: if isLoggedIn() && resource.data.user_id == request.auth.uid
+        && request.resource.data.user_id == resource.data.user_id
+        && request.resource.data.resource_id == resource.data.resource_id;
+      allow delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
     }
 
     // ─── Likes ───────────────────────────────────────────────────────────────
     match /likes/{likeId} {
       allow read: if isLoggedIn();
-      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid
+        && likeId == request.auth.uid + '_' + request.resource.data.meme_id;
       allow delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
     }
 
     // ─── Ratings ─────────────────────────────────────────────────────────────
     match /ratings/{ratingId} {
       allow read: if true;
-      allow create, update: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      // One rating document per person per meme ({uid}_{memeId}), so the
+      // "ratings given" stat (counted on create by a Cloud Function) can't be
+      // inflated by writing endless rating documents.
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid
+        && ratingId == request.auth.uid + '_' + request.resource.data.meme_id;
+      allow update: if isLoggedIn() && request.resource.data.user_id == request.auth.uid
+        && resource.data.user_id == request.auth.uid;
       allow delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
     }
 
@@ -519,7 +558,12 @@ service cloud.firestore {
     // so a user cannot retroactively rewrite their own achievements.
     match /badges/{badgeId} {
       allow read: if isLoggedIn();
-      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      // Level and Contributor badges are awarded only by Cloud Functions
+      // (derivedData.js syncBadges) from real stats. The one thing a client may
+      // still create is its own literacy-test badge (the quiz is graded in the
+      // browser today; see the note in the PR).
+      allow create: if isAdmin() || (isLoggedIn() && request.resource.data.user_id == request.auth.uid
+        && request.resource.data.category == 'literacy');
       allow update, delete: if isAdmin();
     }
 

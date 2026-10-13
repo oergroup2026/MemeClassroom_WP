@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   collection, query, where, getDocs, orderBy, limit,
-  addDoc, updateDoc, serverTimestamp, runTransaction, doc, increment
+  addDoc, setDoc, updateDoc, serverTimestamp, doc
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase";
@@ -392,12 +392,11 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
         return;
       }
 
-      const statsDocRef = doc(db, "user_stats", user.uid);
       const resColRef = collection(db, "resources");
 
+      // The author's stats are updated by a Cloud Function (derivedData.js).
       let createdDocId = null;
-      await runTransaction(db, async (transaction) => {
-        const statsSnap = await transaction.get(statsDocRef);
+      {
         const newDocRef = doc(resColRef);
         createdDocId = newDocRef.id;
 
@@ -425,14 +424,8 @@ export default function ActivityContributeModal({ onClose, onSuccess, subjects: 
           created_at: serverTimestamp()
         };
 
-        transaction.set(newDocRef, activityData);
-
-        if (statsSnap.exists()) {
-          transaction.update(statsDocRef, { resources_contributed_count: increment(1) });
-        } else {
-          transaction.set(statsDocRef, { resources_contributed_count: 1 }, { merge: true });
-        }
-      });
+        await setDoc(newDocRef, activityData);
+      }
 
       if (onSuccess) onSuccess({ id: createdDocId });
       onClose();

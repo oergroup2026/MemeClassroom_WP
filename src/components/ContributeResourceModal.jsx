@@ -13,7 +13,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   collection, doc, addDoc, updateDoc, setDoc,
-  runTransaction, increment, serverTimestamp
+  runTransaction, serverTimestamp
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase";
@@ -672,21 +672,12 @@ export default function ContributeResourceModal({
         });
       } else {
         const resColRef = collection(db, "resources");
-        const statsDocRef = doc(db, "user_stats", user.uid);
-        await runTransaction(db, async (transaction) => {
-          const statsSnap = await transaction.get(statsDocRef);
-          const newDocRef = doc(resColRef);
-          transaction.set(newDocRef, {
-            ...baseData,
-            likes_count: 0, flag_count: 0, view_count: 0,
-            author_id: user.uid,
-            created_at: serverTimestamp(),
-          });
-          if (statsSnap.exists()) {
-            transaction.update(statsDocRef, { resources_contributed_count: increment(1) });
-          } else {
-            transaction.set(statsDocRef, { resources_contributed_count: 1 }, { merge: true });
-          }
+        // The author's stats are updated by a Cloud Function (derivedData.js).
+        await addDoc(resColRef, {
+          ...baseData,
+          likes_count: 0, flag_count: 0, view_count: 0,
+          author_id: user.uid,
+          created_at: serverTimestamp(),
         });
       }
 

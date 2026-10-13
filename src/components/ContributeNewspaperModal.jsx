@@ -9,7 +9,7 @@
 
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { collection, doc, runTransaction, increment, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 import { db, storage, functions } from "../firebase";
@@ -103,39 +103,30 @@ export default function ContributeNewspaperModal({ onClose, onSuccess }) {
       }
 
       const itemsColRef = collection(db, "newspaper_items");
-      const statsDocRef = doc(db, "user_stats", user.uid);
 
-      await runTransaction(db, async (transaction) => {
-        const statsSnap = await transaction.get(statsDocRef);
-        const newDocRef = doc(itemsColRef);
-        transaction.set(newDocRef, {
-          title: form.title.trim(),
-          source_url: parsedUrl.toString(),
-          source_domain: extractDomain(parsedUrl.toString()),
-          summary_text: form.summaryText.trim().slice(0, SUMMARY_MAX),
-          classroom_talking_point: form.classroomTalkingPoint.trim(),
-          category: form.category,
-          image_url: imageUrl,
-          keywords: [],
-          source_trust: "user_submitted",
-          admin_approved: false,
-          status: "live",
-          author_id: user.uid,
-          author_name: profile?.name || "Contributor",
-          view_count: 0,
-          likes_count: 0,
-          flag_count: 0,
-          auto_fetched: false,
-          fetch_source_id: null,
-          external_id: null,
-          created_at: serverTimestamp(),
-          updated_at: serverTimestamp(),
-        });
-        if (statsSnap.exists()) {
-          transaction.update(statsDocRef, { newspaper_items_contributed_count: increment(1) });
-        } else {
-          transaction.set(statsDocRef, { newspaper_items_contributed_count: 1 }, { merge: true });
-        }
+      // The contributor's stats are updated by a Cloud Function (derivedData.js).
+      await addDoc(itemsColRef, {
+        title: form.title.trim(),
+        source_url: parsedUrl.toString(),
+        source_domain: extractDomain(parsedUrl.toString()),
+        summary_text: form.summaryText.trim().slice(0, SUMMARY_MAX),
+        classroom_talking_point: form.classroomTalkingPoint.trim(),
+        category: form.category,
+        image_url: imageUrl,
+        keywords: [],
+        source_trust: "user_submitted",
+        admin_approved: false,
+        status: "live",
+        author_id: user.uid,
+        author_name: profile?.name || "Contributor",
+        view_count: 0,
+        likes_count: 0,
+        flag_count: 0,
+        auto_fetched: false,
+        fetch_source_id: null,
+        external_id: null,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
       });
 
       if (onSuccess) onSuccess();

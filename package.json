@@ -12,7 +12,8 @@
     "lint:critical": "node scripts/check-critical-lint.mjs",
     "test": "vitest run tests/unit",
     "test:rules": "JAVA_TOOL_OPTIONS= firebase emulators:exec --only firestore,storage --project memeclassroom-rules-test \"vitest run tests/rules\"",
-    "test:all": "npm run test && npm run test:rules"
+    "test:all": "npm run test && npm run test:rules",
+    "test:functions": "firebase emulators:exec --only functions,firestore --project demo-e2e \"node tests/functions/derivedData.e2e.cjs\""
   },
   "dependencies": {
     "@ffmpeg/core": "^0.12.10",

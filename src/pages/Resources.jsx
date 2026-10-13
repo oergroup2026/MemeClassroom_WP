@@ -15,8 +15,7 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
-  increment,
-  runTransaction
+  increment
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase";
@@ -1147,7 +1146,7 @@ const Resources = () => {
     }
   };
 
-  const handleResourceLikeToggle = async (resourceId, authorId) => {
+  const handleResourceLikeToggle = async (resourceId) => {
     if (!user) { showToast("Please sign in to like resources.", "warning"); return; }
     if (likePendingMap[resourceId]) return;
     setLikePendingMap((prev) => ({ ...prev, [resourceId]: true }));
@@ -1155,7 +1154,6 @@ const Resources = () => {
     const isCurrentlyLiked = Boolean(savedResourceLikesMap[resourceId]);
     const existingLikeDocId = savedResourceLikesMap[resourceId];
     const likeDocRef = doc(db, "resource_likes", existingLikeDocId || `${user.uid}_${resourceId}`);
-    const resourceRef = doc(db, "resources", resourceId);
 
     // Optimistic state update: update likes map and resource array count immediately
     setSavedResourceLikesMap(prev => {
@@ -1175,19 +1173,12 @@ const Resources = () => {
 
     try {
       if (isCurrentlyLiked) {
-        await deleteDoc(likeDocRef).catch(() => { });
-        await setDoc(resourceRef, { likes_count: increment(-1) }, { merge: true });
-        if (authorId && authorId !== "admin") {
-          await setDoc(doc(db, "user_stats", authorId), { total_likes_received: increment(-1) }, { merge: true }).catch(() => { });
-        }
+        // likes_count / the author's total_likes_received are updated by a Cloud Function.
+        await deleteDoc(likeDocRef);
       } else {
         await setDoc(likeDocRef, {
           user_id: user.uid, resource_id: resourceId, created_at: serverTimestamp()
         }, { merge: true });
-        await setDoc(resourceRef, { likes_count: increment(1) }, { merge: true });
-        if (authorId && authorId !== "admin") {
-          await setDoc(doc(db, "user_stats", authorId), { total_likes_received: increment(1) }, { merge: true }).catch(() => { });
-        }
       }
     } catch (e) {
       console.error("Resource like toggle failed", e);
@@ -1222,21 +1213,8 @@ const Resources = () => {
   const handleDeleteResource = async (resId) => {
     if (!window.confirm("Are you sure you want to delete this resource? This cannot be undone.")) return;
     try {
+      // resources_contributed_count is decremented by a Cloud Function.
       await deleteDoc(doc(db, "resources", resId));
-      if (user) {
-        const statsRef = doc(db, "user_stats", user.uid);
-        try {
-          await runTransaction(db, async (tx) => {
-            const snap = await tx.get(statsRef);
-            if (snap.exists()) {
-              const current = snap.data().resources_contributed_count || 0;
-              tx.update(statsRef, { resources_contributed_count: Math.max(0, current - 1) });
-            }
-          });
-        } catch (txErr) {
-          console.error("Failed to safely decrement resources_contributed_count", txErr);
-        }
-      }
       showToast("Resource deleted successfully.", "success");
     } catch (e) {
       console.error("Failed to delete resource", e);
