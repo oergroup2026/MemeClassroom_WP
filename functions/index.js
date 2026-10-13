@@ -229,7 +229,11 @@ async function createNotification({ recipientId, actorId, actorName, type, title
 // Notifies the meme/post author.
 exports.onCommentCreated = onDocumentCreated("comments/{commentId}", async (event) => {
   const comment = event.data.data();
-  const { meme_id, author_id: actorId, text } = comment;
+  // The app writes comments with user_id/body (see Library.jsx); older code
+  // looked for author_id/text, so no comment notification was ever sent.
+  const meme_id = comment.meme_id;
+  const actorId = comment.user_id || comment.author_id;
+  const text = comment.body || comment.text;
   if (!meme_id || !actorId) return;
 
   // Resolve meme author
@@ -281,12 +285,14 @@ exports.onCommentLiked = onDocumentCreated("comment_likes/{likeId}", async (even
 // Notifies the parent comment author.
 exports.onMemeReply = onDocumentCreated("comments/{commentId}", async (event) => {
   const reply = event.data.data();
-  const { parent_id, author_id: actorId, text, meme_id } = reply;
+  const { parent_id, meme_id } = reply;
+  const actorId = reply.user_id || reply.author_id;
+  const text = reply.body || reply.text;
   if (!parent_id || !actorId) return; // Not a reply if no parent_id
 
   const parentSnap = await db.collection("comments").doc(parent_id).get();
   if (!parentSnap.exists) return;
-  const recipientId = parentSnap.data().author_id;
+  const recipientId = parentSnap.data().user_id || parentSnap.data().author_id;
   const actorName = await getUserName(actorId);
 
   await createNotification({
@@ -588,6 +594,25 @@ exports.forceFetchNewspaperItems = onCall({ timeoutSeconds: 300 }, async (reques
   return runNewspaperFetch({ maxPerCategory: 2, respectWeeklyCap: false });
 });
 
+/** True for http(s) URLs whose host is not an obviously private/internal address. */
+function isPublicHttpUrl(u) {
+  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+  const h = u.hostname.toLowerCase();
+  if (!h.includes(".") && !h.includes(":")) return false; // "localhost", bare names
+  if (h.endsWith(".local") || h.endsWith(".internal") || h === "metadata.google.internal") return false;
+  if (h.includes(":")) return false; // IPv6 literals: not needed for article links
+  const m = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(h);
+  if (m) {
+    const [a, b] = [Number(m[1]), Number(m[2])];
+    if (a === 10 || a === 127 || a === 0 || a >= 224) return false;
+    if (a === 169 && b === 254) return false;
+    if (a === 172 && b >= 16 && b <= 31) return false;
+    if (a === 192 && b === 168) return false;
+    if (a === 100 && b >= 64 && b <= 127) return false;
+  }
+  return true;
+}
+
 // Callable from the Contribute/Admin newspaper forms so a user pasting a
 // source link can auto-suggest a thumbnail instead of always uploading one
 // manually. Reuses the same og:image scrape the auto-fetch function falls
@@ -598,10 +623,17 @@ exports.fetchArticleThumbnail = onCall(async (request) => {
   }
   const url = (request.data?.url || "").trim();
   if (!url) throw new HttpsError("invalid-argument", "A url is required.");
+  let parsed;
   try {
-    new URL(url);
+    parsed = new URL(url);
   } catch {
     throw new HttpsError("invalid-argument", "That doesn't look like a valid URL.");
+  }
+  // This function makes OUR server fetch a URL a user typed. Without limits a
+  // user could aim it at internal addresses (localhost, the cloud metadata
+  // service) — so only public http(s) hosts are allowed.
+  if (!isPublicHttpUrl(parsed)) {
+    throw new HttpsError("invalid-argument", "That link can't be used.");
   }
 
   const { imageUrl } = await fetchOgImage(url);
@@ -708,12 +740,28 @@ exports.generateAiContent = onCall(async (request) => {
   if (!prompt || typeof prompt !== "string") {
     throw new HttpsError("invalid-argument", "A prompt is required.");
   }
+  // Size caps: each call costs real money, so refuse oversized input.
+  if (prompt.length > 8000 || String(systemInstruction).length > 4000 ||
+      (imageBase64 && String(imageBase64).length > 7_000_000)) {
+    throw new HttpsError("invalid-argument", "Input is too large.");
+  }
 
-  const { ref, quota } = await loadOrResetAiQuota(request.auth.uid);
-  const available = (quota.totalLimit + (quota.bonusCredits || 0)) - (quota.creditsUsed || 0);
-  if (available <= 0) {
+  // Reserve the credit BEFORE calling Gemini, inside a transaction. The old
+  // read-then-write let several parallel requests all see "1 credit left" and
+  // all run. If the AI call then fails, the credit is handed back below.
+  const { ref } = await loadOrResetAiQuota(request.auth.uid);
+  const reserved = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const q = snap.data();
+    const left = (q.totalLimit + (q.bonusCredits || 0)) - (q.creditsUsed || 0);
+    if (left <= 0) return null;
+    tx.update(ref, { creditsUsed: (q.creditsUsed || 0) + 1 });
+    return { ...q, creditsUsed: (q.creditsUsed || 0) + 1 };
+  });
+  if (!reserved) {
     throw new HttpsError("resource-exhausted", "QUOTA_EXCEEDED");
   }
+  const refund = () => ref.update({ creditsUsed: admin.firestore.FieldValue.increment(-1) }).catch(() => {});
 
   const apiKey = process.env.GEMINI_API_KEY;
   let text;
@@ -746,22 +794,43 @@ exports.generateAiContent = onCall(async (request) => {
     } catch (e) {
       console.error("Gemini API request failed", e.message);
       Sentry.captureException(e);
+      await refund();
       throw new HttpsError("unavailable", "The AI service is temporarily unavailable. Please try again.");
     }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error("Gemini API call failed", response.status, errorData);
       Sentry.captureException(new Error(errorData.error?.message || `Gemini API call failed (${response.status})`));
+      await refund();
       throw new HttpsError("internal", "The AI service is temporarily unavailable. Please try again.");
     }
     const data = await response.json();
     text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
   }
 
-  const updatedQuota = { ...quota, creditsUsed: (quota.creditsUsed || 0) + 1 };
-  await ref.set(updatedQuota);
+  return { text, quota: aiQuotaPublicView(reserved) };
+});
 
-  return { text, quota: aiQuotaPublicView(updatedQuota) };
+
+// ─── Institution-email verification ──────────────────────────────────────────
+// The browser used to set is_verified: true on its own profile, which the
+// security rules (correctly) refuse — anyone able to do that could verify
+// themselves. The decision is made here instead, using the email Firebase has
+// itself confirmed for the signed-in account (request.auth.token).
+exports.verifyInstitutionEmail = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+  const uid = request.auth.uid;
+  const snap = await db.collection("users").doc(uid).get();
+  const institutionEmail = String(snap.exists ? snap.data().institution_email || "" : "").trim().toLowerCase();
+  const loginEmail = String(request.auth.token.email || "").toLowerCase();
+
+  if (!institutionEmail || request.auth.token.email_verified !== true || institutionEmail !== loginEmail) {
+    return { verified: false };
+  }
+  await db.collection("users").doc(uid).update({ is_verified: true, verification_status: "verified" });
+  return { verified: true };
 });
 
 

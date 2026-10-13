@@ -201,8 +201,14 @@ service cloud.firestore {
     // ─── Taxonomy Counters ───────────────────────────────────────────────────
     // Authenticated users can write counts; only admin reads all counts.
     match /custom_counts/{docId} {
-      allow read: if isAdmin();
-      allow write: if isLoggedIn();
+      // The app reads the counter inside its own transaction, so signed-in users
+      // need read access (admin-only read made that transaction always fail).
+      // Writes may only start a counter at 1 or add exactly 1 — nobody can set
+      // an arbitrary number to force a custom subject into the shared taxonomy.
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn() && request.resource.data.count == 1;
+      allow update: if isLoggedIn() && request.resource.data.count == resource.data.count + 1;
+      allow delete: if isAdmin();
     }
 
     // ─── Shared Config (taxonomy, etc.) ─────────────────────────────────────
@@ -570,7 +576,8 @@ service cloud.firestore {
     // ─── Admin Notifications ──────────────────────────────────────────────────
     match /admin_notifications/{notifId} {
       allow read, update, delete: if isAdmin();
-      allow create: if isLoggedIn();
+      // Must be about yourself, so nobody can fake alerts in another user's name.
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
     }
 
   }
