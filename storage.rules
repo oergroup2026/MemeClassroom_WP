@@ -206,6 +206,7 @@ service firebase.storage {
     match /staffroom_attachments/{fileName} {
       allow read: if true;
       allow create, update: if isLoggedIn()
+        && (fileName.matches('.*' + request.auth.uid + '.*') || isAdmin())
         && (isImageType() || isDocumentType())
         && request.resource.size <= maxMB(20);
       allow delete: if isLoggedIn() &&
@@ -216,6 +217,7 @@ service firebase.storage {
     match /activities/{fileName} {
       allow read: if true;
       allow create, update: if isLoggedIn()
+        && (fileName.matches('.*' + request.auth.uid + '.*') || isAdmin())
         && (isImageType() || isDocumentType())
         && request.resource.size <= maxMB(25);
       allow delete: if isLoggedIn() &&
@@ -226,6 +228,7 @@ service firebase.storage {
     match /slang_memes/{fileName} {
       allow read: if true;
       allow create, update: if isLoggedIn()
+        && (fileName.matches('.*' + request.auth.uid + '.*') || isAdmin())
         && isImageType()
         && request.resource.size <= maxMB(10);
       allow delete: if isAdmin();
