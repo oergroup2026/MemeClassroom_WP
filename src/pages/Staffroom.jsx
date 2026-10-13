@@ -687,15 +687,15 @@ const Staffroom = () => {
       }
 
       const postsColRef = collection(db, "staffroom_posts");
-      const statsDocRef = doc(db, "user_stats", user.uid);
 
-      await runTransaction(db, async (transaction) => {
+      // staffroom_posts_count is updated by a Cloud Function (derivedData.js).
+      {
         const newPostRef = doc(postsColRef);
         const cleanOptions = pollOptions.map((o) => o.trim()).filter(Boolean);
         const votesMap = {};
         cleanOptions.forEach((_, i) => { votesMap[i] = 0; });
 
-        transaction.set(newPostRef, {
+        await setDoc(newPostRef, {
           author_id: user.uid,
           post_type: composeType,
           title: composeTitle.trim(),
@@ -717,9 +717,7 @@ const Staffroom = () => {
           poll_voted_users: [],
           created_at: serverTimestamp(),
         });
-
-        transaction.update(statsDocRef, { staffroom_posts_count: increment(1) });
-      });
+      }
 
       closeComposeModal();
       toast("Thread published successfully!", "success");
@@ -803,7 +801,7 @@ const Staffroom = () => {
     }
   };
 
-  const handleDeleteThread = (threadId, threadAuthorId) => {
+  const handleDeleteThread = (threadId) => {
     openConfirm({
       title: "Delete Thread?",
       message: "This will permanently remove the thread and all its replies. This action cannot be undone.",
@@ -812,22 +810,8 @@ const Staffroom = () => {
       onConfirm: async () => {
         closeConfirm();
         try {
+          // staffroom_posts_count is decremented by a Cloud Function.
           await deleteDoc(doc(db, "staffroom_posts", threadId));
-          const targetUid = threadAuthorId || user?.uid;
-          if (targetUid) {
-            const statsRef = doc(db, "user_stats", targetUid);
-            try {
-              await runTransaction(db, async (tx) => {
-                const snap = await tx.get(statsRef);
-                if (snap.exists()) {
-                  const current = snap.data().staffroom_posts_count || 0;
-                  tx.update(statsRef, { staffroom_posts_count: Math.max(0, current - 1) });
-                }
-              });
-            } catch (txErr) {
-              console.error("Failed to decrement staffroom_posts_count safely", txErr);
-            }
-          }
           toast("Thread deleted.", "success");
         } catch (e) {
           console.error(e);
@@ -890,7 +874,7 @@ const Staffroom = () => {
     }
   };
 
-  const handleDeleteMeme = (memeId, memeAuthorId) => {
+  const handleDeleteMeme = (memeId) => {
     openConfirm({
       title: "Delete Meme?",
       message: "This will permanently remove the meme from the library.",
@@ -899,22 +883,8 @@ const Staffroom = () => {
       onConfirm: async () => {
         closeConfirm();
         try {
+          // memes_created_count is decremented by a Cloud Function.
           await deleteDoc(doc(db, "memes", memeId));
-          const targetUid = memeAuthorId || user?.uid;
-          if (targetUid) {
-            const statsRef = doc(db, "user_stats", targetUid);
-            try {
-              await runTransaction(db, async (tx) => {
-                const snap = await tx.get(statsRef);
-                if (snap.exists()) {
-                  const current = snap.data().memes_created_count || 0;
-                  tx.update(statsRef, { memes_created_count: Math.max(0, current - 1) });
-                }
-              });
-            } catch (txErr) {
-              console.error("Failed to decrement memes_created_count safely", txErr);
-            }
-          }
           setActiveMeme(null);
           toast("Meme deleted.", "success");
         } catch (e) {
@@ -948,14 +918,10 @@ const Staffroom = () => {
     if (!user || !activeMeme) return;
     const ratingDocId = `${user.uid}_${activeMeme.id}`;
     const ratingRef = doc(db, "ratings", ratingDocId);
-    const statsRef = doc(db, "user_stats", user.uid);
     try {
       await runTransaction(db, async (tx) => {
         const ratingDoc = await tx.get(ratingRef);
         const existingData = ratingDoc.exists() ? ratingDoc.data() : {};
-
-        const statsDoc = await tx.get(statsRef);
-        const currentCount = statsDoc.exists() ? (statsDoc.data().ratings_provided_count || 0) : 0;
 
         let newRating = {
           meme_id: activeMeme.id,
@@ -969,11 +935,8 @@ const Staffroom = () => {
           newRating.created_at = new Date();
         }
 
+        // ratings_provided_count is updated by a Cloud Function on first create.
         tx.set(ratingRef, newRating);
-
-        if (!ratingDoc.exists()) {
-          tx.set(statsRef, { ratings_provided_count: currentCount + 1 }, { merge: true });
-        }
       });
       toast("Rating submitted!", "success");
     } catch (e) {
@@ -1638,7 +1601,7 @@ const Staffroom = () => {
                         {/* Delete */}
                         {user && (thread.author_id === user.uid || profile?.role === "admin") && (
                           <button
-                            onClick={() => handleDeleteThread(thread.id, thread.author_id)}
+                            onClick={() => handleDeleteThread(thread.id)}
                             className="text-red-500 hover:text-red-750 text-xs font-bold transition"
                           >
                             Delete

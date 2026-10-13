@@ -40,7 +40,6 @@ import {
   setDoc,
   serverTimestamp,
   updateDoc,
-  increment,
   query,
   where,
   onSnapshot
@@ -2320,11 +2319,7 @@ const Lab = () => {
         await addDoc(collection(db, "memes"), memeData);
       }
 
-      // Update user stats for contributor points
-      const statsRef = doc(db, "user_stats", user.uid);
-      await setDoc(statsRef, {
-        memes_created_count: increment(1)
-      }, { merge: true });
+      // Contributor points (memes_created_count) are updated by a Cloud Function.
 
       if (subject === "Other" && customSubject.trim()) {
         trackCustomSubmission("subject", customSubject.trim());

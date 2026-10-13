@@ -12,14 +12,11 @@ import {
   setDoc,
   deleteDoc,
   updateDoc,
-  increment,
-  runTransaction,
   addDoc,
   serverTimestamp
 } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { awardBadgeIfMissing } from "../utils/badges";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useToast } from "../components/ToastNotification";
@@ -106,7 +103,7 @@ const CATEGORY_NAMES = {
 const containerClass = "bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm";
 
 const Profile = () => {
-  const { user, profile, updateUserAvatar, awardLoginBadge } = useAuth();
+  const { user, profile, updateUserAvatar } = useAuth();
   const currentProfile = profile || {
     name: user?.displayName || "Educator",
     role: "student",
@@ -254,19 +251,6 @@ const Profile = () => {
           slang_quizzes_completed: Math.max(0, raw.slang_quizzes_completed || 0)
         };
         setStats(sanitized);
-
-        // Auto-heal negative counters in Firestore database
-        const repairs = {};
-        for (const [key, val] of Object.entries(sanitized)) {
-          if (typeof raw[key] === "number" && raw[key] < 0) {
-            repairs[key] = 0;
-          }
-        }
-        if (Object.keys(repairs).length > 0) {
-          updateDoc(statsDocRef, repairs).catch((err) =>
-            console.error("Auto-healing negative stats in Firestore:", err)
-          );
-        }
       }
     });
     return () => unsubscribe();
@@ -434,43 +418,9 @@ const Profile = () => {
     return 0;
   };
 
-  // Badge transaction checks trigger
-  useEffect(() => {
-    if (!user || !badgesLoaded || user.uid === "guest_dev") return;
-
-    const checkAndAwardBadges = async () => {
-      // Ensure Contributor registration badge is awarded if missing
-      const hasContributor = earnedBadges.some(b => b.badge_name === "Contributor");
-      if (!hasContributor && awardLoginBadge) {
-        awardLoginBadge(user.uid);
-      }
-
-      for (const [category, config] of Object.entries(CATEGORY_NAMES)) {
-        const count = stats[config.statKey] || 0;
-        const currentLevel = calculateLevel(count);
-
-        if (currentLevel > 0) {
-          const hasBadge = earnedBadges.some(
-            b => b.category === category && b.level === currentLevel
-          );
-
-          if (!hasBadge) {
-            const badgeName = `${LEVEL_NAMES[currentLevel]} ${config.label}`;
-            await awardBadgeIfMissing({
-              uid: user.uid,
-              badgeName,
-              category,
-              level: currentLevel,
-              existingBadges: earnedBadges,
-              announce: false,
-            });
-          }
-        }
-      }
-    };
-
-    checkAndAwardBadges();
-  }, [stats, earnedBadges, badgesLoaded, user]);
+  // Level badges (and the Contributor badge) are awarded by a Cloud Function
+  // (functions/derivedData.js syncBadges) whenever stats change; this page only
+  // displays the badges in `earnedBadges`.
 
   // Fetch User's Literacy Test Results
   useEffect(() => {
@@ -723,21 +673,8 @@ const Profile = () => {
       return;
     }
     try {
+      // memes_created_count is decremented by a Cloud Function (derivedData.js).
       await deleteDoc(doc(db, "memes", memeId));
-      if (!isDraft && user) {
-        const statsDocRef = doc(db, "user_stats", user.uid);
-        try {
-          await runTransaction(db, async (tx) => {
-            const snap = await tx.get(statsDocRef);
-            if (snap.exists()) {
-              const current = snap.data().memes_created_count || 0;
-              tx.update(statsDocRef, { memes_created_count: Math.max(0, current - 1) });
-            }
-          });
-        } catch (txErr) {
-          console.error("Failed to safely decrement memes_created_count", txErr);
-        }
-      }
       toast(`${isDraft ? "Draft" : "Meme"} deleted successfully.`, "success");
     } catch (e) {
       console.error("Failed to delete meme", e);

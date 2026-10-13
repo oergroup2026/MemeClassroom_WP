@@ -312,15 +312,13 @@ export default function Newspaper() {
     const isLiked = !!likesMap[itemId];
     const likeDocId = likesMap[itemId] || `${user.uid}_${itemId}`;
     const likeRef = doc(db, "newspaper_likes", likeDocId);
-    const itemRef = doc(db, "newspaper_items", itemId);
 
     try {
+      // likes_count is updated by a Cloud Function when the like doc changes.
       if (isLiked) {
-        await deleteDoc(likeRef).catch(() => {});
-        await setDoc(itemRef, { likes_count: increment(-1) }, { merge: true });
+        await deleteDoc(likeRef);
       } else {
         await setDoc(likeRef, { user_id: user.uid, item_id: itemId, created_at: serverTimestamp() }, { merge: true });
-        await setDoc(itemRef, { likes_count: increment(1) }, { merge: true });
       }
     } catch (e) {
       console.error("Newspaper like toggle failed", e);

@@ -48,6 +48,9 @@ if (process.env.SENTRY_DSN) {
 
 admin.initializeApp();
 const db = admin.firestore();
+
+// Server-owned counters, stats and badges (see derivedData.js).
+Object.assign(exports, require("./derivedData"));
 // A descriptive User-Agent avoids Reddit's default rate-limiting/blocking of
 // unauthenticated requests that use a generic client User-Agent.
 const rssParser = new Parser({

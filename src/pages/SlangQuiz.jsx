@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import {
-  collection, query, where, onSnapshot, doc, runTransaction, increment, serverTimestamp,
+  collection, query, where, onSnapshot, doc, runTransaction, serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
@@ -134,9 +134,10 @@ const SlangQuiz = () => {
 
         // Every completed attempt counts toward the Slang Master badge,
         // whether or not it was a passing score.
+        // (The counter itself is incremented by a Cloud Function; this read only
+        // decides whether to show the "level up" message.)
         if (statsSnap.exists()) {
           const oldCount = statsSnap.data().slang_quizzes_completed || 0;
-          tx.update(statsRef, { slang_quizzes_completed: increment(1) });
           const oldLevel = levelForCount(oldCount);
           const newLevel = levelForCount(oldCount + 1);
           if (newLevel > oldLevel) leveledUpTo = LEVEL_NAMES[newLevel];

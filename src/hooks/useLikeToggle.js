@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { doc, deleteDoc, setDoc, increment, serverTimestamp } from "firebase/firestore";
+import { doc, deleteDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 
 /**
- * Toggle-like for memes: creates/deletes a /likes doc and keeps
- * /memes/{memeId}.likes_count and /user_stats/{creatorId}.total_likes_received
- * in sync, with per-meme pending/animation state for the heart icon.
+ * Toggle-like for memes: creates/deletes a /likes doc, with per-meme
+ * pending/animation state for the heart icon. /memes/{memeId}.likes_count and
+ * /user_stats/{creatorId}.total_likes_received are updated by Cloud Functions
+ * (functions/derivedData.js) when the like doc is created/deleted — clients
+ * are not allowed to write those numbers.
  *
  * `userLikesMap` (memeId -> that like doc's id, for the current user) is
  * owned by the caller — populated by a live subscription elsewhere on the
@@ -15,7 +17,7 @@ export function useLikeToggle({ user, userLikesMap, onSignedOut }) {
   const [likePendingMap, setLikePendingMap] = useState({});
   const [animatingHeartMemeId, setAnimatingHeartMemeId] = useState(null);
 
-  const toggleLike = async (memeId, creatorId) => {
+  const toggleLike = async (memeId) => {
     if (!user) { onSignedOut?.(); return; }
     if (likePendingMap[memeId]) return;
 
@@ -24,14 +26,9 @@ export function useLikeToggle({ user, userLikesMap, onSignedOut }) {
     setTimeout(() => setAnimatingHeartMemeId(null), 300);
 
     const existingLikeId = userLikesMap[memeId];
-    const statsRef = doc(db, "user_stats", creatorId);
-    const memeRef = doc(db, "memes", memeId);
-
     try {
       if (existingLikeId) {
-        await deleteDoc(doc(db, "likes", existingLikeId)).catch(() => {});
-        await setDoc(statsRef, { total_likes_received: increment(-1) }, { merge: true }).catch(() => {});
-        await setDoc(memeRef, { likes_count: increment(-1) }, { merge: true });
+        await deleteDoc(doc(db, "likes", existingLikeId));
       } else {
         const likeDocId = `${user.uid}_${memeId}`;
         await setDoc(doc(db, "likes", likeDocId), {
@@ -39,8 +36,6 @@ export function useLikeToggle({ user, userLikesMap, onSignedOut }) {
           meme_id: memeId,
           created_at: serverTimestamp(),
         }, { merge: true });
-        await setDoc(statsRef, { total_likes_received: increment(1) }, { merge: true }).catch(() => {});
-        await setDoc(memeRef, { likes_count: increment(1) }, { merge: true });
       }
     } catch (e) {
       console.error("Like toggle failed", e);

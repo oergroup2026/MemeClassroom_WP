@@ -245,8 +245,12 @@ describe("contributing requires an account", () => {
 });
 
 describe("badges record real achievements", () => {
-  it("lets a user earn their own badge", async () => {
-    await assertSucceeds(setDoc(doc(alice, "badges/b1"), { user_id: ALICE, badge_name: "Contributor" }));
+  it("stops a user awarding themselves a level badge (Cloud Functions do that)", async () => {
+    await assertFails(setDoc(doc(alice, "badges/b1"), { user_id: ALICE, badge_name: "Diamond Meme Creator", category: "content_creator", level: 5 }));
+  });
+
+  it("still lets a user record their own literacy-test badge", async () => {
+    await assertSucceeds(setDoc(doc(alice, "badges/b1"), { user_id: ALICE, badge_name: "Meme Literate", category: "literacy", level: 1 }));
   });
 
   it("stops a user awarding a badge to someone else", async () => {
@@ -367,5 +371,91 @@ describe("quota documents cannot be tampered with", () => {
 
   it("stops even an admin writing it, since only Cloud Functions may", async () => {
     await assertFails(updateDoc(doc(admin, `user_quotas/${ALICE}`), { blocked_until: new Date(0) }));
+  });
+});
+
+describe("derived numbers (likes, stats) are written only by Cloud Functions", () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const d = ctx.firestore();
+      await d.doc("memes/m1").set({ creator_id: ALICE, visibility: "public", title: "m", likes_count: 2, view_count: 0 });
+      await d.doc("resources/r1").set({ author_id: ALICE, admin_approved: true, likes_count: 1, view_count: 0 });
+      await d.doc("newspaper_items/n1").set({ author_id: ALICE, admin_approved: true, likes_count: 0, view_count: 0, flag_count: 0 });
+      await d.doc(`user_stats/${ALICE}`).set({ memes_created_count: 1, total_likes_received: 0 });
+    });
+  });
+
+  it("stops a user writing their own stats", async () => {
+    await assertFails(updateDoc(doc(alice, `user_stats/${ALICE}`), { memes_created_count: 50 }));
+    await assertFails(setDoc(doc(bob, `user_stats/${BOB}`), { total_likes_received: 999 }));
+  });
+
+  it("stops anyone bumping another user's likes received", async () => {
+    await assertFails(updateDoc(doc(bob, `user_stats/${ALICE}`), { total_likes_received: 1 }));
+  });
+
+  it("still lets signed-in users read stats, and admins write them", async () => {
+    await assertSucceeds(getDoc(doc(bob, `user_stats/${ALICE}`)));
+    await assertSucceeds(updateDoc(doc(admin, `user_stats/${ALICE}`), { memes_created_count: 2 }));
+  });
+
+  it("stops anyone changing a meme's likes_count directly", async () => {
+    await assertFails(updateDoc(doc(bob, "memes/m1"), { likes_count: 3 }));
+    await assertFails(updateDoc(doc(alice, "memes/m1"), { likes_count: 9999 }));
+  });
+
+  it("stops the creator inflating their own views", async () => {
+    await assertFails(updateDoc(doc(alice, "memes/m1"), { view_count: 5000 }));
+  });
+
+  it("stops publishing content that already claims likes or views", async () => {
+    await assertFails(setDoc(doc(alice, "memes/new1"), { creator_id: ALICE, visibility: "public", likes_count: 500 }));
+    await assertSucceeds(setDoc(doc(alice, "memes/new2"), { creator_id: ALICE, visibility: "public", likes_count: 0, view_count: 0 }));
+  });
+
+  it("stops anyone changing a resource's or news item's likes_count", async () => {
+    await assertFails(updateDoc(doc(bob, "resources/r1"), { likes_count: 2 }));
+    await assertFails(updateDoc(doc(alice, "resources/r1"), { likes_count: 500 }));
+    await assertFails(updateDoc(doc(bob, "newspaper_items/n1"), { likes_count: 1 }));
+  });
+
+  it("counts a view on a resource or news item for any signed-in reader, +1 only", async () => {
+    await assertSucceeds(updateDoc(doc(bob, "resources/r1"), { view_count: 1 }));
+    await assertFails(updateDoc(doc(bob, "resources/r1"), { view_count: 9 }));
+    await assertSucceeds(updateDoc(doc(bob, "newspaper_items/n1"), { view_count: 1 }));
+    await assertFails(updateDoc(doc(bob, "newspaper_items/n1"), { view_count: 7 }));
+  });
+});
+
+describe("one like per person per item, and a like cannot be retargeted", () => {
+  it("accepts a like whose id is {uid}_{target}", async () => {
+    await assertSucceeds(setDoc(doc(alice, `likes/${ALICE}_m1`), { user_id: ALICE, meme_id: "m1" }));
+    await assertSucceeds(setDoc(doc(alice, `resource_likes/${ALICE}_r1`), { user_id: ALICE, resource_id: "r1" }));
+    await assertSucceeds(setDoc(doc(alice, `newspaper_likes/${ALICE}_n1`), { user_id: ALICE, item_id: "n1" }));
+  });
+
+  it("stops a second like on the same item under a different id", async () => {
+    await assertFails(setDoc(doc(alice, "likes/dup-1"), { user_id: ALICE, meme_id: "m1" }));
+    await assertFails(setDoc(doc(alice, "resource_likes/dup-1"), { user_id: ALICE, resource_id: "r1" }));
+    await assertFails(setDoc(doc(alice, "newspaper_likes/dup-1"), { user_id: ALICE, item_id: "n1" }));
+  });
+
+  it("stops a like being moved to another item (which would skew the counters on delete)", async () => {
+    await assertSucceeds(setDoc(doc(alice, `resource_likes/${ALICE}_r1`), { user_id: ALICE, resource_id: "r1" }));
+    await assertFails(updateDoc(doc(alice, `resource_likes/${ALICE}_r1`), { resource_id: "r2" }));
+  });
+
+  it("stops liking in someone else's name", async () => {
+    await assertFails(setDoc(doc(bob, `likes/${ALICE}_m1`), { user_id: ALICE, meme_id: "m1" }));
+  });
+
+  it("lets a user remove their own like", async () => {
+    await assertSucceeds(setDoc(doc(alice, `likes/${ALICE}_m1`), { user_id: ALICE, meme_id: "m1" }));
+    await assertSucceeds(deleteDoc(doc(alice, `likes/${ALICE}_m1`)));
+  });
+
+  it("limits ratings to one document per person per meme", async () => {
+    await assertSucceeds(setDoc(doc(alice, `ratings/${ALICE}_m1`), { user_id: ALICE, meme_id: "m1", clarity: 4 }));
+    await assertFails(setDoc(doc(alice, "ratings/spam-1"), { user_id: ALICE, meme_id: "m1", clarity: 4 }));
   });
 });

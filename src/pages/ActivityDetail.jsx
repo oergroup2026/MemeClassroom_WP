@@ -291,20 +291,13 @@ export default function ActivityDetail() {
     try {
       if (isLiked) {
         const docToDelete = likeDocId ? doc(db, "resource_likes", likeDocId) : doc(db, "resource_likes", `${user.uid}_${id}`);
-        await deleteDoc(docToDelete).catch(() => {});
-        await setDoc(doc(db, "resources", id), { likes_count: increment(-1) }, { merge: true });
-        if (activity?.author_id && activity?.author_id !== "admin") {
-          await setDoc(doc(db, "user_stats", activity.author_id), { total_likes_received: increment(-1) }, { merge: true }).catch(() => {});
-        }
+        // likes_count / the author's total_likes_received are updated by a Cloud Function.
+        await deleteDoc(docToDelete);
       } else {
         const likeId = `${user.uid}_${id}`;
         await setDoc(doc(db, "resource_likes", likeId), {
           user_id: user.uid, resource_id: id, created_at: serverTimestamp()
         }, { merge: true });
-        await setDoc(doc(db, "resources", id), { likes_count: increment(1) }, { merge: true });
-        if (activity?.author_id && activity?.author_id !== "admin") {
-          await setDoc(doc(db, "user_stats", activity.author_id), { total_likes_received: increment(1) }, { merge: true }).catch(() => {});
-        }
       }
     } catch (e) { console.error("Like failed", e); }
     finally { setLikePending(false); }
