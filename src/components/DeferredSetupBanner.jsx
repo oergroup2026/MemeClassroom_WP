@@ -9,7 +9,8 @@ import {
 import { doc, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { checkUpload } from "../utils/uploadLimits";
-import { db, storage } from "../firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, storage, functions } from "../firebase";
 
 // Institution type options
 const INSTITUTION_TYPES = [
@@ -208,10 +209,9 @@ const DeferredSetupBanner = () => {
 
       // If institution email matches their Firebase login email → auto-verify
       if (user.emailVerified && user.email?.toLowerCase() === institutionEmail.trim().toLowerCase()) {
-        await updateDoc(doc(db, "users", user.uid), {
-          is_verified: true,
-          verification_status: "verified",
-        });
+        // The server makes this decision (rules stop a browser verifying itself).
+        const { data } = await httpsCallable(functions, "verifyInstitutionEmail")();
+        if (!data?.verified) throw new Error("verification not granted");
         setVerifySuccess("Your institution email matches your verified login email. You're now verified! ✓");
       } else {
         setVerifySuccess(

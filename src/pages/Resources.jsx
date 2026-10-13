@@ -1264,7 +1264,7 @@ const Resources = () => {
 
       if (extThumbnailFile) {
         try {
-          const fileRef = ref(storage, `external_thumbnails/${Date.now()}_${extThumbnailFile.name}`);
+          const fileRef = ref(storage, `external_thumbnails/${user.uid}_${Date.now()}_${extThumbnailFile.name}`);
           await uploadBytes(fileRef, extThumbnailFile);
           finalImageUrl = await getDownloadURL(fileRef);
         } catch (uploadErr) {

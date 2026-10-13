@@ -238,6 +238,7 @@ service firebase.storage {
     match /external_thumbnails/{fileName} {
       allow read: if true;
       allow create, update: if isLoggedIn()
+        && (fileName.matches('.*' + request.auth.uid + '.*') || isAdmin())
         && isImageType()
         && request.resource.size <= maxMB(5);
       allow delete: if isAdmin();

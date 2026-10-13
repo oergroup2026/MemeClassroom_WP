@@ -163,7 +163,11 @@ describe("paths the app actually uses are permitted", () => {
   });
 
   it("accepts an external link thumbnail", async () => {
-    await assertSucceeds(uploadBytes(ref(alice, `external_thumbnails/123_thumb.png`), png(), IMAGE));
+    await assertSucceeds(uploadBytes(ref(alice, `external_thumbnails/${ALICE}_123_thumb.png`), png(), IMAGE));
+  });
+
+  it("refuses an external link thumbnail not named with the uploader's uid", async () => {
+    await assertFails(uploadBytes(ref(alice, `external_thumbnails/123_thumb.png`), png(), IMAGE));
   });
 
   it("accepts a user avatar in their own folder", async () => {
