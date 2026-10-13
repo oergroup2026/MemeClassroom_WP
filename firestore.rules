@@ -82,7 +82,11 @@ service cloud.firestore {
       allow read: if isLoggedIn() && (isOwner(userId) || isAdmin());
       allow create: if isLoggedIn() && (
         isAdmin() ||
-        (isOwner(userId) && isSelfAssignableRole(request.resource.data.role))
+        (isOwner(userId) && isSelfAssignableRole(request.resource.data.role)
+          // The update rule below guards these fields, but create did not, so a
+          // new signup could simply be born verified (or pre-cleared of a ban).
+          && request.resource.data.get('is_verified', false) == false
+          && request.resource.data.get('banned', false) == false)
       );
       allow update: if isLoggedIn() && (
         isAdmin() ||
@@ -264,7 +268,10 @@ service cloud.firestore {
     // voting and reacting all still require a signed-in, non-banned user below.
     match /staffroom_posts/{postId} {
       allow read: if true;
-      allow create: if isLoggedIn() && !isBanned() && notRateLimited();
+      // author_id must be the caller, otherwise anyone could post in another
+      // user's name (the author's name/avatar is looked up from this field).
+      allow create: if isLoggedIn() && !isBanned() && notRateLimited()
+        && request.resource.data.author_id == request.auth.uid;
       allow update: if isLoggedIn() && (
         resource.data.author_id == request.auth.uid ||
         isAdmin() ||
@@ -278,7 +285,8 @@ service cloud.firestore {
     // Public read, same policy as the posts they belong to.
     match /staffroom_replies/{replyId} {
       allow read: if true;
-      allow create: if isLoggedIn() && !isBanned();
+      allow create: if isLoggedIn() && !isBanned()
+        && request.resource.data.author_id == request.auth.uid;
       allow update: if isLoggedIn() && (resource.data.author_id == request.auth.uid || isAdmin());
       allow delete: if isLoggedIn() && resource.data.author_id == request.auth.uid;
       allow delete: if isAdmin() || isExpertOrAdmin();
@@ -486,8 +494,11 @@ service cloud.firestore {
 
     // ─── Unban Requests ───────────────────────────────────────────────────────
     match /unban_requests/{reqId} {
-      allow read: if isLoggedIn();
-      allow create, update: if isLoggedIn() && (request.auth.uid == reqId || request.resource.data.user_id == request.auth.uid || isAdmin());
+      // Appeals contain the user's explanation and email, so only the appellant
+      // (doc id == their uid) and admins may read or write them. Previously any
+      // signed-in user could read everyone's appeals or overwrite someone else's.
+      allow read: if isLoggedIn() && (request.auth.uid == reqId || isAdmin());
+      allow create, update: if isLoggedIn() && (request.auth.uid == reqId || isAdmin());
       allow delete: if isAdmin();
     }
 
