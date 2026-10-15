@@ -1,43 +1,14 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles } from "lucide-react";
-import {
-  collection, query, where, onSnapshot, doc, runTransaction, serverTimestamp,
-} from "firebase/firestore";
-import { db } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-import { SLANG_QUIZ_QUESTIONS } from "../data/slangQuizQuestions";
+import { startQuiz as startServerQuiz, answerQuestion, finishQuiz } from "../utils/quizApi";
 
 const QUESTIONS_PER_ATTEMPT = 10;
 const PASS_THRESHOLD = 70;
 const BADGE_NAME = "Slang Master";
-
-// Mirrors Profile.jsx's calculateLevel()/LEVEL_NAMES exactly — the "Slang
-// Master" badge is awarded through the same generic, multi-level
-// progression system as "Resource Sharer", "Meme Creator", etc. (Bronze at
-// 1 quiz, Silver at 5, Gold at 10, Platinum at 25, Diamond at 50), driven
-// off the `slang_quizzes_completed` counter in `user_stats` rather than a
-// bespoke single-tier badge. Profile.jsx's checkAndAwardBadges effect is
-// what actually writes the badge doc (next time the user opens /profile).
-// Every completed attempt counts, whether or not it was a passing score.
-const LEVEL_THRESHOLDS = [0, 1, 5, 10, 25, 50];
-const LEVEL_NAMES = ["None", "Bronze", "Silver", "Gold", "Platinum", "Diamond"];
-const levelForCount = (count) => {
-  let level = 0;
-  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
-    if (count >= LEVEL_THRESHOLDS[i]) { level = i; break; }
-  }
-  return level;
-};
-
-const shuffle = (arr) => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-};
+// Must match SLANG_COUNTED_PER_DAY in functions/quizLogic.js.
+const COUNTED_PER_DAY = 3;
 
 const resultMessage = (pct) => {
   if (pct >= 90) return { emoji: "🏆", title: "Slang Legend!", body: "You basically speak fluent internet. Teach the rest of us." };
@@ -47,60 +18,50 @@ const resultMessage = (pct) => {
 };
 
 // ─── Slang Decoder Quiz ───────────────────────────────────────────────────────
-// Modeled on MemeLiteracyTest.jsx's Firestore-first / local-fallback question
-// loading and its per-question "explanation" phase (immediate correct/
-// incorrect feedback + a plain-language explanation before moving on), kept
-// intentionally simpler (single quiz, no multi-test launcher, no
-// dimensions, no AI coaching). Badge progress is tracked via Profile.jsx's
-// existing generic tiered-badge system (see LEVEL_THRESHOLDS above), not a
-// bespoke single-tier award.
+// Graded on the server (functions/quizzes.js), like MemeLiteracyTest.jsx: the
+// browser gets 10 random questions without answers, learns each answer only
+// after locking in a choice, and the server scores the attempt. A passed quiz
+// counts toward the tiered Slang Master badge (Bronze at 1 … Diamond at 50),
+// at most 3 a day; the server bumps user_stats.slang_quizzes_completed and the
+// badge follows from that (derivedData.js syncBadges).
 const SlangQuiz = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [firestoreQuestions, setFirestoreQuestions] = useState([]);
   const [phase, setPhase] = useState("intro"); // intro | quiz | explanation | results
+  const [attemptId, setAttemptId] = useState(null);
   const [activeQuestions, setActiveQuestions] = useState([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [lastAnswerCorrect, setLastAnswerCorrect] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [newLevelName, setNewLevelName] = useState(null);
+  const [counted, setCounted] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    const q = query(collection(db, "slang_quiz_questions"), where("is_active", "==", true));
-    const unsub = onSnapshot(
-      q,
-      (snap) => setFirestoreQuestions(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
-      (err) => {
-        console.error("Failed to load slang quiz questions:", err);
-        setFirestoreQuestions([]);
-      }
-    );
-    return () => unsub();
-  }, []);
-
-  // Pool merges Firestore-curated questions with the bundled local bank,
-  // deduped by question text so admin edits don't create duplicates.
-  const pool = useMemo(() => {
-    const byText = new Map();
-    [...firestoreQuestions, ...SLANG_QUIZ_QUESTIONS].forEach((q) => {
-      const key = (q.question_text || "").trim().toLowerCase();
-      if (key && !byText.has(key)) byText.set(key, q);
-    });
-    return Array.from(byText.values());
-  }, [firestoreQuestions]);
-
-  const startQuiz = useCallback(() => {
-    const sample = shuffle(pool).slice(0, Math.min(QUESTIONS_PER_ATTEMPT, pool.length));
-    setActiveQuestions(sample);
-    setCurrentQ(0);
-    setSelectedOption(null);
-    setLastAnswerCorrect(null);
-    setAnswers([]);
-    setNewLevelName(null);
-    setPhase("quiz");
-  }, [pool]);
+  const startQuiz = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const { attemptId: id, questions } = await startServerQuiz("slang");
+      if (!questions.length) { setError("No quiz questions are available right now."); return; }
+      setAttemptId(id);
+      setActiveQuestions(questions);
+      setCurrentQ(0);
+      setSelectedOption(null);
+      setLastAnswerCorrect(null);
+      setAnswers([]);
+      setNewLevelName(null);
+      setCounted(null);
+      setPhase("quiz");
+    } catch (err) {
+      console.error("Failed to start slang quiz:", err);
+      setError("Could not load the quiz. Please check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const question = activeQuestions[currentQ];
 
@@ -110,52 +71,34 @@ const SlangQuiz = () => {
     return { correct, pct };
   };
 
-  const saveResult = async (allAnswers) => {
-    if (!user) return;
+  const saveResult = async () => {
     try {
-      const { correct, pct } = computeScore(allAnswers);
-      const passed = pct >= PASS_THRESHOLD;
-
-      const resultsColRef = collection(db, "slang_quiz_results");
-      const statsRef = doc(db, "user_stats", user.uid);
-      let leveledUpTo = null;
-
-      await runTransaction(db, async (tx) => {
-        const statsSnap = await tx.get(statsRef);
-        const newResultRef = doc(resultsColRef);
-        tx.set(newResultRef, {
-          user_id: user.uid,
-          score_pct: pct,
-          correct_count: correct,
-          total_questions: activeQuestions.length,
-          passed,
-          completed_at: serverTimestamp(),
-        });
-
-        // Every completed attempt counts toward the Slang Master badge,
-        // whether or not it was a passing score.
-        // (The counter itself is incremented by a Cloud Function; this read only
-        // decides whether to show the "level up" message.)
-        if (statsSnap.exists()) {
-          const oldCount = statsSnap.data().slang_quizzes_completed || 0;
-          const oldLevel = levelForCount(oldCount);
-          const newLevel = levelForCount(oldCount + 1);
-          if (newLevel > oldLevel) leveledUpTo = LEVEL_NAMES[newLevel];
-        }
-      });
-
-      if (leveledUpTo) setNewLevelName(leveledUpTo);
+      const result = await finishQuiz(attemptId);
+      setCounted(result.saved ? result.slang_counted : null);
+      if (result.slang_new_level) setNewLevelName(result.slang_new_level);
     } catch (err) {
       console.error("Failed to save slang quiz result:", err);
     }
   };
 
-  const handleSelectAnswer = () => {
-    if (selectedOption === null || !question) return;
-    const isCorrect = selectedOption === question.correct_index;
-    setLastAnswerCorrect(isCorrect);
-    setAnswers((prev) => [...prev, { questionId: question.id, selected: selectedOption, isCorrect }]);
-    setPhase("explanation");
+  const handleSelectAnswer = async () => {
+    if (selectedOption === null || !question || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      // The answer and explanation are only revealed once the choice is locked in.
+      const verdict = await answerQuestion(attemptId, currentQ, selectedOption);
+      setActiveQuestions((qs) => qs.map((q, i) => (i === currentQ ? { ...q, correct_index: verdict.correct_index, explanation: verdict.explanation } : q)));
+      setSelectedOption(verdict.selected);
+      setLastAnswerCorrect(verdict.isCorrect);
+      setAnswers((prev) => [...prev, { questionId: question.id, selected: verdict.selected, isCorrect: verdict.isCorrect }]);
+      setPhase("explanation");
+    } catch (err) {
+      console.error("Failed to check answer:", err);
+      setError("Could not check your answer. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleNextQuestion = () => {
@@ -165,7 +108,7 @@ const SlangQuiz = () => {
       setLastAnswerCorrect(null);
       setPhase("quiz");
     } else {
-      saveResult(answers);
+      saveResult();
       setPhase("results");
     }
   };
@@ -188,15 +131,16 @@ const SlangQuiz = () => {
           <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white">Slang Decoder Quiz</h1>
           <p className="text-sm text-gray-500 dark:text-zinc-400 max-w-md mx-auto">
             {QUESTIONS_PER_ATTEMPT} random questions pulled from a growing question bank — no two attempts are quite the same.
-            Every quiz you complete counts toward your <strong>🏆 {BADGE_NAME}</strong> badge — the more you play, the higher you level up, from Bronze to Diamond.
+            Every quiz you pass ({PASS_THRESHOLD}%+, up to {COUNTED_PER_DAY} a day) counts toward your <strong>🏆 {BADGE_NAME}</strong> badge — the more you pass, the higher you level up, from Bronze to Diamond.
           </p>
           <button
             onClick={startQuiz}
-            disabled={pool.length === 0}
+            disabled={busy}
             className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-sm px-8 py-3 rounded-xl transition inline-flex items-center gap-2"
           >
             <Sparkles className="w-4 h-4" /> Start Quiz
           </button>
+          {error && <p className="text-xs text-red-500" role="alert">{error}</p>}
           {!user && (
             <p className="text-xs text-gray-400">Sign in to save your result and earn the badge.</p>
           )}
@@ -236,12 +180,13 @@ const SlangQuiz = () => {
             ))}
           </div>
 
+          {error && <p className="text-xs text-red-500" role="alert">{error}</p>}
           <button
             onClick={handleSelectAnswer}
-            disabled={selectedOption === null}
+            disabled={selectedOption === null || busy}
             className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold text-sm py-3 rounded-xl transition"
           >
-            Check Answer
+            {busy ? "Checking…" : "Check Answer"}
           </button>
         </div>
       )}
@@ -329,7 +274,11 @@ const SlangQuiz = () => {
                 <p className="font-extrabold text-amber-800 dark:text-amber-300">🏅 New Badge: {newLevelName} {BADGE_NAME}!</p>
               </div>
             ) : (
-              <p className="text-xs text-gray-400">That attempt counts toward your {BADGE_NAME} badge. Check your profile to see your progress.</p>
+              <p className="text-xs text-gray-400">
+                {counted === true && `That pass counts toward your ${BADGE_NAME} badge. Check your profile to see your progress.`}
+                {counted === false && pct >= PASS_THRESHOLD && `You've already had ${COUNTED_PER_DAY} passes count toward ${BADGE_NAME} today — come back tomorrow to level up.`}
+                {counted === false && pct < PASS_THRESHOLD && `Score ${PASS_THRESHOLD}% or more to count toward your ${BADGE_NAME} badge.`}
+              </p>
             )
           ) : (
             <p className="text-xs text-gray-400">Sign in next time to save your result and work toward the {BADGE_NAME} badge.</p>
@@ -340,13 +289,14 @@ const SlangQuiz = () => {
           <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 space-y-1">
             <p className="font-extrabold text-purple-800 dark:text-purple-300 text-sm">🔥 Keep the streak going!</p>
             <p className="text-xs text-purple-600 dark:text-purple-400">
-              There are {pool.length}+ words in the bank — round two will hit you with a fresh mix.
+              The question bank is big — round two will hit you with a fresh mix.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
               onClick={startQuiz}
+              disabled={busy}
               autoFocus
               className="flex-1 py-3.5 rounded-xl font-bold text-sm text-center bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md transition hover:-translate-y-0.5"
             >

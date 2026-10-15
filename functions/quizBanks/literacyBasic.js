@@ -1,9 +1,11 @@
+"use strict";
+// Server-only: answers must never ship to the browser (see functions/quizzes.js).
 // ─── Basic Meme Literacy Test — Beginner Questions ───────────────────────────
 // 15 questions across 5 dimensions, written in simple plain language.
 // All memes are classroom-appropriate. No Distracted Boyfriend.
 // Reading level: approx. 5th–8th grade.
 
-export const BASIC_DIMENSIONS = [
+const BASIC_DIMENSIONS = [
   "Symbolic Decoding",
   "Cultural Context",
   "Rhetorical Awareness",
@@ -11,7 +13,7 @@ export const BASIC_DIMENSIONS = [
   "Ethical Judgment",
 ];
 
-export const basicQuestions = [
+const basicQuestions = [
   // ── DIMENSION 1: SYMBOLIC DECODING — "What does this meme actually mean?" ──
   {
     id: "b1",
@@ -247,3 +249,5 @@ export const basicQuestions = [
     explanation: "Some memes seem harmless when you are sharing them with friends, but they can hurt real people. If a meme puts down a group of people, ask yourself: would I be comfortable if someone from that group saw me sharing this?",
   },
 ];
+
+module.exports = { basicQuestions };

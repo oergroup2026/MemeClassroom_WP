@@ -57,6 +57,9 @@ function ownershipDeltas(before, after, { isCounted, ownerOf }) {
 const isPublishedMeme = (d) => d.visibility !== "draft";
 const alwaysCounted = () => true;
 
+// Collections whose view_count is maintained from /views receipts.
+const VIEW_KINDS = ["memes", "resources", "newspaper_items"];
+
 /**
  * Badges a user should hold given their stats, as
  * [{ id, category, level, badge_name, ... }]. Mirrors the old client logic:
@@ -104,6 +107,7 @@ module.exports = {
   ownershipDeltas,
   isPublishedMeme,
   alwaysCounted,
+  VIEW_KINDS,
   badgesFor,
   missingBadges,
 };

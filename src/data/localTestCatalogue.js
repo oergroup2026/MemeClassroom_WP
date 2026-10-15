@@ -1,5 +1,8 @@
 // ─── Local Test Catalogue ──────────────────────────────────────────────────
-// These tests are always available without Firebase — they use local question data.
+// These tests are always available without an admin setting them up: their
+// questions live in functions/quizBanks/ and are served (without answers) by
+// the startQuiz Cloud Function. Keep in step with LOCAL_LITERACY_TESTS in
+// functions/quizLogic.js, which is the copy that decides badges.
 // They appear first in the launcher, before any Firebase-sourced tests.
 // Only beginner tests live here. Advanced/academic tests are managed via Firebase.
 

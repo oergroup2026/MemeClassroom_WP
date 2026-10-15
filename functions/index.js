@@ -51,6 +51,8 @@ const db = admin.firestore();
 
 // Server-owned counters, stats and badges (see derivedData.js).
 Object.assign(exports, require("./derivedData"));
+// Server-graded literacy tests and slang quiz (see quizzes.js).
+Object.assign(exports, require("./quizzes"));
 // A descriptive User-Agent avoids Reddit's default rate-limiting/blocking of
 // unauthenticated requests that use a generic client User-Agent.
 const rssParser = new Parser({

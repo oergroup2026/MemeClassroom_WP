@@ -11,6 +11,7 @@ import {
   addDoc, updateDoc, serverTimestamp, increment
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { recordView } from "../utils/recordView";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/ToastNotification";
 import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
@@ -127,7 +128,7 @@ export default function Newspaper() {
     const target = items.find((i) => i.id === highlightId);
     if (target) {
       setDetailItem(target);
-      updateDoc(doc(db, "newspaper_items", target.id), { view_count: increment(1) }).catch(() => {});
+      recordView(user, "newspaper_items", target.id);
     }
     highlightHandledRef.current = true;
     setSearchParams((prev) => {
@@ -389,7 +390,7 @@ export default function Newspaper() {
 
     const openDetail = () => {
       setDetailItem(item);
-      updateDoc(doc(db, "newspaper_items", item.id), { view_count: increment(1) }).catch(() => {});
+      recordView(user, "newspaper_items", item.id);
     };
 
     return (
@@ -574,7 +575,7 @@ export default function Newspaper() {
               const socialPlatform = getSocialPlatform(item.source_url);
               const openSlide = () => {
                 setDetailItem(item);
-                updateDoc(doc(db, "newspaper_items", item.id), { view_count: increment(1) }).catch(() => {});
+                recordView(user, "newspaper_items", item.id);
               };
               return (
                 <div

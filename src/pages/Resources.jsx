@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase";
+import { recordView } from "../utils/recordView";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import { useUserModal } from "../context/UserModalContext";
@@ -927,7 +928,7 @@ const Resources = () => {
     const target = resources.find((r) => r.id === highlightId);
     if (target) {
       setDetailResource(target);
-      updateDoc(doc(db, "resources", target.id), { view_count: increment(1) }).catch(() => {});
+      recordView(user, "resources", target.id);
     }
     highlightHandledRef.current = true;
     setSearchParams((prev) => {
@@ -1202,13 +1203,7 @@ const Resources = () => {
     }
   };
 
-  const handleIncrementViewCount = async (resourceId) => {
-    try {
-      await updateDoc(doc(db, "resources", resourceId), { view_count: increment(1) });
-    } catch (e) {
-      // Silent fail — view count is analytics, not critical
-    }
-  };
+  const handleIncrementViewCount = (resourceId) => recordView(user, "resources", resourceId);
 
   const handleDeleteResource = async (resId) => {
     if (!window.confirm("Are you sure you want to delete this resource? This cannot be undone.")) return;

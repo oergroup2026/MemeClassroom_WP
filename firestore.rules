@@ -57,8 +57,8 @@ service cloud.firestore {
 
     // Counters (likes, views, flags, comments) are derived data. A new document
     // must start them at zero, otherwise anyone could publish a meme that
-    // already claims 9,999 likes. Cloud Functions maintain likes_count (see
-    // functions/derivedData.js); clients may only add +1 views / flags below.
+    // already claims 9,999 likes. Cloud Functions maintain likes_count and
+    // view_count (see functions/derivedData.js); clients may only add +1 flags below.
     function startsWithZeroCounters() {
       return request.resource.data.get('likes_count', 0) == 0
         && request.resource.data.get('view_count', 0) == 0
@@ -167,14 +167,8 @@ service cloud.firestore {
         (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['flag_count']) &&
           request.resource.data.flag_count == resource.data.flag_count + 1
-        ) ||
-        // View counting (Library "Most Viewed" sort) happens when any viewer
-        // opens a meme's detail overlay, not just the creator — increment-only,
-        // same shape as likes_count/flag_count above.
-        (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['view_count']) &&
-          request.resource.data.view_count == resource.data.get('view_count', 0) + 1
         )
+        // view_count is counted by a Cloud Function from /views receipts.
       );
       allow delete: if isLoggedIn() && (
         resource.data.creator_id == request.auth.uid || isAdmin()
@@ -275,19 +269,91 @@ service cloud.firestore {
     // Public read, per the project's access policy: all content is browsable
     // without an account and only contributing requires one. Posting, replying,
     // voting and reacting all still require a signed-in, non-banned user below.
+    // Non-author writes to a Staffroom post. Each is the exact change the
+    // Staffroom page makes, and nothing else.
+    function staffroomChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+    // Reporting: +1 only, like /memes.
+    function isStaffroomReport() {
+      return staffroomChanged().hasOnly(['flag_count'])
+        && request.resource.data.flag_count == resource.data.get('flag_count', 0) + 1;
+    }
+    // Poll vote: adds exactly the caller to poll_voted_users, once, and adds 1
+    // to exactly one option's tally. Polls have at most 6 options ("0"–"5",
+    // the Staffroom composer's limit); every tally may only stay or go up by 1,
+    // and only one may change.
+    function isStaffroomPollVote() {
+      let before = resource.data.get('poll_votes', {});
+      let after = request.resource.data.get('poll_votes', {});
+      return staffroomChanged().hasOnly(['poll_votes', 'poll_voted_users'])
+        && !(request.auth.uid in resource.data.get('poll_voted_users', []))
+        && request.resource.data.poll_voted_users.toSet()
+             == resource.data.get('poll_voted_users', []).toSet().union([request.auth.uid].toSet())
+        && after.diff(before).affectedKeys().size() == 1
+        && after.diff(before).affectedKeys().hasOnly(['0', '1', '2', '3', '4', '5'])
+        && tallyUpByOne(before, after, '0') && tallyUpByOne(before, after, '1')
+        && tallyUpByOne(before, after, '2') && tallyUpByOne(before, after, '3')
+        && tallyUpByOne(before, after, '4') && tallyUpByOne(before, after, '5');
+    }
+    function tallyUpByOne(before, after, key) {
+      return after.get(key, 0) == before.get(key, 0) || after.get(key, 0) == before.get(key, 0) + 1;
+    }
+    // Emoji reaction: the caller's own reaction_by_<uid> key, and each tally of
+    // the Staffroom's six emojis (REACTION_EMOJIS in Staffroom.jsx) moves by at
+    // most 1 (one goes up, the previous one comes down) — at most two change.
+    function isStaffroomReaction() {
+      let before = resource.data.get('reactions', {});
+      let after = request.resource.data.get('reactions', {});
+      return staffroomChanged().hasOnly(['reactions', 'reaction_by_' + request.auth.uid])
+        && after.diff(before).affectedKeys().size() <= 2
+        && after.diff(before).affectedKeys().hasOnly(['👍', '❤️', '💡', '👏', '🔥', '😮'])
+        && reactionStep(before, after, '👍') && reactionStep(before, after, '❤️')
+        && reactionStep(before, after, '💡') && reactionStep(before, after, '👏')
+        && reactionStep(before, after, '🔥') && reactionStep(before, after, '😮');
+    }
+    function reactionStep(before, after, emoji) {
+      let was = before.get(emoji, 0);
+      let now = after.get(emoji, 0);
+      return now is int && now >= 0 && (now == was || now == was + 1 || now == was - 1);
+    }
+
     match /staffroom_posts/{postId} {
       allow read: if true;
       // author_id must be the caller, otherwise anyone could post in another
       // user's name (the author's name/avatar is looked up from this field).
       allow create: if isLoggedIn() && !isBanned() && notRateLimited()
-        && request.resource.data.author_id == request.auth.uid;
+        && request.resource.data.author_id == request.auth.uid
+        && request.resource.data.get('likes', 0) == 0
+        && request.resource.data.get('liked_by', []).size() == 0
+        && request.resource.data.get('flag_count', 0) == 0
+        && request.resource.data.get('poll_voted_users', []).size() == 0;
       allow update: if isLoggedIn() && (
-        resource.data.author_id == request.auth.uid ||
+        // The author may edit their post, but not its counters or who voted.
+        (
+          resource.data.author_id == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['author_id', 'likes', 'liked_by', 'flag_count', 'poll_votes', 'poll_voted_users', 'reactions'])
+        ) ||
         isAdmin() ||
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['title', 'body', 'author_id', 'post_type', 'attachment_url', 'attachment_name', 'created_at', 'subject', 'grade', 'is_solved', 'is_announcement'])
+        // Everyone else gets an allowlist, not a denylist: previously any
+        // signed-in user could set likes to 9999, edit liked_by, zero
+        // flag_count to un-report a post, or rewrite poll results.
+        // Upvotes (likes / liked_by) are Cloud Functions only (/staffroom_likes).
+        isStaffroomReport() || isStaffroomPollVote() || isStaffroomReaction()
       );
       allow delete: if isLoggedIn() && resource.data.author_id == request.auth.uid;
       allow delete: if isAdmin();
+    }
+
+    // ─── Staffroom Upvotes ───────────────────────────────────────────────────
+    // One doc per person per post ({uid}_{postId}); likes / liked_by on the
+    // post follow these docs via Cloud Functions (derivedData.js).
+    match /staffroom_likes/{likeId} {
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn() && !isBanned() && request.resource.data.user_id == request.auth.uid
+        && likeId == request.auth.uid + '_' + request.resource.data.post_id
+        && request.resource.data.get('backfilled', false) == false;
+      allow delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
     }
 
     // ─── Staffroom Replies ───────────────────────────────────────────────────
@@ -321,12 +387,6 @@ service cloud.firestore {
             request.resource.data.admin_approved == false
           ) &&
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'author_id', 'flag_count', 'likes_count', 'view_count', 'comments_count'])
-        ) ||
-        // View counting, same increment-only shape as /memes. (Before, only the
-        // author could write the resource, so everyone else's view silently failed.)
-        (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['view_count']) &&
-          request.resource.data.view_count == resource.data.get('view_count', 0) + 1
         ) ||
         // Reporting a resource (ActivityDetail, MemeStoryDetail, Resources) is
         // an increment by a user who is NOT the author, which the author-only
@@ -387,11 +447,6 @@ service cloud.firestore {
           resource.data.author_id == request.auth.uid &&
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['admin_approved', 'status', 'author_id', 'view_count', 'likes_count', 'flag_count'])
         ) ||
-        // View counting by any reader, increment-only (likes_count is Cloud Functions only).
-        (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['view_count']) &&
-          request.resource.data.view_count == resource.data.get('view_count', 0) + 1
-        ) ||
         // Reporting, increment-only, as on /memes and /resources.
         (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['flag_count']) &&
@@ -441,6 +496,19 @@ service cloud.firestore {
       allow delete: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
     }
 
+    // ─── View Receipts ───────────────────────────────────────────────────────
+    // One receipt per signed-in person per item ({uid}_{kind}_{itemId}). A
+    // second create of the same id is an update, which is denied, so a person
+    // can add at most one view to an item. view_count follows these receipts
+    // via a Cloud Function; clients cannot write view_count at all.
+    match /views/{viewId} {
+      allow read: if isLoggedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid
+        && request.resource.data.kind in ['memes', 'resources', 'newspaper_items']
+        && request.resource.data.item_id is string
+        && viewId == request.auth.uid + '_' + request.resource.data.kind + '_' + request.resource.data.item_id;
+    }
+
     // ─── Ratings ─────────────────────────────────────────────────────────────
     match /ratings/{ratingId} {
       allow read: if true;
@@ -469,26 +537,35 @@ service cloud.firestore {
     }
 
     // ─── Literacy Test Questions ───────────────────────────────────────────────
-    // Questions are publicly readable (needed to run the quiz); only admins can write.
+    // The documents hold the correct answers, so only admins (the editor) read
+    // them. Players get the questions without answers from the startQuiz
+    // Cloud Function (functions/quizzes.js), which grades them too.
     match /literacy_test_questions/{questionId} {
-      allow read: if true;
+      allow read: if isAdmin();
       allow create, update, delete: if isAdmin();
     }
 
     // ─── Literacy Test Results ────────────────────────────────────────────────
-    // Users can write only their own results; they can read their own results; admins see all.
+    // Written only by finishQuiz from answers it graded itself; a browser that
+    // could write here could simply claim a pass.
     match /literacy_test_results/{resultId} {
       allow read: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
-      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow create: if false;
       allow update, delete: if isAdmin();
     }
 
     // ─── Literacy Badges ──────────────────────────────────────────────────────
-    // Users earn badges on passing tests; they can read their own; admins see all.
+    // Awarded only by finishQuiz on a server-graded pass.
     match /literacy_badges/{badgeId} {
       allow read: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
-      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow create: if false;
       allow update, delete: if isAdmin();
+    }
+
+    // ─── Quiz Attempts ────────────────────────────────────────────────────────
+    // Hold each attempt's answer key; Cloud Functions only.
+    match /quiz_attempts/{attemptId} {
+      allow read, write: if false;
     }
 
     // ─── Slang Terms (Slang Decoder dictionary) ───────────────────────────────
@@ -512,18 +589,19 @@ service cloud.firestore {
     }
 
     // ─── Slang Quiz Questions ──────────────────────────────────────────────────
-    // Curated question bank for the Slang Decoder quiz; publicly readable
-    // (needed to run the quiz), only admins can write — same shape as literacy tests.
+    // Curated question bank for the Slang Decoder quiz. Holds the answers, so
+    // admin-only like literacy questions; players are served by startQuiz.
     match /slang_quiz_questions/{questionId} {
-      allow read: if true;
+      allow read: if isAdmin();
       allow create, update, delete: if isAdmin();
     }
 
     // ─── Slang Quiz Results ────────────────────────────────────────────────────
-    // Users can write only their own results; they can read their own results; admins see all.
+    // Written only by finishQuiz, which also decides whether the attempt counts
+    // toward Slang Master (passed, at most 3 a day).
     match /slang_quiz_results/{resultId} {
       allow read: if isLoggedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
-      allow create: if isLoggedIn() && request.resource.data.user_id == request.auth.uid;
+      allow create: if false;
       allow update, delete: if isAdmin();
     }
 
@@ -558,12 +636,10 @@ service cloud.firestore {
     // so a user cannot retroactively rewrite their own achievements.
     match /badges/{badgeId} {
       allow read: if isLoggedIn();
-      // Level and Contributor badges are awarded only by Cloud Functions
-      // (derivedData.js syncBadges) from real stats. The one thing a client may
-      // still create is its own literacy-test badge (the quiz is graded in the
-      // browser today; see the note in the PR).
-      allow create: if isAdmin() || (isLoggedIn() && request.resource.data.user_id == request.auth.uid
-        && request.resource.data.category == 'literacy');
+      // Every badge is awarded by a Cloud Function: level and Contributor
+      // badges by syncBadges (derivedData.js), literacy badges by finishQuiz
+      // (quizzes.js) on a server-graded pass. Clients create none.
+      allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
 

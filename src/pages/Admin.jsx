@@ -32,7 +32,6 @@ import { DEFAULT_TOOL_SECTIONS } from "../constants/taxonomy";
 import { NEWSPAPER_CATEGORIES } from "../constants/newspaperCategories";
 import { HIGHLIGHT_CONTENT_TYPES, HIGHLIGHT_PLACEMENTS, highlightContentTypeMeta } from "../constants/contentHighlights";
 import { isStoryResource } from "../utils/storyTemplates";
-import { basicQuestions } from "../data/memeTestQuestionsBasic";
 import { SLANG_STARTER_WORDS } from "../data/slangStarterWords";
 
 const Admin = () => {
@@ -2341,39 +2340,11 @@ const Admin = () => {
         return;
       }
 
-      // Create test document
-      const testData = {
-        title: "Meme Literacy Starter",
-        description: "New to meme literacy? Start here. 15 simple questions that cover the basics — what memes mean, why people share them, and how to spot when they might be misleading.",
-        difficulty: "beginner",
-        category: "Foundations",
-        badge_icon: "🌱",
-        badge_label: "Meme Starter",
-        pass_threshold: 60,
-        is_active: true,
-        is_starter_test: true,
-        question_count: basicQuestions.length,
-        created_at: serverTimestamp(),
-        created_by: user?.uid || "admin",
-      };
-      const testRef = await addDoc(collection(db, "literacy_tests"), testData);
-
-      // Create all 15 basic questions in Firestore
-      const promises = basicQuestions.map((q, i) => {
-        return addDoc(collection(db, "literacy_test_questions"), {
-          test_id: testRef.id,
-          question_text: q.question,
-          dimension: q.dimension || "General",
-          options: q.options,
-          correct_index: q.correctIndex,
-          explanation: q.explanation || "",
-          meme_image_url: q.memeUrl || "",
-          order: i,
-          created_at: serverTimestamp(),
-        });
-      });
-      await Promise.all(promises);
-      setLtActiveTestId(testRef.id);
+      // The starter questions (with answers) live only in Cloud Functions now,
+      // so the function creates the test and its questions.
+      const seedStarterLiteracyTest = httpsCallable(functions, "seedStarterLiteracyTest");
+      const { data } = await seedStarterLiteracyTest();
+      setLtActiveTestId(data.testId);
       setLtView("questions");
       triggerAlert("🌱 Starter Meme Literacy Test imported to database! You can now edit any question, image, or answer.");
     } catch (e) {

@@ -1,5 +1,26 @@
 # Plan: close the remaining "client decides the number" gaps
 
+## Status: implemented
+
+Phases 1–3 are implemented on this branch, plus the Phase 4 tests and the
+Staffroom backfill script. Phase 0 (the stopgaps) was skipped because the full
+fixes landed together. Decisions taken (the recommendations below):
+
+- **D1:** only passed slang quizzes count toward Slang Master, at most 3 a day.
+- **D2:** a view is one per signed-in person per item. Existing counts are kept.
+- **D3:** the answer and explanation are still shown after each question, but only once the answer is locked in.
+- **D4:** nothing is deleted. The audit script is still to do.
+
+**Before deploying, in this order:**
+1. `firebase deploy --only functions`.
+2. Deploy hosting (the new client).
+3. Run `cd functions && node scripts/backfill-staffroom-likes.cjs --dry-run`, then run it again without `--dry-run`.
+4. `firebase deploy --only firestore:rules`. Rules go last, so open old tabs keep working until then.
+5. Optional: add a Firestore TTL policy on `quiz_attempts.expires_at`.
+
+Known limits: one person with several accounts can still add one view and one
+upvote per account. A poll's creator can still seed non-zero starting tallies.
+
 Context: PR #98 moved likes, user stats and level badges to Cloud Functions
 (`functions/derivedData.js`). Three areas were left out: the quizzes, view
 counts, and Staffroom upvotes. This plan covers all three. It follows the same

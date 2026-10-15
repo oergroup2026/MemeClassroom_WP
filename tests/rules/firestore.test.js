@@ -176,7 +176,7 @@ describe("content reporting cannot be tampered with", () => {
   });
 });
 
-describe("meme views are counted for any viewer, increment-only", () => {
+describe("views are one receipt per person per item; view_count is Cloud Functions only", () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await ctx.firestore().doc("memes/m1").set({
@@ -185,16 +185,25 @@ describe("meme views are counted for any viewer, increment-only", () => {
     });
   });
 
-  it("lets a signed-in viewer who isn't the creator add a view", async () => {
-    await assertSucceeds(updateDoc(doc(bob, "memes/m1"), { view_count: 4 }));
+  it("lets a signed-in viewer record their own view receipt", async () => {
+    await assertSucceeds(setDoc(doc(bob, `views/${BOB}_memes_m1`), { user_id: BOB, kind: "memes", item_id: "m1" }));
   });
 
-  it("stops skipping ahead by more than one view at a time", async () => {
-    await assertFails(updateDoc(doc(bob, "memes/m1"), { view_count: 6 }));
+  it("stops a second receipt for the same person and item (which would count twice)", async () => {
+    await assertSucceeds(setDoc(doc(bob, `views/${BOB}_memes_m1`), { user_id: BOB, kind: "memes", item_id: "m1" }));
+    await assertFails(setDoc(doc(bob, `views/${BOB}_memes_m1`), { user_id: BOB, kind: "memes", item_id: "m1" }));
   });
 
-  it("stops decrementing the view count", async () => {
-    await assertFails(updateDoc(doc(bob, "memes/m1"), { view_count: 2 }));
+  it("stops receipts under another id, for someone else, or for other collections", async () => {
+    await assertFails(setDoc(doc(bob, `views/${BOB}_memes_m1_again`), { user_id: BOB, kind: "memes", item_id: "m1" }));
+    await assertFails(setDoc(doc(bob, `views/${ALICE}_memes_m1`), { user_id: ALICE, kind: "memes", item_id: "m1" }));
+    await assertFails(setDoc(doc(bob, `views/${BOB}_users_m1`), { user_id: BOB, kind: "users", item_id: "m1" }));
+    await assertFails(setDoc(doc(guest, "views/anon_memes_m1"), { user_id: "anon", kind: "memes", item_id: "m1" }));
+  });
+
+  it("stops anyone, viewer or creator, writing view_count directly", async () => {
+    await assertFails(updateDoc(doc(bob, "memes/m1"), { view_count: 4 }));
+    await assertFails(updateDoc(doc(alice, "memes/m1"), { view_count: 4 }));
   });
 
   it("still lets the creator edit their own meme without touching view_count", async () => {
@@ -249,8 +258,10 @@ describe("badges record real achievements", () => {
     await assertFails(setDoc(doc(alice, "badges/b1"), { user_id: ALICE, badge_name: "Diamond Meme Creator", category: "content_creator", level: 5 }));
   });
 
-  it("still lets a user record their own literacy-test badge", async () => {
-    await assertSucceeds(setDoc(doc(alice, "badges/b1"), { user_id: ALICE, badge_name: "Meme Literate", category: "literacy", level: 1 }));
+  it("stops a user awarding themselves a literacy badge (finishQuiz does that on a graded pass)", async () => {
+    await assertFails(setDoc(doc(alice, "badges/b1"), { user_id: ALICE, badge_name: "Meme Literate", category: "literacy", level: 1 }));
+    // The old literacy exception did not check the name at all.
+    await assertFails(setDoc(doc(alice, "badges/b4"), { user_id: ALICE, badge_name: "Diamond Meme Creator", category: "literacy", level: 1 }));
   });
 
   it("stops a user awarding a badge to someone else", async () => {
@@ -419,11 +430,11 @@ describe("derived numbers (likes, stats) are written only by Cloud Functions", (
     await assertFails(updateDoc(doc(bob, "newspaper_items/n1"), { likes_count: 1 }));
   });
 
-  it("counts a view on a resource or news item for any signed-in reader, +1 only", async () => {
-    await assertSucceeds(updateDoc(doc(bob, "resources/r1"), { view_count: 1 }));
-    await assertFails(updateDoc(doc(bob, "resources/r1"), { view_count: 9 }));
-    await assertSucceeds(updateDoc(doc(bob, "newspaper_items/n1"), { view_count: 1 }));
-    await assertFails(updateDoc(doc(bob, "newspaper_items/n1"), { view_count: 7 }));
+  it("stops anyone writing a resource's or news item's view_count (receipts drive it)", async () => {
+    await assertFails(updateDoc(doc(bob, "resources/r1"), { view_count: 1 }));
+    await assertFails(updateDoc(doc(bob, "newspaper_items/n1"), { view_count: 1 }));
+    await assertSucceeds(setDoc(doc(bob, `views/${BOB}_resources_r1`), { user_id: BOB, kind: "resources", item_id: "r1" }));
+    await assertSucceeds(setDoc(doc(bob, `views/${BOB}_newspaper_items_n1`), { user_id: BOB, kind: "newspaper_items", item_id: "n1" }));
   });
 });
 
@@ -457,5 +468,123 @@ describe("one like per person per item, and a like cannot be retargeted", () => 
   it("limits ratings to one document per person per meme", async () => {
     await assertSucceeds(setDoc(doc(alice, `ratings/${ALICE}_m1`), { user_id: ALICE, meme_id: "m1", clarity: 4 }));
     await assertFails(setDoc(doc(alice, "ratings/spam-1"), { user_id: ALICE, meme_id: "m1", clarity: 4 }));
+  });
+});
+
+describe("quizzes are graded on the server, so the browser cannot claim a score", () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const d = ctx.firestore();
+      await d.doc("literacy_test_questions/q1").set({ test_id: "t1", question_text: "?", options: ["a", "b"], correct_index: 1 });
+      await d.doc("slang_quiz_questions/s1").set({ question_text: "?", options: ["a", "b"], correct_index: 0, is_active: true });
+      await d.doc("quiz_attempts/a1").set({ user_id: ALICE, kind: "slang", answers: [null] });
+      await d.doc("literacy_test_results/r1").set({ user_id: ALICE, test_id: "t1", passed: true });
+    });
+  });
+
+  it("hides the question banks (they hold the answers) from players, but not from admins", async () => {
+    await assertFails(getDoc(doc(alice, "literacy_test_questions/q1")));
+    await assertFails(getDoc(doc(guest, "literacy_test_questions/q1")));
+    await assertFails(getDoc(doc(alice, "slang_quiz_questions/s1")));
+    await assertSucceeds(getDoc(doc(admin, "literacy_test_questions/q1")));
+    await assertSucceeds(getDoc(doc(admin, "slang_quiz_questions/s1")));
+  });
+
+  it("stops a user writing their own literacy pass or literacy badge", async () => {
+    await assertFails(setDoc(doc(alice, "literacy_test_results/fake"), { user_id: ALICE, test_id: "t1", score_pct: 100, passed: true }));
+    await assertFails(setDoc(doc(alice, "literacy_badges/fake"), { user_id: ALICE, test_id: "t1", badge_label: "Meme Starter" }));
+  });
+
+  it("stops a user writing slang results (each one used to add to Slang Master)", async () => {
+    await assertFails(setDoc(doc(alice, "slang_quiz_results/fake"), { user_id: ALICE, score_pct: 100, passed: true }));
+  });
+
+  it("keeps quiz attempts (and their answer keys) out of reach entirely", async () => {
+    await assertFails(getDoc(doc(alice, "quiz_attempts/a1")));
+    await assertFails(updateDoc(doc(alice, "quiz_attempts/a1"), { answers: [0] }));
+    await assertFails(setDoc(doc(alice, "quiz_attempts/a2"), { user_id: ALICE }));
+  });
+
+  it("still lets a user read their own results", async () => {
+    await assertSucceeds(getDoc(doc(alice, "literacy_test_results/r1")));
+    await assertFails(getDoc(doc(bob, "literacy_test_results/r1")));
+  });
+});
+
+describe("Staffroom posts: other users may only make the exact changes the page makes", () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc("staffroom_posts/p1").set({
+        author_id: ALICE, title: "t", body: "b", likes: 2, liked_by: ["x", "y"], flag_count: 1,
+        poll_options: ["a", "b"], poll_votes: { 0: 3, 1: 1 }, poll_voted_users: ["x"],
+        reactions: { "👍": 2 }, is_solved: false,
+      });
+    });
+  });
+
+  it("stops anyone setting the upvote count or editing who upvoted", async () => {
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { likes: 9999 }));
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { likes: 3, liked_by: ["x", "y", BOB] }));
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { liked_by: [] }));
+    await assertFails(updateDoc(doc(alice, "staffroom_posts/p1"), { likes: 50 }));
+  });
+
+  it("accepts an upvote as a {uid}_{postId} like doc, once, and lets the user remove it", async () => {
+    await assertSucceeds(setDoc(doc(bob, `staffroom_likes/${BOB}_p1`), { user_id: BOB, post_id: "p1" }));
+    await assertFails(setDoc(doc(bob, `staffroom_likes/${BOB}_p1`), { user_id: BOB, post_id: "p1" }));
+    await assertFails(setDoc(doc(bob, `staffroom_likes/${BOB}_p1_2`), { user_id: BOB, post_id: "p1" }));
+    await assertFails(setDoc(doc(bob, `staffroom_likes/${ALICE}_p1`), { user_id: ALICE, post_id: "p1" }));
+    await assertSucceeds(deleteDoc(doc(bob, `staffroom_likes/${BOB}_p1`)));
+  });
+
+  it("stops a client marking a like as backfilled (which the counter skips)", async () => {
+    await assertFails(setDoc(doc(bob, `staffroom_likes/${BOB}_p1`), { user_id: BOB, post_id: "p1", backfilled: true }));
+  });
+
+  it("allows reporting +1 only, so a report cannot be cleared", async () => {
+    await assertSucceeds(updateDoc(doc(bob, "staffroom_posts/p1"), { flag_count: 2 }));
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { flag_count: 0 }));
+    await assertFails(updateDoc(doc(alice, "staffroom_posts/p1"), { flag_count: 0 }));
+  });
+
+  it("allows one poll vote per person, adding exactly 1 to one option", async () => {
+    await assertSucceeds(updateDoc(doc(bob, "staffroom_posts/p1"), { poll_votes: { 0: 3, 1: 2 }, poll_voted_users: ["x", BOB] }));
+  });
+
+  it("stops rigging a poll", async () => {
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { poll_votes: { 0: 3, 1: 50 }, poll_voted_users: ["x", BOB] }));
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { poll_votes: { 0: 4, 1: 2 }, poll_voted_users: ["x", BOB] }));
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { poll_votes: { 0: 3, 1: 2 }, poll_voted_users: [BOB] }));
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { poll_votes: { 0: 4, 1: 1 }, poll_voted_users: ["x"] }));
+  });
+
+  it("stops voting twice", async () => {
+    await assertFails(updateDoc(doc(testEnv.authenticatedContext("x").firestore(), "staffroom_posts/p1"), { poll_votes: { 0: 4, 1: 1 }, poll_voted_users: ["x"] }));
+  });
+
+  it("allows a reaction, and switching it, under the user's own key only", async () => {
+    await assertSucceeds(updateDoc(doc(bob, "staffroom_posts/p1"), { reactions: { "👍": 3 }, [`reaction_by_${BOB}`]: "👍" }));
+    await assertSucceeds(updateDoc(doc(bob, "staffroom_posts/p1"), { reactions: { "👍": 2, "🔥": 1 }, [`reaction_by_${BOB}`]: "🔥" }));
+  });
+
+  it("stops inflating reactions or reacting as someone else", async () => {
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { reactions: { "👍": 500 }, [`reaction_by_${BOB}`]: "👍" }));
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { reactions: { "👍": 3 }, [`reaction_by_${ALICE}`]: "👍" }));
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { reactions: { "👍": 2, "🎉": 900 }, [`reaction_by_${BOB}`]: "🎉" }));
+  });
+
+  it("stops other users editing anything else", async () => {
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { visibility: "hidden" }));
+    await assertFails(updateDoc(doc(bob, "staffroom_posts/p1"), { is_solved: true }));
+  });
+
+  it("still lets the author edit and mark their post solved", async () => {
+    await assertSucceeds(updateDoc(doc(alice, "staffroom_posts/p1"), { title: "new", body: "new" }));
+    await assertSucceeds(updateDoc(doc(alice, "staffroom_posts/p1"), { is_solved: true, solved_reply_id: "r1" }));
+  });
+
+  it("stops publishing a post that already claims upvotes", async () => {
+    await assertFails(setDoc(doc(bob, "staffroom_posts/p2"), { author_id: BOB, title: "t", body: "b", likes: 40, liked_by: [] }));
+    await assertSucceeds(setDoc(doc(bob, "staffroom_posts/p3"), { author_id: BOB, title: "t", body: "b", likes: 0, liked_by: [], reactions: {}, poll_voted_users: [] }));
   });
 });
