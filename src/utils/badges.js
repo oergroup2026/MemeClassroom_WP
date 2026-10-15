@@ -1,74 +1,13 @@
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
-
 /**
- * Award a badge to a user if they don't already have one matching `badgeName`
- * (or any name in `matchNames`, for badges that were renamed at some point —
- * e.g. "Authorized" used to be written as "Authorised User"). Idempotent:
- * safe to call on every render/login without creating duplicates.
+ * Badges are no longer created from the browser. Level and Contributor badges
+ * are awarded by a Cloud Function from real stats (functions/derivedData.js
+ * syncBadges), and literacy badges by finishQuiz (functions/quizzes.js) on a
+ * server-graded pass; firestore.rules rejects any client-created /badges doc.
  *
- * Pass `existingBadges` (an array of already-loaded badge docs, e.g. from a
- * live onSnapshot subscription the caller already has) to skip the Firestore
- * existence query entirely.
- *
- * Returns true if a badge was newly awarded, false otherwise.
+ * Kept so existing callers (AuthContext's awardLoginBadge /
+ * awardAuthorisedUserBadge) keep working. Always resolves to false
+ * ("nothing newly awarded").
  */
-export async function awardBadgeIfMissing({
-  uid,
-  badgeName,
-  matchNames,
-  category,
-  level = 1,
-  badgeIcon = "award",
-  description = "",
-  existingBadges = null,
-  announce = true,
-}) {
-  if (!uid || uid === "guest_dev") return false;
-  // Level and Contributor badges are awarded by a Cloud Function from real stats
-  // (functions/derivedData.js); firestore.rules rejects clients creating them.
-  // Only literacy-test badges are still created from the browser.
-  if (category !== "literacy") return false;
-  const names = matchNames || [badgeName];
-
-  let alreadyHas;
-  if (existingBadges) {
-    alreadyHas = existingBadges.some((b) => names.includes(b.badge_name));
-  } else {
-    try {
-      const snap = await getDocs(
-        query(
-          collection(db, "badges"),
-          where("user_id", "==", uid),
-          where("badge_name", "in", names)
-        )
-      );
-      alreadyHas = !snap.empty;
-    } catch (err) {
-      console.error(`Could not verify existing badge "${badgeName}"`, err);
-      alreadyHas = false;
-    }
-  }
-  if (alreadyHas) return false;
-
-  try {
-    await addDoc(collection(db, "badges"), {
-      user_id: uid,
-      category,
-      level,
-      badge_name: badgeName,
-      badge_icon: badgeIcon,
-      description,
-      awarded_at: serverTimestamp(),
-    });
-    if (announce) {
-      const badgeDetails = { title: "you earned a badge", badgeName, description };
-      sessionStorage.setItem("mc_pending_badge_popup", JSON.stringify(badgeDetails));
-      window.dispatchEvent(new CustomEvent("mc_badge_earned", { detail: badgeDetails }));
-    }
-    return true;
-  } catch (err) {
-    console.error(`Failed to award badge "${badgeName}"`, err);
-    return false;
-  }
+export async function awardBadgeIfMissing() {
+  return false;
 }

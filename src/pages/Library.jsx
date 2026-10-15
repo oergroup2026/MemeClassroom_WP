@@ -25,6 +25,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { checkUpload } from "../utils/uploadLimits";
 import { describeWriteError } from "../utils/writeErrors";
 import { db, storage } from "../firebase";
+import { recordView } from "../utils/recordView";
 
 // Memes fetched per page. Large enough that a typical library is fully loaded
 // in one go — so search and the sidebar filters, which run over the loaded
@@ -334,7 +335,7 @@ const Library = () => {
     // guests can still browse, they just don't add to the tally.
     if (user && meme?.id && !viewedMemesRef.current.has(meme.id)) {
       viewedMemesRef.current.add(meme.id);
-      updateDoc(doc(db, "memes", meme.id), { view_count: increment(1) }).catch(() => {});
+      recordView(user, "memes", meme.id);
     }
   };
 

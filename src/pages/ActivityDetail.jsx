@@ -5,6 +5,7 @@ import {
   addDoc, collection, query, where, onSnapshot, serverTimestamp, getDocs, limit
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { recordView } from "../utils/recordView";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
 import {
@@ -194,10 +195,10 @@ export default function ActivityDetail() {
 
   // ── View count
   useEffect(() => {
-    if (!activity || viewCountedRef.current) return;
+    if (!activity || !user || viewCountedRef.current) return;
     viewCountedRef.current = true;
-    updateDoc(doc(db, "resources", id), { view_count: increment(1) }).catch(() => {});
-  }, [activity, id]);
+    recordView(user, "resources", id);
+  }, [activity, id, user]);
 
   // ── Likes
   useEffect(() => {

@@ -15,6 +15,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db, storage } from "../firebase";
+import { recordView } from "../utils/recordView";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../context/AuthContext";
 import { useUdl } from "../context/UdlContext";
@@ -168,8 +169,8 @@ export default function MemeStoryDetail() {
         const data = { id: snap.id, ...snap.data() };
         setStory(data);
 
-        // Increment view count silently
-        updateDoc(doc(db, "resources", id), { view_count: increment(1) }).catch(() => {});
+        // Count this person's view (once per person, ever)
+        recordView(user, "resources", id);
 
         // Resolve author name
         if (data.author_id && data.author_id !== "admin") {

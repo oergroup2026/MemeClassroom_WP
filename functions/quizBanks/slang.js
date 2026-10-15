@@ -1,3 +1,5 @@
+"use strict";
+// Server-only: answers must never ship to the browser (see functions/quizzes.js).
 // ─── Slang Decoder Quiz — Local Question Bank ──────────────────────────────
 // Fallback/seed bank used when Firestore's `slang_quiz_questions` collection
 // is empty or unreachable, and merged with it otherwise. Kept intentionally
@@ -7,7 +9,7 @@
 // the quiz stays fun to replay, and each explanation includes a usage
 // example, shown to the learner right after they answer.
 
-export const SLANG_QUIZ_QUESTIONS = [
+const SLANG_QUIZ_QUESTIONS = [
   {
     id: "sq1",
     category: "genz",
@@ -393,3 +395,5 @@ export const SLANG_QUIZ_QUESTIONS = [
     explanation: "\"Chef's kiss\" is a gesture and phrase used to say something is done perfectly. Example: \"That ending twist? Chef's kiss.\"",
   },
 ];
+
+module.exports = { SLANG_QUIZ_QUESTIONS };

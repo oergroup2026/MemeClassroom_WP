@@ -2,20 +2,15 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { db } from "../firebase";
+import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
 import {
-  collection, query, where, onSnapshot, getDocs,
-  addDoc, serverTimestamp
-} from "firebase/firestore";
-import {
-  questions as localQuestions,
   DIMENSIONS,
   DIMENSION_META,
   getLevel,
 } from "../data/memeTestQuestions";
-import { basicQuestions } from "../data/memeTestQuestionsBasic";
 import { LOCAL_TESTS } from "../data/localTestCatalogue";
 import { explainQuizMistake } from "../services/geminiClient";
-import { awardBadgeIfMissing } from "../utils/badges";
+import { startQuiz, answerQuestion, finishQuiz } from "../utils/quizApi";
 import AiQuotaModal from "../components/AiQuotaModal";
 import { useTour } from "../hooks/useTour";
 import TourOverlay from "../components/TourOverlay";
@@ -196,6 +191,9 @@ const MemeLiteracyTest = () => {
   const [aiCoachingText, setAiCoachingText] = useState("");
   const [aiCoachingLoading, setAiCoachingLoading] = useState(false);
   const [showAiQuotaModal, setShowAiQuotaModal] = useState(false);
+  const [attemptId, setAttemptId] = useState(null);
+  const [quizError, setQuizError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleGetAiCoaching = async (q, lastAns) => {
     if (!q || !lastAns) return;
@@ -240,64 +238,35 @@ const MemeLiteracyTest = () => {
   useEffect(() => {
     if (!testId) return;
     setPhase("intro"); setCurrentQ(0); setAnswers([]); setSelectedOption(null); setLastAnswer(null); setResultSaved(false);
+    setAttemptId(null); setQuizError("");
 
-    // ── Local-only tests: load from bundled data, skip Firebase ──────────────
-    if (testId === "local-basic") {
-      const meta = LOCAL_TESTS.find(t => t.id === "local-basic");
-      setTestMeta(meta || null);
-      setTestQuestions(basicQuestions.map((q, i) => ({
-        id: q.id || `basic-${i}`,
-        question_text: q.question,
-        options: q.options,
-        correct_index: q.correctIndex,
-        explanation: q.explanation,
-        meme_image_url: q.memeUrl,
-        dimension: q.dimension,
-        order: i,
-      })));
-      setLoadingTest(false);
-      return;
-    }
-
-    if (testId === "local-advanced") {
-      const meta = LOCAL_TESTS.find(t => t.id === "local-advanced");
-      setTestMeta(meta || null);
-      setTestQuestions(localQuestions.map((q, i) => ({
-        id: `adv-${i}`,
-        question_text: q.question,
-        options: q.options,
-        correct_index: q.correctIndex,
-        explanation: q.explanation,
-        meme_image_url: q.memeUrl,
-        dimension: q.dimension,
-        order: i,
-      })));
-      setLoadingTest(false);
-      return;
-    }
-
-    // ── Firebase-sourced tests ────────────────────────────────────────────────
+    // Questions come from the server without their answers (functions/quizzes.js);
+    // the attempt id ties this run's answers to the answer key it holds.
+    // Re-run when the user signs in/out so the attempt belongs to the right account.
+    let cancelled = false;
     setLoadingTest(true);
-    const load = async () => {
-      try {
-        const snapMeta = await getDocs(query(collection(db, "literacy_tests"), where("__name__", "==", testId)));
-        setTestMeta(snapMeta.empty ? null : { id: snapMeta.docs[0].id, ...snapMeta.docs[0].data() });
-        const snapQ = await getDocs(query(collection(db, "literacy_test_questions"), where("test_id", "==", testId)));
-        const qs = snapQ.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order || 0) - (b.order || 0));
-        setTestQuestions(qs.length > 0 ? qs : localQuestions.map((q, i) => ({
-          id: `local-${i}`, question_text: q.question, options: q.options,
-          correct_index: q.correctIndex, explanation: q.explanation, meme_image_url: q.memeUrl, dimension: q.dimension, order: i,
-        })));
-      } catch {
-        setTestMeta(null);
-        setTestQuestions(localQuestions.map((q, i) => ({
-          id: `local-${i}`, question_text: q.question, options: q.options,
-          correct_index: q.correctIndex, explanation: q.explanation, meme_image_url: q.memeUrl, dimension: q.dimension, order: i,
-        })));
-      } finally { setLoadingTest(false); }
-    };
-    load();
-  }, [testId]);
+    const localMeta = LOCAL_TESTS.find(t => t.id === testId);
+    const catalogueMeta = localMeta
+      ? Promise.resolve(localMeta)
+      : getDoc(doc(db, "literacy_tests", testId)).then(snap => snap.exists() ? { id: snap.id, ...snap.data() } : null).catch(() => null);
+    Promise.all([startQuiz("literacy", testId), catalogueMeta])
+      .then(([{ attemptId: id, meta, questions }, catalogue]) => {
+        if (cancelled) return;
+        // Display fields (description, difficulty…) come from the catalogue;
+        // the badge/pass rules the server will apply override them.
+        setTestMeta(meta || catalogue ? { ...(catalogue || {}), ...(meta || {}) } : null);
+        setTestQuestions(questions);
+        setAttemptId(id);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        console.error("Could not start test:", e);
+        setTestMeta(null); setTestQuestions([]);
+        setQuizError("Could not load this test. Please check your connection and try again.");
+      })
+      .finally(() => { if (!cancelled) setLoadingTest(false); });
+    return () => { cancelled = true; };
+  }, [testId, user?.uid]);
 
   const question = testQuestions[currentQ];
   const activeDimensions = [...new Set(testQuestions.map(q => q.dimension).filter(Boolean))];
@@ -313,58 +282,39 @@ const MemeLiteracyTest = () => {
     return { overallPct, dimPcts, totalCorrect };
   };
 
-  const saveResult = async (allAnswers) => {
-    if (!user || !testId) return;
+  // The server scores the answers it recorded and, for a signed-in pass, saves
+  // the result and awards the badge. Guests get the same score, unsaved.
+  const saveResult = async () => {
+    if (!attemptId) return;
     try {
-      const { overallPct, totalCorrect } = computeScores(allAnswers);
-      const passed = overallPct >= (testMeta?.pass_threshold ?? 60);
-      await addDoc(collection(db, "literacy_test_results"), {
-        user_id: user.uid, test_id: testId, score_pct: overallPct,
-        correct_count: totalCorrect, total_questions: testQuestions.length, passed,
-        badge_earned: passed && testMeta?.badge_label ? testMeta.badge_label : null,
-        badge_icon: passed && testMeta?.badge_icon ? testMeta.badge_icon : null,
-        completed_at: serverTimestamp(),
-      });
-      // Also award a literacy badge document when the user passes and a badge is configured
-      if (passed && testMeta?.badge_label) {
-        await addDoc(collection(db, "literacy_badges"), {
-          user_id: user.uid,
-          test_id: testId,
-          test_title: testMeta?.title || "",
-          badge_label: testMeta.badge_label,
-          badge_icon: testMeta?.badge_icon || "🏅",
-          score_pct: overallPct,
-          pass_threshold: testMeta?.pass_threshold ?? 60,
-          awarded_at: serverTimestamp(),
-        });
-
-        // Also sync into main `badges` collection so Staffroom & UserModalContext display the badge
-        await awardBadgeIfMissing({
-          uid: user.uid,
-          badgeName: testMeta.badge_label,
-          category: "literacy",
-          level: 1,
-          badgeIcon: "award",
-          description: `Passed literacy assessment with ${overallPct}% score`,
-          announce: false,
-        });
-      }
-      setResultSaved(true);
+      const result = await finishQuiz(attemptId);
+      setResultSaved(Boolean(result.saved));
     } catch (e) { console.error("Save result failed:", e); }
   };
 
-  const handleSubmit = () => {
-    if (selectedOption === null || !question) return;
-    const isCorrect = selectedOption === question.correct_index;
-    const ans = { selected: selectedOption, correct: question.correct_index, isCorrect, dimension: question.dimension };
-    setLastAnswer(ans);
-    setAnswers(prev => [...prev, ans]);
-    setPhase("explanation");
+  const handleSubmit = async () => {
+    if (selectedOption === null || !question || submitting) return;
+    setSubmitting(true);
+    try {
+      // The verdict and explanation are only revealed once the answer is locked in.
+      const verdict = await answerQuestion(attemptId, currentQ, selectedOption);
+      setTestQuestions(qs => qs.map((q, i) => i === currentQ ? { ...q, correct_index: verdict.correct_index, explanation: verdict.explanation } : q));
+      const ans = { selected: verdict.selected, correct: verdict.correct_index, isCorrect: verdict.isCorrect, dimension: question.dimension };
+      setQuizError("");
+      setLastAnswer(ans);
+      setAnswers(prev => [...prev, ans]);
+      setPhase("explanation");
+    } catch (e) {
+      console.error("Could not check answer:", e);
+      setQuizError("Could not check your answer. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleNext = () => {
     setAiCoachingText("");
-    if (currentQ + 1 >= testQuestions.length) { saveResult([...answers]); setPhase("results"); }
+    if (currentQ + 1 >= testQuestions.length) { saveResult(); setPhase("results"); }
     else { setCurrentQ(q => q + 1); setSelectedOption(null); setLastAnswer(null); setPhase("question"); }
   };
 
@@ -430,7 +380,7 @@ const MemeLiteracyTest = () => {
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-4">
         <span className="text-5xl">&#128237;</span>
         <h2 className="text-xl font-extrabold">No Questions Yet</h2>
-        <p className="text-sm text-gray-500 max-w-xs">This test doesn't have questions yet. Please check back later.</p>
+        <p className="text-sm text-gray-500 max-w-xs">{quizError || "This test doesn't have questions yet. Please check back later."}</p>
         <button onClick={() => navigate("/meme-literacy-test")} className="mt-2 bg-purple-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm">&#8592; Back to Tests</button>
       </div>
     );
@@ -479,8 +429,9 @@ const MemeLiteracyTest = () => {
           <div className="flex flex-col gap-3 mb-6">
             {question.options.map((opt, i) => <OptionButton key={i} text={opt} index={i} mode="question" selected={selectedOption === i} isCorrect={false} isWrong={false} onClick={() => setSelectedOption(i)} />)}
           </div>
-          <button onClick={handleSubmit} disabled={selectedOption === null} className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all ${selectedOption !== null ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:-translate-y-0.5 cursor-pointer" : "bg-gray-100 dark:bg-zinc-800 text-gray-400 cursor-not-allowed"}`}>
-            Submit Answer
+          {quizError && <p className="text-xs text-red-500 mb-3" role="alert">{quizError}</p>}
+          <button onClick={handleSubmit} disabled={selectedOption === null || submitting} className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all ${selectedOption !== null && !submitting ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:-translate-y-0.5 cursor-pointer" : "bg-gray-100 dark:bg-zinc-800 text-gray-400 cursor-not-allowed"}`}>
+            {submitting ? "Checking…" : "Submit Answer"}
           </button>
         </div>
       )}

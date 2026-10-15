@@ -19,7 +19,6 @@ import {
   increment,
   runTransaction,
   arrayUnion,
-  arrayRemove,
   orderBy,
   limit,
 } from "firebase/firestore";
@@ -756,12 +755,15 @@ const Staffroom = () => {
   const handleThreadLike = async (thread) => {
     if (!user) { toast("Please log in to upvote threads.", "warning"); return; }
     try {
-      const threadRef = doc(db, "staffroom_posts", thread.id);
+      // One /staffroom_likes doc per person per post; a Cloud Function keeps
+      // the post's likes / liked_by in step (clients cannot write them).
+      const likeRef = doc(db, "staffroom_likes", `${user.uid}_${thread.id}`);
       const hasLiked = (thread.liked_by || []).includes(user.uid);
-      await updateDoc(threadRef, {
-        liked_by: hasLiked ? arrayRemove(user.uid) : arrayUnion(user.uid),
-        likes: increment(hasLiked ? -1 : 1),
-      });
+      if (hasLiked) {
+        await deleteDoc(likeRef);
+      } else {
+        await setDoc(likeRef, { user_id: user.uid, post_id: thread.id, created_at: serverTimestamp() });
+      }
     } catch (e) {
       console.error("Like update failed", e);
     }
