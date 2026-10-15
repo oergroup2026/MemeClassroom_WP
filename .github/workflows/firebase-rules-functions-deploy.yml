@@ -64,3 +64,16 @@ jobs:
 
       - name: Deploy Cloud Functions
         run: npx -y firebase-tools deploy --only functions --project memeclassroom-98d2b --force
+
+      # One-off data migration for Staffroom upvotes moving to /staffroom_likes
+      # (see the script's header). It marks itself done in
+      # /migrations/staffroom_likes_v1, so on every later deploy it is a no-op.
+      # continue-on-error: if the deploy service account cannot write
+      # Firestore, the deploy itself still counts as done; the step shows as
+      # failed and the script can be run by hand instead.
+      - name: Backfill Staffroom upvotes (runs once)
+        continue-on-error: true
+        run: node scripts/backfill-staffroom-likes.cjs
+        working-directory: functions
+        env:
+          GCLOUD_PROJECT: memeclassroom-98d2b

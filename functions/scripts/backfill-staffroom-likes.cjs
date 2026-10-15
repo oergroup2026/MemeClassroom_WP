@@ -9,16 +9,25 @@
  *     those people can still remove their upvote;
  *   • resets `likes` to the number of distinct uids in liked_by.
  *
- * Run once, after deploying functions and before (or right after) the rules:
- *   cd functions && GOOGLE_APPLICATION_CREDENTIALS=key.json node scripts/backfill-staffroom-likes.cjs [--dry-run]
+ * Runs automatically from the deploy workflow
+ * (.github/workflows/firebase-rules-functions-deploy.yml) right after the
+ * functions deploy. It records that it has run in /migrations/staffroom_likes_v1
+ * and does nothing on later deploys. By hand:
+ *   cd functions && GOOGLE_APPLICATION_CREDENTIALS=key.json GCLOUD_PROJECT=<project> node scripts/backfill-staffroom-likes.cjs [--dry-run] [--force]
  */
 const admin = require("firebase-admin");
 
-admin.initializeApp();
+admin.initializeApp({ projectId: process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT });
 const db = admin.firestore();
 const dryRun = process.argv.includes("--dry-run");
+const force = process.argv.includes("--force");
+const marker = db.collection("migrations").doc("staffroom_likes_v1");
 
 async function main() {
+  if (!force && (await marker.get()).exists) {
+    console.log("Staffroom likes already backfilled; nothing to do.");
+    return;
+  }
   const posts = await db.collection("staffroom_posts").get();
   let fixed = 0;
   let likeDocs = 0;
@@ -43,6 +52,7 @@ async function main() {
     batch.update(post.ref, { likes: uids.length, liked_by: uids });
     await batch.commit();
   }
+  if (!dryRun) await marker.set({ ran_at: admin.firestore.FieldValue.serverTimestamp(), posts: posts.size, like_docs: likeDocs });
   console.log(`${posts.size} posts checked, ${fixed} counters corrected, ${likeDocs} like docs written${dryRun ? " (dry run)" : ""}.`);
 }
 

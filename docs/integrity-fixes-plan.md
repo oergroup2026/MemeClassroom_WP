@@ -11,12 +11,14 @@ fixes landed together. Decisions taken (the recommendations below):
 - **D3:** the answer and explanation are still shown after each question, but only once the answer is locked in.
 - **D4:** nothing is deleted. The audit script is still to do.
 
-**Before deploying, in this order:**
-1. `firebase deploy --only functions`.
-2. Deploy hosting (the new client).
-3. Run `cd functions && node scripts/backfill-staffroom-likes.cjs --dry-run`, then run it again without `--dry-run`.
-4. `firebase deploy --only firestore:rules`. Rules go last, so open old tabs keep working until then.
-5. Optional: add a Firestore TTL policy on `quiz_attempts.expires_at`.
+**Deploying:** merge the pull request into `main`. The GitHub workflows deploy
+everything: rules, functions, then the one-off Staffroom upvote backfill
+(`functions/scripts/backfill-staffroom-likes.cjs`, which marks itself done and
+skips itself later). The website deploys separately. For a few minutes during
+the deploy, the quizzes may show "Could not load", so merge at a quiet time.
+If the "Backfill Staffroom upvotes" step shows as failed, the deploy service
+account lacks Firestore write access. Run the script by hand with an admin key.
+Optional: a Firestore TTL policy on `quiz_attempts.expires_at` cleans up old attempts.
 
 Known limits: one person with several accounts can still add one view and one
 upvote per account. A poll's creator can still seed non-zero starting tallies.
